@@ -1,0 +1,108 @@
+{
+  "users": [
+    {
+      "id": "usr_demo123",
+      "email": "demo@example.com",
+      "name": "Demo User",
+      "plan": "Professional",
+      "stripe_customer_id": "cus_18471b",
+      "created_at": "2026-06-09T22:00:00Z"
+    }
+  ],
+  "invoices": [
+    {
+      "id": "inv_8w459xwzwes",
+      "user_id": "usr_demo123",
+      "object": "invoice",
+      "doc_type": "receipt",
+      "invoice_number": "WAYNE",
+      "status": "paid",
+      "client_name": "Valued Client",
+      "client_email": "bruce@waynecorp.com",
+      "client_address": "",
+      "business_name": "My Great Business Inc.",
+      "business_email": "",
+      "business_address": "",
+      "logo_url": "",
+      "currency": "usd",
+      "items": [
+        {
+          "description": "2 Batmobiles at $1500000 each and 5 Batarangs at $100 each",
+          "quantity": 1,
+          "unit_price": 200,
+          "amount": 200
+        }
+      ],
+      "subtotal": 200,
+      "discount_rate": 0,
+      "discount_amount": 0,
+      "tax_rate": 0,
+      "tax_amount": 0,
+      "total": 200,
+      "invoice_date": "2026-06-11",
+      "due_date": "2026-07-11",
+      "payment_terms": "Net 30",
+      "notes": "",
+      "pdf_url": "/dashboard/print?id=sawl5mh64e",
+      "created_at": "2026-06-11T18:22:14.567Z"
+    },
+    {
+      "id": "inv_example1",
+      "object": "invoice",
+      "client_name": "Stark Industries",
+      "client_email": "pepper@stark.com",
+      "currency": "usd",
+      "items": [
+        {
+          "description": "Arc Reactor Prototyping",
+          "quantity": 1,
+          "unit_price": 5000000,
+          "amount": 5000000
+        },
+        {
+          "description": "Vibranium Shield Polish",
+          "quantity": 2,
+          "unit_price": 25000,
+          "amount": 50000
+        }
+      ],
+      "taxes": 420000,
+      "subtotal": 5050000,
+      "total": 5470000,
+      "status": "paid",
+      "stripe_checkout_url": "https://checkout.stripe.com/c/pay/mock_cs_stark",
+      "pdf_url": "/dashboard/print?id=example1",
+      "created_at": "2026-06-08T10:15:30Z"
+    },
+    {
+      "id": "inv_example2",
+      "object": "invoice",
+      "client_name": "Wayne Enterprises",
+      "client_email": "bruce@waynecorp.com",
+      "currency": "eur",
+      "items": [
+        {
+          "description": "Night Vision Visor Upgrades",
+          "quantity": 5,
+          "unit_price": 80000,
+          "amount": 400000
+        }
+      ],
+      "taxes": 32000,
+      "subtotal": 400000,
+      "total": 432000,
+      "status": "unpaid",
+      "stripe_checkout_url": "https://checkout.stripe.com/c/pay/mock_cs_wayne",
+      "pdf_url": "/dashboard/print?id=example2",
+      "created_at": "2026-06-09T09:20:15Z"
+    }
+  ],
+  "usage": [
+    {
+      "user_id": "usr_demo123",
+      "month": "2026-06",
+      "invoices_created": 2,
+      "ai_parses_used": 4
+    }
+  ]
+}
