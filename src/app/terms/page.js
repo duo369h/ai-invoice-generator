@@ -89,16 +89,32 @@ export default function TermsOfService() {
                 5. Free & Premium Plans
               </h2>
               <p>
-                InvoiceAI offers a free tier with limited features. Premium plans with additional
-                capabilities will be available in the future. We reserve the right to modify
-                pricing and plan features with reasonable notice to users.
-                Payment processing features are currently in development and will be announced when available.
+                InvoiceAI offers a free tier with limited usage and a paid Pro plan at $9 USD per month.
+                Pro access is currently activated manually after we verify a PayPal payment receipt.
+                Paid users are responsible for providing the correct InvoiceAI account email when
+                requesting payment or sending a receipt, so we can match the payment to the right account.
+                We reserve the right to modify pricing and plan features with reasonable notice to users.
               </p>
             </section>
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                6. Disclaimer of Warranties
+                6. Payments, Renewals, and Refunds
+              </h2>
+              <p>
+                During the current beta period, PayPal payments are handled through payment requests
+                or invoices, and Pro access is activated manually. This is not yet an automatic recurring
+                subscription. Users must renew manually each month unless a separate arrangement is confirmed
+                by InvoiceAI. Refund requests are reviewed according to our{" "}
+                <Link href="/refund-policy" style={{ color: "var(--primary)", textDecoration: "underline" }}>
+                  Refund Policy
+                </Link>.
+              </p>
+            </section>
+
+            <section>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
+                7. Disclaimer of Warranties
               </h2>
               <p>
                 The Service is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind,
@@ -110,7 +126,7 @@ export default function TermsOfService() {
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                7. Limitation of Liability
+                8. Limitation of Liability
               </h2>
               <p>
                 In no event shall InvoiceAI be liable for any indirect, incidental, special,
@@ -121,7 +137,7 @@ export default function TermsOfService() {
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                8. Changes to Terms
+                9. Changes to Terms
               </h2>
               <p>
                 We reserve the right to modify these terms at any time. We will provide notice of
@@ -132,7 +148,7 @@ export default function TermsOfService() {
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                9. Contact
+                10. Contact
               </h2>
               <p>
                 If you have any questions about these Terms, please contact us through our{" "}
@@ -150,6 +166,7 @@ export default function TermsOfService() {
         <div className="container" style={{ display: "flex", justifyContent: "center", gap: "24px", flexWrap: "wrap" }}>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms" style={{ color: "var(--primary)" }}>Terms of Service</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact">Contact</Link>
         </div>
         <p style={{ marginTop: "12px" }}>© 2026 InvoiceAI. All rights reserved.</p>

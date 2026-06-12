@@ -53,6 +53,7 @@ export default function SharedFooter({ lang = 'en' }) {
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/privacy">{isZh ? '隐私政策' : 'Privacy Policy'}</Link></li>
               <li><Link href="/terms">{isZh ? '服务条款' : 'Terms of Service'}</Link></li>
+              <li><Link href="/refund-policy">{isZh ? '退款政策' : 'Refund Policy'}</Link></li>
               <li><Link href="/contact">{isZh ? '联系我们' : 'Contact Support'}</Link></li>
               <li><Link href="/dashboard">{isZh ? '控制台' : 'User Dashboard'}</Link></li>
             </ul>

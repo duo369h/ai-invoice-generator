@@ -159,6 +159,7 @@ export default function ContactPage() {
         <div className="container" style={{ display: "flex", justifyContent: "center", gap: "24px", flexWrap: "wrap" }}>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms">Terms of Service</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link>
         </div>
         <p style={{ marginTop: "12px" }}>© 2026 InvoiceAI. All rights reserved.</p>

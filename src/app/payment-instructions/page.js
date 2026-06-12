@@ -46,7 +46,7 @@ export default function PaymentInstructionsPage() {
     {
       num: '04',
       title: 'We Activate Your Account',
-      body: 'Our team reviews your PayPal receipt manually and upgrades your InvoiceAI account to Pro. This typically happens within a few hours on business days. We will reply to confirm activation.',
+      body: 'Our team reviews your PayPal receipt manually and upgrades your InvoiceAI account to Pro. This typically happens within a few hours on business days. We will reply to confirm activation. Automatic card-based upgrades are planned after our payment provider account is fully approved.',
     },
   ];
 
@@ -170,6 +170,7 @@ export default function PaymentInstructionsPage() {
                 ['Payment method', 'PayPal'],
                 ['Activation', 'Manual — within a few hours'],
                 ['Subscription renewal', 'Manual renewal required each month'],
+                ['Refund policy', 'Refund requests reviewed within 7 days'],
                 ['Contact', supportEmail],
               ].map(([label, value]) => (
                 <div key={label}>
@@ -177,6 +178,8 @@ export default function PaymentInstructionsPage() {
                   <p style={{ color: 'var(--text-main)', fontWeight: 500 }}>
                     {label === 'Contact'
                       ? <a href={`mailto:${value}`} style={{ color: 'var(--primary)' }}>{value}</a>
+                      : label === 'Refund policy'
+                        ? <Link href="/refund-policy" style={{ color: 'var(--primary)' }}>{value}</Link>
                       : value}
                   </p>
                 </div>
@@ -189,8 +192,9 @@ export default function PaymentInstructionsPage() {
             <strong style={{ color: 'var(--text-main)' }}>Note:</strong>{' '}
             InvoiceAI Pro is currently in manual-activation mode. We do not yet offer automatic
             recurring billing through PayPal. You will need to renew manually each month.
-            Automatic subscriptions will be available in a future release. Your payment is
-            protected by PayPal&apos;s Buyer Protection where applicable.
+            Automatic subscriptions and instant account upgrades will be available after our
+            payment provider setup is approved and connected. Your payment is protected by
+            PayPal&apos;s Buyer Protection where applicable.
           </div>
 
           {/* ── CTA ─────────────────────────────────────────────────── */}
@@ -235,6 +239,7 @@ export default function PaymentInstructionsPage() {
         <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '10px' }}>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms">Terms of Service</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact">Contact</Link>
           <Link href="/pricing" style={{ color: 'var(--primary)' }}>Pricing</Link>
         </div>

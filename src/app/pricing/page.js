@@ -77,7 +77,8 @@ export default function PricingPage() {
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '560px', margin: '0 auto 60px' }}>
             InvoiceAI&apos;s free plan covers the basics with no credit card needed. Pro unlocks
-            unlimited AI-powered invoicing — paid securely via PayPal.
+            higher usage for regular invoicing work — currently paid securely via PayPal and
+            activated manually during beta.
           </p>
 
           {/* ── PLAN CARDS ─────────────────────────────────────────── */}
@@ -201,8 +202,9 @@ export default function PricingPage() {
           <div style={{ marginTop: '60px', padding: '32px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', textAlign: 'left', maxWidth: '600px', margin: '60px auto 0' }}>
             <h3 style={{ fontWeight: 700, marginBottom: '12px', fontSize: '1rem' }}>How does Pro billing work?</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.7' }}>
-              Pro is currently activated manually. After you send your PayPal payment, our team
-              will verify the transaction and upgrade your access — usually within a few hours.
+              Pro is currently activated manually while automatic card billing is being prepared.
+              After you send your PayPal payment, our team will verify the transaction and upgrade
+              your access — usually within a few hours on business days.
               <br /><br />
               Have a question before paying?{' '}
               <a href={`mailto:${supportEmail}`} style={{ color: 'var(--primary)' }}>
@@ -218,6 +220,7 @@ export default function PricingPage() {
         <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '10px' }}>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms">Terms of Service</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact">Contact</Link>
           <Link href="/pricing" style={{ color: 'var(--primary)' }}>Pricing</Link>
         </div>

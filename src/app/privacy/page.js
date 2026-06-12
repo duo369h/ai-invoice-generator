@@ -81,7 +81,9 @@ export default function PrivacyPolicy() {
               <p>
                 Our AI-powered parsing feature sends text data to DeepSeek&apos;s API for processing.
                 This data is transmitted securely and is subject to DeepSeek&apos;s privacy policy.
-                We do not share your data with any other third-party services.
+                We may also use PayPal to process Pro plan payments during the beta period. Payment
+                details are handled by PayPal; InvoiceAI only uses payment confirmation information
+                to verify and activate Pro access.
               </p>
             </section>
 
@@ -127,6 +129,7 @@ export default function PrivacyPolicy() {
         <div className="container" style={{ display: "flex", justifyContent: "center", gap: "24px", flexWrap: "wrap" }}>
           <Link href="/privacy" style={{ color: "var(--primary)" }}>Privacy Policy</Link>
           <Link href="/terms">Terms of Service</Link>
+          <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact">Contact</Link>
         </div>
         <p style={{ marginTop: "12px" }}>© 2026 InvoiceAI. All rights reserved.</p>
