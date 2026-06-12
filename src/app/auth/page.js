@@ -52,6 +52,25 @@ export default function AuthPage() {
     setIsLoading(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    if (!client) return;
+
+    setIsLoading(true);
+    setStatus('');
+
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+
+    if (error) {
+      setStatus(error.message);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header className="navbar">
@@ -83,23 +102,34 @@ export default function AuthPage() {
               Supabase is not configured yet. Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to enable login.
             </div>
           ) : (
-            <form onSubmit={handleMagicLink}>
-              <div className="input-group">
-                <label className="input-label" htmlFor="auth-email">Email address</label>
-                <input
-                  id="auth-email"
-                  type="email"
-                  className="form-input"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isLoading}>
-                {isLoading ? 'Sending...' : 'Send magic link'}
+            <>
+              <button type="button" className="btn btn-google" onClick={handleGoogleSignIn} disabled={isLoading}>
+                <span className="google-mark" aria-hidden="true">G</span>
+                Continue with Google
               </button>
-            </form>
+
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
+
+              <form onSubmit={handleMagicLink}>
+                <div className="input-group">
+                  <label className="input-label" htmlFor="auth-email">Email address</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    className="form-input"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isLoading}>
+                  {isLoading ? 'Sending...' : 'Send magic link'}
+                </button>
+              </form>
+            </>
           )}
 
           {status && (
