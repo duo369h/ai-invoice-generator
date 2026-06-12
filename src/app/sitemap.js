@@ -33,6 +33,18 @@ export default function sitemap() {
     },
     ...seoUrls,
     {
+      url: `${baseUrl}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/payment-instructions`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
       url: `${baseUrl}/privacy`,
       lastModified: new Date(),
       changeFrequency: "monthly",

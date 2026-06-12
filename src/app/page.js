@@ -26,12 +26,12 @@ export default function Home() {
       planFreePrice: '$0',
       planFreePeriod: 'forever',
       planFreeFeatures: ['Up to 5 invoices/month', '3 AI parses/month', 'Basic PDF templates', 'Manual data entry'],
-      planProName: 'Professional — Coming Soon',
+      planProName: 'Professional',
       planProPrice: '$9',
       planProPeriod: 'per month',
       planProFeatures: ['Planned unlimited invoices & receipts', 'Planned 100 AI Auto-fills per month', 'Custom branding & logo uploads', 'High-quality PDF downloads'],
       choosePlan: 'Get Started',
-      joinWaitlist: 'Join Waitlist',
+      joinWaitlist: 'Pay with PayPal',
       footer: '© 2026 InvoiceAI. All rights reserved.'
     },
     zh: {
@@ -53,12 +53,12 @@ export default function Home() {
       planFreePrice: '¥0',
       planFreePeriod: '永久免费',
       planFreeFeatures: ['每月免费生成 5 张发票', '每月 3 次 AI 自动生成', '标准版 PDF 导出', '手动填写发票信息'],
-      planProName: '专业版 — 即将推出',
+      planProName: '专业版',
       planProPrice: '¥65',
       planProPeriod: '按月付费',
       planProFeatures: ['计划支持无限量发票与收据', '计划支持每月 100 次 AI 智能填充', '自定义品牌 Logo 与样式', '高清 PDF 无水印导出'],
       choosePlan: '开始使用',
-      joinWaitlist: '加入等待名单',
+      joinWaitlist: '通过 PayPal 支付',
       footer: '© 2026 InvoiceAI. 保留所有权利。'
     }
   };
@@ -81,6 +81,7 @@ export default function Home() {
         <div className="nav-links">
           <a href="#features" className="nav-link">{current.featuresTitle}</a>
           <a href="#pricing" className="nav-link">{lang === 'en' ? 'Pricing' : '资费价格'}</a>
+          <Link href="/pricing" className="nav-link" style={{ color: 'var(--primary)', fontWeight: 700 }}>{lang === 'en' ? 'Pro Plans' : '专业版'}</Link>
           <button 
             onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
             className="btn btn-secondary btn-sm"
@@ -228,7 +229,7 @@ export default function Home() {
             <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderColor: 'var(--primary)', boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)' }}>
               <div>
                 <div style={{ position: 'absolute', top: '15px', right: '15px' }}>
-                  <span className="badge" style={{ backgroundColor: 'var(--primary)', color: '#fff' }}>{lang === 'en' ? 'COMING SOON' : '即将推出'}</span>
+                  <span className="badge" style={{ backgroundColor: 'var(--primary)', color: '#fff' }}>{lang === 'en' ? 'MANUAL PAYPAL' : 'PayPal 人工开通'}</span>
                 </div>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px' }}>{current.planProName}</h3>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '16px' }}>
@@ -246,7 +247,7 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              <Link href="/dashboard?upgrade=true" className="btn btn-primary" style={{ textAlign: 'center' }}>
+              <Link href="/payment-instructions" className="btn btn-primary" style={{ textAlign: 'center' }}>
                 {current.joinWaitlist}
               </Link>
             </div>
