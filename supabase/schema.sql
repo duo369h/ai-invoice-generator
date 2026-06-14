@@ -282,6 +282,21 @@ CREATE TABLE IF NOT EXISTS public.quotes (
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES public.quotes(id) ON DELETE SET NULL;
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS stripe_payment_link TEXT DEFAULT '';
 
+-- Alter card profiles for production profile persistence
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS cover_banner TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS location TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS languages TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS availability_status TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS response_time TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS starting_price TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS calendly_link TEXT DEFAULT '';
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS verified_badge BOOLEAN DEFAULT false;
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS top_rated_badge BOOLEAN DEFAULT false;
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS fast_response_badge BOOLEAN DEFAULT false;
+ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS testimonials JSONB DEFAULT '[]';
+
 -- RLS Policies
 ALTER TABLE public.card_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
@@ -370,3 +385,126 @@ CREATE INDEX IF NOT EXISTS idx_card_profiles_user_id ON public.card_profiles(use
 CREATE INDEX IF NOT EXISTS idx_leads_freelancer_id ON public.leads(freelancer_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_user_id ON public.quotes(user_id);
 
+-- Production hardening: plan values
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_plan_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('free', 'pro', 'agency'));
+
+-- Production hardening: portal tokens
+CREATE TABLE IF NOT EXISTS public.portal_tokens (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  token_hash TEXT NOT NULL UNIQUE,
+  owner_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  resource_type TEXT NOT NULL CHECK (resource_type IN ('invoice', 'quote')),
+  resource_id UUID NOT NULL,
+  scope TEXT DEFAULT 'view:comment',
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_portal_tokens_hash ON public.portal_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_portal_tokens_owner ON public.portal_tokens(owner_id);
+CREATE INDEX IF NOT EXISTS idx_portal_tokens_resource ON public.portal_tokens(resource_type, resource_id);
+
+ALTER TABLE public.portal_tokens ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'portal_tokens' AND policyname = 'Users can view own portal tokens'
+  ) THEN
+    CREATE POLICY "Users can view own portal tokens"
+      ON public.portal_tokens FOR SELECT
+      USING (auth.uid() = owner_id);
+  END IF;
+END
+$$;
+
+-- Production hardening: subscriptions for Stripe skeleton
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT '';
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS price_id TEXT DEFAULT '';
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_check;
+ALTER TABLE public.subscriptions
+  ADD CONSTRAINT subscriptions_plan_check CHECK (plan IN ('free', 'pro', 'agency'));
+ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_status_check;
+ALTER TABLE public.subscriptions
+  ADD CONSTRAINT subscriptions_status_check CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete', 'unpaid'));
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON public.subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_subscription_id ON public.subscriptions(stripe_subscription_id);
+
+-- Production hardening: public profile read, owner-only writes
+ALTER TABLE public.card_profiles DROP CONSTRAINT IF EXISTS card_profiles_username_format;
+ALTER TABLE public.card_profiles
+  ADD CONSTRAINT card_profiles_username_format
+  CHECK (username ~ '^[a-z0-9_-]{3,40}$');
+
+DROP POLICY IF EXISTS "Users can manage own card profile" ON public.card_profiles;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'card_profiles' AND policyname = 'Users can insert own card profile'
+  ) THEN
+    CREATE POLICY "Users can insert own card profile"
+      ON public.card_profiles FOR INSERT
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'card_profiles' AND policyname = 'Users can update own card profile'
+  ) THEN
+    CREATE POLICY "Users can update own card profile"
+      ON public.card_profiles FOR UPDATE
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'card_profiles' AND policyname = 'Users can delete own card profile'
+  ) THEN
+    CREATE POLICY "Users can delete own card profile"
+      ON public.card_profiles FOR DELETE
+      USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+-- Production hardening: owner-scoped lead mutations
+DROP POLICY IF EXISTS "Users can update own leads" ON public.leads;
+
+CREATE POLICY "Users can update own leads"
+  ON public.leads FOR UPDATE
+  USING (auth.uid() = freelancer_id)
+  WITH CHECK (auth.uid() = freelancer_id);
+
+-- Production hardening: audit logs
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id UUID,
+  ip TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND policyname = 'Users can view own audit logs'
+  ) THEN
+    CREATE POLICY "Users can view own audit logs"
+      ON public.audit_logs FOR SELECT
+      USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON public.audit_logs(resource_type, resource_id);

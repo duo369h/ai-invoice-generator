@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getQuotesByUserId, savePortalToken, saveQuote, updateQuoteStatus } from '../../lib/db';
-import { createSupabasePortalToken, getRequestUser } from '../../lib/supabase';
+import { createSupabasePortalToken, getRequestUser, writeAuditLog } from '../../lib/supabase';
 import { rateLimit } from '../../lib/rate-limit';
 import { defaultPortalExpiry, failClosedResponse, generatePortalToken, getIp, hashPortalToken, isDemoModeAllowed } from '../../lib/security';
 import { enumValue, validateObject, validateQuotePayload, validationResponse } from '../../lib/validation';
@@ -22,7 +22,7 @@ function createLocalPortalToken({ ownerId, resourceType, resourceId }) {
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -54,7 +54,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -110,12 +110,21 @@ export async function POST(request) {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await context.supabase
-        .from('quotes')
-        .upsert(payload)
-        .select('*')
-        .single();
+      const result = id
+        ? await context.supabase
+          .from('quotes')
+          .update(payload)
+          .eq('id', id)
+          .eq('user_id', context.user.id)
+          .select('*')
+          .single()
+        : await context.supabase
+          .from('quotes')
+          .insert(payload)
+          .select('*')
+          .single();
 
+      const { data, error } = result;
       if (error) throw error;
       let portalToken = '';
       try {
@@ -127,6 +136,14 @@ export async function POST(request) {
       } catch (tokenErr) {
         console.error('Failed to create quote portal token:', tokenErr);
       }
+
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: id ? 'quote_updated' : 'quote_created',
+        resourceType: 'quote',
+        resourceId: data.id,
+        ip,
+      });
 
       return NextResponse.json({ ...data, portal_token: portalToken }, { status: 201 });
     }
@@ -177,7 +194,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -203,6 +220,13 @@ export async function PATCH(request) {
         .single();
 
       if (error) throw error;
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: 'quote_status_changed',
+        resourceType: 'quote',
+        resourceId: data.id,
+        ip,
+      });
       return NextResponse.json(data);
     }
 

@@ -10,7 +10,7 @@ const DEMO_USER_ID = 'usr_demo123';
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -49,7 +49,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -116,7 +116,7 @@ export async function POST(request) {
 export async function DELETE(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }

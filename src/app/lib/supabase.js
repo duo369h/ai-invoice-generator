@@ -145,10 +145,11 @@ export async function createSupabasePortalToken(supabase, {
   scope = 'view:comment',
   expiresAt = defaultPortalExpiry(),
 }) {
+  const writer = createServiceSupabaseClient() || supabase;
   const token = generatePortalToken();
   const tokenHash = hashPortalToken(token);
 
-  const { error } = await supabase.from('portal_tokens').insert({
+  const { error } = await writer.from('portal_tokens').insert({
     token_hash: tokenHash,
     owner_id: ownerId,
     resource_type: resourceType,
@@ -173,6 +174,29 @@ export async function resolveSupabasePortalToken(supabase, token) {
   if (error || !data) return null;
   if (data.expires_at && new Date(data.expires_at) <= new Date()) return null;
   return data;
+}
+
+export async function writeAuditLog(supabase, {
+  userId,
+  action,
+  resourceType,
+  resourceId = null,
+  ip = '',
+}) {
+  const writer = createServiceSupabaseClient() || supabase;
+  if (!writer || !userId || !action || !resourceType) return;
+
+  const { error } = await writer.from('audit_logs').insert({
+    user_id: userId,
+    action,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    ip,
+  });
+
+  if (error) {
+    console.error('Failed to write audit log:', error);
+  }
 }
 
 export async function getSupabaseQuota(supabase, userId, plan = 'free') {
@@ -226,7 +250,9 @@ export async function incrementSupabaseAiUsage(supabase, userId) {
     await supabase
       .from('usage')
       .update({ ai_parses_used: (existing.ai_parses_used || 0) + 1 })
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .eq('user_id', userId)
+      .eq('month', currentMonth);
     return;
   }
 
@@ -252,7 +278,9 @@ export async function incrementSupabaseInvoiceUsage(supabase, userId) {
     await supabase
       .from('usage')
       .update({ invoices_created: (existing.invoices_created || 0) + 1 })
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .eq('user_id', userId)
+      .eq('month', currentMonth);
     return;
   }
 

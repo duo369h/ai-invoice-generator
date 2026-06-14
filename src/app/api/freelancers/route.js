@@ -7,7 +7,7 @@ import { DEMO_PROFILES } from '../../lib/demo-data';
 export async function GET(request) {
   try {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }

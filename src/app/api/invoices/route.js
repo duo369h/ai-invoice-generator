@@ -7,7 +7,8 @@ import {
   getRequestUser,
   getSupabaseQuota,
   mapSupabaseInvoice,
-  incrementSupabaseInvoiceUsage
+  incrementSupabaseInvoiceUsage,
+  writeAuditLog
 } from '../../lib/supabase';
 import { rateLimit } from '../../lib/rate-limit';
 import { defaultPortalExpiry, failClosedResponse, generatePortalToken, getIp, hashPortalToken, isDemoModeAllowed } from '../../lib/security';
@@ -32,7 +33,7 @@ function createLocalPortalToken({ ownerId, resourceType, resourceId }) {
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -121,7 +122,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -240,6 +241,14 @@ export async function POST(request) {
         console.error('Failed to create invoice portal token:', tokenErr);
       }
 
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: 'invoice_created',
+        resourceType: 'invoice',
+        resourceId: data.id,
+        ip,
+      });
+
       return NextResponse.json({ ...mapSupabaseInvoice(data), portal_token: portalToken }, { status: 201 });
     }
 
@@ -323,7 +332,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -350,6 +359,14 @@ export async function PATCH(request) {
       if (error || !data) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
       }
+
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: 'invoice_status_changed',
+        resourceType: 'invoice',
+        resourceId: data.id,
+        ip,
+      });
 
       return NextResponse.json(mapSupabaseInvoice(data));
     }

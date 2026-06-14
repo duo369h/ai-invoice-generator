@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getInvoices, getPortalTokenByHash, getQuotes } from '../../../lib/db';
-import { createServiceSupabaseClient, resolveSupabasePortalToken } from '../../../lib/supabase';
+import { createServiceSupabaseClient, resolveSupabasePortalToken, writeAuditLog } from '../../../lib/supabase';
 import { rateLimit } from '../../../lib/rate-limit';
 import {
   failClosedResponse,
@@ -168,16 +168,19 @@ async function saveSupabaseComment(serviceSupabase, portalToken, comment) {
 export async function GET(request, { params }) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(`portal:get:${ip}`, 60, 60000);
+    const limitResult = await rateLimit(`portal:get:${ip}`, 60, 60000);
     if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+      return NextResponse.json(
+        { error: limitResult.error || 'Too many requests' },
+        { status: limitResult.status || 429 }
+      );
     }
 
     const { token } = await params;
     const resolved = await resolvePortalDocument(token);
     if (resolved === 'production-unconfigured') return failClosedResponse('Portal');
     if (!resolved) {
-      return NextResponse.json({ error: 'Document not found or access denied' }, { status: 404 });
+      return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
     }
 
     return NextResponse.json({ type: resolved.type, data: resolved.data });
@@ -190,9 +193,12 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(`portal:comment:${ip}`, 5, 60000);
+    const limitResult = await rateLimit(`portal:comment:${ip}`, 10, 60000);
     if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: limitResult.error || 'Too many requests. Please try again later.' },
+        { status: limitResult.status || 429 }
+      );
     }
 
     const { token } = await params;
@@ -204,7 +210,7 @@ export async function POST(request, { params }) {
     const resolved = await resolvePortalDocument(token);
     if (resolved === 'production-unconfigured') return failClosedResponse('Portal comments');
     if (!resolved) {
-      return NextResponse.json({ error: 'Document not found or access denied' }, { status: 404 });
+      return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
     }
 
     const comment = {
@@ -221,6 +227,16 @@ export async function POST(request, { params }) {
 
     if (!comments) {
       return NextResponse.json({ error: 'Unable to save comment' }, { status: 500 });
+    }
+
+    if (serviceSupabase) {
+      await writeAuditLog(serviceSupabase, {
+        userId: resolved.portalToken.owner_id,
+        action: 'portal_comment_created',
+        resourceType: resolved.portalToken.resource_type,
+        resourceId: resolved.portalToken.resource_id,
+        ip,
+      });
     }
 
     return NextResponse.json({ success: true, comments });

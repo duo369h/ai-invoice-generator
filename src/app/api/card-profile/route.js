@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCardProfileByUsername, getCardProfileByUserId, saveCardProfile } from '../../lib/db';
-import { createPublicSupabaseClient, getRequestUser } from '../../lib/supabase';
+import { createPublicSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
 import { rateLimit } from '../../lib/rate-limit';
 import { failClosedResponse, getIp, isDemoModeAllowed } from '../../lib/security';
 import { validateCardProfilePayload, validationResponse } from '../../lib/validation';
@@ -8,7 +8,7 @@ import { validateCardProfilePayload, validationResponse } from '../../lib/valida
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -17,6 +17,10 @@ export async function GET(request) {
 
     // Case 1: Public profile lookup by username (does not require auth)
     if (username) {
+      const normalizedUsername = String(username).toLowerCase().trim();
+      if (!/^[a-z0-9_-]{3,40}$/.test(normalizedUsername)) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      }
       const context = await getRequestUser(request); // optional auth check
       const publicSupabase = context.mode === 'supabase' ? context.supabase : createPublicSupabaseClient();
       
@@ -24,7 +28,7 @@ export async function GET(request) {
         const { data, error } = await publicSupabase
           .from('card_profiles')
           .select('*')
-          .eq('username', username)
+          .eq('username', normalizedUsername)
           .maybeSingle();
 
         if (error) throw error;
@@ -36,7 +40,7 @@ export async function GET(request) {
 
       // Local / Mock fallback
       if (!isDemoModeAllowed()) return failClosedResponse('Public profile');
-      const profile = getCardProfileByUsername(username);
+      const profile = getCardProfileByUsername(normalizedUsername);
       if (!profile) {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
@@ -72,7 +76,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -83,20 +87,43 @@ export async function POST(request) {
     const body = validateCardProfilePayload(await request.json());
 
     if (context.mode === 'supabase') {
-      // Upsert card profile in Supabase
       const payload = {
         user_id: context.user.id,
         ...body,
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await context.supabase
+      const { data: existing, error: existingError } = await context.supabase
         .from('card_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
-        .select('*')
-        .single();
+        .select('id')
+        .eq('user_id', context.user.id)
+        .maybeSingle();
 
+      if (existingError) throw existingError;
+
+      const result = existing
+        ? await context.supabase
+          .from('card_profiles')
+          .update(payload)
+          .eq('id', existing.id)
+          .eq('user_id', context.user.id)
+          .select('*')
+          .single()
+        : await context.supabase
+          .from('card_profiles')
+          .insert(payload)
+          .select('*')
+          .single();
+
+      const { data, error } = result;
       if (error) throw error;
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: existing ? 'card_profile_updated' : 'card_profile_created',
+        resourceType: 'card_profile',
+        resourceId: data.id,
+        ip,
+      });
       return NextResponse.json(data);
     }
 

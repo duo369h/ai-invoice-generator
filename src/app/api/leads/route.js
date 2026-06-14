@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getLeadsByUserId, saveLead, getCardProfileByUsername, updateLeadDetails } from '../../lib/db';
-import { createPublicSupabaseClient, getRequestUser } from '../../lib/supabase';
+import { createPublicSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
 import { rateLimit } from '../../lib/rate-limit';
 import { failClosedResponse, getIp, hasSpamSignals, isDemoModeAllowed } from '../../lib/security';
 import { enumValue, validateLeadPayload, validateObject, validationResponse } from '../../lib/validation';
@@ -8,7 +8,7 @@ import { enumValue, validateLeadPayload, validateObject, validationResponse } fr
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -40,7 +40,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 5, 60000); // 5 submissions per minute
+    const limitResult = await rateLimit(ip, 5, 60000); // 5 submissions per minute
     if (!limitResult.success) {
       console.warn(`Rate limit exceeded for IP: ${ip} on POST /api/leads`);
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
@@ -157,7 +157,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = rateLimit(ip, 60, 60000);
+    const limitResult = await rateLimit(ip, 60, 60000);
     if (!limitResult.success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -188,6 +188,7 @@ export async function PATCH(request) {
         .from('leads')
         .select('source_utm, status')
         .eq('id', id)
+        .eq('freelancer_id', context.user.id)
         .maybeSingle();
 
       if (fetchErr) throw fetchErr;
@@ -217,6 +218,13 @@ export async function PATCH(request) {
         .single();
 
       if (error) throw error;
+      await writeAuditLog(context.supabase, {
+        userId: context.user.id,
+        action: 'lead_status_changed',
+        resourceType: 'lead',
+        resourceId: data.id,
+        ip,
+      });
       return NextResponse.json(data);
     }
 

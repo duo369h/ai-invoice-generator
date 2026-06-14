@@ -3,6 +3,13 @@ import path from 'path';
 
 const DB_PATH = path.join(process.cwd(), 'db.json');
 
+function assertLocalPersistenceAllowed() {
+  const hasSupabase = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  if (process.env.NODE_ENV === 'production' && !hasSupabase) {
+    throw new Error('Production persistence is not configured');
+  }
+}
+
 // Helper to read all DB data
 function readData() {
   try {
@@ -16,6 +23,7 @@ function readData() {
 
 // Helper to write all DB data
 function writeData(data) {
+  assertLocalPersistenceAllowed();
   try {
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
   } catch (error) {

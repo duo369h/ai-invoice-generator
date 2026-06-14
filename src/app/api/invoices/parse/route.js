@@ -6,6 +6,9 @@ import {
   getSupabaseQuota,
   incrementSupabaseAiUsage
 } from '../../../lib/supabase';
+import { rateLimitByPolicy } from '../../../lib/rate-limit';
+import { failClosedResponse, getIp, isDemoModeAllowed } from '../../../lib/security';
+import { validateParsePayload, validationResponse } from '../../../lib/validation';
 
 const DEMO_USER_ID = 'usr_demo123';
 
@@ -156,11 +159,19 @@ function fallbackParse(text, type) {
 
 export async function POST(request) {
   try {
-    const context = await getRequestUser(request);
-    const { raw_text, type } = await request.json();
+    const limitResult = await rateLimitByPolicy('aiParse', getIp(request));
+    if (!limitResult.success) {
+      return NextResponse.json(
+        { error: limitResult.error || 'Too many requests' },
+        { status: limitResult.status || 429 }
+      );
+    }
 
-    if (!raw_text) {
-      return NextResponse.json({ error: 'raw_text is required' }, { status: 400 });
+    const context = await getRequestUser(request);
+    const { raw_text, type } = validateParsePayload(await request.json());
+
+    if (context.mode !== 'supabase' && !isDemoModeAllowed()) {
+      return failClosedResponse('AI parser');
     }
 
     // Check Quota
@@ -294,6 +305,8 @@ export async function POST(request) {
     }
 
   } catch (error) {
+    const validation = validationResponse(error);
+    if (validation) return validation;
     console.error('Error during AI parsing:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }

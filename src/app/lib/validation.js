@@ -185,9 +185,9 @@ export function validateCardProfilePayload(body) {
       };
     }) : [],
     social_links: {
-      github: text(social.github, 'social_links.github', { max: 80 }),
-      twitter: text(social.twitter, 'social_links.twitter', { max: 80 }),
-      linkedin: text(social.linkedin, 'social_links.linkedin', { max: 120 }),
+      github: safeUrl(social.github || ''),
+      twitter: safeUrl(social.twitter || ''),
+      linkedin: safeUrl(social.linkedin || ''),
       website: safeUrl(social.website || ''),
     },
   };
@@ -203,11 +203,11 @@ export function validatePortalCommentPayload(body) {
   };
 }
 
-export function validateParsePayload(body, fieldName) {
+export function validateParsePayload(body, fieldName = 'raw_text') {
   const obj = validateObject(body);
   return {
     [fieldName]: text(obj[fieldName], fieldName, { required: true, max: 8000 }),
-    type: text(obj.type || 'invoice', 'type', { max: 40 }),
+    type: enumValue(obj.type || 'invoice', 'type', ['invoice', 'receipt', 'quote'], 'invoice'),
   };
 }
 

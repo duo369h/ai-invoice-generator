@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getRequestUser } from '../../../lib/supabase';
-import { rateLimit } from '../../../lib/rate-limit';
+import { rateLimitByPolicy } from '../../../lib/rate-limit';
+import { getIp } from '../../../lib/security';
+import { validateParsePayload, validationResponse } from '../../../lib/validation';
 
 function fallbackQuoteParse(text) {
   // Extract email address
@@ -59,19 +60,17 @@ function fallbackQuoteParse(text) {
 
 export async function POST(request) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
-    const limitResult = rateLimit(ip, 5, 60000); // 5 requests per minute
+    const ip = getIp(request);
+    const limitResult = await rateLimitByPolicy('quoteGenerate', ip);
     if (!limitResult.success) {
       console.warn(`Rate limit exceeded for IP: ${ip} on POST /api/quotes/generate`);
-      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: limitResult.error || 'Too many requests. Please try again later.' },
+        { status: limitResult.status || 429 }
+      );
     }
 
-    const context = await getRequestUser(request);
-    const { message_text } = await request.json();
-
-    if (!message_text) {
-      return NextResponse.json({ error: 'message_text is required' }, { status: 400 });
-    }
+    const { message_text } = validateParsePayload(await request.json(), 'message_text');
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
     const isValidKey = apiKey && 
@@ -151,6 +150,8 @@ export async function POST(request) {
     }
 
   } catch (error) {
+    const validation = validationResponse(error);
+    if (validation) return validation;
     console.error('Error generating quote:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
