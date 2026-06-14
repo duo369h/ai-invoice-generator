@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createBrowserSupabaseClient } from '../lib/supabase';
+import { createBrowserSupabaseClient } from '../lib/supabase-client';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -75,7 +75,13 @@ export default function AuthPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header className="navbar">
         <div className="logo-container">
-          <Link href="/">InvoiceAI</Link>
+          <svg style={{ width: "22px", height: "22px" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="9" y1="9" x2="15" y2="9" />
+            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="17" x2="13" y2="17" />
+          </svg>
+          <Link href="/">Freelancer Business OS</Link>
         </div>
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>

@@ -10,14 +10,26 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Clients
+CREATE TABLE IF NOT EXISTS public.clients (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Invoices
 CREATE TABLE IF NOT EXISTS public.invoices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   invoice_number TEXT NOT NULL,
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue')),
-  doc_type TEXT DEFAULT 'invoice' CHECK (doc_type IN ('invoice', 'receipt')),
-  -- Client
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'sent', 'paid', 'overdue', 'approved')),
+  doc_type TEXT DEFAULT 'invoice' CHECK (doc_type IN ('invoice', 'receipt', 'quote')),
+  client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
+  -- Client (flat copy for printing)
   client_name TEXT NOT NULL,
   client_email TEXT DEFAULT '',
   client_address TEXT DEFAULT '',
@@ -69,6 +81,7 @@ CREATE TABLE IF NOT EXISTS public.usage (
 
 -- RLS Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usage ENABLE ROW LEVEL SECURITY;
@@ -174,3 +187,186 @@ $$;
 CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON public.invoices(user_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON public.invoices(status);
 CREATE INDEX IF NOT EXISTS idx_usage_user_month ON public.usage(user_id, month);
+
+-- Clients Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'clients' AND policyname = 'Users can view own clients'
+  ) THEN
+    CREATE POLICY "Users can view own clients"
+      ON public.clients FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'clients' AND policyname = 'Users can insert own clients'
+  ) THEN
+    CREATE POLICY "Users can insert own clients"
+      ON public.clients FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'clients' AND policyname = 'Users can update own clients'
+  ) THEN
+    CREATE POLICY "Users can update own clients"
+      ON public.clients FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'clients' AND policyname = 'Users can delete own clients'
+  ) THEN
+    CREATE POLICY "Users can delete own clients"
+      ON public.clients FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_clients_user_id ON public.clients(user_id);
+
+-- Card Profiles
+CREATE TABLE IF NOT EXISTS public.card_profiles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  username TEXT NOT NULL UNIQUE,
+  name TEXT DEFAULT '',
+  title TEXT DEFAULT '',
+  bio TEXT DEFAULT '',
+  tags JSONB DEFAULT '[]',
+  services JSONB DEFAULT '[]',
+  portfolio JSONB DEFAULT '[]',
+  contact_email TEXT DEFAULT '',
+  contact_phone TEXT DEFAULT '',
+  social_links JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Leads
+CREATE TABLE IF NOT EXISTS public.leads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  card_profile_id UUID REFERENCES public.card_profiles(id) ON DELETE CASCADE,
+  freelancer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT DEFAULT '',
+  message TEXT DEFAULT '',
+  status TEXT DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'quote_generated', 'archived')),
+  visitor_ip TEXT DEFAULT '',
+  source_utm JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Quotes
+CREATE TABLE IF NOT EXISTS public.quotes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  quote_number TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  client_email TEXT DEFAULT '',
+  client_address TEXT DEFAULT '',
+  items JSONB DEFAULT '[]',
+  subtotal INTEGER DEFAULT 0,
+  discount_rate NUMERIC(5,2) DEFAULT 0,
+  discount_amount INTEGER DEFAULT 0,
+  tax_rate NUMERIC(5,2) DEFAULT 0,
+  tax_amount INTEGER DEFAULT 0,
+  total INTEGER DEFAULT 0,
+  currency TEXT DEFAULT 'USD',
+  notes TEXT DEFAULT '',
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'approved', 'declined', 'converted')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Alter invoices
+ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES public.quotes(id) ON DELETE SET NULL;
+ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS stripe_payment_link TEXT DEFAULT '';
+
+-- RLS Policies
+ALTER TABLE public.card_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
+
+-- Card Profiles Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'card_profiles' AND policyname = 'Card profiles are publicly viewable'
+  ) THEN
+    CREATE POLICY "Card profiles are publicly viewable"
+      ON public.card_profiles FOR SELECT USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'card_profiles' AND policyname = 'Users can manage own card profile'
+  ) THEN
+    CREATE POLICY "Users can manage own card profile"
+      ON public.card_profiles FOR ALL USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+-- Leads Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'leads' AND policyname = 'Users can view own leads'
+  ) THEN
+    CREATE POLICY "Users can view own leads"
+      ON public.leads FOR SELECT USING (auth.uid() = freelancer_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'leads' AND policyname = 'Anyone can insert leads'
+  ) THEN
+    CREATE POLICY "Anyone can insert leads"
+      ON public.leads FOR INSERT WITH CHECK (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'leads' AND policyname = 'Users can update own leads'
+  ) THEN
+    CREATE POLICY "Users can update own leads"
+      ON public.leads FOR UPDATE USING (auth.uid() = freelancer_id);
+  END IF;
+END
+$$;
+
+-- Quotes Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Users can view own quotes'
+  ) THEN
+    CREATE POLICY "Users can view own quotes"
+      ON public.quotes FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Users can insert own quotes'
+  ) THEN
+    CREATE POLICY "Users can insert own quotes"
+      ON public.quotes FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Users can update own quotes'
+  ) THEN
+    CREATE POLICY "Users can update own quotes"
+      ON public.quotes FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Users can delete own quotes'
+  ) THEN
+    CREATE POLICY "Users can delete own quotes"
+      ON public.quotes FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_card_profiles_username ON public.card_profiles(username);
+CREATE INDEX IF NOT EXISTS idx_card_profiles_user_id ON public.card_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_leads_freelancer_id ON public.leads(freelancer_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_user_id ON public.quotes(user_id);
+

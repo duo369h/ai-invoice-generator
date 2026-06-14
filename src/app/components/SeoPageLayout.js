@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import FaqAccordion from './FaqAccordion';
 import SharedFooter from './SharedFooter';
+import ThemeToggle from './ThemeToggle';
 
 export default function SeoPageLayout({
   title,
@@ -43,7 +44,7 @@ export default function SeoPageLayout({
             <line x1="9" y1="13" x2="15" y2="13" />
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
-          <Link href="/">InvoiceAI</Link>
+          <Link href="/">Freelancer Business OS</Link>
         </div>
         <div className="nav-links">
           <Link href="/#features" className="nav-link">{isZh ? '功能介绍' : 'Features'}</Link>
@@ -51,6 +52,7 @@ export default function SeoPageLayout({
           <Link href="/dashboard" className="btn btn-primary btn-sm">
             {isZh ? '控制台' : 'Dashboard'}
           </Link>
+          <ThemeToggle />
         </div>
       </nav>
 
@@ -97,7 +99,7 @@ export default function SeoPageLayout({
           <p style={{ color: 'var(--text-muted)', marginBottom: '25px', fontSize: '0.95rem' }}>
             {isZh 
               ? '使用发票智能助手，省去手动填写的繁琐。无需注册，直接使用！'
-              : 'Try InvoiceAI for free today. Paste text, generate structured PDFs in seconds. No signup required.'}
+              : 'Try Freelancer OS for free today. Generate quotes, track client leads, collect payments, and export clean PDFs in seconds.'}
           </p>
           <Link href="/dashboard" className="btn btn-primary" style={{ padding: '0.8rem 2.5rem' }}>
             {isZh ? '免费体验' : 'Get Started Now'}

@@ -1,57 +1,42 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getSiteUrl } from "./lib/config";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import GlobalFeedbackMenu from "./components/GlobalFeedbackMenu";
 
 const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
-    default: "InvoiceAI — Free AI Invoice & Receipt Generator for Freelancers",
-    template: "%s | InvoiceAI",
+    default: "Freelancer Business OS — The operating system for modern freelancers",
+    template: "%s | Freelancer Business OS",
   },
   description:
-    "Create professional invoices and receipts in seconds with AI. Paste plain text, get structured documents. Export clean PDFs. Built for freelancers, contractors, and small businesses worldwide.",
+    "The operating system for modern freelancers in the US and Canada. Create a public profile, capture client requests, send milestone quotes, and clear payments with zero commission cuts.",
   keywords: [
-    "invoice generator",
-    "receipt generator",
-    "AI invoice",
-    "freelancer invoice",
-    "free invoice tool",
-    "PDF invoice",
-    "online invoice maker",
-    "invoice creator",
-    "receipt maker",
-    "billing software",
-    "freelance billing",
-    "contractor invoice",
+    "freelancer business os",
+    "freelance directory",
+    "invoice templates",
+    "milestone quotes",
+    "client portal crm",
+    "payment link checkouts",
+    "freelance client intake"
   ],
-  authors: [{ name: "InvoiceAI Team" }],
-  creator: "InvoiceAI",
+  authors: [{ name: "Freelancer Business OS Team" }],
+  creator: "Freelancer Business OS",
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: "InvoiceAI — Free AI Invoice & Receipt Generator",
+    title: "Freelancer Business OS — The operating system for modern freelancers",
     description:
-      "Create professional invoices and receipts in seconds with AI. Paste text, get structured documents. Export PDFs. Free for freelancers.",
+      "Create a public profile, capture client requests, send milestone quotes, and clear payments in one place. Add your custom Stripe, PayPal, or LemonSqueezy billing link.",
     url: siteUrl,
-    siteName: "InvoiceAI",
+    siteName: "Freelancer Business OS",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "InvoiceAI — Free AI Invoice & Receipt Generator",
+    title: "Freelancer Business OS — The operating system for modern freelancers",
     description:
-      "Create professional invoices and receipts in seconds with AI. Free for freelancers and small businesses.",
+      "The one-stop platform for freelancers to win clients, capture leads, compile proposals, track milestones, and collect payments.",
   },
   robots: {
     index: true,
@@ -64,12 +49,61 @@ export const metadata = {
       "max-snippet": -1,
     },
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "google-site-verification-placeholder",
+  },
 };
 
 export default function RootLayout({ children }) {
+  const gaId = process.env.NEXT_PUBLIC_GA_ID;
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID;
+
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+    <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{__html: `
+          (function() {
+            try {
+              var savedTheme = localStorage.getItem('theme') || 'system';
+              var theme = 'light';
+              if (savedTheme === 'dark') {
+                theme = 'dark';
+              } else if (savedTheme === 'light') {
+                theme = 'light';
+              } else {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                  theme = 'dark';
+                }
+              }
+              document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+          })();
+        `}} />
+        {gaId && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+            <script dangerouslySetInnerHTML={{__html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${gaId}');
+            `}}></script>
+          </>
+        )}
+        {clarityId && (
+          <script dangerouslySetInnerHTML={{__html: `
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script","${clarityId}");
+          `}}></script>
+        )}
+      </head>
+      <body>
+        {children}
+        <GlobalFeedbackMenu />
+      </body>
     </html>
   );
 }

@@ -7,6 +7,123 @@
       "plan": "Professional",
       "stripe_customer_id": "cus_18471b",
       "created_at": "2026-06-09T22:00:00Z"
+    },
+    {
+      "id": "usr_mock123",
+      "email": "freelancer@example.com",
+      "name": "Simulated Freelancer",
+      "plan": "free",
+      "created_at": "2026-06-13T22:00:00Z"
+    }
+  ],
+  "card_profiles": [
+    {
+      "id": "cp_demo123",
+      "user_id": "usr_demo123",
+      "username": "demo",
+      "name": "Alex Morgan",
+      "title": "Senior Product Designer & Developer",
+      "bio": "I design and build high-performance web applications and digital interfaces. Specializing in SaaS design, Next.js engineering, and complex interactive dashboard components.",
+      "tags": ["React", "UI/UX Design", "Next.js", "TailwindCSS", "Node.js"],
+      "services": [
+        {
+          "id": "srv_1",
+          "name": "SaaS Platform Design & Prototyping",
+          "description": "End-to-end UX research, wireframing, and interactive design in Figma, optimized for developer handoff.",
+          "rate_type": "fixed",
+          "rate_amount": 3500
+        },
+        {
+          "id": "srv_2",
+          "name": "Front-End Development (React/Next.js)",
+          "description": "High fidelity frontend engineering with smooth transitions and production-ready clean JSX code.",
+          "rate_type": "hourly",
+          "rate_amount": 120
+        }
+      ],
+      "portfolio": [
+        {
+          "title": "Stripe/Linear Redesign Concept",
+          "description": "Visual redesign showcasing calm SaaS themes and glassmorphic dashboards.",
+          "link": "https://example.com/stripe-redesign"
+        },
+        {
+          "title": "Growth Forest Web App",
+          "description": "AI-driven school communication platform build using Next.js 16.",
+          "link": "https://example.com/growth-forest"
+        }
+      ],
+      "contact_email": "demo@example.com",
+      "contact_phone": "+1 (555) 019-2834",
+      "social_links": {
+        "twitter": "alex_design",
+        "linkedin": "alex-morgan-ux",
+        "github": "alexmorgan",
+        "website": "https://alexmorgan.design"
+      },
+      "created_at": "2026-06-13T22:00:00Z",
+      "updated_at": "2026-06-13T22:00:00Z"
+    }
+  ],
+  "leads": [
+    {
+      "id": "lead_1",
+      "card_profile_id": "cp_demo123",
+      "freelancer_id": "usr_demo123",
+      "name": "Bruce Wayne",
+      "email": "bruce@waynecorp.com",
+      "message": "Hey Alex, we need a flat-fee design package for a new security dashboard project we are launching in Q3. Budget is around $5000.",
+      "status": "new",
+      "visitor_ip": "127.0.0.1",
+      "source_utm": {
+        "utm_source": "twitter",
+        "utm_medium": "social"
+      },
+      "created_at": "2026-06-14T02:10:00.000Z",
+      "updated_at": "2026-06-14T02:10:00.000Z"
+    },
+    {
+      "id": "lead_2",
+      "card_profile_id": "cp_demo123",
+      "freelancer_id": "usr_demo123",
+      "name": "Tony Stark",
+      "email": "tony@stark.com",
+      "message": "Need hourly React consultation for our Arc Reactor dashboard interface. We want to bill 15 hours next week.",
+      "status": "contacted",
+      "visitor_ip": "192.168.1.1",
+      "source_utm": {
+        "utm_source": "linkedin"
+      },
+      "created_at": "2026-06-14T01:15:00.000Z",
+      "updated_at": "2026-06-14T01:15:00.000Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "quote_1",
+      "user_id": "usr_demo123",
+      "quote_number": "QT-001",
+      "client_name": "Wayne Enterprises",
+      "client_email": "bruce@waynecorp.com",
+      "client_address": "1007 Mountain Drive, Gotham City",
+      "items": [
+        {
+          "description": "Custom Security Dashboard UX Research & Interactive Prototyping",
+          "quantity": 1,
+          "unit_price": 500000
+        }
+      ],
+      "subtotal": 500000,
+      "discount_rate": 0,
+      "discount_amount": 0,
+      "tax_rate": 5,
+      "tax_amount": 25000,
+      "total": 525000,
+      "currency": "USD",
+      "notes": "Thank you for inviting me to quote. This estimate is valid for 30 days.",
+      "status": "sent",
+      "created_at": "2026-06-14T03:00:00.000Z",
+      "updated_at": "2026-06-14T03:00:00.000Z"
     }
   ],
   "invoices": [
@@ -20,14 +137,14 @@
       "client_name": "Valued Client",
       "client_email": "bruce@waynecorp.com",
       "client_address": "",
-      "business_name": "My Great Business Inc.",
-      "business_email": "",
+      "business_name": "Alex Morgan Design",
+      "business_email": "demo@example.com",
       "business_address": "",
       "logo_url": "",
       "currency": "usd",
       "items": [
         {
-          "description": "2 Batmobiles at $1500000 each and 5 Batarangs at $100 each",
+          "description": "Advisory hours and batmobile adjustments",
           "quantity": 1,
           "unit_price": 200,
           "amount": 200
@@ -45,63 +162,13 @@
       "notes": "",
       "pdf_url": "/dashboard/print?id=sawl5mh64e",
       "created_at": "2026-06-11T18:22:14.567Z"
-    },
-    {
-      "id": "inv_example1",
-      "object": "invoice",
-      "client_name": "Stark Industries",
-      "client_email": "pepper@stark.com",
-      "currency": "usd",
-      "items": [
-        {
-          "description": "Arc Reactor Prototyping",
-          "quantity": 1,
-          "unit_price": 5000000,
-          "amount": 5000000
-        },
-        {
-          "description": "Vibranium Shield Polish",
-          "quantity": 2,
-          "unit_price": 25000,
-          "amount": 50000
-        }
-      ],
-      "taxes": 420000,
-      "subtotal": 5050000,
-      "total": 5470000,
-      "status": "paid",
-      "stripe_checkout_url": "https://checkout.stripe.com/c/pay/mock_cs_stark",
-      "pdf_url": "/dashboard/print?id=example1",
-      "created_at": "2026-06-08T10:15:30Z"
-    },
-    {
-      "id": "inv_example2",
-      "object": "invoice",
-      "client_name": "Wayne Enterprises",
-      "client_email": "bruce@waynecorp.com",
-      "currency": "eur",
-      "items": [
-        {
-          "description": "Night Vision Visor Upgrades",
-          "quantity": 5,
-          "unit_price": 80000,
-          "amount": 400000
-        }
-      ],
-      "taxes": 32000,
-      "subtotal": 400000,
-      "total": 432000,
-      "status": "unpaid",
-      "stripe_checkout_url": "https://checkout.stripe.com/c/pay/mock_cs_wayne",
-      "pdf_url": "/dashboard/print?id=example2",
-      "created_at": "2026-06-09T09:20:15Z"
     }
   ],
   "usage": [
     {
       "user_id": "usr_demo123",
       "month": "2026-06",
-      "invoices_created": 2,
+      "invoices_created": 1,
       "ai_parses_used": 4
     }
   ]

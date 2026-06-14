@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { getSupportEmail } from "../lib/config";
 
-
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: "",
@@ -20,7 +19,6 @@ export default function ContactPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // MVP: Just show success message (no backend email service yet)
     setSubmitted(true);
   };
 
@@ -35,7 +33,7 @@ export default function ContactPage() {
             <line x1="9" y1="13" x2="15" y2="13" />
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
-          <Link href="/">InvoiceAI</Link>
+          <Link href="/">Freelancer Business OS</Link>
         </div>
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
@@ -56,27 +54,33 @@ export default function ContactPage() {
 
           {/* Contact Info Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "40px" }}>
-            <div className="card" style={{ padding: "20px", textAlign: "center" }}>
-              <div style={{ fontSize: "1.5rem", marginBottom: "8px" }}>📧</div>
-              <h3 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "4px" }}>Email</h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>{getSupportEmail()}</p>
+            <div className="card" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(99, 102, 241, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              </div>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "4px" }}>Email Support</h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>{getSupportEmail()}</p>
             </div>
-            <div className="card" style={{ padding: "20px", textAlign: "center" }}>
-              <div style={{ fontSize: "1.5rem", marginBottom: "8px" }}>🌐</div>
-              <h3 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "4px" }}>Social</h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>@invoiceai on X</p>
+            <div className="card" style={{ padding: "24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(99, 102, 241, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+              </div>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "4px" }}>Social Channel</h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>@freelancer_os on X</p>
             </div>
           </div>
 
           {/* Contact Form */}
           {submitted ? (
-            <div className="card" style={{ padding: "40px", textAlign: "center" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "16px" }}>✅</div>
+            <div className="card" style={{ padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
               <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "8px" }}>
                 Message Sent!
               </h2>
               <p style={{ color: "var(--text-muted)", marginBottom: "24px" }}>
-                Thank you for reaching out. We&apos;ll get back to you within 24-48 hours.
+                Thank you for reaching out. We&apos;ll get back to you within 2 hours.
               </p>
               <button
                 onClick={() => { setSubmitted(false); setFormData({ name: "", email: "", subject: "", message: "" }); }}
@@ -162,7 +166,7 @@ export default function ContactPage() {
           <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link>
         </div>
-        <p style={{ marginTop: "12px" }}>© 2026 InvoiceAI. All rights reserved.</p>
+        <p style={{ marginTop: "12px" }}>© 2026 Freelancer Business OS. All rights reserved.</p>
       </footer>
     </div>
   );

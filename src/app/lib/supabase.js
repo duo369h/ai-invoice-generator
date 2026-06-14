@@ -1,24 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { getUserById, saveUser } from './db';
+import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security';
 
 export function isSupabaseConfigured() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
-
-export function createBrowserSupabaseClient() {
-  if (!isSupabaseConfigured() || typeof window === 'undefined') return null;
-
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    }
   );
 }
 
@@ -47,7 +34,56 @@ export function createRequestSupabaseClient(request) {
   );
 }
 
+export function createPublicSupabaseClient() {
+  if (!isSupabaseConfigured()) return null;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+}
+
+export function createServiceSupabaseClient() {
+  if (!isSupabaseConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+}
+
 export async function getRequestUser(request) {
+  const authHeader = request.headers.get('authorization') || '';
+  if (process.env.NODE_ENV === 'development' && authHeader === 'Bearer mock_freelancer_token') {
+    const db = await import('./db');
+    let mockUser = db.getUserById('usr_mock123');
+    if (!mockUser) {
+      mockUser = saveUser({
+        id: 'usr_mock123',
+        email: 'freelancer@example.com',
+        name: 'Simulated Freelancer',
+        plan: 'free',
+        created_at: new Date().toISOString()
+      });
+    }
+    return { 
+      mode: 'mock', 
+      user: { id: mockUser.id, email: mockUser.email, name: mockUser.name } 
+    };
+  }
+
   const supabase = createRequestSupabaseClient(request);
   if (!supabase) return { mode: 'demo', supabase: null, user: null };
 
@@ -94,11 +130,49 @@ export function mapSupabaseInvoice(row) {
   return {
     ...row,
     object: 'invoice',
-    status: row.status === 'draft' ? 'unpaid' : row.status,
+    status: row.status || 'draft',
     currency: (row.currency || 'USD').toLowerCase(),
     discount_rate: Number(row.discount_rate || 0),
     tax_rate: Number(row.tax_rate || 0),
+    payment_link: row.stripe_payment_link || '',
   };
+}
+
+export async function createSupabasePortalToken(supabase, {
+  ownerId,
+  resourceType,
+  resourceId,
+  scope = 'view:comment',
+  expiresAt = defaultPortalExpiry(),
+}) {
+  const token = generatePortalToken();
+  const tokenHash = hashPortalToken(token);
+
+  const { error } = await supabase.from('portal_tokens').insert({
+    token_hash: tokenHash,
+    owner_id: ownerId,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    scope,
+    expires_at: expiresAt,
+  });
+
+  if (error) throw error;
+  return token;
+}
+
+export async function resolveSupabasePortalToken(supabase, token) {
+  const tokenHash = hashPortalToken(token);
+  const { data, error } = await supabase
+    .from('portal_tokens')
+    .select('*')
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (data.expires_at && new Date(data.expires_at) <= new Date()) return null;
+  return data;
 }
 
 export async function getSupabaseQuota(supabase, userId, plan = 'free') {
@@ -161,5 +235,31 @@ export async function incrementSupabaseAiUsage(supabase, userId) {
     month: currentMonth,
     invoices_created: 0,
     ai_parses_used: 1,
+  });
+}
+
+export async function incrementSupabaseInvoiceUsage(supabase, userId) {
+  const currentMonth = new Date().toISOString().substring(0, 7);
+
+  const { data: existing } = await supabase
+    .from('usage')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('month', currentMonth)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from('usage')
+      .update({ invoices_created: (existing.invoices_created || 0) + 1 })
+      .eq('id', existing.id);
+    return;
+  }
+
+  await supabase.from('usage').insert({
+    user_id: userId,
+    month: currentMonth,
+    invoices_created: 1,
+    ai_parses_used: 0,
   });
 }

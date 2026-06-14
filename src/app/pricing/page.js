@@ -1,231 +1,304 @@
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { getSupportEmail } from '../lib/config';
-
-export const metadata = {
-  title: 'Pricing — InvoiceAI',
-  description:
-    'Simple, transparent pricing for InvoiceAI. Start free, or upgrade to Pro for unlimited AI-powered invoicing. Pay via PayPal.',
-};
-
-const CHECK_ICON = (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    style={{ color: '#10b981', flexShrink: 0 }}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-  </svg>
-);
-
-const CROSS_ICON = (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    style={{ color: '#475569', flexShrink: 0 }}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
+import ThemeToggle from '../components/ThemeToggle';
+import { Button, PricingCard } from '../components/UIComponents';
 
 export default function PricingPage() {
-  const supportEmail = getSupportEmail();
+  const [activeFaq, setActiveFaq] = useState(null);
+  const [isAnnual, setIsAnnual] = useState(false);
+
+  const pricingFaq = [
+    {
+      q: 'How does manual Pro activation work during the beta?',
+      a: 'We are currently accepting secure PayPal transfers to verify beta members. After you send your transfer, our team matches the transaction email and updates your account plan level, typically within 2 hours.'
+    },
+    {
+      q: 'Can I cancel or change my plan level later?',
+      a: 'Yes. You can cancel your subscription or change tiers at any time inside your dashboard Billing settings panel. Changes will apply immediately.'
+    },
+    {
+      q: 'Are there any hidden transaction or payment fees?',
+      a: 'No. You can add your Stripe, PayPal, or LemonSqueezy payment link directly to your invoices. We charge 0% overhead so you keep 100% of your earnings.'
+    }
+  ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-
-      {/* ── NAV ─────────────────────────────────────────────────── */}
-      <header className="navbar">
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'Outfit, sans-serif' }}>
+      
+      {/* Nav bar */}
+      <nav className="navbar" style={{ borderBottom: '1px solid var(--border)', padding: '0 2rem' }}>
         <div className="logo-container">
-          <svg style={{ width: '24px', height: '24px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg style={{ width: '22px', height: '22px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <line x1="9" y1="9" x2="15" y2="9" />
-            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="13" x2="15" y2="9" />
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
-          <Link href="/">InvoiceAI</Link>
+          <Link href="/">Freelancer Business OS</Link>
         </div>
         <div className="nav-links">
-          <Link href="/#features" className="nav-link">Features</Link>
-          <Link href="/pricing" className="nav-link" style={{ color: 'var(--text-main)', fontWeight: 700 }}>Pricing</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
+          <Link href="/freelancers" className="nav-link">Directory</Link>
+          <Link href="/blog" className="nav-link">Blog</Link>
+          <Link href="/pricing" className="nav-link" style={{ fontWeight: 700 }}>Pricing</Link>
+          <Button href="/dashboard" variant="secondary" size="sm">Dashboard</Button>
+          <ThemeToggle />
         </div>
-      </header>
+      </nav>
 
-      {/* ── HERO ─────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: '80px 24px 60px' }}>
-        <div className="animate-fade-in" style={{ maxWidth: '860px', margin: '0 auto', textAlign: 'center' }}>
-          <span className="badge" style={{ marginBottom: '20px' }}>Simple Pricing</span>
-          <h1 style={{
-            fontSize: '3rem',
-            fontWeight: 800,
-            letterSpacing: '-1.5px',
-            lineHeight: 1.1,
-            marginBottom: '20px',
-            background: 'linear-gradient(135deg, #fff, #94a3b8)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            Start free. Upgrade when you&apos;re ready.
+      {/* Main Content */}
+      <main style={{ maxWidth: '1040px', margin: '0 auto', padding: '80px 24px' }}>
+        
+        {/* Hero Header */}
+        <header style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <span className="badge" style={{ marginBottom: '16px', fontSize: '0.75rem' }}>
+            TRANSPARENT TIER PACKAGES
+          </span>
+          <h1 className="glow-gradient-text" style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '-0.04em', marginBottom: '16px', background: 'linear-gradient(135deg, var(--text-main) 30%, var(--text-muted) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Simple, predictable pricing.
           </h1>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '560px', margin: '0 auto 60px' }}>
-            InvoiceAI&apos;s free plan covers the basics with no credit card needed. Pro unlocks
-            higher usage for regular invoicing work — currently paid securely via PayPal and
-            activated manually during beta.
+          <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', maxWidth: '540px', margin: '0 auto' }}>
+            Get started for free or unlock the full power of a dedicated independent business system.
           </p>
+        </header>
 
-          {/* ── PLAN CARDS ─────────────────────────────────────────── */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '28px',
-            textAlign: 'left',
-          }}>
+        {/* Annual Billing Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '48px' }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: !isAnnual ? 'var(--text-main)' : 'var(--text-muted)' }}>Billed Monthly</span>
+          <button 
+            type="button" 
+            onClick={() => setIsAnnual(!isAnnual)}
+            style={{ 
+              width: '50px', 
+              height: '26px', 
+              borderRadius: '99px', 
+              background: 'var(--primary)', 
+              position: 'relative', 
+              padding: 0, 
+              cursor: 'pointer',
+              border: 'none',
+              outline: 'none',
+              transition: 'var(--transition)'
+            }}
+          >
+            <div style={{ 
+              width: '20px', 
+              height: '20px', 
+              borderRadius: '50%', 
+              background: '#ffffff', 
+              position: 'absolute', 
+              top: '3px', 
+              left: isAnnual ? '27px' : '3px',
+              transition: 'var(--transition)'
+            }} />
+          </button>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isAnnual ? 'var(--text-main)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Billed Annually
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 6px', background: 'rgba(16, 185, 129, 0.08)', color: 'var(--success)', borderRadius: '12px', border: '1px solid var(--border)' }}>Save 20%</span>
+          </span>
+        </div>
 
-            {/* FREE */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '32px' }}>
-              <div>
-                <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Free Starter
-                </p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '3.5rem', fontWeight: 800, letterSpacing: '-2px' }}>$0</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>/ forever</span>
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-                  Great for trying out the tool.
-                </p>
-                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '36px' }}>
-                  {[
-                    ['Up to 5 invoices per month', true],
-                    ['3 AI auto-fills per month', true],
-                    ['PDF download', true],
-                    ['Multi-currency support', true],
-                    ['Unlimited invoices', false],
-                    ['Unlimited AI auto-fills', false],
-                    ['Priority support', false],
-                  ].map(([label, active]) => (
-                    <li key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', color: active ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                      {active ? CHECK_ICON : CROSS_ICON}
-                      {label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <Link href="/dashboard" className="btn btn-secondary" style={{ textAlign: 'center', width: '100%' }}>
-                Get Started Free
-              </Link>
-            </div>
+        {/* 3 Tier Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '28px', marginBottom: '80px' }}>
+          
+          {/* FREE */}
+          <PricingCard
+            title="Free Starter"
+            price="$0"
+            period="/ forever"
+            ctaLabel="Get Started Free"
+            ctaHref="/dashboard?action=create-profile"
+            ctaVariant="secondary"
+            features={[
+              '1 Public Card Profile',
+              'Up to 5 Leads CRM',
+              'Up to 5 Quotes & Proposals',
+              'Up to 5 Invoices',
+              'Watermarked PDF exports'
+            ]}
+          />
 
-            {/* PRO */}
-            <div className="card" style={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              padding: '32px',
-              borderColor: 'var(--primary)',
-              boxShadow: '0 0 0 1px var(--primary), 0 0 40px rgba(99,102,241,0.2)',
-            }}>
-              <div>
-                {/* POPULAR badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>
-                    Professional
-                  </p>
-                  <span className="badge" style={{ background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', fontSize: '0.7rem' }}>
-                    Most Popular
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '3.5rem', fontWeight: 800, letterSpacing: '-2px' }}>$9</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>/ month</span>
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-                  For freelancers who invoice regularly.
-                </p>
-                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '36px' }}>
-                  {[
-                    'Unlimited invoices & receipts',
-                    '100 AI auto-fills per month',
-                    'PDF download',
-                    'Multi-currency support',
-                    'Custom branding & logo uploads',
-                    'Priority email support',
-                  ].map((label) => (
-                    <li key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                      {CHECK_ICON}
-                      {label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          {/* PRO (Highlighted) */}
+          <PricingCard
+            title="Pro Operations"
+            price={isAnnual ? '$10' : '$12'}
+            period={`/ month ${isAnnual ? '(billed annually)' : ''}`}
+            ctaLabel="Upgrade to Pro"
+            ctaHref="/payment-instructions"
+            ctaVariant="primary"
+            popular={true}
+            features={[
+              'Unlimited Clients & Invoices',
+              'Custom Profile Domain Routing',
+              'Watermark-free PDF exports',
+              'Advanced Leads Pipeline CRM',
+              'Real-time timeline logs tracking',
+              'SEO Profile index boost'
+            ]}
+          />
 
-              {/* PayPal CTA */}
-              <Link
-                href="/payment-instructions"
-                id="pricing-paypal-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px',
-                  width: '100%',
-                  padding: '0.9rem 1.5rem',
-                  borderRadius: '8px',
-                  fontWeight: 700,
-                  fontSize: '1rem',
-                  background: '#FFC439',
-                  color: '#003087',
-                  boxShadow: '0 4px 14px rgba(255,196,57,0.35)',
-                  transition: 'all 0.25s ease',
-                }}
-              >
-                {/* PayPal wordmark SVG */}
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19.554 6.227C19.738 5.118 19.554 4.356 18.972 3.683C18.33 2.947 17.118 2.625 15.572 2.625H10.557C10.194 2.625 9.886 2.898 9.833 3.258L7.727 16.618C7.689 16.879 7.894 17.112 8.158 17.112H11.26L11.076 18.25C11.044 18.479 11.22 18.686 11.452 18.686H14.007C14.325 18.686 14.594 18.447 14.64 18.133L14.66 18.02L15.16 14.856L15.186 14.714C15.232 14.4 15.5 14.161 15.819 14.161H16.209C18.67 14.161 20.597 13.148 21.148 10.255C21.376 9.028 21.259 8.005 20.648 7.289C20.466 7.08 20.025 6.641 19.554 6.227Z" fill="#003087"/>
-                  <path d="M9.194 6.58C9.247 6.22 9.556 5.947 9.919 5.947H14.79C15.364 5.947 15.9 5.985 16.388 6.066C16.53 6.09 16.668 6.117 16.803 6.149C16.938 6.181 17.069 6.218 17.196 6.26C17.258 6.281 17.319 6.303 17.379 6.326C17.614 6.42 17.83 6.531 18.025 6.661C18.252 5.117 18.023 4.07 17.173 3.104C16.241 2.039 14.616 1.625 12.535 1.625H6.519C6.156 1.625 5.847 1.898 5.793 2.259L3.402 17.264C3.357 17.556 3.585 17.82 3.879 17.82H7.412L8.294 12.218L9.194 6.58Z" fill="#003087"/>
-                </svg>
-                Pay with PayPal
-              </Link>
-            </div>
+          {/* AGENCY */}
+          <PricingCard
+            title="Agency OS"
+            price={isAnnual ? '$23' : '$29'}
+            period={`/ month ${isAnnual ? '(billed annually)' : ''}`}
+            ctaLabel="Get Agency OS"
+            ctaHref="/payment-instructions?plan=agency"
+            ctaVariant="secondary"
+            features={[
+              'Multi-user & Team accounts',
+              'Collaborative Kanban leads board',
+              'White-labeled client portals',
+              'Client Portal route integrations',
+              'Custom SMTP email alerts',
+              'Premium Priority SLA support'
+            ]}
+          />
 
+        </div>
+
+        {/* ROI Box */}
+        <section className="card" style={{ 
+          padding: '28px 36px', 
+          border: '1px solid var(--border)', 
+          background: 'linear-gradient(135deg, var(--primary-glow) 0%, var(--accent-glow) 100%)', 
+          borderRadius: '12px', 
+          textAlign: 'left',
+          marginBottom: '80px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '24px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="var(--primary)" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
-
-          {/* ── FAQ / NOTE ─────────────────────────────────────────── */}
-          <div style={{ marginTop: '60px', padding: '32px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', textAlign: 'left', maxWidth: '600px', margin: '60px auto 0' }}>
-            <h3 style={{ fontWeight: 700, marginBottom: '12px', fontSize: '1rem' }}>How does Pro billing work?</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.7' }}>
-              Pro is currently activated manually while automatic card billing is being prepared.
-              After you send your PayPal payment, our team will verify the transaction and upgrade
-              your access — usually within a few hours on business days.
-              <br /><br />
-              Have a question before paying?{' '}
-              <a href={`mailto:${supportEmail}`} style={{ color: 'var(--primary)' }}>
-                {supportEmail}
-              </a>
+          <div style={{ flex: 1, minWidth: '280px' }}>
+            <h4 style={{ fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px', fontSize: '1.05rem' }}>Stop paying transaction cut overheads. Keep 100% of your cash.</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
+              Traditional freelancer platforms deduct 5% to 20% on every invoice you clear. With **Freelancer Business OS**, you add your Stripe, PayPal, or LemonSqueezy payment link directly. We charge **0% markup** on your payments. Add your own billing link to keep 100% of your earnings.
             </p>
           </div>
-        </div>
+        </section>
+
+        {/* Feature Comparison Matrix */}
+        <section style={{ marginBottom: '80px', textAlign: 'left' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '32px', letterSpacing: '-0.5px', textAlign: 'center' }}>
+            Plan Feature Comparison
+          </h2>
+          
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)' }}>
+            <table className="comparison-table">
+              <thead>
+                <tr style={{ color: 'var(--text-main)', borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ width: '40%' }}>Core Capabilities</th>
+                  <th style={{ width: '20%' }}>Free Starter</th>
+                  <th style={{ width: '20%' }}>Pro Operations</th>
+                  <th style={{ width: '20%' }}>Agency OS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="comparison-feature-name">Monthly Invoice Volume</td>
+                  <td>Up to 5</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>Unlimited</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>Unlimited</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">Proposal Milestone Scopes</td>
+                  <td>Up to 5</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>Unlimited</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>Unlimited</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">Watermark-free PDF Exports</td>
+                  <td>❌ No</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">Custom Card Profile Domain</td>
+                  <td>❌ No</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">CRM leads tracker board</td>
+                  <td>Basic</td>
+                  <td>Advanced</td>
+                  <td>Collaborative</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">AI Milestone Proposal Scoper</td>
+                  <td>❌ No</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                  <td style={{ color: 'var(--success)' }}>✓ Yes</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">Team Accounts Seats</td>
+                  <td>1 Seat</td>
+                  <td>1 Seat</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>Unlimited</td>
+                </tr>
+                <tr>
+                  <td className="comparison-feature-name">Support Tier</td>
+                  <td>Standard Email</td>
+                  <td>Priority Email</td>
+                  <td style={{ color: 'var(--primary)', fontWeight: 600 }}>24/7 SLA Partner</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Pricing FAQs */}
+        <section style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'left' }}>
+          <h2 style={{ textAlign: 'center', fontSize: '2rem', fontWeight: 900, marginBottom: '32px', letterSpacing: '-0.5px' }}>
+            Pricing Questions
+          </h2>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {pricingFaq.map((item, idx) => (
+              <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)', overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                  style={{
+                    width: '100%',
+                    padding: '20px 24px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    color: activeFaq === idx ? 'var(--primary)' : 'var(--text-main)'
+                  }}
+                >
+                  <span>{item.q}</span>
+                  <span style={{ fontSize: '1.25rem', color: 'var(--text-muted)', transform: activeFaq === idx ? 'rotate(45deg)' : 'none', transition: 'var(--transition)' }}>+</span>
+                </button>
+                
+                {activeFaq === idx && (
+                  <div style={{ padding: '0 24px 20px 24px', color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
       </main>
 
-      {/* ── FOOTER ─────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '10px' }}>
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms of Service</Link>
-          <Link href="/refund-policy">Refund Policy</Link>
-          <Link href="/contact">Contact</Link>
-          <Link href="/pricing" style={{ color: 'var(--primary)' }}>Pricing</Link>
-        </div>
-        <p>© 2026 InvoiceAI. All rights reserved.</p>
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', backgroundColor: 'var(--bg-surface)' }}>
+        <p>© {new Date().getFullYear()} Freelancer Business OS. Transparent transactions, no extra checkout overhead fees.</p>
       </footer>
+
     </div>
   );
 }

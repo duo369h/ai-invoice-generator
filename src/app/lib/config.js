@@ -3,5 +3,5 @@ export function getSiteUrl() {
 }
 
 export function getSupportEmail() {
-  return process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'raykane6699@gmail.com';
+  return process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@example.com';
 }

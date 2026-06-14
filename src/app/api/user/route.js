@@ -2,11 +2,19 @@ import { NextResponse } from 'next/server';
 import { getUserById, updateUserPlan } from '../../lib/db';
 import { checkQuota } from '../../lib/quota';
 import { ensureProfile, getRequestUser, getSupabaseQuota } from '../../lib/supabase';
+import { rateLimit } from '../../lib/rate-limit';
+import { failClosedResponse, getIp, isDemoModeAllowed } from '../../lib/security';
+import { validatePlanPayload, validationResponse } from '../../lib/validation';
 
 const DEMO_USER_ID = 'usr_demo123';
 
 export async function GET(request) {
   try {
+    const ip = getIp(request);
+    const limitResult = rateLimit(ip, 60, 60000);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
     const context = await getRequestUser(request);
 
     if (context.mode === 'supabase') {
@@ -25,15 +33,17 @@ export async function GET(request) {
       });
     }
 
-    const user = getUserById(DEMO_USER_ID);
+    if (!isDemoModeAllowed()) return failClosedResponse('User profile');
+    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
+    const user = getUserById(targetUserId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const quota = checkQuota(DEMO_USER_ID);
+    const quota = checkQuota(targetUserId);
     return NextResponse.json({
       ...user,
       quota,
-      auth_mode: 'demo'
+      auth_mode: context.mode === 'mock' ? 'mock' : 'demo'
     });
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -43,13 +53,16 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const context = await getRequestUser(request);
-    const body = await request.json();
-    const { plan } = body;
-
-    if (!plan) {
-      return NextResponse.json({ error: 'Plan is required' }, { status: 400 });
+    const ip = getIp(request);
+    const limitResult = rateLimit(ip, 60, 60000);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
+    const context = await getRequestUser(request);
+    if (context.mode === 'demo') {
+      return NextResponse.json({ error: 'Authentication required to update plan' }, { status: 401 });
+    }
+    const { plan } = validatePlanPayload(await request.json());
 
     if (context.mode === 'supabase') {
       const profile = await ensureProfile(context.supabase, context.user);
@@ -64,13 +77,17 @@ export async function POST(request) {
       return NextResponse.json(data);
     }
 
-    const updatedUser = updateUserPlan(DEMO_USER_ID, plan);
+    if (!isDemoModeAllowed()) return failClosedResponse('User profile');
+    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
+    const updatedUser = updateUserPlan(targetUserId, plan);
     if (!updatedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json(updatedUser);
   } catch (error) {
+    const validation = validationResponse(error);
+    if (validation) return validation;
     console.error('Error updating user:', error);
     return NextResponse.json({ error: 'Failed to update plan' }, { status: 500 });
   }
