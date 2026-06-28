@@ -21,8 +21,7 @@ export function middleware(request) {
     pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
     pathname === '/quotes' || pathname.startsWith('/quotes/') ||
     pathname === '/invoices' || pathname.startsWith('/invoices/') ||
-    pathname === '/invoice' || pathname.startsWith('/invoice/') ||
-    pathname === '/checkout' || pathname.startsWith('/checkout/');
+    pathname === '/client' || pathname.startsWith('/client/');
 
   if (isProtectedRoute) {
     const entryCookie = request.cookies.get('corvioz_entry_auth')?.value || '';

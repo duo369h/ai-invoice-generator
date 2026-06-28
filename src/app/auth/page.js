@@ -145,11 +145,7 @@ export default function AuthPage() {
   }, [router]);
 
   const getRedirectTarget = () => {
-    if (typeof window === 'undefined') return '/dashboard';
-    const params = new URLSearchParams(window.location.search);
-    const redirectParam = params.get('redirect');
-    if (redirectParam) return redirectParam;
-    return window.sessionStorage.getItem('corvioz_redirect_after_auth') || '/dashboard';
+    return '/dashboard';
   };
 
   const handleMagicLink = async (event) => {
