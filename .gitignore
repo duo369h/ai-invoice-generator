@@ -47,3 +47,4 @@ next-env.d.ts
 
 # playwright
 .playwright-cli/
+src/core/ai/ai_user_state_store.json
