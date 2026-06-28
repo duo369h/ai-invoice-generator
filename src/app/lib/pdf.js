@@ -27,7 +27,7 @@ export async function generatePDF(elementId, fileName = 'invoice.pdf', isPro = f
     let watermark = null;
     if (!isPro) {
       watermark = document.createElement('div');
-      watermark.innerText = 'Freelancer Business OS Free';
+      watermark.innerText = 'Corvioz Free';
       watermark.style.position = 'absolute';
       watermark.style.top = '50%';
       watermark.style.left = '50%';

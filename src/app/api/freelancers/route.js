@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getCardProfiles } from '../../lib/db';
 import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '../../lib/rate-limit';
-import { DEMO_PROFILES } from '../../lib/demo-data';
+import { failClosedResponse } from '../../lib/security';
 
 export async function GET(request) {
   try {
@@ -14,36 +13,28 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role'); // e.g. designer, developer, consultant, marketer
 
-    let profiles = [];
-
-    // 1. Try Supabase
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      );
-
-      const { data, error } = await supabase
-        .from('card_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        profiles = data;
-      }
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return failClosedResponse('Freelancer profiles');
     }
 
-    // 2. Fall back to local DB if no Supabase or empty profiles list
-    if (profiles.length === 0) {
-      profiles = getCardProfiles();
-      
-      // If db.json is completely empty, insert a demo profile to look premium
-      if (profiles.length === 0) {
-        profiles = DEMO_PROFILES;
-      }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+
+    const { data, error } = await supabase
+      .from('card_profiles')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
     }
 
-    // 3. Filter by role/keywords if provided
+    let profiles = data || [];
+
+    // 2. Filter by role/keywords if provided
     if (role) {
       const lowerRole = role.toLowerCase();
       profiles = profiles.filter(p => {

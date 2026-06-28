@@ -1,27 +1,27 @@
 import { NextResponse } from 'next/server';
-import { getCardProfileByUsername, getCardProfileByUserId, saveCardProfile } from '../../lib/db';
 import { createPublicSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { failClosedResponse, getIp, isDemoModeAllowed } from '../../lib/security';
+import { rateLimit, rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, failClosedResponse, getIp, requestContextResponse } from '../../lib/security';
 import { validateCardProfilePayload, validationResponse } from '../../lib/validation';
 
 export async function GET(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
 
     // Case 1: Public profile lookup by username (does not require auth)
     if (username) {
+      const limitResult = await rateLimit(`public-profile:${ip}`, 60, 60000);
+      if (!limitResult.success) {
+        return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+      }
       const normalizedUsername = String(username).toLowerCase().trim();
       if (!/^[a-z0-9_-]{3,40}$/.test(normalizedUsername)) {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
       const context = await getRequestUser(request); // optional auth check
+      if (context.mode === 'unconfigured') return failClosedResponse('Public profile');
       const publicSupabase = context.mode === 'supabase' ? context.supabase : createPublicSupabaseClient();
       
       if (publicSupabase) {
@@ -29,26 +29,42 @@ export async function GET(request) {
           .from('card_profiles')
           .select('*')
           .eq('username', normalizedUsername)
+          .eq('is_public', true)
           .maybeSingle();
 
         if (error) throw error;
         if (!data) {
           return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
-        return NextResponse.json(data);
+
+        const { createServiceSupabaseClient } = await import('../../lib/supabase');
+        const adminSupabase = createServiceSupabaseClient();
+        let plan = 'free';
+        if (adminSupabase) {
+          const { data: profileData } = await adminSupabase
+            .from('profiles')
+            .select('plan')
+            .eq('id', data.user_id)
+            .maybeSingle();
+          if (profileData) {
+            plan = profileData.plan || 'free';
+          }
+        }
+
+        return NextResponse.json({ ...data, plan });
       }
 
-      // Local / Mock fallback
-      if (!isDemoModeAllowed()) return failClosedResponse('Public profile');
-      const profile = getCardProfileByUsername(normalizedUsername);
-      if (!profile) {
-        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-      }
-      return NextResponse.json(profile);
+      return failClosedResponse('Public profile');
     }
 
     // Case 2: Private dashboard lookup of own profile
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'card profile');
+    if (contextFailure) return contextFailure;
+    const privateLimit = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!privateLimit.success) {
+      return NextResponse.json({ error: privateLimit.error || 'Too many requests' }, { status: privateLimit.status || 429 });
+    }
     
     if (context.mode === 'supabase') {
       const { data, error } = await context.supabase
@@ -61,11 +77,7 @@ export async function GET(request) {
       return NextResponse.json(data || null);
     }
 
-    // Local / Mock / Demo dashboard lookups
-    if (!isDemoModeAllowed()) return failClosedResponse('Card profile');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : 'usr_demo123';
-    const profile = getCardProfileByUserId(targetUserId);
-    return NextResponse.json(profile || null);
+    return authRequiredResponse('card profile');
 
   } catch (error) {
     console.error('Error fetching card profile:', error);
@@ -76,13 +88,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to save profile' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'card profile');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateCardProfilePayload(await request.json());
 
@@ -127,16 +138,7 @@ export async function POST(request) {
       return NextResponse.json(data);
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Card profile');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : 'usr_demo123';
-    const payload = {
-      user_id: targetUserId,
-      ...body
-    };
-
-    const saved = saveCardProfile(payload);
-    return NextResponse.json(saved);
+    return authRequiredResponse('card profile');
 
   } catch (error) {
     const validation = validationResponse(error);

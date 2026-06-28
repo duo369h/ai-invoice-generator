@@ -3,215 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 
-// 1. Button Component
-export function Button({ 
-  children, 
-  onClick, 
-  href, 
-  variant = 'primary', // 'primary', 'secondary', 'google'
-  size = 'md', // 'sm', 'md', 'lg'
-  disabled = false,
-  type = 'button',
-  style = {},
-  ...props 
-}) {
-  const baseStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '6px',
-    fontWeight: 600,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.6 : 1,
-    transition: 'var(--transition)',
-    border: '1px solid transparent',
-  };
+// Import standardized atomic components from design system core
+import { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner } from '../../components/ui/index.js';
 
-  // Size configurations
-  let sizeStyle = {};
-  if (size === 'sm') {
-    sizeStyle = { padding: '0.35rem 0.75rem', fontSize: '0.8rem', borderRadius: '4px' };
-  } else if (size === 'lg') {
-    sizeStyle = { padding: '0.9rem 2.5rem', fontSize: '1rem', borderRadius: '8px' };
-  } else {
-    sizeStyle = { padding: '0.5rem 1.2rem', fontSize: '0.875rem' };
-  }
+// Re-export standardized components
+export { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner };
 
-  // Variant configurations
-  let variantStyle = {};
-  if (variant === 'secondary') {
-    variantStyle = {
-      backgroundColor: 'var(--btn-secondary-bg)',
-      color: 'var(--text-main)',
-      borderColor: 'var(--border)',
-    };
-  } else if (variant === 'google') {
-    variantStyle = {
-      backgroundColor: 'var(--bg-surface)',
-      color: 'var(--text-main)',
-      borderColor: 'var(--border)',
-      width: '100%',
-      gap: '12px',
-      padding: '0.65rem 1rem',
-    };
-  } else { // primary
-    variantStyle = {
-      backgroundColor: 'var(--btn-primary-bg)',
-      color: 'var(--btn-primary-text)',
-      borderColor: 'var(--btn-primary-border)',
-      boxShadow: 'var(--shadow-sm)',
-    };
-  }
-
-  const mergedStyle = { ...baseStyle, ...sizeStyle, ...variantStyle, ...style };
-
-  const handleMouseOver = (e) => {
-    if (disabled) return;
-    if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = 'var(--btn-primary-hover-bg)';
-      e.currentTarget.style.boxShadow = 'var(--btn-primary-hover-shadow)';
-      e.currentTarget.style.transform = 'translateY(-1px)';
-    } else if (variant === 'secondary' || variant === 'google') {
-      e.currentTarget.style.backgroundColor = 'var(--btn-secondary-hover-bg)';
-      e.currentTarget.style.borderColor = 'var(--border-hover)';
-      e.currentTarget.style.transform = 'translateY(-1px)';
-    }
-  };
-
-  const handleMouseOut = (e) => {
-    if (disabled) return;
-    if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = 'var(--btn-primary-bg)';
-      e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-      e.currentTarget.style.transform = 'translateY(0)';
-    } else if (variant === 'secondary' || variant === 'google') {
-      e.currentTarget.style.backgroundColor = 'var(--btn-secondary-bg)';
-      e.currentTarget.style.borderColor = 'var(--border)';
-      e.currentTarget.style.transform = 'translateY(0)';
-    }
-  };
-
-  if (href) {
-    return (
-      <Link 
-        href={href} 
-        style={mergedStyle} 
-        onMouseOver={handleMouseOver} 
-        onMouseOut={handleMouseOut} 
-        {...props}
-      >
-        {children}
-      </Link>
-    );
-  }
-
-  return (
-    <button 
-      type={type}
-      onClick={onClick} 
-      disabled={disabled}
-      style={mergedStyle} 
-      onMouseOver={handleMouseOver} 
-      onMouseOut={handleMouseOut} 
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
-// 2. Card Component
-export function Card({ children, style = {}, hoverGlow = false, className = '', ...props }) {
-  const [hovered, setHovered] = React.useState(false);
-
-  const baseStyle = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '24px',
-    boxShadow: hovered ? (hoverGlow ? 'var(--shadow-glow)' : 'var(--shadow-lg)') : 'var(--shadow-md)',
-    borderColor: hovered ? 'var(--border-hover)' : 'var(--border)',
-    transition: 'var(--transition)',
-    position: 'relative',
-  };
-
-  // Merge transform styles safely (e.g. for pricing card scale & elevation)
-  let mergedTransform = 'none';
-  if (style.transform && style.transform !== 'none') {
-    if (hovered) {
-      if (style.transform.includes('scale')) {
-        // Maintain the scale and translate it slightly higher
-        mergedTransform = `${style.transform.replace(/translateY\([^)]+\)/g, '')} translateY(-16px)`;
-      } else {
-        mergedTransform = `${style.transform} translateY(-4px)`;
-      }
-    } else {
-      mergedTransform = style.transform;
-    }
-  } else if (hovered) {
-    mergedTransform = 'translateY(-4px)';
-  }
-
-  const mergedStyle = { ...baseStyle, ...style, transform: mergedTransform };
-
-  return (
-    <div 
-      style={mergedStyle} 
-      onMouseEnter={() => setHovered(true)} 
-      onMouseLeave={() => setHovered(false)}
-      className={`card ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-// 3. Badge Component
-export function Badge({ children, variant = 'primary', style = {}, ...props }) {
-  const baseStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '9999px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    border: '1px solid transparent',
-  };
-
-  let variantStyle = {};
-  if (variant === 'warning') {
-    variantStyle = {
-      backgroundColor: 'var(--warning-glow)',
-      color: 'var(--warning-text)',
-      borderColor: 'var(--warning-border)',
-    };
-  } else if (variant === 'success') {
-    variantStyle = {
-      backgroundColor: 'var(--success-glow)',
-      color: 'var(--success-text)',
-      borderColor: 'var(--success-border)',
-    };
-  } else if (variant === 'accent') {
-    variantStyle = {
-      backgroundColor: 'var(--accent-glow)',
-      color: 'var(--accent-text)',
-      borderColor: 'var(--accent-border)',
-    };
-  } else { // primary
-    variantStyle = {
-      backgroundColor: 'var(--primary-glow)',
-      color: 'var(--primary)',
-      borderColor: 'var(--border)',
-    };
-  }
-
-  return (
-    <span style={{ ...baseStyle, ...variantStyle, ...style }} {...props}>
-      {children}
-    </span>
-  );
-}
 
 // 4. Section Component
 export function Section({ children, id, style = {}, containerStyle = {}, ...props }) {
@@ -348,5 +145,19 @@ export function MetricCard({ label, value, trend, style = {}, ...props }) {
         )}
       </div>
     </Card>
+  );
+}
+
+// 8. Logo Component
+export function Logo({ textStyle = {}, style = {}, className = '' }) {
+  return (
+    <Link 
+      href="/" 
+      className={`logo-container ${className}`} 
+      aria-label="Corvioz home" 
+      style={{ display: 'flex', alignItems: 'center', gap: '8px', ...style }}
+    >
+      <span className="logo-wordmark" style={{ fontWeight: 900, letterSpacing: '-0.035em', ...textStyle }}>Corvioz</span>
+    </Link>
   );
 }

@@ -55,7 +55,7 @@ export default function ThemeToggle() {
           fontWeight: 600,
           background: 'var(--bg-card)',
           border: '1px solid var(--border)',
-          borderRadius: '6px',
+          borderRadius: '8px',
           color: 'var(--text-main)',
           cursor: 'pointer',
           height: '32px',

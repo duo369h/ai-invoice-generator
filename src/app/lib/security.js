@@ -9,14 +9,12 @@ const SAFE_TEXT_REPLACEMENTS = [
 ];
 
 const PAYMENT_HOST_ALLOWLIST = [
-  'stripe.com',
-  'checkout.stripe.com',
-  'buy.stripe.com',
   'paypal.com',
   'www.paypal.com',
   'paypal.me',
-  'lemonsqueezy.com',
-  'buy.lemonsqueezy.com',
+  'paddle.com',
+  'buy.paddle.com',
+  'checkout.paddle.com',
 ];
 
 const BLOCKED_HOSTS = [
@@ -26,15 +24,24 @@ const BLOCKED_HOSTS = [
   '::1',
 ];
 
-export function isDemoModeAllowed() {
-  return process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_DEMO_MODE === 'true';
-}
-
 export function failClosedResponse(resource = 'resource') {
   return NextResponse.json(
     { error: `${resource} is unavailable because production persistence is not configured.` },
     { status: 503 }
   );
+}
+
+export function authRequiredResponse(resource = 'resource') {
+  return NextResponse.json(
+    { error: `Authentication required to access ${resource}.` },
+    { status: 401 }
+  );
+}
+
+export function requestContextResponse(context, resource = 'resource') {
+  if (context?.mode === 'unconfigured') return failClosedResponse(resource);
+  if (context?.mode === 'unauthenticated') return authRequiredResponse(resource);
+  return null;
 }
 
 export function sanitizePlainText(value, maxLength = 2000) {

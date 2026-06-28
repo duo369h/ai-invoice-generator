@@ -1,0 +1,210 @@
+// This is NOT a feature hierarchy system.
+// This is a revenue track system.
+// Each tier is an independent product experience.
+// No cross-tier dependency is allowed.
+
+import { NextResponse } from 'next/server';
+import { createServiceSupabaseClient } from '../../lib/supabase';
+
+// Static fallback plans if the database table pricing_plans is not yet initialized
+const FALLBACK_PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    description: 'Try the core tools before you commit.',
+    price_monthly: 0.00,
+    price_yearly: 0.00,
+    paddle_monthly_price_id: '',
+    paddle_yearly_price_id: '',
+    features: [
+      'Draft quotes and estimates',
+      'Basic profile creation',
+      'Watermarked PDF exports'
+    ],
+    badge_text: 'Try',
+    display_order: 1,
+    active: true
+  },
+  {
+    id: 'pro',
+    name: 'Starter',
+    description: 'Get your first client faster',
+    price_monthly: 9.00,
+    price_yearly: 7.00,
+    paddle_monthly_price_id: 'pri_pro_placeholder',
+    paddle_yearly_price_id: 'pri_pro_yearly_placeholder',
+    features: [
+      '1 proposal/day & 1 profile/day',
+      'Watermark preview enabled',
+      'Export disabled'
+    ],
+    badge_text: 'Starter',
+    display_order: 2,
+    active: true
+  },
+  {
+    id: 'growth',
+    name: 'Pro',
+    description: 'Start getting paid professionally',
+    price_monthly: 19.00,
+    price_yearly: 16.00,
+    paddle_monthly_price_id: 'pri_growth_placeholder',
+    paddle_yearly_price_id: 'pri_growth_yearly_placeholder',
+    features: [
+      'Unlimited proposals & profiles',
+      'Secure PDF export (No watermark)',
+      'Share client links instantly'
+    ],
+    badge_text: 'Recommended',
+    display_order: 3,
+    active: true
+  },
+  {
+    id: 'studio',
+    name: 'Client Growth Pack',
+    description: 'Run multiple clients like a small agency',
+    price_monthly: 29.00,
+    price_yearly: 24.00,
+    paddle_monthly_price_id: 'pri_agency_placeholder',
+    paddle_yearly_price_id: 'pri_agency_yearly_placeholder',
+    features: [
+      '2–3 client workspace',
+      'Priority AI generation',
+      'Premium templates pack',
+      'Faster export / batch export'
+    ],
+    badge_text: 'Agency',
+    display_order: 4,
+    active: true
+  }
+];
+
+function hasPlaceholderPriceId(value) {
+  const priceId = String(value || '').trim().toLowerCase();
+  return !priceId || priceId.includes('placeholder') || priceId.startsWith('pri_') && priceId.includes('_placeholder');
+}
+
+export async function GET() {
+  try {
+    const supabase = createServiceSupabaseClient();
+    let plans = [];
+
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('pricing_plans')
+        .select('*')
+        .eq('active', true)
+        .order('display_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        plans = data;
+      } else {
+        console.warn('pricing_plans table query failed or returned empty; using fallback plans. Error:', error?.message);
+        plans = FALLBACK_PLANS;
+      }
+    } else {
+      plans = FALLBACK_PLANS;
+    }
+
+    // Dynamic mapping of price IDs from environment variables if present
+	    const mappedPlans = plans.map(plan => {
+      const proPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID;
+      const proYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID;
+      const growthPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID;
+      const growthYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_YEARLY_PRICE_ID;
+      const agencyPrice = process.env.NEXT_PUBLIC_PADDLE_AGENCY_PRICE_ID;
+      const agencyYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_AGENCY_YEARLY_PRICE_ID;
+
+      let paddle_monthly_price_id = plan.paddle_monthly_price_id;
+      let paddle_yearly_price_id = plan.paddle_yearly_price_id;
+
+      if (plan.id === 'pro') {
+        if (proPrice) paddle_monthly_price_id = proPrice;
+        if (proYearlyPrice) paddle_yearly_price_id = proYearlyPrice;
+      } else if (plan.id === 'growth') {
+        if (growthPrice) paddle_monthly_price_id = growthPrice;
+        if (growthYearlyPrice) paddle_yearly_price_id = growthYearlyPrice;
+      } else if (plan.id === 'studio' || plan.id === 'agency') {
+        if (agencyPrice) paddle_monthly_price_id = agencyPrice;
+        if (agencyYearlyPrice) paddle_yearly_price_id = agencyYearlyPrice;
+      }
+
+      // v9.5 Overrides to lock deterministic outcome names & descriptions
+      let name = plan.name;
+      let description = plan.description;
+      let features = plan.features || [];
+      let badge_text = plan.badge_text;
+
+      if (plan.id === 'free') {
+        name = 'Free';
+        description = 'Try the core tools before you commit.';
+        badge_text = 'Try';
+        features = [
+          'Draft quotes and estimates',
+          'Basic profile creation',
+          'Watermarked PDF exports'
+        ];
+      } else if (plan.id === 'pro') {
+        name = 'Starter';
+        description = 'Get your first client faster';
+        badge_text = 'Starter';
+        features = [
+          '1 proposal/day & 1 profile/day',
+          'Watermark preview enabled',
+          'Export disabled'
+        ];
+      } else if (plan.id === 'growth') {
+        name = 'Pro';
+        description = 'Start getting paid professionally';
+        badge_text = 'Recommended';
+        features = [
+          'Unlimited proposals & profiles',
+          'Secure PDF export (No watermark)',
+          'Share client links instantly'
+        ];
+      } else if (plan.id === 'studio' || plan.id === 'agency') {
+        name = 'Client Growth Pack';
+        description = 'Run multiple clients like a small agency';
+        badge_text = 'Agency';
+        features = [
+          '2–3 client workspace',
+          'Priority AI generation',
+          'Premium templates pack',
+          'Faster export / batch export'
+        ];
+      }
+
+	      return {
+        ...plan,
+        name,
+        description,
+        features,
+        badge_text,
+        paddle_monthly_price_id,
+        paddle_yearly_price_id,
+        // Ensure values are numeric
+        price_monthly: Number(plan.price_monthly),
+        price_yearly: Number(plan.price_yearly)
+	      };
+	    });
+
+	    if (process.env.NODE_ENV === 'production') {
+	      const invalidPlan = mappedPlans.find((plan) => {
+	        if (plan.id === 'free') return false;
+	        return hasPlaceholderPriceId(plan.paddle_monthly_price_id) || hasPlaceholderPriceId(plan.paddle_yearly_price_id);
+	      });
+
+	      if (invalidPlan) {
+	        return NextResponse.json({
+	          success: false,
+	          error: `Paddle production price IDs are missing or invalid for plan: ${invalidPlan.id}`,
+	        }, { status: 500 });
+	      }
+	    }
+	
+	    return NextResponse.json({ success: true, plans: mappedPlans });
+  } catch (err) {
+    console.error('Error in GET /api/pricing:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

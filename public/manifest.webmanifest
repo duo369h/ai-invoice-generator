@@ -1,0 +1,24 @@
+{
+  "name": "Corvioz Freelancer OS",
+  "short_name": "Corvioz",
+  "description": "Win clients, send invoices, and grow faster with Corvioz Freelancer OS.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B0F17",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

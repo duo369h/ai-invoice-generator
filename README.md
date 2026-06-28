@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Corvioz: Freelancer Daily Business Workspace
+**Development Lifecycle Phase:** Operational  
 
-## Getting Started
+Welcome to the Corvioz repository. Corvioz is a Next.js + Supabase workspace designed to help freelancers manage client inquiries, draft proposals, issue professional invoices, and track payment statuses with minimal administrative friction.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 1. Quick Start
+
+### Local Setup
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+2. **Launch Development Server:**
+   ```bash
+   npm run dev
+   ```
+3. **Staging Build Verification:**
+   ```bash
+   npm run build
+   ```
+
+### Core Stack
+* **Framework:** Next.js (Pages / App Router)
+* **Database & Auth:** Supabase
+* **Payments:** Paddle Checkout (sandbox environment configuration)
+* **Analytics:** Google Analytics 4 (funnel-tracking event layers)
+
+---
+
+## 2. Documentation Map
+
+All project design parameters, blueprints, audits, and checklists reside under the **[docs/](file:///Users/duo/Documents/想做个网站/corvioz/docs/)** folder:
+
+* 📄 **Vision & Principles:** [Product Bible](file:///Users/duo/Documents/想做个网站/corvioz/docs/product/CORVIOZ_PRODUCT_BIBLE.md) (SSOT)
+* 📄 **UX Specifications:** [Experience Architecture](file:///Users/duo/Documents/想做个网站/corvioz/docs/product/WORKSPACE_EXPERIENCE_ARCHITECTURE.md)
+* 📄 **Developer Tasks:** [Implementation Spec](file:///Users/duo/Documents/想做个网站/corvioz/docs/product/WORKSPACE_IMPLEMENTATION_SPEC.md)
+* 📄 **Release Gates:** [Readiness System](file:///Users/duo/Documents/想做个网站/corvioz/docs/quality/PRODUCTION_READINESS_SYSTEM.md)
+* 📄 **Documentation Index:** [Document Index Map](file:///Users/duo/Documents/想做个网站/corvioz/DOCUMENT_INDEX.md)
+
+---
+
+## 3. Product Hierarchy
+
+Corvioz adapts its workspace layout and features based on the user's business maturity tier:
+
+1. **Starter Workspace Mode:** Designed to get freelancers paid quickly with basic invoice creation and single-format PDF exports.
+2. **Professional Workspace Mode:** Integrates CRM client inquiries, proposal drafting, and automated reminder scripts.
+3. **Studio Workspace Mode:** Features white-labeled portals on custom domains, client collaboration, and cash runway projections.
+
+---
+
+## 4. Development Workflow
+
+To maintain a clean codebase and clear documentation, developers must follow these four steps:
+
+```
+  1. READ PRODUCT BIBLE   ➔   2. EXECUTE SPEC   ➔   3. VERIFY RELEASE GATES   ➔   4. DOCUMENT AUDIT
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Read Constraints:** Always consult the [Product Bible](file:///Users/duo/Documents/想做个网站/corvioz/docs/product/CORVIOZ_PRODUCT_BIBLE.md) to ensure UI and operational constraints are respected.
+2. **Execute Tasks:** Follow the instructions detailed in the [Implementation Spec](file:///Users/duo/Documents/想做个网站/corvioz/docs/product/WORKSPACE_IMPLEMENTATION_SPEC.md).
+3. **Release Gates:** Run checks in the [Readiness Checklist](file:///Users/duo/Documents/想做个网站/corvioz/docs/quality/PRODUCTION_READINESS_SYSTEM.md) to verify that performance, mobile styling, and user journeys are correct.
+4. **Document Sprints:** File a **Sprint Audit Report** in the `docs/quality/` directory to log changes, testing results, and build compliance.

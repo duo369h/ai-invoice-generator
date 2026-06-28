@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Logo } from "../components/UIComponents";
 import { getSupportEmail } from "../lib/config";
+import SharedFooter from "../components/SharedFooter";
 
 export const metadata = {
   title: "Refund Policy",
   description:
-    "Freelancer Business OS Refund Policy — how refund requests are handled for Freelancer Business OS Pro payments.",
+    "Corvioz Refund Policy — how refund requests are handled for Corvioz Pro payments.",
 };
 
 export default function RefundPolicy() {
@@ -13,15 +15,7 @@ export default function RefundPolicy() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header className="navbar">
-        <div className="logo-container">
-          <svg style={{ width: "24px", height: "24px" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <line x1="9" y1="9" x2="15" y2="9" />
-            <line x1="9" y1="13" x2="15" y2="13" />
-            <line x1="9" y1="17" x2="13" y2="17" />
-          </svg>
-          <Link href="/">Freelancer Business OS</Link>
-        </div>
+        <Logo size={24} />
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
           <Link href="/pricing" className="nav-link">Pricing</Link>
@@ -45,7 +39,7 @@ export default function RefundPolicy() {
                 1. Beta Manual Activation
               </h2>
               <p>
-                Freelancer Business OS Pro is currently sold through manual PayPal payment requests or PayPal invoices. After payment is verified, our team manually activates Pro access for the customer account.
+                Corvioz Pro is currently sold through manual PayPal payment requests or PayPal invoices. After payment is verified, our team manually activates Pro access for the customer account.
               </p>
             </section>
 
@@ -76,22 +70,14 @@ export default function RefundPolicy() {
                 <a href={`mailto:${supportEmail}`} style={{ color: "var(--primary)", textDecoration: "underline" }}>
                   {supportEmail}
                 </a>{" "}
-                with the subject line &quot;Freelancer Business OS Refund Request&quot;. Please include your Freelancer Business OS username or account email, PayPal transaction ID, payment date, and the reason for the request. We aim to respond within 2 business days.
+                with the subject line &quot;Corvioz Refund Request&quot;. Please include your Corvioz username or account email, PayPal transaction ID, payment date, and the reason for the request. We aim to respond within 2 business days.
               </p>
             </section>
           </div>
         </div>
       </main>
 
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "30px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-        <div className="container" style={{ display: "flex", justifyContent: "center", gap: "24px", flexWrap: "wrap" }}>
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms of Service</Link>
-          <Link href="/refund-policy" style={{ color: "var(--primary)" }}>Refund Policy</Link>
-          <Link href="/contact">Contact</Link>
-        </div>
-        <p style={{ marginTop: "12px" }}>© 2026 Freelancer Business OS. All rights reserved.</p>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

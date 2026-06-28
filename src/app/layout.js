@@ -1,42 +1,68 @@
 import "./globals.css";
 import { getSiteUrl } from "./lib/config";
-import GlobalFeedbackMenu from "./components/GlobalFeedbackMenu";
+import AnalyticsProvider from "./components/AnalyticsProvider";
+import BetaGrowthShell from "./components/BetaGrowthShell";
+import DevDebugOverlay from "../components/DevDebugOverlay";
 
 const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
-    default: "Freelancer Business OS — The operating system for modern freelancers",
-    template: "%s | Freelancer Business OS",
+    default: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
+    template: "%s | Corvioz",
   },
   description:
-    "The operating system for modern freelancers in the US and Canada. Create a public profile, capture client requests, send milestone quotes, and clear payments with zero commission cuts.",
+    "Corvioz Freelancer OS helps freelancers in the US and Canada create quotes, send professional invoices, publish public profiles, and get paid faster.",
   keywords: [
-    "freelancer business os",
-    "freelance directory",
-    "invoice templates",
-    "milestone quotes",
-    "client portal crm",
-    "payment link checkouts",
-    "freelance client intake"
+    "corvioz business os",
+    "freelance operating system",
+    "freelance quote generator",
+    "invoice creator",
+    "invoice generator",
+    "quote generator",
+    "client portal",
+    "payment status"
   ],
-  authors: [{ name: "Freelancer Business OS Team" }],
-  creator: "Freelancer Business OS",
+  authors: [{ name: "Corvioz Team" }],
+  creator: "Corvioz",
   metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: './',
+    types: {
+      'application/rss+xml': `${siteUrl}/rss.xml`,
+    },
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/manifest.webmanifest',
   openGraph: {
-    title: "Freelancer Business OS — The operating system for modern freelancers",
+    title: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
     description:
-      "Create a public profile, capture client requests, send milestone quotes, and clear payments in one place. Add your custom Stripe, PayPal, or LemonSqueezy billing link.",
+      "Corvioz Freelancer OS helps freelancers create quotes, send professional invoices, publish public profiles, and get paid faster.",
     url: siteUrl,
-    siteName: "Freelancer Business OS",
+    siteName: "Corvioz",
     locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Corvioz Freelancer OS dashboard preview',
+      }
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Freelancer Business OS — The operating system for modern freelancers",
+    title: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
     description:
-      "The one-stop platform for freelancers to win clients, capture leads, compile proposals, track milestones, and collect payments.",
+      "Corvioz Freelancer OS helps freelancers create quotes, send professional invoices, publish public profiles, and get paid faster.",
+    images: ['/twitter-image.png'],
   },
   robots: {
     index: true,
@@ -55,12 +81,11 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID;
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID;
 
   return (
-    <html lang="en">
-      <head>
+    <html lang="en" suppressHydrationWarning>
+      <body>
         <script dangerouslySetInnerHTML={{__html: `
           (function() {
             try {
@@ -79,17 +104,101 @@ export default function RootLayout({ children }) {
             } catch (e) {}
           })();
         `}} />
-        {gaId && (
-          <>
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
-            <script dangerouslySetInnerHTML={{__html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${gaId}');
-            `}}></script>
-          </>
-        )}
+        <script dangerouslySetInnerHTML={{__html: `
+          (function() {
+            if (typeof window === 'undefined') return;
+            window.__CORVIOZ_ERRORS__ = window.__CORVIOZ_ERRORS__ || [];
+            
+            window.addEventListener('error', function(event) {
+              window.__CORVIOZ_ERRORS__.push({
+                type: 'exception',
+                message: event.message || (event.error && event.error.message) || 'Uncaught error',
+                filename: event.filename || '',
+                lineno: event.lineno || 0,
+                colno: event.colno || 0,
+                error: event.error ? {
+                  message: event.error.message,
+                  stack: event.error.stack
+                } : null,
+                timestamp: new Date().toISOString()
+              });
+            });
+
+            window.addEventListener('unhandledrejection', function(event) {
+              var reason = event.reason;
+              window.__CORVIOZ_ERRORS__.push({
+                type: 'unhandledrejection',
+                message: (reason && reason.message) || String(reason),
+                error: reason && reason.stack ? {
+                  message: reason.message,
+                  stack: reason.stack
+                } : null,
+                timestamp: new Date().toISOString()
+              });
+            });
+
+            var originalConsoleError = console.error;
+            console.error = function() {
+              var args = Array.prototype.slice.call(arguments);
+              var message = args.map(function(arg) {
+                if (arg instanceof Error) return arg.message + '\\n' + arg.stack;
+                if (typeof arg === 'object') {
+                  try { return JSON.stringify(arg); } catch(e) { return String(arg); }
+                }
+                return String(arg);
+              }).join(' ');
+
+              var isHydrationError = /hydration/i.test(message) || 
+                                     /did not match/i.test(message) || 
+                                     /Text content/i.test(message) ||
+                                     /Prop .* did not match/i.test(message) ||
+                                     /React will try to recreate/i.test(message);
+
+              if (isHydrationError) {
+                window.__CORVIOZ_ERRORS__.push({
+                  type: 'hydration',
+                  message: message,
+                  timestamp: new Date().toISOString()
+                });
+              } else {
+                window.__CORVIOZ_ERRORS__.push({
+                  type: 'console_error',
+                  message: message,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              originalConsoleError.apply(console, arguments);
+            };
+
+            var originalFetch = window.fetch;
+            window.fetch = function() {
+              var args = arguments;
+              var url = args[0];
+              return originalFetch.apply(this, arguments)
+                .then(function(response) {
+                  if (!response.ok) {
+                    window.__CORVIOZ_ERRORS__.push({
+                      type: 'fetch_failed',
+                      url: typeof url === 'string' ? url : (url && url.url) || String(url),
+                      status: response.status,
+                      statusText: response.statusText,
+                      timestamp: new Date().toISOString()
+                    });
+                  }
+                  return response;
+                })
+                .catch(function(error) {
+                  window.__CORVIOZ_ERRORS__.push({
+                    type: 'fetch_network_error',
+                    url: typeof url === 'string' ? url : (url && url.url) || String(url),
+                    message: error.message || String(error),
+                    timestamp: new Date().toISOString()
+                  });
+                  throw error;
+                });
+            };
+          })();
+        `}} />
         {clarityId && (
           <script dangerouslySetInnerHTML={{__html: `
             (function(c,l,a,r,i,t,y){
@@ -99,10 +208,13 @@ export default function RootLayout({ children }) {
             })(window,document,"clarity","script","${clarityId}");
           `}}></script>
         )}
-      </head>
-      <body>
-        {children}
-        <GlobalFeedbackMenu />
+
+        <AnalyticsProvider>
+          <BetaGrowthShell>
+            {children}
+            <DevDebugOverlay />
+          </BetaGrowthShell>
+        </AnalyticsProvider>
       </body>
     </html>
   );

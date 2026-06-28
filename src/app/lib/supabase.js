@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { getUserById, saveUser } from './db';
 import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security';
 
 export function isSupabaseConfigured() {
@@ -65,31 +64,23 @@ export function createServiceSupabaseClient() {
 }
 
 export async function getRequestUser(request) {
-  const authHeader = request.headers.get('authorization') || '';
-  if (process.env.NODE_ENV === 'development' && authHeader === 'Bearer mock_freelancer_token') {
-    const db = await import('./db');
-    let mockUser = db.getUserById('usr_mock123');
-    if (!mockUser) {
-      mockUser = saveUser({
-        id: 'usr_mock123',
-        email: 'freelancer@example.com',
-        name: 'Simulated Freelancer',
-        plan: 'free',
-        created_at: new Date().toISOString()
-      });
-    }
-    return { 
-      mode: 'mock', 
-      user: { id: mockUser.id, email: mockUser.email, name: mockUser.name } 
-    };
-  }
-
   const supabase = createRequestSupabaseClient(request);
-  if (!supabase) return { mode: 'demo', supabase: null, user: null };
+  if (!supabase) {
+    if (!isSupabaseConfigured() && process.env.NODE_ENV === 'production') {
+      return { mode: 'unconfigured', supabase: null, user: null };
+    }
+    if (process.env.NODE_ENV === 'production') {
+      return { mode: 'unauthenticated', supabase: null, user: null };
+    }
+    return { mode: 'unauthenticated', supabase: null, user: null };
+  }
 
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
-    return { mode: 'demo', supabase: null, user: null };
+    if (process.env.NODE_ENV === 'production') {
+      return { mode: 'unauthenticated', supabase: null, user: null };
+    }
+    return { mode: 'unauthenticated', supabase: null, user: null };
   }
 
   return { mode: 'supabase', supabase, user: data.user };
@@ -123,6 +114,22 @@ export async function ensureProfile(supabase, user) {
     .single();
 
   if (error) throw error;
+
+  // Dynamically import to prevent circular dependency: supabase.js <=> demo-data.js
+  try {
+    const { seedDemoData } = await import('./demo-data');
+    await seedDemoData(supabase, user.id, email, name);
+  } catch (seedErr) {
+    console.error('Failed to seed demo data on user registration:', seedErr);
+  }
+
+  try {
+    const { sendWelcomeEmail } = await import('./email');
+    await sendWelcomeEmail(email, name);
+  } catch (emailErr) {
+    console.error('Failed to send welcome email on registration:', emailErr);
+  }
+
   return data;
 }
 
@@ -134,7 +141,7 @@ export function mapSupabaseInvoice(row) {
     currency: (row.currency || 'USD').toLowerCase(),
     discount_rate: Number(row.discount_rate || 0),
     tax_rate: Number(row.tax_rate || 0),
-    payment_link: row.stripe_payment_link || '',
+    payment_link: row.payment_link || '',
   };
 }
 
@@ -291,3 +298,90 @@ export async function incrementSupabaseInvoiceUsage(supabase, userId) {
     ai_parses_used: 0,
   });
 }
+
+export async function trackProfileMetric(supabase, userId, field) {
+  const writer = createServiceSupabaseClient() || supabase;
+  if (!writer || !userId) return;
+
+  try {
+    const { data: profile } = await writer
+      .from('profiles')
+      .select('created_at, first_invoice_created_at, first_client_added_at, invoice_sent_timestamp, quote_sent_timestamp, time_to_first_export, time_to_first_client_response')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profile) return;
+
+    const updates = {};
+    const nowStr = new Date().toISOString();
+    const createdTime = new Date(profile.created_at).getTime();
+    const durationSeconds = Math.max(0, Math.floor((Date.now() - createdTime) / 1000));
+
+    if (field === 'first_invoice_created_at' && !profile.first_invoice_created_at) {
+      updates.first_invoice_created_at = nowStr;
+    }
+    if (field === 'first_client_added_at' && !profile.first_client_added_at) {
+      updates.first_client_added_at = nowStr;
+    }
+    if (field === 'invoice_sent_timestamp') {
+      updates.invoice_sent_timestamp = nowStr;
+    }
+    if (field === 'quote_sent_timestamp') {
+      updates.quote_sent_timestamp = nowStr;
+    }
+    if (field === 'time_to_first_export' && profile.time_to_first_export === null) {
+      updates.time_to_first_export = durationSeconds;
+    }
+    if (field === 'time_to_first_client_response' && profile.time_to_first_client_response === null) {
+      updates.time_to_first_client_response = durationSeconds;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const { error } = await writer
+        .from('profiles')
+        .update({ ...updates, updated_at: nowStr })
+        .eq('id', userId);
+      if (error) throw error;
+    }
+  } catch (err) {
+    console.error(`Failed to update profile metric ${field}:`, err);
+  }
+}
+
+export async function recordServerGrowthEvent(supabase, {
+  eventName,
+  userId,
+  sessionId = '',
+  pagePath = '',
+  pageLocation = '',
+  source = 'system',
+  properties = {}
+}) {
+  const ALLOWED_EVENTS = new Set(['invoice_created', 'invoice_sent', 'invoice_paid']);
+  if (!ALLOWED_EVENTS.has(eventName)) {
+    return;
+  }
+
+  const writer = createServiceSupabaseClient() || supabase;
+  if (!writer) return;
+
+  const payload = {
+    event_name: eventName,
+    session_id: sessionId,
+    user_id: userId || null,
+    page_path: pagePath,
+    page_location: pageLocation,
+    source: source,
+    properties: {
+      ...properties,
+      timestamp: Date.now(),
+      received_at: new Date().toISOString(),
+    }
+  };
+
+  const { error } = await writer.from('growth_events').insert(payload);
+  if (error) {
+    console.error(`Failed to record server growth event ${eventName}:`, error);
+  }
+}
+

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import { rateLimitByPolicy } from '../../../lib/rate-limit';
-import { getIp } from '../../../lib/security';
+import { getRequestUser } from '../../../lib/supabase';
+import { rateLimitAuthenticated } from '../../../lib/rate-limit';
+import { requestContextResponse } from '../../../lib/security';
 import { validateParsePayload, validationResponse } from '../../../lib/validation';
+import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
+import { getPricingIntelligence } from '../../../../core/pricing/PRICING_INTELLIGENCE_ENGINE';
+import { getRevenueDecision } from '../../../../core/revenue/REVENUE_DECISION_ENGINE';
 
 function fallbackQuoteParse(text) {
   // Extract email address
@@ -60,10 +64,11 @@ function fallbackQuoteParse(text) {
 
 export async function POST(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimitByPolicy('quoteGenerate', ip);
+    const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'quote generation');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('quoteGenerate', context.user.id);
     if (!limitResult.success) {
-      console.warn(`Rate limit exceeded for IP: ${ip} on POST /api/quotes/generate`);
       return NextResponse.json(
         { error: limitResult.error || 'Too many requests. Please try again later.' },
         { status: limitResult.status || 429 }
@@ -72,82 +77,65 @@ export async function POST(request) {
 
     const { message_text } = validateParsePayload(await request.json(), 'message_text');
 
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    const isValidKey = apiKey && 
-      apiKey.trim() !== '' && 
-      !apiKey.includes('your_') && 
-      !apiKey.includes('_here') &&
-      apiKey.length > 10;
-
-    if (!isValidKey) {
-      console.log('DEEPSEEK_API_KEY not configured. Using local heuristic parser for Quote generation.');
-      const parsed = fallbackQuoteParse(message_text);
-      return NextResponse.json({ parsed_data: parsed });
+    // 1. Check Revenue Lock
+    const lockResult = await checkRevenueLock(context.user.id, 'proposal');
+    if (!lockResult.allowed) {
+      return NextResponse.json(
+        { error: lockResult.reason, code: 'REVENUE_LOCK_BLOCKED', suggestedUpgrade: lockResult.suggestedUpgrade },
+        { status: 403 }
+      );
     }
 
-    // Call DeepSeek to parse the message text into a structured Quote
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a helpful assistant that parses client inquiries / messages into a structured Quote JSON. Return ONLY a valid JSON object matching this schema. Do not include markdown formatting or code blocks:
-{
-  "client_name": "Name of the client/customer (default to 'Valued Client')",
-  "client_email": "Email address of the client/customer if available, otherwise empty string",
-  "client_address": "Mailing/billing address of the client/customer if available, otherwise empty string",
-  "items": [
-    {
-      "description": "Itemized service description based on their request",
-      "quantity": 1,
-      "unitPrice": 1500.00 // Price per unit in DECIMAL (e.g. $1500.00 is 1500.00)
+    // 1.5 Calculate recommended price using Pricing Intelligence Engine
+    let jobType = 'web_design';
+    const textLower = (message_text || '').toLowerCase();
+    if (textLower.includes('ui') || textLower.includes('ux') || textLower.includes('design')) {
+      jobType = textLower.includes('web') ? 'web_design' : 'ui_ux';
+    } else if (textLower.includes('logo') || textLower.includes('brand')) {
+      jobType = 'logo';
+    } else if (textLower.includes('invoice') || textLower.includes('billing') || textLower.includes('system') || textLower.includes('code') || textLower.includes('dev')) {
+      jobType = 'invoice_system';
+    } else if (textLower.includes('marketing') || textLower.includes('seo') || textLower.includes('growth')) {
+      jobType = 'marketing';
     }
-  ],
-  "currency": "Three letter currency code like USD, EUR, GBP. Default to USD.",
-  "discount_rate": 0,
-  "tax_rate": 0,
-  "notes": "Additional notes, payment terms, or response greetings."
-}`
-            },
-            {
-              role: 'user',
-              content: message_text
-            }
-          ],
-          response_format: {
-            type: 'json_object'
-          }
-        })
-      });
-      clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const candidateText = result.choices?.[0]?.message?.content;
-      if (!candidateText) {
-        throw new Error('No content returned from DeepSeek');
-      }
-
-      const parsedData = JSON.parse(candidateText.trim());
-      return NextResponse.json({ parsed_data: parsedData });
-    } catch (apiError) {
-      console.error('DeepSeek call failed during Quote generation, using fallback:', apiError.message);
-      const parsed = fallbackQuoteParse(message_text);
-      return NextResponse.json({ parsed_data: parsed });
+    let clientType = 'small_business';
+    if (textLower.includes('enterprise') || textLower.includes('corporate') || textLower.includes('large')) {
+      clientType = 'enterprise';
+    } else if (textLower.includes('startup') || textLower.includes('vc')) {
+      clientType = 'startup';
+    } else if (textLower.includes('individual') || textLower.includes('personal')) {
+      clientType = 'individual';
     }
+
+    let urgency = 'medium';
+    if (textLower.includes('urgent') || textLower.includes('asap') || textLower.includes('rush') || textLower.includes('quick')) {
+      urgency = 'high';
+    }
+
+    let clarity = 'medium';
+    if (textLower.includes('not sure') || textLower.includes('unclear') || textLower.includes('vague')) {
+      clarity = 'low';
+    }
+    const pricingInput = {
+      jobType,
+      clientType,
+      urgency,
+      clarity
+    };
+
+    const pricingResult = getPricingIntelligence(pricingInput);
+    const decision = getRevenueDecision(pricingResult, pricingInput);
+
+    const parsed = fallbackQuoteParse(message_text);
+    if (parsed.items && parsed.items.length > 0) {
+      parsed.items[0].unitPrice = pricingResult.recommendedPrice;
+    }
+    if (decision.upsell && decision.upsell.length > 0) {
+      parsed.notes = (parsed.notes || '') + '\n\nSuggested Add-ons:\n' + decision.upsell.map(u => `- ${u}`).join('\n');
+    }
+    parsed.explanation_text = 'Quote pricing is deterministic and cannot be changed by generated copy.';
+    return NextResponse.json({ parsed_data: parsed, pricing: pricingResult, revenue_decision: decision });
 
   } catch (error) {
     const validation = validationResponse(error);

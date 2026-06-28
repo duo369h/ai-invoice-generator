@@ -1,217 +1,255 @@
-// Static demo and sandbox data for Freelancer Business OS
-// Used for /card/demo and local guest/sandbox dashboard previews
+import { createServiceSupabaseClient } from './supabase';
+import { crypto } from './supabase'; // we can generate random hashes
+import md5 from 'crypto';
 
-export const DEMO_PROFILES = [
-  {
-    id: "cp_demo123",
-    user_id: "usr_demo123",
-    username: "demo",
-    name: "Alex Morgan",
-    title: "Senior Product Designer & Developer",
-    bio: "I design and build high-performance web applications and digital interfaces. Specializing in SaaS design, Next.js engineering, and complex interactive dashboard components.",
-    tags: ["React", "UI/UX Design", "Next.js", "TailwindCSS", "Node.js"],
-    services: [
-      {
-        id: "srv_1",
-        name: "SaaS Platform Design & Prototyping",
-        description: "End-to-end UX research, wireframing, and interactive design in Figma, optimized for developer handoff.",
-        rate_type: "fixed",
-        rate_amount: 3500
-      },
-      {
-        id: "srv_2",
-        name: "Front-End Development (React/Next.js)",
-        description: "High fidelity frontend engineering with smooth transitions and production-ready clean JSX code.",
-        rate_type: "hourly",
-        rate_amount: 120
-      }
-    ],
-    portfolio: [
-      {
-        title: "Stripe/Linear Redesign Concept",
-        description: "Visual redesign showcasing calm SaaS themes and glassmorphic dashboards.",
-        link: "https://example.com/stripe-redesign"
-      },
-      {
-        title: "Growth Forest Web App",
-        description: "AI-driven school communication platform build using Next.js 16.",
-        link: "https://example.com/growth-forest"
-      }
-    ],
-    contact_email: "demo@example.com",
-    contact_phone: "+1 (555) 019-2834",
-    social_links: {
-      twitter: "alex_design",
-      linkedin: "alex-morgan-ux",
-      github: "alexmorgan",
-      website: "https://alexmorgan.design"
-    },
-    created_at: "2026-06-13T22:00:00Z",
-    updated_at: "2026-06-13T22:00:00Z"
-  },
-  {
-    id: "cp_sarahdesign",
-    user_id: "usr_sarahdesign",
-    username: "sarahdesign",
-    name: "Sarah Jenkins",
-    title: "Brand Designer & Illustrator",
-    bio: "Crafting beautiful, memorable brand identities and custom digital illustrations for high-growth startups across North America.",
-    tags: ["Branding", "Vector Illustration", "Figma", "Logo Design"],
-    services: [
-      {
-        id: "srv_s1",
-        name: "Complete Brand Identity Package",
-        description: "Includes custom logo files, dynamic color systems, style guide PDF, and presentation deck templates.",
-        rate_type: "fixed",
-        rate_amount: 2800
-      }
-    ],
-    portfolio: [
-      {
-        title: "Acme Corp Brand Overhaul",
-        description: "Complete visual guide and typography revamp.",
-        link: "https://example.com/acme"
-      }
-    ],
-    contact_email: "sarah@designstudio.co",
-    social_links: {
-      twitter: "sarah_illustrates",
-      linkedin: "sarah-jenkins-brand"
-    },
-    created_at: "2026-06-13T22:00:00Z",
-    updated_at: "2026-06-13T22:00:00Z"
-  },
-  {
-    id: "cp_alexdev",
-    user_id: "usr_alexdev",
-    username: "alexdev",
-    name: "Alex Rivera",
-    title: "Full-Stack Web Engineer",
-    bio: "Building robust Node.js backends and responsive React frontend systems. Expert in database modeling and third-party integrations.",
-    tags: ["Node.js", "Express", "PostgreSQL", "React", "GraphQL"],
-    services: [
-      {
-        id: "srv_a1",
-        name: "Custom API & Integration Sprint",
-        description: "Designing database structures, secure endpoints, and integrating payment or notification APIs.",
-        rate_type: "fixed",
-        rate_amount: 4000
-      }
-    ],
-    portfolio: [
-      {
-        title: "SaaS Payment Controller",
-        description: "Robust recurring subscription system integration.",
-        link: "https://example.com/saas-payment"
-      }
-    ],
-    contact_email: "alex@riveratech.com",
-    social_links: {
-      github: "alexrivera-dev"
-    },
-    created_at: "2026-06-13T22:00:00Z",
-    updated_at: "2026-06-13T22:00:00Z"
-  }
-];
+/**
+ * Generates a SHA-256 hash representing a secure portal token
+ */
+function generateMockHash() {
+  const bytes = md5.randomBytes(32);
+  return bytes.toString('base64url');
+}
 
-export const DEMO_LEADS = [
-  {
-    id: "lead_1",
-    card_profile_id: "cp_demo123",
-    freelancer_id: "usr_demo123",
-    name: "Bruce Wayne",
-    email: "bruce@waynecorp.com",
-    message: "Hey Alex, we need a flat-fee design package for a new security dashboard project we are launching in Q3. Budget is around $5000.",
-    status: "new",
-    visitor_ip: "127.0.0.1",
-    source_utm: {
-      utm_source: "twitter",
-      utm_medium: "social"
-    },
-    created_at: "2026-06-14T02:10:00.000Z",
-    updated_at: "2026-06-14T02:10:00.000Z"
-  },
-  {
-    id: "lead_2",
-    card_profile_id: "cp_demo123",
-    freelancer_id: "usr_demo123",
-    name: "Tony Stark",
-    email: "tony@stark.com",
-    message: "Need hourly React consultation for our Arc Reactor dashboard interface. We want to bill 15 hours next week.",
-    status: "contacted",
-    visitor_ip: "192.168.1.1",
-    source_utm: {
-      utm_source: "linkedin"
-    },
-    created_at: "2026-06-14T01:15:00.000Z",
-    updated_at: "2026-06-14T01:15:00.000Z"
-  }
-];
+function hashToken(token) {
+  return md5.createHash('sha256').update(token).digest('hex');
+}
 
-export const DEMO_QUOTES = [
-  {
-    id: "quote_1",
-    user_id: "usr_demo123",
-    quote_number: "QT-001",
-    client_name: "Wayne Enterprises",
-    client_email: "bruce@waynecorp.com",
-    client_address: "1007 Mountain Drive, Gotham City",
-    items: [
-      {
-        description: "Custom Security Dashboard UX Research & Interactive Prototyping",
-        quantity: 1,
-        unit_price: 500000
-      }
-    ],
-    subtotal: 500000,
-    discount_rate: 0,
-    discount_amount: 0,
-    tax_rate: 5,
-    tax_amount: 25000,
-    total: 525000,
-    currency: "USD",
-    notes: "Thank you for inviting me to quote. This estimate is valid for 30 days.",
-    status: "sent",
-    created_at: "2026-06-14T03:00:00.000Z",
-    updated_at: "2026-06-14T03:00:00.000Z"
-  }
-];
+/**
+ * Seeds comprehensive mock data for a newly registered freelancer
+ */
+export async function seedDemoData(supabase, userId, email, name) {
+  try {
+    console.log(`[SEEDING] Initializing demo data seeding for user: ${userId} (${email})`);
+    
+    // Use service role client if available to ensure RLS bypass for seeding setup
+    const seederClient = createServiceSupabaseClient() || supabase;
 
-export const DEMO_INVOICES = [
-  {
-    id: "inv_8w459xwzwes",
-    user_id: "usr_demo123",
-    object: "invoice",
-    doc_type: "receipt",
-    invoice_number: "WAYNE",
-    status: "paid",
-    client_name: "Valued Client",
-    client_email: "bruce@waynecorp.com",
-    client_address: "",
-    business_name: "Alex Morgan Design",
-    business_email: "demo@example.com",
-    business_address: "",
-    logo_url: "",
-    currency: "usd",
-    items: [
-      {
-        description: "Advisory hours and batmobile adjustments",
-        quantity: 1,
-        unit_price: 200,
-        amount: 200
-      }
-    ],
-    subtotal: 200,
-    discount_rate: 0,
-    discount_amount: 0,
-    tax_rate: 0,
-    tax_amount: 0,
-    total: 200,
-    invoice_date: "2026-06-11",
-    due_date: "2026-07-11",
-    payment_terms: "Net 30",
-    notes: "",
-    pdf_url: "/dashboard/print?id=sawl5mh64e",
-    created_at: "2026-06-11T18:22:14.567Z"
+    // 1. Check if card profile already exists
+    const { data: existingProfile } = await seederClient
+      .from('card_profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      console.log(`[SEEDING] Demo data already exists for user ${userId}. Skipping.`);
+      return;
+    }
+
+    // 2. Generate unique username
+    let baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (baseUsername.length < 3) baseUsername = `user-${userId.slice(0, 8)}`;
+    let username = baseUsername.slice(0, 30);
+
+    const { data: existingCp } = await seederClient
+      .from('card_profiles')
+      .select('username')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (existingCp) {
+      username = `${username}-${userId.slice(0, 4)}`;
+    }
+
+    // 3. Create Bento Card Profile
+    const freelancerName = name || 'Alex Morgan';
+    const { data: cardProfile, error: cardError } = await seederClient
+      .from('card_profiles')
+      .insert({
+        user_id: userId,
+        username,
+        name: freelancerName,
+        title: 'SaaS UX Designer & Next.js Developer',
+        bio: 'I help early-stage tech teams design clean design systems, build fast Next.js apps, and configure collaborative client portals.',
+        location: 'Toronto, Canada',
+        timezone: 'EST',
+        languages: 'English, French',
+        availability_status: 'available',
+        response_time: 'within a few hours',
+        starting_price: '$2,500',
+        tags: ['Figma', 'Next.js', 'TailwindCSS', 'Webflow', 'Brand Systems'],
+        services: [
+          {
+            name: 'SaaS Design System Setup',
+            description: 'Establish standard typography scaling, dark mode variables, and reusable Figma components for your engineering team.',
+            type: 'fixed',
+            amount: 3500
+          },
+          {
+            name: 'Responsive Web Design & Next.js Implementation',
+            description: 'High-converting website built from scratch with premium micro-animations and Google Lighthouse speed tuning.',
+            type: 'fixed',
+            amount: 5000
+          }
+        ],
+        portfolio: [],
+        social_links: {
+          twitter: 'https://x.com/corvioz',
+          github: 'https://github.com/corvioz'
+        },
+        verified_badge: true,
+        top_rated_badge: true,
+        fast_response_badge: true,
+        testimonials: [
+          {
+            id: 't_demo_1',
+            name: 'Sarah Jenkins',
+            role: 'Founder, TechPulse',
+            text: 'Alex completely transformed our onboarding page. The split-screen portal made billing and timelines absolutely seamless.',
+            stars: 5
+          }
+        ],
+        is_public: true
+      })
+      .select('*')
+      .single();
+
+    if (cardError) throw cardError;
+    console.log(`[SEEDING] Bento Card Profile created at /profile/${username}`);
+
+    // 4. Create Sample Client
+    const { data: client, error: clientError } = await seederClient
+      .from('clients')
+      .insert({
+        user_id: userId,
+        name: 'TechPulse Inc',
+        email: 'billing@techpulse.io',
+        address: '456 Innovation Way, Suite 100, Boston, MA 02111'
+      })
+      .select('*')
+      .single();
+
+    if (clientError) throw clientError;
+    console.log(`[SEEDING] Sample Client created: ${client.name}`);
+
+    // 5. Create Sample Quote
+    const { data: quote, error: quoteError } = await seederClient
+      .from('quotes')
+      .insert({
+        user_id: userId,
+        quote_number: 'QT-2026-001',
+        client_name: 'TechPulse Inc',
+        client_email: 'billing@techpulse.io',
+        client_address: '456 Innovation Way, Suite 100, Boston, MA 02111',
+        items: [
+          { description: 'Phase 1: Brand Strategy & Figma Layouts', quantity: 1, unitPrice: 2000 },
+          { description: 'Phase 2: High-Fidelity UI Design Mockups', quantity: 1, unitPrice: 3000 }
+        ],
+        subtotal: 500000,
+        discount_rate: 10, // 10% discount ($500)
+        discount_amount: 50000,
+        tax_rate: 5, // 5% tax on $4,500 ($225)
+        tax_amount: 22500,
+        total: 472500,
+        currency: 'USD',
+        notes: 'Approved via secure client portal. Deliverables start upon signing.',
+        status: 'approved'
+      })
+      .select('*')
+      .single();
+
+    if (quoteError) throw quoteError;
+    console.log(`[SEEDING] Sample Quote created: ${quote.quote_number}`);
+
+    // 6. Create Sample Invoice (linked to Quote)
+    const { data: invoice, error: invoiceError } = await seederClient
+      .from('invoices')
+      .insert({
+        user_id: userId,
+        invoice_number: 'INV-2026-001',
+        doc_type: 'invoice',
+        client_id: client.id,
+        client_name: 'TechPulse Inc',
+        client_email: 'billing@techpulse.io',
+        client_address: '456 Innovation Way, Suite 100, Boston, MA 02111',
+        business_name: `${freelancerName} Studio`,
+        business_email: email,
+        currency: 'USD',
+        items: [
+          { description: 'Phase 1: Brand Strategy & Figma Layouts', quantity: 1, unit_price: 200000, amount: 200000 },
+          { description: 'Phase 2: High-Fidelity UI Design Mockups (Pending)', quantity: 1, unit_price: 300000, amount: 300000 }
+        ],
+        subtotal: 500000,
+        discount_rate: 10,
+        discount_amount: 50000,
+        tax_rate: 5,
+        tax_amount: 22500,
+        total: 472500,
+        invoice_date: new Date().toISOString().substring(0, 10),
+        due_date: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().substring(0, 10),
+        payment_terms: 'Net 14',
+        payment_link: 'https://paypal.me/corvioz',
+        notes: 'Thank you for your business. Standard portal timelines apply.',
+        status: 'pending',
+        quote_id: quote.id
+      })
+      .select('*')
+      .single();
+
+    if (invoiceError) throw invoiceError;
+    console.log(`[SEEDING] Sample Invoice created: ${invoice.invoice_number}`);
+
+    // 7. Create Portal Tokens
+    const quoteRawToken = generateMockHash();
+    const invoiceRawToken = generateMockHash();
+
+    const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+
+    const { error: ptError } = await seederClient
+      .from('portal_tokens')
+      .insert([
+        {
+          token_hash: hashToken(quoteRawToken),
+          owner_id: userId,
+          resource_type: 'quote',
+          resource_id: quote.id,
+          expires_at: expiresAt,
+          scope: 'view:comment'
+        },
+        {
+          token_hash: hashToken(invoiceRawToken),
+          owner_id: userId,
+          resource_type: 'invoice',
+          resource_id: invoice.id,
+          expires_at: expiresAt,
+          scope: 'view:comment'
+        }
+      ]);
+
+    if (ptError) throw ptError;
+    console.log(`[SEEDING] Portal Tokens generated securely`);
+
+    // 8. Create Sample Leads in Leads Inbox
+    const { error: leadsError } = await seederClient
+      .from('leads')
+      .insert([
+        {
+          card_profile_id: cardProfile.id,
+          freelancer_id: userId,
+          name: 'Marcus Vance',
+          email: 'marcus@cloudvent.io',
+          message: 'Hi Alex! I saw your bento portfolio. We are launching a newsletter dashboard next month and need a frontend UI consult. What is your availability like?',
+          status: 'new',
+          visitor_ip: '127.0.0.1',
+          source_utm: { source: 'bento-profile' }
+        },
+        {
+          card_profile_id: cardProfile.id,
+          freelancer_id: userId,
+          name: 'Sophia Patel',
+          email: 'sophia@creativehub.com',
+          message: 'Are you available for a 3-week design system sprint starting next Monday?',
+          status: 'contacted',
+          visitor_ip: '127.0.0.1',
+          source_utm: { source: 'freelancer-directory' }
+        }
+      ]);
+
+    if (leadsError) throw leadsError;
+    console.log(`[SEEDING] Sample Leads seeded successfully`);
+    console.log(`[SEEDING] Completed successfully for ${userId}`);
+    
+  } catch (err) {
+    console.error(`[SEEDING ERROR] Failed to seed demo data:`, err);
   }
-];
+}

@@ -1,0 +1,536 @@
+.audit-container {
+  min-height: 100vh;
+  background-color: #06070a;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(239, 68, 68, 0.06) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+  color: #f3f4f6;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  padding: 40px 24px 80px;
+}
+
+.audit-header {
+  margin-bottom: 32px;
+}
+
+.audit-kicker {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #a7f3d0;
+  margin-bottom: 8px;
+}
+
+.audit-title {
+  font-size: 2.25rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+.audit-description {
+  color: #9ca3af;
+  max-width: 600px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Big System Status Indicator Card */
+.status-indicator-box {
+  background: rgba(18, 20, 29, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .status-indicator-box {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.status-left {
+  flex: 1;
+}
+
+.status-title-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.status-main-badge {
+  font-size: 2rem;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  line-height: 1.1;
+}
+
+.status-main-badge.red {
+  color: #f87171;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
+.status-main-badge.yellow {
+  color: #fbbf24;
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.status-main-badge.green {
+  color: #34d399;
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+.status-message {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-top: 10px;
+}
+
+/* Safety Status LED Blinker */
+.status-blinker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-blinker::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  opacity: 0.3;
+}
+
+.status-blinker.red {
+  background: #ef4444;
+  box-shadow: 0 0 15px #ef4444, 0 0 30px rgba(239, 68, 68, 0.5);
+  animation: blink-red 1s infinite alternate;
+}
+.status-blinker.red::after {
+  border: 2px solid #ef4444;
+  animation: pulse-ring 1s infinite;
+}
+
+.status-blinker.yellow {
+  background: #f59e0b;
+  box-shadow: 0 0 15px #f59e0b, 0 0 30px rgba(245, 158, 11, 0.5);
+  animation: blink-yellow 1.2s infinite alternate;
+}
+.status-blinker.yellow::after {
+  border: 2px solid #f59e0b;
+  animation: pulse-ring 1.2s infinite;
+}
+
+.status-blinker.green {
+  background: #10b981;
+  box-shadow: 0 0 15px #10b981, 0 0 30px rgba(16, 185, 129, 0.5);
+  animation: blink-green 1.5s infinite alternate;
+}
+.status-blinker.green::after {
+  border: 2px solid #10b981;
+  animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes blink-red {
+  0% { opacity: 0.6; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+  100% { opacity: 1; box-shadow: 0 0 25px #ef4444, 0 0 40px rgba(239, 68, 68, 0.6); }
+}
+
+@keyframes blink-yellow {
+  0% { opacity: 0.6; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+  100% { opacity: 1; box-shadow: 0 0 25px #f59e0b, 0 0 40px rgba(245, 158, 11, 0.6); }
+}
+
+@keyframes blink-green {
+  0% { opacity: 0.7; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+  100% { opacity: 1; box-shadow: 0 0 25px #10b981, 0 0 40px rgba(16, 185, 129, 0.6); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Grid layout */
+.audit-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .audit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Component Risk Cards Grid */
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 640px) {
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.risk-card {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.risk-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-label {
+  font-size: 0.75rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  color: #9ca3af;
+  letter-spacing: 0.03em;
+}
+
+.risk-value {
+  font-size: 1.1rem;
+  font-weight: 850;
+  color: #ffffff;
+}
+
+/* Component LED badge */
+.risk-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.risk-status-badge.safe {
+  background: rgba(16, 185, 129, 0.08);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.risk-status-badge.warning {
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.risk-status-badge.unsafe {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audit-card {
+  background: rgba(22, 24, 33, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+/* Funnel integrity nodes chart */
+.funnel-integrity-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.funnel-node-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 14px 18px;
+  position: relative;
+}
+
+.funnel-node-row.warning {
+  border-color: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.015);
+}
+
+.funnel-node-row.unsafe {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.015);
+}
+
+.node-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.node-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #9ca3af;
+}
+
+.funnel-node-row.warning .node-number {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.funnel-node-row.unsafe .node-number {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.node-name {
+  font-weight: 750;
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
+.node-label {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.node-right {
+  text-align: right;
+}
+
+.node-count {
+  font-weight: 850;
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.node-drop {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.node-drop.warning { color: #fbbf24; }
+.node-drop.unsafe { color: #f87171; }
+.node-drop.safe { color: #9ca3af; }
+
+/* Transition Arrow connectors */
+.funnel-transition-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.funnel-transition-line.broken {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.03);
+  border-radius: 6px;
+}
+
+.funnel-transition-line.safe {
+  color: #34d399;
+}
+
+/* Paywall Aggression styles */
+.aggression-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aggression-metric-row {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.agg-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.agg-value {
+  font-size: 1rem;
+  font-weight: 850;
+  color: #ffffff;
+}
+
+.block-locations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.block-location-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #d1d5db;
+  background: rgba(255, 255, 255, 0.015);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #ef4444;
+}
+
+.block-location-item.safe {
+  border-left-color: #10b981;
+}
+
+/* Rollback controls */
+.rollback-controls-card {
+  margin-bottom: 32px;
+}
+
+.control-btn-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.control-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.control-desc {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.btn-audit-cyber {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  text-align: center;
+}
+
+.btn-audit-cyber.disable {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.20);
+  color: #f87171;
+}
+
+.btn-audit-cyber.disable:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.btn-audit-cyber.enable {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.20);
+  color: #34d399;
+}
+
+.btn-audit-cyber.enable:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.btn-audit-cyber.rollback {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.20);
+  color: #fbbf24;
+}
+
+.btn-audit-cyber.rollback:hover {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.btn-audit-cyber.reset {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.20);
+  color: #60a5fa;
+}
+
+.btn-audit-cyber.reset:hover {
+  background: #3b82f6;
+  color: #ffffff;
+}

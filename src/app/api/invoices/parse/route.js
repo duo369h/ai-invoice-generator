@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import { checkQuota, incrementAiUsage } from '../../../lib/quota';
 import {
-  ensureProfile,
   getRequestUser,
-  getSupabaseQuota,
-  incrementSupabaseAiUsage
 } from '../../../lib/supabase';
-import { rateLimitByPolicy } from '../../../lib/rate-limit';
-import { failClosedResponse, getIp, isDemoModeAllowed } from '../../../lib/security';
+import { rateLimitAuthenticated } from '../../../lib/rate-limit';
+import { requestContextResponse } from '../../../lib/security';
 import { validateParsePayload, validationResponse } from '../../../lib/validation';
+import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
+import { getPricingIntelligence } from '../../../../core/pricing/PRICING_INTELLIGENCE_ENGINE';
+import { getRevenueDecision } from '../../../../core/revenue/REVENUE_DECISION_ENGINE';
 
-const DEMO_USER_ID = 'usr_demo123';
-
-// Fallback regex-based parser when DeepSeek API Key is not configured
+// Deterministic regex-based parser. Revenue parsing must not use AI.
 function fallbackParse(text, type) {
   // 1. Extract email addresses
   const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
@@ -157,152 +154,73 @@ function fallbackParse(text, type) {
   };
 }
 
+function getPricingAndDecisionForParsedInvoice(parsedData) {
+  let jobType = 'web_design';
+  const descLower = ((parsedData.items?.[0]?.description) || '').toLowerCase();
+  if (descLower.includes('ui') || descLower.includes('ux') || descLower.includes('design')) {
+    jobType = descLower.includes('web') ? 'web_design' : 'ui_ux';
+  } else if (descLower.includes('logo') || descLower.includes('brand')) {
+    jobType = 'logo';
+  } else if (descLower.includes('invoice') || descLower.includes('billing') || descLower.includes('system') || descLower.includes('code') || descLower.includes('dev')) {
+    jobType = 'invoice_system';
+  } else if (descLower.includes('marketing') || descLower.includes('seo') || descLower.includes('growth')) {
+    jobType = 'marketing';
+  }
+
+  let clientType = 'small_business';
+  const clientLower = (parsedData.client_name || '').toLowerCase();
+  if (clientLower.includes('enterprise') || clientLower.includes('corporate') || clientLower.includes('large')) {
+    clientType = 'enterprise';
+  } else if (clientLower.includes('startup') || clientLower.includes('vc')) {
+    clientType = 'startup';
+  } else if (clientLower.includes('individual') || clientLower.includes('personal')) {
+    clientType = 'individual';
+  }
+
+  const pricingInput = {
+    jobType,
+    clientType,
+    urgency: 'medium',
+    clarity: 'medium'
+  };
+
+  const pricing = getPricingIntelligence(pricingInput);
+  const decision = getRevenueDecision(pricing, pricingInput);
+
+  return { pricing, decision };
+}
+
 export async function POST(request) {
   try {
-    const limitResult = await rateLimitByPolicy('aiParse', getIp(request));
+    const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'invoice parser');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('aiParse', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json(
         { error: limitResult.error || 'Too many requests' },
         { status: limitResult.status || 429 }
       );
     }
-
-    const context = await getRequestUser(request);
     const { raw_text, type } = validateParsePayload(await request.json());
 
-    if (context.mode !== 'supabase' && !isDemoModeAllowed()) {
-      return failClosedResponse('AI parser');
-    }
-
-    // Check Quota
-    let quota;
-    if (context.mode === 'supabase') {
-      const profile = await ensureProfile(context.supabase, context.user);
-      quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
-    } else {
-      quota = checkQuota(DEMO_USER_ID);
-    }
-
-    if (!quota.aiAllowed) {
+    // 1. Check Revenue Lock
+    const lockResult = await checkRevenueLock(context.user.id, 'invoice');
+    if (!lockResult.allowed) {
       return NextResponse.json(
-        { error: 'Monthly AI parse limit reached. Please upgrade to Pro.', code: 'QUOTA_EXCEEDED' },
+        { error: lockResult.reason, code: 'REVENUE_LOCK_BLOCKED', suggestedUpgrade: lockResult.suggestedUpgrade },
         { status: 403 }
       );
     }
 
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    // Detect placeholder or missing API key
-    const isValidKey = apiKey && 
-      apiKey.trim() !== '' && 
-      !apiKey.includes('your_') && 
-      !apiKey.includes('_here') &&
-      apiKey.length > 10;
-
-    if (!isValidKey) {
-      console.log('DEEPSEEK_API_KEY not configured or is a placeholder. Using local heuristic parser.');
-      const parsed = fallbackParse(raw_text, type || 'invoice');
-      if (context.mode === 'supabase') {
-        await incrementSupabaseAiUsage(context.supabase, context.user.id);
-      } else {
-        incrementAiUsage(DEMO_USER_ID);
-      }
-      return NextResponse.json({
-        parsed_data: parsed,
-        meta: { parser: 'local_heuristic_fallback', note: 'Configure DEEPSEEK_API_KEY in .env.local for AI-powered parsing' }
-      });
-    }
-
-    // Attempt DeepSeek API call with graceful fallback
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a helpful assistant that parses unstructured text into a JSON object. Return ONLY a valid JSON object matching this schema. Do not include markdown formatting or code blocks:
-{
-  "client_name": "Name of the client/customer (default to 'Valued Client')",
-  "client_email": "Email address of the client/customer if available, otherwise empty string",
-  "client_address": "Mailing/billing address of the client/customer if available, otherwise empty string",
-  "business_name": "Name of the business issuing the invoice/receipt or empty string",
-  "business_email": "Email of the business issuing the invoice/receipt or empty string",
-  "business_address": "Address of the business issuing the invoice/receipt or empty string",
-  "invoice_number": "Invoice or receipt identifier/number or empty string",
-  "currency": "Three letter currency code like usd, eur, gbp, cny. Default to usd.",
-  "items": [
-    {
-      "description": "Description of the service or product",
-      "quantity": 1,
-      "unit_price": 15000 // Price per unit in CENTS (e.g. $150.00 is 15000)
-    }
-  ],
-  "discount_rate": 0, // Discount rate percentage if mentioned (e.g. 10.5 for 10.5%), otherwise 0
-  "tax_rate": 0, // Tax rate percentage if mentioned (e.g. 8.25 for 8.25%), otherwise 0
-  "payment_terms": "Net 30", // Payment terms if mentioned, e.g. 'Due on Receipt', 'Net 30', 'Net 60', otherwise 'Net 30'
-  "notes": "Additional notes, payment instructions, bank transfer details, etc.",
-  "due_date": "Due date in YYYY-MM-DD format if mentioned or calculable"
-}`
-            },
-            {
-              role: 'user',
-              content: raw_text
-            }
-          ],
-          response_format: {
-            type: 'json_object'
-          }
-        })
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('DeepSeek API Error:', errorText);
-        throw new Error(`DeepSeek API error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const candidateText = result.choices?.[0]?.message?.content;
-      
-      if (!candidateText) {
-        throw new Error('No content returned from DeepSeek');
-      }
-
-      const parsedData = JSON.parse(candidateText.trim());
-      if (context.mode === 'supabase') {
-        await incrementSupabaseAiUsage(context.supabase, context.user.id);
-      } else {
-        incrementAiUsage(DEMO_USER_ID);
-      }
-
-      return NextResponse.json({
-        parsed_data: parsedData,
-        meta: { parser: 'deepseek_ai' }
-      });
-    } catch (apiError) {
-      // Gracefully fall back to heuristic parser if API fails
-      console.error('DeepSeek API call failed, falling back to heuristic parser:', apiError.message);
-      const parsed = fallbackParse(raw_text, type || 'invoice');
-      if (context.mode === 'supabase') {
-        await incrementSupabaseAiUsage(context.supabase, context.user.id);
-      } else {
-        incrementAiUsage(DEMO_USER_ID);
-      }
-      return NextResponse.json({
-        parsed_data: parsed,
-        meta: { parser: 'local_heuristic_fallback', note: 'AI API unavailable, used local parser' }
-      });
-    }
+    const parsed = fallbackParse(raw_text, type || 'invoice');
+    const { pricing, decision } = getPricingAndDecisionForParsedInvoice(parsed);
+    return NextResponse.json({
+      parsed_data: parsed,
+      pricing,
+      revenue_decision: decision,
+      meta: { parser: 'deterministic_heuristic', note: 'Revenue parsing does not use AI in v3.1.1.' }
+    });
 
   } catch (error) {
     const validation = validationResponse(error);

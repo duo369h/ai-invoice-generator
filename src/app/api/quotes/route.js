@@ -1,32 +1,19 @@
 import { NextResponse } from 'next/server';
-import { getQuotesByUserId, savePortalToken, saveQuote, updateQuoteStatus } from '../../lib/db';
-import { createSupabasePortalToken, getRequestUser, writeAuditLog } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { defaultPortalExpiry, failClosedResponse, generatePortalToken, getIp, hashPortalToken, isDemoModeAllowed } from '../../lib/security';
+import { createSupabasePortalToken, getRequestUser, writeAuditLog, recordServerGrowthEvent, trackProfileMetric } from '../../lib/supabase';
+import { rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { enumValue, validateObject, validateQuotePayload, validationResponse } from '../../lib/validation';
-
-function createLocalPortalToken({ ownerId, resourceType, resourceId }) {
-  const token = generatePortalToken();
-  savePortalToken({
-    token_hash: hashPortalToken(token),
-    owner_id: ownerId,
-    resource_type: resourceType,
-    resource_id: resourceId,
-    scope: 'view:comment',
-    expires_at: defaultPortalExpiry(),
-    revoked_at: null,
-  });
-  return token;
-}
+import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
 
 export async function GET(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'quotes');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
     
     if (context.mode === 'supabase') {
       const { data, error } = await context.supabase
@@ -39,11 +26,7 @@ export async function GET(request) {
       return NextResponse.json({ data: data || [] });
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Quotes');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : 'usr_demo123';
-    const quotes = getQuotesByUserId(targetUserId);
-    return NextResponse.json({ data: quotes });
+    return authRequiredResponse('quotes');
 
   } catch (error) {
     console.error('Error fetching quotes:', error);
@@ -54,13 +37,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to save quotes' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'quotes');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateQuotePayload(await request.json());
 
@@ -145,43 +127,34 @@ export async function POST(request) {
         ip,
       });
 
+      if (!id) {
+        try {
+          await recordProductAnalyticsEvent({
+            eventName: 'Proposal Created',
+            userId: context.user.id,
+            source: 'quotes_api',
+            properties: {
+              identity: context.user.id,
+              user_id: context.user.id,
+              plan: 'free',
+              country: '',
+              quote_id: data.id,
+              quote_number: data.quote_number,
+              total: data.total,
+              currency: data.currency,
+              source: 'quotes_api',
+              timestamp: new Date().toISOString(),
+            },
+          });
+        } catch (analyticsError) {
+          console.error('Failed to record proposal creation:', analyticsError);
+        }
+      }
+
       return NextResponse.json({ ...data, portal_token: portalToken }, { status: 201 });
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Quotes');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : 'usr_demo123';
-    const payload = {
-      id: id || `quote_${Math.random().toString(36).substring(2, 14)}`,
-      user_id: targetUserId,
-      quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      client_name,
-      client_email,
-      client_address,
-      items: items.map(item => ({
-        description: item.description,
-        quantity: Number(item.quantity) || 1,
-        unit_price: Math.round(Number(item.unitPrice || 0) * 100),
-        amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
-      })),
-      subtotal: calculatedSubtotal,
-      discount_rate: Number(discount_rate),
-      discount_amount: calculatedDiscountAmount,
-      tax_rate: Number(tax_rate),
-      tax_amount: calculatedTaxAmount,
-      total: calculatedTotal,
-      currency,
-      notes,
-      status
-    };
-
-    const saved = saveQuote(payload);
-    const portalToken = createLocalPortalToken({
-      ownerId: targetUserId,
-      resourceType: 'quote',
-      resourceId: saved.id,
-    });
-    return NextResponse.json({ ...saved, portal_token: portalToken }, { status: 201 });
+    return authRequiredResponse('quotes');
 
   } catch (error) {
     const validation = validationResponse(error);
@@ -194,13 +167,12 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to modify quotes' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'quotes');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateObject(await request.json());
     const id = body.id;
@@ -227,16 +199,62 @@ export async function PATCH(request) {
         resourceId: data.id,
         ip,
       });
+
+      if (status === 'sent') {
+        await trackProfileMetric(context.supabase, context.user.id, 'quote_sent_timestamp');
+        await recordServerGrowthEvent(context.supabase, {
+          eventName: 'quote_sent',
+          userId: context.user.id,
+          source: 'user',
+          properties: {
+            quote_id: data.id,
+            quote_number: data.quote_number,
+            client_email: data.client_email
+          }
+        });
+        try {
+          await recordProductAnalyticsEvent({
+            eventName: 'Proposal Sent',
+            userId: context.user.id,
+            source: 'quotes_api',
+            properties: {
+              identity: context.user.id,
+              user_id: context.user.id,
+              plan: 'free',
+              country: '',
+              quote_id: data.id,
+              quote_number: data.quote_number,
+              source: 'quotes_api',
+              timestamp: new Date().toISOString(),
+            },
+          });
+        } catch (analyticsError) {
+          console.error('Failed to record proposal sent:', analyticsError);
+        }
+      }
+
+      // Trigger Quote Approved email notification
+      if (status === 'approved') {
+        try {
+          const { data: profile } = await context.supabase
+            .from('profiles')
+            .select('name, email')
+            .eq('id', context.user.id)
+            .maybeSingle();
+
+          if (profile?.email) {
+            const { sendQuoteApprovedEmail } = await import('../../lib/email');
+            await sendQuoteApprovedEmail(profile.email, data, profile.name || 'Freelancer');
+          }
+        } catch (mailErr) {
+          console.error('Failed to trigger Quote Approved email:', mailErr);
+        }
+      }
+
       return NextResponse.json(data);
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Quotes');
-    const updated = updateQuoteStatus(id, status);
-    if (!updated) {
-      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
-    }
-    return NextResponse.json(updated);
+    return authRequiredResponse('quotes');
 
   } catch (error) {
     const validation = validationResponse(error);

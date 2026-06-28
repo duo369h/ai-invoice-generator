@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getLeadsByUserId, saveLead, getCardProfileByUsername, updateLeadDetails } from '../../lib/db';
-import { createPublicSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { failClosedResponse, getIp, hasSpamSignals, isDemoModeAllowed } from '../../lib/security';
+import { createServiceSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
+import { rateLimit, rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, failClosedResponse, getIp, hasSpamSignals, requestContextResponse } from '../../lib/security';
 import { enumValue, validateLeadPayload, validateObject, validationResponse } from '../../lib/validation';
 
 export async function GET(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'leads');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
     
     if (context.mode === 'supabase') {
       const { data, error } = await context.supabase
@@ -25,11 +25,7 @@ export async function GET(request) {
       return NextResponse.json({ data: data || [] });
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Leads');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : 'usr_demo123';
-    const leads = getLeadsByUserId(targetUserId);
-    return NextResponse.json({ data: leads });
+    return authRequiredResponse('leads');
 
   } catch (error) {
     console.error('Error fetching leads:', error);
@@ -54,32 +50,34 @@ export async function POST(request) {
     // Look up IP address from headers
     const visitor_ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
-    // Retrieve context to see if Supabase is used or fallback
     const context = await getRequestUser(request);
-    const publicSupabase = context.mode === 'supabase' ? context.supabase : createPublicSupabaseClient();
+    if (context.mode === 'unconfigured') return failClosedResponse('Leads');
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Leads');
 
-    if (publicSupabase) {
+    if (serviceSupabase) {
       // Find card profile by username
-      const { data: profile, error: cpErr } = await publicSupabase
+      const { data: profile, error: cpErr } = await serviceSupabase
         .from('card_profiles')
         .select('id, user_id')
         .eq('username', username.toLowerCase().trim())
+        .eq('is_public', true)
         .maybeSingle();
 
       if (cpErr || !profile) {
         return NextResponse.json({ error: 'Freelancer profile not found' }, { status: 404 });
       }
 
-      // Check lead limit for Free plan
-      const { data: userProfile } = await publicSupabase
+            // Check lead limit for Free plan
+      const { data: userProfile } = await serviceSupabase
         .from('profiles')
-        .select('plan')
+        .select('plan, email, name')
         .eq('id', profile.user_id)
         .single();
       
       const plan = userProfile?.plan || 'free';
       if (plan === 'free') {
-        const { count, error: countErr } = await publicSupabase
+        const { count, error: countErr } = await serviceSupabase
           .from('leads')
           .select('id', { count: 'exact', head: true })
           .eq('freelancer_id', profile.user_id);
@@ -103,48 +101,30 @@ export async function POST(request) {
         source_utm
       };
 
-      const { data, error } = await publicSupabase
+      const { error } = await serviceSupabase
         .from('leads')
-        .insert(payload)
-        .select('*')
-        .single();
+        .insert(payload);
 
       if (error) throw error;
-      return NextResponse.json(data, { status: 201 });
+
+      // Trigger New Lead email notification
+      if (userProfile?.email) {
+        try {
+          const { sendNewLeadEmail } = await import('../../lib/email');
+          await sendNewLeadEmail(
+            userProfile.email,
+            { name, email, message, source_utm },
+            userProfile.name || 'Freelancer'
+          );
+        } catch (mailErr) {
+          console.error('Failed to send New Lead email:', mailErr);
+        }
+      }
+
+      return NextResponse.json({ success: true }, { status: 201 });
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Leads');
-    const profile = getCardProfileByUsername(username.toLowerCase().trim());
-    if (!profile) {
-      return NextResponse.json({ error: 'Freelancer profile not found' }, { status: 404 });
-    }
-
-    // Check lead limit for Free plan locally
-    const existingLeads = getLeadsByUserId(profile.user_id);
-    const { getUserById } = await import('../../lib/db');
-    const freelancerUser = getUserById(profile.user_id);
-    const plan = freelancerUser?.plan || 'free';
-    if (plan === 'free' && existingLeads.length >= 5) {
-      return NextResponse.json(
-        { error: 'This freelancer inbox has reached capacity. Please contact them directly or try again later.' },
-        { status: 403 }
-      );
-    }
-
-    const payload = {
-      card_profile_id: profile.id,
-      freelancer_id: profile.user_id,
-      name,
-      email,
-      message,
-      status: 'new',
-      visitor_ip,
-      source_utm
-    };
-
-    const newLead = saveLead(payload);
-    return NextResponse.json(newLead, { status: 201 });
+    return failClosedResponse('Leads');
 
   } catch (error) {
     const validation = validationResponse(error);
@@ -157,13 +137,12 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required for modifications' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'leads');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateObject(await request.json());
     const { id, ...rest } = body;
@@ -228,13 +207,7 @@ export async function PATCH(request) {
       return NextResponse.json(data);
     }
 
-    // Local / Mock fallback
-    if (!isDemoModeAllowed()) return failClosedResponse('Leads');
-    const updated = updateLeadDetails(id, updates);
-    if (!updated) {
-      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-    }
-    return NextResponse.json(updated);
+    return authRequiredResponse('leads');
 
   } catch (error) {
     const validation = validationResponse(error);

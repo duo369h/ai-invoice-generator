@@ -82,3 +82,7 @@ export async function rateLimitByPolicy(policy, identifier) {
   const config = RATE_LIMITS[policy] || RATE_LIMITS.invoiceApi;
   return rateLimit(`${policy}:${identifier || 'anonymous'}`, config.limit, config.windowMs);
 }
+
+export async function rateLimitAuthenticated(policy, userId) {
+  return rateLimitByPolicy(policy || 'invoiceApi', `user:${userId || 'unknown'}`);
+}

@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { Logo } from '../components/UIComponents';
 import { getSupportEmail } from '../lib/config';
 
 export const metadata = {
-  title: 'Payment Activation — Freelancer Business OS Pro',
+  title: 'Payment Activation — Corvioz Pro',
   description:
-    'How to upgrade to Freelancer Business OS Pro via PayPal. Step-by-step payment instructions for manual beta activation.',
+    'How to activate Corvioz Pro while automated billing is being finalized.',
 };
 
 export default function PaymentInstructionsPage() {
@@ -13,8 +14,8 @@ export default function PaymentInstructionsPage() {
   const steps = [
     {
       num: '01',
-      title: 'Select Pro Operations',
-      body: 'You\'ve selected the Freelancer Business OS Pro Operations plan at $12 / month. This unlocks unlimited clients & invoices, custom profile domains, watermark-free PDF exports, and advanced CRM pipelines.',
+      title: 'Select Pro',
+      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited invoices, AI-assisted quotes, client portals, PDF exports, payment status tracking, and custom branding. See the current price on the Pricing page.',
     },
     {
       num: '02',
@@ -22,8 +23,8 @@ export default function PaymentInstructionsPage() {
       body: (
         <>
           Click the PayPal request button below and email us your registered account address.
-          Our team will send you a <strong style={{ color: 'var(--text-main)' }}>$12.00 USD</strong> PayPal
-          payment request or PayPal invoice. Please include your Freelancer Business OS username or email in the payment
+          Our team will send you a PayPal payment request for the current Pro plan rate.
+          Please include your Corvioz username or email in the payment
           note so we can match your account.
         </>
       ),
@@ -38,8 +39,8 @@ export default function PaymentInstructionsPage() {
             {supportEmail}
           </a>
           {' '}with the subject line{' '}
-          <strong style={{ color: 'var(--text-main)' }}>&ldquo;Freelancer Business OS Pro Upgrade&rdquo;</strong>.
-          Include your name and the email address you use on Freelancer Business OS.
+          <strong style={{ color: 'var(--text-main)' }}>&ldquo;Corvioz Pro Upgrade&rdquo;</strong>.
+          Include your name and the email address you use on Corvioz.
         </>
       ),
     },
@@ -55,17 +56,9 @@ export default function PaymentInstructionsPage() {
 
       {/* NAV */}
       <header className="navbar">
-        <div className="logo-container">
-          <svg style={{ width: '22px', height: '22px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <line x1="9" y1="9" x2="15" y2="9" />
-            <line x1="9" y1="13" x2="15" y2="13" />
-            <line x1="9" y1="17" x2="13" y2="17" />
-          </svg>
-          <Link href="/">Freelancer Business OS</Link>
-        </div>
+        <Logo size={22} />
         <div className="nav-links">
-          <Link href="/freelancers" className="nav-link">Directory</Link>
+          <Link href="/client" className="nav-link">Client Portal</Link>
           <Link href="/pricing" className="nav-link">Pricing</Link>
           <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
         </div>
@@ -90,12 +83,12 @@ export default function PaymentInstructionsPage() {
             lineHeight: 1.15,
             marginBottom: '16px',
           }}>
-            How to Pay with PayPal
+            How to Activate Pro
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '52px', maxWidth: '620px' }}>
-            Freelancer Business OS accepts PayPal for cross-border Pro plan payments. Customers request a PayPal payment,
-            complete the invoice request, and email the receipt to our support team. Because automated credit card processing is currently in setup,
-            Pro access is activated <strong style={{ color: 'var(--text-main)' }}>manually by our team</strong> after verification. The process is fast and usually takes less than 2 hours.
+            Automated checkout is being finalized. During this setup period, Pro access can be activated
+            <strong style={{ color: 'var(--text-main)' }}> manually by our team</strong> after payment verification.
+            You can also keep using the Free plan and start building your profile immediately.
           </p>
 
           {/* Steps */}
@@ -161,8 +154,8 @@ export default function PaymentInstructionsPage() {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 40px', fontSize: '0.93rem' }}>
               {[
-                ['Plan', 'Freelancer Business OS Pro'],
-                ['Amount', '$12.00 USD / month'],
+                ['Plan', 'Corvioz Pro'],
+                ['Amount', 'See current pricing at corvioz.com/pricing'],
                 ['Payment method', 'PayPal'],
                 ['Activation', 'Manual — within 2 hours'],
                 ['Subscription renewal', 'Manual renewal required each month'],
@@ -184,9 +177,9 @@ export default function PaymentInstructionsPage() {
           </div>
 
           {/* DISCLAIMER */}
-          <div style={{ marginTop: '36px', padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.7' }}>
+          <div style={{ marginTop: '36px', padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.7' }}>
             <strong style={{ color: 'var(--text-main)' }}>Note:</strong>{' '}
-            Freelancer Business OS Pro is currently in manual-activation beta mode. We do not yet offer automatic
+            Corvioz Pro is currently in manual-activation beta mode. We do not yet offer automatic
             recurring billing through PayPal. You will need to renew manually each month.
             Automatic subscriptions and instant account upgrades will be available after our
             payment processor approval completes. Your payment is protected by PayPal Buyer Protection where applicable.
@@ -195,7 +188,7 @@ export default function PaymentInstructionsPage() {
           {/* CTA */}
           <div style={{ marginTop: '48px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <a
-              href={`mailto:${supportEmail}?subject=Freelancer Business OS Pro PayPal Payment Request&body=Hi, I want to upgrade to Freelancer Business OS Pro. Please send me a PayPal payment request for $12 USD. My account email or username is: `}
+              href={`mailto:${supportEmail}?subject=Corvioz Pro PayPal Payment Request&body=Hi, I want to upgrade to Corvioz Pro. Please send me a PayPal payment request for $12 USD. My account email or username is: `}
               id="payment-instructions-paypal-btn"
               style={{
                 display: 'inline-flex',
@@ -219,7 +212,7 @@ export default function PaymentInstructionsPage() {
               Request PayPal Payment
             </a>
             <a
-              href={`mailto:${supportEmail}?subject=Freelancer Business OS Pro Upgrade&body=Hi, I've sent a PayPal payment for Freelancer Business OS Pro. My email is: `}
+              href={`mailto:${supportEmail}?subject=Corvioz Pro Upgrade&body=Hi, I've sent a PayPal payment for Corvioz Pro. My email is: `}
               className="btn btn-secondary"
               id="payment-instructions-email-btn"
             >
@@ -238,7 +231,7 @@ export default function PaymentInstructionsPage() {
           <Link href="/contact">Contact</Link>
           <Link href="/pricing" style={{ color: 'var(--primary)' }}>Pricing</Link>
         </div>
-        <p>© 2026 Freelancer Business OS. All rights reserved.</p>
+        <p>© 2026 Corvioz. All rights reserved.</p>
       </footer>
     </div>
   );

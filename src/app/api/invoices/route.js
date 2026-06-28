@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getInvoices, saveInvoice, savePortalToken, updateInvoiceStatus } from '../../lib/db';
-import { checkQuota } from '../../lib/quota';
 import {
   createSupabasePortalToken,
   ensureProfile,
@@ -8,36 +6,25 @@ import {
   getSupabaseQuota,
   mapSupabaseInvoice,
   incrementSupabaseInvoiceUsage,
-  writeAuditLog
+  writeAuditLog,
+  recordServerGrowthEvent,
+  trackProfileMetric
 } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { defaultPortalExpiry, failClosedResponse, generatePortalToken, getIp, hashPortalToken, isDemoModeAllowed } from '../../lib/security';
+import { rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { validateInvoicePayload, validateObject, validationResponse } from '../../lib/validation';
-
-const DEMO_USER_ID = 'usr_demo123';
-
-function createLocalPortalToken({ ownerId, resourceType, resourceId }) {
-  const token = generatePortalToken();
-  savePortalToken({
-    token_hash: hashPortalToken(token),
-    owner_id: ownerId,
-    resource_type: resourceType,
-    resource_id: resourceId,
-    scope: 'view:comment',
-    expires_at: defaultPortalExpiry(),
-    revoked_at: null,
-  });
-  return token;
-}
+import { getSiteUrl } from '../../lib/config';
+import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
 
 export async function GET(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'invoices');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '50', 10); // increased limit to see more history
@@ -67,52 +54,7 @@ export async function GET(request) {
       });
     }
 
-    if (context.mode === 'mock') {
-      if (!isDemoModeAllowed()) return failClosedResponse('Invoices');
-      let invoices = getInvoices().filter(inv => inv.user_id === 'usr_mock123');
-
-      if (status) {
-        invoices = invoices.filter(inv => {
-          if (status === 'pending') {
-            return inv.status === 'pending' || inv.status === 'unpaid' || inv.status === 'sent';
-          }
-          return inv.status === status;
-        });
-      }
-
-      const hasMore = invoices.length > limit;
-      invoices = invoices.slice(0, limit);
-
-      return NextResponse.json({
-        object: 'list',
-        data: invoices,
-        has_more: hasMore,
-        auth_mode: 'mock'
-      });
-    }
-
-    // fallback to demo mode
-    if (!isDemoModeAllowed()) return failClosedResponse('Invoices');
-    let invoices = getInvoices().filter(inv => inv.user_id === DEMO_USER_ID || !inv.user_id);
-
-    if (status) {
-      invoices = invoices.filter(inv => {
-        if (status === 'pending') {
-          return inv.status === 'pending' || inv.status === 'unpaid' || inv.status === 'sent';
-        }
-        return inv.status === status;
-      });
-    }
-
-    const hasMore = invoices.length > limit;
-    invoices = invoices.slice(0, limit);
-
-    return NextResponse.json({
-      object: 'list',
-      data: invoices,
-      has_more: hasMore,
-      auth_mode: 'demo'
-    });
+    return authRequiredResponse('invoices');
   } catch (error) {
     console.error('Error in invoices GET:', error);
     return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 });
@@ -122,13 +64,12 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to save invoices' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'invoices');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateInvoicePayload(await request.json());
 
@@ -152,7 +93,6 @@ export async function POST(request) {
       doc_type,
       client_id,
       quote_id,
-      stripe_payment_link,
       payment_link
     } = body;
 
@@ -189,7 +129,7 @@ export async function POST(request) {
         doc_type: doc_type || 'invoice',
         client_id: client_id || null,
         quote_id: quote_id || null,
-        stripe_payment_link: stripe_payment_link || payment_link || '',
+        payment_link: payment_link || '',
         client_name,
         client_email: client_email || '',
         client_address: client_address || '',
@@ -224,6 +164,10 @@ export async function POST(request) {
 
       if (error) throw error;
 
+      // V3_REVENUE_HOOK_POINT
+      // DO NOT IMPLEMENT YET
+      await trackProfileMetric(context.supabase, context.user.id, 'first_invoice_created_at');
+
       try {
         await incrementSupabaseInvoiceUsage(context.supabase, context.user.id);
       } catch (useErr) {
@@ -249,78 +193,32 @@ export async function POST(request) {
         ip,
       });
 
+      try {
+        await recordProductAnalyticsEvent({
+          eventName: 'Invoice Created',
+          userId: context.user.id,
+          source: 'invoices_api',
+          properties: {
+            identity: context.user.id,
+            user_id: context.user.id,
+            plan: profile.plan || 'free',
+            country: '',
+            invoice_id: data.id,
+            invoice_number: data.invoice_number,
+            total: data.total,
+            currency: data.currency,
+            source: 'invoices_api',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (analyticsError) {
+        console.error('Failed to record invoice creation:', analyticsError);
+      }
+
       return NextResponse.json({ ...mapSupabaseInvoice(data), portal_token: portalToken }, { status: 201 });
     }
 
-    // Check local mock or demo user plan
-    if (!isDemoModeAllowed()) return failClosedResponse('Invoices');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-
-    // Check local quota
-    const quota = checkQuota(targetUserId);
-    if (!quota.invoicesAllowed) {
-      return NextResponse.json(
-        { error: 'Monthly invoice limit reached. Please upgrade to Pro.', code: 'QUOTA_EXCEEDED' },
-        { status: 403 }
-      );
-    }
-
-    const newInvoice = {
-      id: `inv_${Math.random().toString(36).substring(2, 14)}`,
-      user_id: targetUserId,
-      object: 'invoice',
-      doc_type: doc_type || 'invoice',
-      invoice_number: invoice_number || `INV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      status: defaultStatus,
-      client_id: client_id || null,
-      quote_id: quote_id || null,
-      stripe_payment_link: stripe_payment_link || payment_link || '',
-      payment_link: payment_link || stripe_payment_link || '',
-      
-      // Client
-      client_name,
-      client_email: client_email || '',
-      client_address: client_address || '',
-      
-      // Business
-      business_name: business_name || '',
-      business_email: business_email || '',
-      business_address: business_address || '',
-      logo_url: logo_url || '',
-      
-      // Financial
-      currency: currency.toLowerCase(),
-      items: items.map(item => ({
-        description: item.description,
-        quantity: Number(item.quantity) || 1,
-        unit_price: Math.round(Number(item.unitPrice || 0) * 100),
-        amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
-      })),
-      subtotal,
-      discount_rate: Number(discount_rate),
-      discount_amount,
-      tax_rate: Number(tax_rate),
-      tax_amount,
-      total,
-      
-      // Dates & terms
-      invoice_date: invoice_date || new Date().toISOString().substring(0, 10),
-      due_date: due_date || '',
-      payment_terms: payment_terms || 'Net 30',
-      notes: notes || '',
-      
-      pdf_url: `/dashboard/print?id=${Math.random().toString(36).substring(2, 14)}`,
-      created_at: new Date().toISOString()
-    };
-
-    saveInvoice(newInvoice);
-    const portalToken = createLocalPortalToken({
-      ownerId: targetUserId,
-      resourceType: 'invoice',
-      resourceId: newInvoice.id,
-    });
-
-    return NextResponse.json({ ...newInvoice, portal_token: portalToken }, { status: 201 });
+    return authRequiredResponse('invoices');
   } catch (error) {
     const validation = validationResponse(error);
     if (validation) return validation;
@@ -332,13 +230,12 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to modify invoices' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'invoices');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const body = validateObject(await request.json());
     const { id, status } = body;
@@ -368,25 +265,87 @@ export async function PATCH(request) {
         ip,
       });
 
+      if (status === 'sent') {
+        await trackProfileMetric(context.supabase, context.user.id, 'invoice_sent_timestamp');
+        await recordServerGrowthEvent(context.supabase, {
+          eventName: 'invoice_sent',
+          userId: context.user.id,
+          source: 'user',
+          properties: {
+            invoice_id: data.id,
+            invoice_number: data.invoice_number,
+            client_email: data.client_email
+          }
+        });
+      }
+
+      // Trigger email notifications
+      if (status === 'sent' && data.client_email) {
+        try {
+          const { createSupabasePortalToken } = await import('../../lib/supabase');
+          const portalToken = await createSupabasePortalToken(context.supabase, {
+            ownerId: context.user.id,
+            resourceType: 'invoice',
+            resourceId: data.id
+          });
+          const portalUrl = `${getSiteUrl()}/portal/${portalToken}`;
+          
+          const { data: profile } = await context.supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', context.user.id)
+            .maybeSingle();
+
+          const { sendInvoiceSentEmail } = await import('../../lib/email');
+          await sendInvoiceSentEmail(data.client_email, data, portalUrl, profile?.name || 'Freelancer');
+        } catch (mailErr) {
+          console.error('Failed to trigger Invoice Sent email:', mailErr);
+        }
+      }
+
+      if (status === 'paid') {
+        // V3_REVENUE_HOOK_POINT
+        // DO NOT IMPLEMENT YET
+        try {
+          const { data: profile } = await context.supabase
+            .from('profiles')
+            .select('name, email, plan')
+            .eq('id', context.user.id)
+            .maybeSingle();
+
+          const { sendInvoicePaidEmail } = await import('../../lib/email');
+          if (profile?.email) {
+            await sendInvoicePaidEmail(profile.email, data, profile.name || 'Freelancer');
+          }
+          if (data.client_email) {
+            await sendInvoicePaidEmail(data.client_email, data, profile?.name || 'Freelancer');
+          }
+          await recordProductAnalyticsEvent({
+            eventName: 'Invoice Paid',
+            userId: context.user.id,
+            source: 'invoices_api',
+            properties: {
+              identity: context.user.id,
+              user_id: context.user.id,
+              plan: profile?.plan || 'free',
+              country: '',
+              invoice_id: data.id,
+              invoice_number: data.invoice_number,
+              total: data.total,
+              currency: data.currency,
+              source: 'invoices_api',
+              timestamp: new Date().toISOString(),
+            },
+          });
+        } catch (mailErr) {
+          console.error('Failed to trigger Invoice Paid follow-up:', mailErr);
+        }
+      }
+
       return NextResponse.json(mapSupabaseInvoice(data));
     }
 
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    if (!isDemoModeAllowed()) return failClosedResponse('Invoices');
-    
-    // Read and verify ownership
-    const invoices = getInvoices();
-    const invoice = invoices.find(inv => inv.id === id && inv.user_id === targetUserId);
-    if (!invoice) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-    }
-
-    const updated = updateInvoiceStatus(id, status);
-    if (!updated) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(updated);
+    return authRequiredResponse('invoices');
   } catch (error) {
     const validation = validationResponse(error);
     if (validation) return validation;

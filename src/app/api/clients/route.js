@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getClients, saveClient, deleteClient } from '../../lib/db';
-import { getRequestUser } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { failClosedResponse, getIp, isDemoModeAllowed } from '../../lib/security';
+import { getRequestUser, trackProfileMetric } from '../../lib/supabase';
+import { rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validateClientPayload, validationResponse } from '../../lib/validation';
-
-const DEMO_USER_ID = 'usr_demo123';
 
 export async function GET(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'clients');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
 
     if (context.mode === 'supabase') {
       const { data, error } = await context.supabase
@@ -31,15 +29,7 @@ export async function GET(request) {
       });
     }
 
-    if (!isDemoModeAllowed()) return failClosedResponse('Clients');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    const clients = getClients().filter(c => c.user_id === targetUserId);
-
-    return NextResponse.json({
-      object: 'list',
-      data: clients,
-      auth_mode: context.mode
-    });
+    return authRequiredResponse('clients');
   } catch (error) {
     console.error('Error fetching clients:', error);
     return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 500 });
@@ -48,14 +38,12 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to save clients' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'clients');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const { id, name, email = '', address = '' } = validateClientPayload(await request.json());
 
@@ -86,25 +74,14 @@ export async function POST(request) {
           .single();
         if (error) throw error;
         result = data;
+
+        await trackProfileMetric(context.supabase, context.user.id, 'first_client_added_at');
       }
 
       return NextResponse.json(result);
     }
 
-    if (!isDemoModeAllowed()) return failClosedResponse('Clients');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    
-    const client = {
-      id: id || `cli_${Math.random().toString(36).substring(2, 14)}`,
-      user_id: targetUserId,
-      name,
-      email,
-      address,
-      created_at: new Date().toISOString()
-    };
-
-    saveClient(client);
-    return NextResponse.json(client, { status: 201 });
+    return authRequiredResponse('clients');
   } catch (error) {
     const validation = validationResponse(error);
     if (validation) return validation;
@@ -115,14 +92,12 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to delete clients' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'clients');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -142,16 +117,7 @@ export async function DELETE(request) {
       return NextResponse.json({ success: true });
     }
 
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    if (!isDemoModeAllowed()) return failClosedResponse('Clients');
-    const clients = getClients();
-    const client = clients.find(c => c.id === id && c.user_id === targetUserId);
-    if (!client) {
-      return NextResponse.json({ error: 'Client not found or access denied' }, { status: 404 });
-    }
-
-    deleteClient(id);
-    return NextResponse.json({ success: true });
+    return authRequiredResponse('clients');
   } catch (error) {
     console.error('Error deleting client:', error);
     return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });

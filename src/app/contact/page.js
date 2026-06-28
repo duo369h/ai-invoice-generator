@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { Logo } from "../components/UIComponents";
 import { getSupportEmail } from "../lib/config";
 
 export default function ContactPage() {
@@ -26,15 +27,7 @@ export default function ContactPage() {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <header className="navbar">
-        <div className="logo-container">
-          <svg style={{ width: "24px", height: "24px" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <line x1="9" y1="9" x2="15" y2="9" />
-            <line x1="9" y1="13" x2="15" y2="13" />
-            <line x1="9" y1="17" x2="13" y2="17" />
-          </svg>
-          <Link href="/">Freelancer Business OS</Link>
-        </div>
+        <Logo size={24} />
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
           <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
@@ -66,7 +59,7 @@ export default function ContactPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
               </div>
               <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "4px" }}>Social Channel</h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>@freelancer_os on X</p>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>@corvioz on X</p>
             </div>
           </div>
 
@@ -166,7 +159,7 @@ export default function ContactPage() {
           <Link href="/refund-policy">Refund Policy</Link>
           <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link>
         </div>
-        <p style={{ marginTop: "12px" }}>© 2026 Freelancer Business OS. All rights reserved.</p>
+        <p style={{ marginTop: "12px" }}>© 2026 Corvioz. All rights reserved.</p>
       </footer>
     </div>
   );

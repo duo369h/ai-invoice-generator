@@ -1,0 +1,11 @@
+<svg width="240" height="40" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0, 4)">
+    <path d="M22 8.5 A 9.5 9.5 0 1 0 24.5 20.5" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+    <path d="M13 22 V11 H20" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M13 16 H18" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M21 9 L25 13 L21 17" stroke="#06B6D4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="38" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="900" letter-spacing="-0.04em" fill="#0F172A">
+    Corvioz
+  </text>
+</svg>

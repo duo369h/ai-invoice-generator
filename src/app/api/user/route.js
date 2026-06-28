@@ -1,50 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getUserById, updateUserPlan } from '../../lib/db';
-import { checkQuota } from '../../lib/quota';
 import { ensureProfile, getRequestUser, getSupabaseQuota } from '../../lib/supabase';
-import { rateLimit } from '../../lib/rate-limit';
-import { failClosedResponse, getIp, isDemoModeAllowed } from '../../lib/security';
+import { rateLimitAuthenticated } from '../../lib/rate-limit';
+import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validatePlanPayload, validationResponse } from '../../lib/validation';
-
-const DEMO_USER_ID = 'usr_demo123';
 
 export async function GET(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'user profile');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
 
     if (context.mode === 'supabase') {
       const profile = await ensureProfile(context.supabase, context.user);
       const quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
+
+      // Check if user has activated (created at least one invoice, quote, or client)
+      const { count: invoiceCount } = await context.supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', context.user.id);
+
+      const { count: clientCount } = await context.supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', context.user.id);
+
+      const hasActivated = (invoiceCount || 0) > 0 || (clientCount || 0) > 0;
 
       return NextResponse.json({
         id: profile.id,
         email: profile.email,
         name: profile.name || profile.email,
         plan: profile.plan || 'free',
-        stripe_customer_id: profile.stripe_customer_id || '',
+        paddle_customer_id: profile.paddle_customer_id || '',
         created_at: profile.created_at,
         quota,
-        auth_mode: 'supabase'
+        auth_mode: 'supabase',
+        hasActivated
       });
     }
 
-    if (!isDemoModeAllowed()) return failClosedResponse('User profile');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    const user = getUserById(targetUserId);
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const quota = checkQuota(targetUserId);
-    return NextResponse.json({
-      ...user,
-      quota,
-      auth_mode: context.mode === 'mock' ? 'mock' : 'demo'
-    });
+    return authRequiredResponse('user profile');
   } catch (error) {
     console.error('Error fetching user:', error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
@@ -53,38 +53,23 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const ip = getIp(request);
-    const limitResult = await rateLimit(ip, 60, 60000);
-    if (!limitResult.success) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
     const context = await getRequestUser(request);
-    if (context.mode === 'demo') {
-      return NextResponse.json({ error: 'Authentication required to update plan' }, { status: 401 });
+    const contextFailure = requestContextResponse(context, 'user profile');
+    if (contextFailure) return contextFailure;
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
-    const { plan } = validatePlanPayload(await request.json());
+    validatePlanPayload(await request.json());
 
     if (context.mode === 'supabase') {
-      const profile = await ensureProfile(context.supabase, context.user);
-      const { data, error } = await context.supabase
-        .from('profiles')
-        .update({ plan })
-        .eq('id', profile.id)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-      return NextResponse.json(data);
+      return NextResponse.json(
+        { error: 'Plan changes are handled by Corvioz support during V1 beta' },
+        { status: 403 }
+      );
     }
 
-    if (!isDemoModeAllowed()) return failClosedResponse('User profile');
-    const targetUserId = context.mode === 'mock' ? 'usr_mock123' : DEMO_USER_ID;
-    const updatedUser = updateUserPlan(targetUserId, plan);
-    if (!updatedUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(updatedUser);
+    return authRequiredResponse('user profile');
   } catch (error) {
     const validation = validationResponse(error);
     if (validation) return validation;

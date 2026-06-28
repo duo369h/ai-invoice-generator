@@ -84,10 +84,41 @@ export function lineItems(items, { required = true } = {}) {
   });
 }
 
+function profileServices(items) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 20).map((item, index) => {
+    const service = validateObject(item, `services[${index}]`);
+    return {
+      id: text(service.id, `services[${index}].id`, { max: 80 }),
+      name: text(service.name, `services[${index}].name`, { required: true, max: 160 }),
+      description: text(service.description, `services[${index}].description`, { max: 600 }),
+      rate_type: enumValue(service.rate_type || 'fixed', `services[${index}].rate_type`, ['fixed', 'hourly'], 'fixed'),
+      rate_amount: numberValue(service.rate_amount, `services[${index}].rate_amount`, { min: 0, max: 100000000 }),
+      group: text(service.group || '', `services[${index}].group`, { max: 120 }),
+    };
+  });
+}
+
+function profilePortfolio(items) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 20).map((item, index) => {
+    const project = validateObject(item, `portfolio[${index}]`);
+    return {
+      title: text(project.title, `portfolio[${index}].title`, { required: true, max: 180 }),
+      description: text(project.description, `portfolio[${index}].description`, { max: 800 }),
+      link: safeUrl(project.link || ''),
+      category: text(project.category || '', `portfolio[${index}].category`, { max: 120 }),
+      featured: Boolean(project.featured),
+      results: text(project.results || '', `portfolio[${index}].results`, { max: 300 }),
+      media_embed: text(project.media_embed || '', `portfolio[${index}].media_embed`, { max: 400 }),
+    };
+  });
+}
+
 export function validateInvoicePayload(body) {
   const obj = validateObject(body);
   const items = lineItems(obj.items);
-  const paymentLink = safeUrl(obj.payment_link || obj.stripe_payment_link || '', { payment: true });
+  const paymentLink = safeUrl(obj.payment_link || '', { payment: true });
   return {
     client_name: text(obj.client_name, 'client_name', { required: true, max: 180 }),
     client_email: email(obj.client_email, 'client_email'),
@@ -108,7 +139,6 @@ export function validateInvoicePayload(body) {
     doc_type: enumValue(obj.doc_type || 'invoice', 'doc_type', ['invoice', 'receipt', 'quote'], 'invoice'),
     client_id: text(obj.client_id, 'client_id', { max: 80 }),
     quote_id: obj.quote_id ? id(obj.quote_id, 'quote_id') : null,
-    stripe_payment_link: paymentLink,
     payment_link: paymentLink,
   };
 }
@@ -160,8 +190,8 @@ export function validateCardProfilePayload(body) {
     title: text(obj.title, 'title', { max: 180 }),
     bio: text(obj.bio, 'bio', { max: 2000 }),
     tags: Array.isArray(obj.tags) ? obj.tags.map((tag) => text(tag, 'tag', { max: 60 })).slice(0, 30) : [],
-    services: normalizeUrlList(Array.isArray(obj.services) ? obj.services : []),
-    portfolio: normalizeUrlList(Array.isArray(obj.portfolio) ? obj.portfolio : []),
+    services: profileServices(obj.services),
+    portfolio: profilePortfolio(obj.portfolio),
     contact_email: email(obj.contact_email, 'contact_email'),
     contact_phone: text(obj.contact_phone, 'contact_phone', { max: 50 }),
     avatar_url: safeUrl(obj.avatar_url || ''),
@@ -176,6 +206,7 @@ export function validateCardProfilePayload(body) {
     verified_badge: Boolean(obj.verified_badge),
     top_rated_badge: Boolean(obj.top_rated_badge),
     fast_response_badge: Boolean(obj.fast_response_badge),
+    is_public: obj.is_public !== false,
     testimonials: Array.isArray(obj.testimonials) ? obj.testimonials.slice(0, 20).map((item) => {
       const entry = validateObject(item, 'testimonial');
       return {
@@ -189,6 +220,11 @@ export function validateCardProfilePayload(body) {
       twitter: safeUrl(social.twitter || ''),
       linkedin: safeUrl(social.linkedin || ''),
       website: safeUrl(social.website || ''),
+      brand_color: text(social.brand_color || '', 'brand_color', { max: 20 }),
+      brand_secondary: text(social.brand_secondary || '', 'brand_secondary', { max: 20 }),
+      theme_preference: text(social.theme_preference || '', 'theme_preference', { max: 30 }),
+      font_family: text(social.font_family || '', 'font_family', { max: 60 }),
+      logo_url: safeUrl(social.logo_url || ''),
     },
   };
 }
@@ -214,7 +250,7 @@ export function validateParsePayload(body, fieldName = 'raw_text') {
 export function validatePlanPayload(body) {
   const obj = validateObject(body);
   return {
-    plan: enumValue(obj.plan, 'plan', ['free', 'pro', 'agency'], 'free'),
+    plan: enumValue(obj.plan, 'plan', ['free', 'pro', 'agency', 'studio'], 'free'),
   };
 }
 
