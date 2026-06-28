@@ -6,8 +6,8 @@ import { rateLimitAuthenticated } from '../../../lib/rate-limit';
 import { requestContextResponse } from '../../../lib/security';
 import { validateParsePayload, validationResponse } from '../../../lib/validation';
 import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
-import { getPricingIntelligence } from '../../../../core/pricing/PRICING_INTELLIGENCE_ENGINE';
-import { getRevenueDecision } from '../../../../core/revenue/REVENUE_DECISION_ENGINE';
+import { getDecision } from '../../../../core/ai/AI_DECISION_CORE';
+import { assertCoreDecisionSource } from '../../../../core/ai/AI_DECISION_GUARD';
 
 // Deterministic regex-based parser. Revenue parsing must not use AI.
 function fallbackParse(text, type) {
@@ -154,42 +154,6 @@ function fallbackParse(text, type) {
   };
 }
 
-function getPricingAndDecisionForParsedInvoice(parsedData) {
-  let jobType = 'web_design';
-  const descLower = ((parsedData.items?.[0]?.description) || '').toLowerCase();
-  if (descLower.includes('ui') || descLower.includes('ux') || descLower.includes('design')) {
-    jobType = descLower.includes('web') ? 'web_design' : 'ui_ux';
-  } else if (descLower.includes('logo') || descLower.includes('brand')) {
-    jobType = 'logo';
-  } else if (descLower.includes('invoice') || descLower.includes('billing') || descLower.includes('system') || descLower.includes('code') || descLower.includes('dev')) {
-    jobType = 'invoice_system';
-  } else if (descLower.includes('marketing') || descLower.includes('seo') || descLower.includes('growth')) {
-    jobType = 'marketing';
-  }
-
-  let clientType = 'small_business';
-  const clientLower = (parsedData.client_name || '').toLowerCase();
-  if (clientLower.includes('enterprise') || clientLower.includes('corporate') || clientLower.includes('large')) {
-    clientType = 'enterprise';
-  } else if (clientLower.includes('startup') || clientLower.includes('vc')) {
-    clientType = 'startup';
-  } else if (clientLower.includes('individual') || clientLower.includes('personal')) {
-    clientType = 'individual';
-  }
-
-  const pricingInput = {
-    jobType,
-    clientType,
-    urgency: 'medium',
-    clarity: 'medium'
-  };
-
-  const pricing = getPricingIntelligence(pricingInput);
-  const decision = getRevenueDecision(pricing, pricingInput);
-
-  return { pricing, decision };
-}
-
 export async function POST(request) {
   try {
     const context = await getRequestUser(request);
@@ -214,12 +178,20 @@ export async function POST(request) {
     }
 
     const parsed = fallbackParse(raw_text, type || 'invoice');
-    const { pricing, decision } = getPricingAndDecisionForParsedInvoice(parsed);
+    const decision = getDecision(context.user.id, {
+      clientContext: parsed.client_name,
+      amount: parsed.items?.[0]?.unit_price,
+      docType: type || 'invoice',
+    });
+    assertCoreDecisionSource("AI_DECISION_CORE");
     return NextResponse.json({
       parsed_data: parsed,
-      pricing,
-      revenue_decision: decision,
-      meta: { parser: 'deterministic_heuristic', note: 'Revenue parsing does not use AI in v3.1.1.' }
+      core_decision: decision.output,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      },
+      meta: { parser: 'deterministic_heuristic', note: 'Runtime decisions are sourced only from AI_DECISION_CORE.' }
     });
 
   } catch (error) {

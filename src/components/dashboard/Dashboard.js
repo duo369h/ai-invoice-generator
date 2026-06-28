@@ -291,6 +291,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [activeTab, setActiveTab] = useState(() => {
     return 'quotes';
   }); // overview, leads, quotes, invoices, clients, profile
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [session, setSession] = useState(null);
   const [supabaseClient, setSupabaseClient] = useState(undefined);
@@ -920,10 +921,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, [setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
 
   const getDashboardTabs = useCallback((state) => {
-    return [
-      { id: 'quotes', label: 'Proposal' }
+    const tabs = [
+      { id: 'quotes', label: 'Quotes' }
     ];
-  }, []);
+    if (showAdvanced) {
+      tabs.push(
+        { id: 'invoices', label: 'Invoices' },
+        { id: 'clients', label: 'Clients' },
+        { id: 'profile', label: 'Bento Profile' }
+      );
+    }
+    return tabs;
+  }, [showAdvanced]);
 
   const handleDashboardTabChange = useCallback((tab, source = 'dashboard') => {
     if (invoiceFlowLocked && activeTab === 'invoices' && invoiceView !== 'list' && source !== 'invoice_flow_exit') {
@@ -932,16 +941,32 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       return;
     }
 
+    if (['invoices', 'clients', 'profile'].includes(tab) && !showAdvanced) {
+      setShowAdvanced(true);
+    }
+
     let resolvedTab = tab;
-    const validTabs = getDashboardTabs(kernelUi).map(t => t.id);
-    if (!validTabs.includes(tab)) {
-      resolvedTab = validTabs[0] || 'overview';
+    const hasAdvanced = showAdvanced || ['invoices', 'clients', 'profile'].includes(tab);
+    const validTabs = [
+      { id: 'quotes', label: 'Quotes' }
+    ];
+    if (hasAdvanced) {
+      validTabs.push(
+        { id: 'invoices', label: 'Invoices' },
+        { id: 'clients', label: 'Clients' },
+        { id: 'profile', label: 'Bento Profile' }
+      );
+    }
+    const validTabIds = validTabs.map(t => t.id);
+
+    if (!validTabIds.includes(tab)) {
+      resolvedTab = validTabIds[0] || 'quotes';
     }
     trackEvent('dashboard_tab_click', { tab: resolvedTab, source });
     setActiveTab(resolvedTab);
     setFormError('');
     setFormSuccess('');
-  }, [kernelUi, getDashboardTabs, invoiceFlowLocked, activeTab, invoiceView, triggerToast]);
+  }, [kernelUi, invoiceFlowLocked, activeTab, invoiceView, triggerToast, showAdvanced]);
 
   // v10: renderPaidLockState is REMOVED.
   // Tabs are now freely accessible — upgrade nudges fire AFTER value moments, not before access.
@@ -2693,6 +2718,33 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </button>
               );
             })}
+
+            {/* Advanced Toggle */}
+            <button
+              onClick={() => {
+                setShowAdvanced(!showAdvanced);
+                trackEvent('dashboard_advanced_toggle', { open: !showAdvanced });
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                cursor: 'pointer',
+                backgroundColor: 'var(--btn-secondary-bg)',
+                color: 'var(--text-muted)',
+                border: '1px dashed var(--border)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                marginTop: '6px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>{showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}</span>
+            </button>
 
             {/* Divider & Secondary client portal link */}
             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />

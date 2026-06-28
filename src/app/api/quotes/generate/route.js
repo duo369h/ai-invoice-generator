@@ -4,8 +4,9 @@ import { rateLimitAuthenticated } from '../../../lib/rate-limit';
 import { requestContextResponse } from '../../../lib/security';
 import { validateParsePayload, validationResponse } from '../../../lib/validation';
 import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
-import { getPricingIntelligence } from '../../../../core/pricing/PRICING_INTELLIGENCE_ENGINE';
-import { getRevenueDecision } from '../../../../core/revenue/REVENUE_DECISION_ENGINE';
+import { injectQuoteDecision } from '../../../../core/ai/AI_DECISION_INJECTION_MAP';
+import { getDecision } from '../../../../core/ai/AI_DECISION_CORE';
+import { assertCoreDecisionSource } from '../../../../core/ai/AI_DECISION_GUARD';
 
 function fallbackQuoteParse(text) {
   // Extract email address
@@ -117,25 +118,42 @@ export async function POST(request) {
     if (textLower.includes('not sure') || textLower.includes('unclear') || textLower.includes('vague')) {
       clarity = 'low';
     }
-    const pricingInput = {
-      jobType,
-      clientType,
+    const decision = getDecision(context.user.id, {
+      clientContext: clientType,
       urgency,
-      clarity
-    };
-
-    const pricingResult = getPricingIntelligence(pricingInput);
-    const decision = getRevenueDecision(pricingResult, pricingInput);
+      jobType,
+      clarity,
+    });
+    assertCoreDecisionSource("AI_DECISION_CORE");
 
     const parsed = fallbackQuoteParse(message_text);
+
+    // AI Injection Layer (Quote Flow) - Observability only
+    injectQuoteDecision({
+      stage: "QUOTE",
+      userProfile: context.user,
+      clientContext: clientType,
+      historicalOutcomes: [],
+      currentQuote: parsed
+    });
+
     if (parsed.items && parsed.items.length > 0) {
-      parsed.items[0].unitPrice = pricingResult.recommendedPrice;
+      const originalUnitPrice = Number(parsed.items[0].unitPrice || 0);
+      parsed.items[0].unitPrice = Math.round(originalUnitPrice * Number(decision.output?.pricing_bias || 1));
     }
-    if (decision.upsell && decision.upsell.length > 0) {
-      parsed.notes = (parsed.notes || '') + '\n\nSuggested Add-ons:\n' + decision.upsell.map(u => `- ${u}`).join('\n');
-    }
-    parsed.explanation_text = 'Quote pricing is deterministic and cannot be changed by generated copy.';
-    return NextResponse.json({ parsed_data: parsed, pricing: pricingResult, revenue_decision: decision });
+    parsed.explanation_text = 'Quote pricing is controlled by AI_DECISION_CORE and cannot be changed by generated copy.';
+    const res = {
+      parsed_data: parsed,
+      core_decision: decision.output,
+    };
+    return NextResponse.json({
+      ...res,
+      data: res,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      }
+    });
 
   } catch (error) {
     const validation = validationResponse(error);

@@ -1,4 +1,7 @@
 /**
+ * OBSERVABILITY ONLY
+ * DO NOT USE FOR DECISION MAKING
+ *
  * USER_SEGMENT_ENGINE.ts — v3.1.2 Client Behavioral Segmentation
  *
  * Groups users/clients into behavioral segments based on REAL decision patterns.

@@ -13,6 +13,9 @@ import {
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { validateInvoicePayload, validateObject, validationResponse } from '../../lib/validation';
+import { injectInvoiceEnhancement } from '../../../core/ai/AI_DECISION_INJECTION_MAP';
+import { getDecision } from '../../../core/ai/AI_DECISION_CORE';
+import { assertCoreDecisionSource } from '../../../core/ai/AI_DECISION_GUARD';
 import { getSiteUrl } from '../../lib/config';
 import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
 
@@ -122,6 +125,29 @@ export async function POST(request) {
         );
       }
 
+      // AI Injection Layer (Invoice Flow) - Observability only
+      const invoice = {
+        description: items[0]?.description || 'Services render'
+      };
+
+      const aiContext = {
+        stage: "INVOICE",
+        userProfile: context.user,
+        clientContext: client_id,
+        historicalOutcomes: [],
+        currentInvoice: {
+          items
+        }
+      };
+
+      injectInvoiceEnhancement(aiContext);
+      const decision = getDecision(context.user.id, {
+        clientContext: client_id,
+        amount: total,
+        docType: doc_type || 'invoice',
+      });
+      assertCoreDecisionSource("AI_DECISION_CORE");
+
       const payload = {
         user_id: context.user.id,
         invoice_number: invoice_number || `INV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
@@ -138,8 +164,8 @@ export async function POST(request) {
         business_address: business_address || '',
         logo_url: logo_url || '',
         currency: currency.toUpperCase(),
-        items: items.map(item => ({
-          description: item.description,
+        items: items.map((item, idx) => ({
+          description: idx === 0 ? invoice.description : item.description,
           quantity: Number(item.quantity) || 1,
           unit_price: Math.round(Number(item.unitPrice || 0) * 100),
           amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
@@ -215,7 +241,15 @@ export async function POST(request) {
         console.error('Failed to record invoice creation:', analyticsError);
       }
 
-      return NextResponse.json({ ...mapSupabaseInvoice(data), portal_token: portalToken }, { status: 201 });
+      const res = { ...mapSupabaseInvoice(data), portal_token: portalToken, core_decision: decision.output };
+      return NextResponse.json({
+        ...res,
+        data: res,
+        ai: {
+          mode: "core_driven",
+          source: "AI_DECISION_CORE"
+        }
+      }, { status: 201 });
     }
 
     return authRequiredResponse('invoices');

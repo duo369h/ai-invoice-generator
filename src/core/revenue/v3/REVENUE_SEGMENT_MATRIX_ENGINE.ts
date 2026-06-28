@@ -1,4 +1,7 @@
 /**
+ * OBSERVABILITY ONLY
+ * DO NOT USE FOR DECISION MAKING
+ *
  * REVENUE_SEGMENT_MATRIX_ENGINE.ts — v3.3 Segment × Strategy Matrix
  *
  * The "learning brain" of the system.

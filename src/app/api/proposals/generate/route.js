@@ -9,8 +9,8 @@ import { rateLimitAuthenticated } from '../../../lib/rate-limit';
 import { requestContextResponse, getIp } from '../../../lib/security';
 import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
 import { attachIncomeNarrative } from '../../../../../lib/proposal/money-context';
-import { getPricingIntelligence } from '../../../../core/pricing/PRICING_INTELLIGENCE_ENGINE';
-import { getRevenueDecision } from '../../../../core/revenue/REVENUE_DECISION_ENGINE';
+import { getDecision } from '../../../../core/ai/AI_DECISION_CORE';
+import { assertCoreDecisionSource } from '../../../../core/ai/AI_DECISION_GUARD';
 
 function fallbackProposalParse(serviceType, description, clientContext) {
   const service = serviceType || 'Freelance Services';
@@ -147,14 +147,17 @@ export async function POST(request) {
       clarity
     };
 
-    const pricingResult = getPricingIntelligence(pricingInput);
-    const decision = getRevenueDecision(pricingResult, pricingInput);
+    const decision = getDecision(context.user.id, pricingInput);
+    assertCoreDecisionSource("AI_DECISION_CORE");
 
     const finalProposal = attachIncomeNarrative(parsedProposal);
     return NextResponse.json({
       parsed_data: finalProposal,
-      pricing: pricingResult,
-      revenue_decision: decision
+      core_decision: decision.output,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      }
     });
 
   } catch (error) {

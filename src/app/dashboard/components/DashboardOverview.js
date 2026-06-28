@@ -127,6 +127,12 @@ export function OnboardingChecklist({ ui, actionHandlers }) {
 }
 
 export function FirstValueCard({ ui, actionHandlers }) {
+  const isQuoteAction = ui.action === 'createQuote';
+  const labelText = isQuoteAction ? 'QUOTE' : 'INVOICE';
+  const docNumber = isQuoteAction ? 'QT-1001' : 'INV-1001';
+  const termLabel = isQuoteAction ? 'STATUS' : 'DUE';
+  const termValue = isQuoteAction ? 'Draft' : 'Net 30';
+
   return (
     <section className="card animate-fade-in" style={{ ...cardStyle, background: 'var(--bg-surface)', display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(220px, 0.8fr)', gap: '20px', alignItems: 'stretch' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', justifyContent: 'center' }}>
@@ -146,12 +152,12 @@ export function FirstValueCard({ ui, actionHandlers }) {
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px', minHeight: '190px', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>INVOICE</div>
-            <div style={{ marginTop: '4px', fontSize: '1rem', color: 'var(--text-main)', fontWeight: 850 }}>INV-1001</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>{labelText}</div>
+            <div style={{ marginTop: '4px', fontSize: '1rem', color: 'var(--text-main)', fontWeight: 850 }}>{docNumber}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>DUE</div>
-            <div style={{ marginTop: '4px', fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 750 }}>Net 30</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>{termLabel}</div>
+            <div style={{ marginTop: '4px', fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 750 }}>{termValue}</div>
           </div>
         </div>
         <div style={{ display: 'grid', gap: '8px' }}>
@@ -626,7 +632,26 @@ export default function DashboardOverview({
   const sections = [];
   for (const s of rawSections) {
     if (allowedSectionTypes.includes(s.type)) {
-      sections.push(s);
+      if (s.type === 'EMPTY_STATE') {
+        sections.push({
+          ...s,
+          props: {
+            ...s.props,
+            title: "Create your first Quote",
+            description: "Prepare a clear milestone-based quote for your client. Once accepted, turn it into an invoice in one click.",
+            actionLabel: "Create your first Quote",
+            action: "createQuote",
+            outcome: "Win clients with professional pricing",
+            previewLines: [
+              { label: "Phase 1: Design Drafts", amount: "$1,200.00" },
+              { label: "Phase 2: Development", amount: "$2,000.00" },
+            ],
+            previewTotal: "$3,200.00",
+          }
+        });
+      } else {
+        sections.push(s);
+      }
     }
   }
 

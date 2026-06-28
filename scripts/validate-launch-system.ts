@@ -444,18 +444,33 @@ try {
   }
 
   const proposalRaw = readCode("src/app/api/proposals/generate/route.js");
-  if (proposalRaw && !proposalRaw.includes("getRevenueDecision")) {
-    fail("ARCHITECTURE", "Proposal API must use getRevenueDecision");
+  if (proposalRaw) {
+    if (!proposalRaw.includes("getDecision") || !proposalRaw.includes("assertCoreDecisionSource")) {
+      fail("ARCHITECTURE", "Proposal API must use AI_DECISION_CORE.getDecision and AI_DECISION_GUARD.");
+    }
+    if (proposalRaw.includes("getRevenueDecision") || proposalRaw.includes("getPricingIntelligence") || proposalRaw.includes("adjustedPrice")) {
+      fail("ARCHITECTURE", "Proposal API must not use pricing intelligence or revenue strategy output as runtime decision source.");
+    }
   }
 
   const quoteRaw = readCode("src/app/api/quotes/generate/route.js");
-  if (quoteRaw && !quoteRaw.includes("getRevenueDecision")) {
-    fail("ARCHITECTURE", "Quote API must use getRevenueDecision");
+  if (quoteRaw) {
+    if (!quoteRaw.includes("getDecision") || !quoteRaw.includes("assertCoreDecisionSource")) {
+      fail("ARCHITECTURE", "Quote API must use AI_DECISION_CORE.getDecision and AI_DECISION_GUARD.");
+    }
+    if (quoteRaw.includes("getRevenueDecision") || quoteRaw.includes("getPricingIntelligence") || quoteRaw.includes("adjustedPrice")) {
+      fail("ARCHITECTURE", "Quote API must not use pricing intelligence or revenue strategy output as runtime decision source.");
+    }
   }
 
   const invoiceRaw = readCode("src/app/api/invoices/parse/route.js");
-  if (invoiceRaw && !invoiceRaw.includes("getRevenueDecision")) {
-    fail("ARCHITECTURE", "Invoice API must use getRevenueDecision");
+  if (invoiceRaw) {
+    if (!invoiceRaw.includes("getDecision") || !invoiceRaw.includes("assertCoreDecisionSource")) {
+      fail("ARCHITECTURE", "Invoice API must use AI_DECISION_CORE.getDecision and AI_DECISION_GUARD.");
+    }
+    if (invoiceRaw.includes("getRevenueDecision") || invoiceRaw.includes("getPricingIntelligence") || invoiceRaw.includes("adjustedPrice")) {
+      fail("ARCHITECTURE", "Invoice API must not use pricing intelligence or revenue strategy output as runtime decision source.");
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -479,11 +494,24 @@ try {
   const apiDecisionRaw = readCode("src/app/api/revenue/decision/route.js");
   if (apiDecisionRaw) {
     const code = codeOnly(apiDecisionRaw);
-    if (!code.includes("getPricingIntelligence") || !code.includes("buildPricingProfile") || !code.includes("adjustedPrice")) {
-      fail("ARCHITECTURE", "Revenue Decision API must consume pricing intelligence, buildPricingProfile, and return adjustedPrice");
+    if (!code.includes("getDecision") || !code.includes("assertCoreDecisionSource")) {
+      fail("ARCHITECTURE", "Revenue Decision API must consume AI_DECISION_CORE.getDecision and enforce AI_DECISION_GUARD");
     }
-    if (!code.includes(".eq('user_id', context.user.id)") && !code.includes('.eq("user_id", context.user.id)')) {
-      fail("ARCHITECTURE", "Revenue Decision API must scope revenue_decisions queries by current user_id");
+    const forbiddenRuntimeSources = [
+      "getPricingIntelligence",
+      "buildPricingProfile",
+      "adjustedPrice",
+      "getStrategyWithAutopilot",
+      "getLearningRecommendation",
+      "buildStrategyBias",
+      "buildSegmentMatrix",
+      "getSegmentProfile",
+      "autopilotMetadata",
+    ];
+    for (const forbidden of forbiddenRuntimeSources) {
+      if (code.includes(forbidden)) {
+        fail("ARCHITECTURE", `Revenue Decision API must not use ${forbidden} as a runtime decision source`);
+      }
     }
     if (code.includes("logDecision(") || code.includes("saveLearningState(") || code.includes(".from('revenue_decisions').insert") || code.includes('.from("revenue_decisions").insert')) {
       fail("ARCHITECTURE", "Revenue Decision API must not write learning state during the request cycle");
@@ -830,11 +858,10 @@ try {
   }
 
   // 2️⃣ GUARD: Learning cannot affect execution directly
-  // REVENUE_LEARNING_RECOMMENDER must ONLY be imported by REVENUE_STRATEGY_ENGINE or route.js (advisory)
+  // REVENUE_LEARNING_RECOMMENDER must only be imported by observability modules.
   // Scan all other hot execution path files for direct imports of recommender or bias engines
   const allowedLearningImporters = [
     "src/core/revenue/v3/REVENUE_STRATEGY_ENGINE.ts",
-    "src/app/api/revenue/decision/route.js",
   ];
   const filesToScan = [
     "src/app/api/invoices/parse/route.js",
@@ -851,7 +878,7 @@ try {
       fail(
         "ARCHITECTURE",
         `v3.3 VIOLATION: ${file} imports learning recommender directly. ` +
-        `Only strategy engine or decision route are authorized importer contexts.`
+        `Only observability modules are authorized importer contexts.`
       );
     }
   }
@@ -938,19 +965,15 @@ try {
     fail("ARCHITECTURE", "v3.3 REVENUE_STRATEGY_ENGINE missing getStrategyWithBiasInjection export");
   }
 
-  // 7️⃣ Decision route.js must have the strategy bias hooks
+  // 7️⃣ Decision route.js must not consume strategy bias hooks
   const routeRaw = readCode("src/app/api/revenue/decision/route.js");
   if (routeRaw) {
-    if (!routeRaw.includes("getStrategyBias") || !routeRaw.includes("applyBias")) {
-      fail("ARCHITECTURE", "v3.3 VIOLATION: decision route.js missing getStrategyBias or applyBias hooks");
-    }
-    // Verify that applyBias is implemented safely and does not override the rule engine pricing output
-    if (!routeRaw.includes("return biasSig ? biasSig.strategy : base")) {
-      fail("ARCHITECTURE", "v3.3 VIOLATION: decision route.js applyBias must be advisory only and return base strategy if no bias signal exists");
+    if (routeRaw.includes("getStrategyBias") || routeRaw.includes("applyBias") || routeRaw.includes("buildStrategyBias") || routeRaw.includes("buildSegmentMatrix")) {
+      fail("ARCHITECTURE", "v3.3 VIOLATION: decision route.js must not consume segment bias or matrix hooks at runtime");
     }
   }
 
-  console.log("✔ v3.3 Strategy Learning Injection Layer checks passed");
+  console.log("✔ v3.3 Strategy Learning Observability Isolation checks passed");
 } catch (err) {
   fail("ARCHITECTURE", `v3.3 closed loop & bias check failed: ${String(err)}`);
 }
@@ -1022,12 +1045,12 @@ try {
 
   const routeRaw = readCode("src/app/api/revenue/decision/route.js");
   if (routeRaw) {
-    if (!routeRaw.includes("getStrategyWithAutopilot") || !routeRaw.includes("autopilot:")) {
-      fail("ARCHITECTURE", "v3.5 VIOLATION: decision route.js must consume and output autopilot metadata");
+    if (routeRaw.includes("getStrategyWithAutopilot") || routeRaw.includes("autopilot:") || routeRaw.includes("autopilotMetadata")) {
+      fail("ARCHITECTURE", "v3.5 VIOLATION: decision route.js must not consume or output autopilot metadata");
     }
   }
 
-  console.log("✔ v3.5 Revenue Autopilot checks passed");
+  console.log("✔ v3.5 Revenue Autopilot Observability Isolation checks passed");
 } catch (err) {
   fail("ARCHITECTURE", `v3.5 Autopilot check failed: ${String(err)}`);
 }
@@ -1174,6 +1197,100 @@ try {
   console.log("✔ v3.7 Revenue Model Innovation checks passed");
 } catch (err) {
   fail("ARCHITECTURE", `v3.7 Model Innovation check failed: ${String(err)}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1️⃣4️⃣ AI SINGLE SOURCE OF TRUTH LOCK (v1.3)
+// ─────────────────────────────────────────────────────────────────────────────
+try {
+  const decisionRoutes = [
+    "src/app/api/quotes/generate/route.js",
+    "src/app/api/proposals/generate/route.js",
+    "src/app/api/invoices/parse/route.js"
+  ];
+  for (const file of decisionRoutes) {
+    const raw = readCode(file);
+    if (raw && raw.includes("injectLearningSignal")) {
+      fail("ARCHITECTURE", `AI Lock Violation: ${file} must not consume injectLearningSignal directly.`);
+    }
+  }
+
+  const lockFile = path.resolve(ROOT, "src/core/ai/AI_ARCHITECTURE_LOCK.ts");
+  if (!fs.existsSync(lockFile)) {
+    fail("ARCHITECTURE", "AI_ARCHITECTURE_LOCK.ts is required but missing");
+  } else {
+    const lockRaw = fs.readFileSync(lockFile, "utf-8");
+    if (!lockRaw.includes("AI_DECISION_CORE") || !lockRaw.includes("forbiddenSources")) {
+      fail("ARCHITECTURE", "AI_ARCHITECTURE_LOCK.ts must declare AI_DECISION_CORE policy and forbiddenSources.");
+    }
+  }
+
+  const coreRaw = readCode("src/core/ai/AI_DECISION_CORE.ts");
+  if (coreRaw) {
+    if (!coreRaw.includes("updateFromOutcome")) {
+      fail("ARCHITECTURE", "AI_DECISION_CORE.ts must expose updateFromOutcome.");
+    }
+    if (coreRaw.includes("syncCrossFlowLearning") && !coreRaw.includes("syncCrossFlowLearning(userId: string, outcomes: any[])")) {
+      fail("ARCHITECTURE", "syncCrossFlowLearning in AI_DECISION_CORE.ts must be passive-only.");
+    }
+  }
+
+  const guardFile = path.resolve(ROOT, "src/core/ai/AI_LEARNING_GUARD.ts");
+  if (!fs.existsSync(guardFile)) {
+    fail("ARCHITECTURE", "AI_LEARNING_GUARD.ts is required but missing");
+  } else {
+    const guardRaw = fs.readFileSync(guardFile, "utf-8");
+    if (!guardRaw.includes("validateLearningSource")) {
+      fail("ARCHITECTURE", "AI_LEARNING_GUARD.ts must export validateLearningSource.");
+    }
+  }
+
+  const quoteRoute = readCode("src/app/api/quotes/generate/route.js");
+  if (quoteRoute) {
+    if (quoteRoute.includes("aiResult.price") || quoteRoute.includes("ai.metadata.suggestedPrice")) {
+      fail("ARCHITECTURE", "Reflex Lock Violation: quotes generate route must not override unitPrice with AI suggestions.");
+    }
+  }
+
+  const invoiceRoute = readCode("src/app/api/invoices/route.js");
+  if (invoiceRoute) {
+    if (invoiceRoute.includes("ai.metadata.improvedDescription") || invoiceRoute.includes("ai.improvedDescription")) {
+      fail("ARCHITECTURE", "Reflex Lock Violation: invoices creation route must not override description with AI suggestions.");
+    }
+  }
+
+  const remindRoute = readCode("src/app/api/invoices/remind/route.js");
+  if (remindRoute) {
+    if (remindRoute.includes("ai.metadata.messageSuggestion") || remindRoute.includes("ai.messageSuggestion")) {
+      fail("ARCHITECTURE", "Reflex Lock Violation: reminders route must not override finalReminderText with AI suggestions.");
+    }
+  }
+
+  const outcomesRoute = readCode("src/app/api/revenue/outcomes/route.js");
+  if (outcomesRoute) {
+    if (outcomesRoute.includes("outcomeWeight: ai") || outcomesRoute.includes("pricingSignal: ai") || outcomesRoute.includes("successIndicator: outcome")) {
+      fail("ARCHITECTURE", "Semantic Lock Violation: outcomes route must not compute or return raw flow-level AI signals.");
+    }
+  }
+
+  // 6. Verify standardized response envelope
+  const endpoints = [
+    "src/app/api/quotes/generate/route.js",
+    "src/app/api/invoices/route.js",
+    "src/app/api/invoices/remind/route.js",
+    "src/app/api/revenue/outcomes/route.js",
+    "src/app/api/revenue/decision/route.js"
+  ];
+  for (const file of endpoints) {
+    const raw = readCode(file);
+    if (raw && !raw.includes("source: \"AI_DECISION_CORE\"")) {
+      fail("ARCHITECTURE", `Response Standardization Violation: ${file} must return core_driven AI decision envelope.`);
+    }
+  }
+
+  console.log("✔ AI Single Source of Truth Lock checks passed");
+} catch (err) {
+  fail("ARCHITECTURE", `AI Single Source of Truth Lock check failed: ${String(err)}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

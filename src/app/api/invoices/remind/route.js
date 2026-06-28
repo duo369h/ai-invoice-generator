@@ -9,6 +9,9 @@ import { sendPaymentReminderEmail } from '../../../lib/email';
 import { getSiteUrl } from '../../../lib/config';
 import { getIp, requestContextResponse } from '../../../lib/security';
 import { rateLimitAuthenticated } from '../../../lib/rate-limit';
+import { injectPaymentOptimization } from '../../../../core/ai/AI_DECISION_INJECTION_MAP';
+import { getDecision } from '../../../../core/ai/AI_DECISION_CORE';
+import { assertCoreDecisionSource } from '../../../../core/ai/AI_DECISION_GUARD';
 
 export async function POST(request) {
   try {
@@ -74,12 +77,30 @@ export async function POST(request) {
     const siteUrl = getSiteUrl();
     const portalUrl = `${siteUrl}/portal/token/${portalToken.token}`;
 
+    // AI Injection Layer (Payment Flow) - Observability only
+    injectPaymentOptimization({
+      stage: "PAYMENT",
+      userProfile: context.user,
+      clientContext: invoice.client_name,
+      historicalOutcomes: [],
+      currentInvoice: invoice
+    });
+    const decision = getDecision(context.user.id, {
+      clientContext: invoice.client_name,
+      amount: invoice.total,
+      reminderTemplate: template,
+      urgency: template === 'firm' ? 'high' : 'medium',
+    });
+    assertCoreDecisionSource("AI_DECISION_CORE");
+
+    const finalReminderText = reminderText;
+
     // Send the payment reminder email
     const emailResult = await sendPaymentReminderEmail(
       invoice.client_email,
       invoice,
       portalUrl,
-      reminderText,
+      finalReminderText,
       freelancerName
     );
 
@@ -96,7 +117,15 @@ export async function POST(request) {
       ip
     });
 
-    return NextResponse.json({ success: true });
+    const res = { success: true, core_decision: decision.output };
+    return NextResponse.json({
+      ...res,
+      data: res,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      }
+    });
   } catch (error) {
     console.error('Error in payment reminder API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

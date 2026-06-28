@@ -1,4 +1,7 @@
 /**
+ * OBSERVABILITY ONLY
+ * DO NOT USE FOR DECISION MAKING
+ *
  * REVENUE_LEARNING_RECOMMENDER.ts — v3.3 Upgrade
  *
  * Deterministic strategy recommender upgraded with learningBias signal.

@@ -8,18 +8,22 @@
  */
 import { NextResponse } from "next/server";
 import { getRequestUser, createRequestSupabaseClient } from "../../../lib/supabase";
+import { injectLearningSignal } from "../../../../core/ai/AI_DECISION_INJECTION_MAP";
+import { updateFromOutcome } from "../../../../core/ai/AI_DECISION_CORE";
+import { assertCoreDecisionSource } from "../../../../core/ai/AI_DECISION_GUARD";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST — Record a new outcome
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request) {
   try {
-    const user = await getRequestUser(request);
-    if (!user) {
+    const context = await getRequestUser(request);
+    if (!context?.user || context.mode !== "supabase") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = createRequestSupabaseClient(request);
+    const user = context.user;
+    const supabase = context.supabase || createRequestSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
@@ -107,6 +111,8 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+
+
     // v3.2 Closed Loop: compute full learning_snapshot if provided
     let enrichedSnapshot = null;
     if (learning_snapshot && typeof learning_snapshot === "object") {
@@ -131,11 +137,46 @@ export async function POST(request) {
         revenue_outcome: deltaRevenue > 0 ? "UPLIFT" : deltaRevenue < 0 ? "DECLINE" : "NEUTRAL",
       };
     }
+    // AI Injection Layer (Feedback Loop) - Observability only
+    injectLearningSignal({
+      stage: "FEEDBACK",
+      userProfile: user,
+      clientContext: client_type,
+      historicalOutcomes: [],
+      paymentStatus: outcome || "PENDING"
+    });
+    assertCoreDecisionSource("AI_DECISION_CORE");
 
-    return NextResponse.json({
+    // Authoritative Decision Core learning update
+    try {
+      assertCoreDecisionSource("AI_DECISION_CORE");
+      updateFromOutcome(user.id, {
+        type: 'FEEDBACK_OUTCOME',
+        outcome: outcome || 'PENDING',
+        priceOffered: price_offered,
+        priceAccepted: price_accepted
+      }, 'AI_DECISION_CORE');
+    } catch (updateErr) {
+      console.error("Failed to update from outcome in POST:", updateErr);
+    }
+
+    const res = {
       success: true,
       outcome: data,
       ...(enrichedSnapshot && { learning_snapshot: enrichedSnapshot }),
+      ai_feedback: {
+        mode: "observability_only",
+        source: "AI_DECISION_CORE"
+      }
+    };
+
+    return NextResponse.json({
+      ...res,
+      data: res,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      }
     });
   } catch (err) {
     console.error("[revenue/outcomes POST] Unexpected error:", err);
@@ -148,12 +189,13 @@ export async function POST(request) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(request) {
   try {
-    const user = await getRequestUser(request);
-    if (!user) {
+    const context = await getRequestUser(request);
+    if (!context?.user || context.mode !== "supabase") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = createRequestSupabaseClient(request);
+    const user = context.user;
+    const supabase = context.supabase || createRequestSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
@@ -189,7 +231,29 @@ export async function PATCH(request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, outcome: data });
+    // Authoritative Decision Core learning update
+    try {
+      updateFromOutcome(user.id, {
+        type: 'FEEDBACK_OUTCOME',
+        outcome: outcome,
+        priceOffered: data.price_offered,
+        priceAccepted: data.price_accepted
+      }, 'AI_DECISION_CORE');
+    } catch (updateErr) {
+      console.error("Failed to update from outcome in PATCH:", updateErr);
+    }
+
+
+
+    const res = { success: true, outcome: data };
+    return NextResponse.json({
+      ...res,
+      data: res,
+      ai: {
+        mode: "core_driven",
+        source: "AI_DECISION_CORE"
+      }
+    });
   } catch (err) {
     console.error("[revenue/outcomes PATCH] Unexpected error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -201,12 +265,13 @@ export async function PATCH(request) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(request) {
   try {
-    const user = await getRequestUser(request);
-    if (!user) {
+    const context = await getRequestUser(request);
+    if (!context?.user || context.mode !== "supabase") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = createRequestSupabaseClient(request);
+    const user = context.user;
+    const supabase = context.supabase || createRequestSupabaseClient(request);
     if (!supabase) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }

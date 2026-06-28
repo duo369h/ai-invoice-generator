@@ -1,4 +1,7 @@
 /**
+ * OBSERVABILITY ONLY
+ * DO NOT USE FOR DECISION MAKING
+ *
  * Corvioz — Revenue Strategy Engine v3.3
  *
  * v3.2: applyLearningBias() + getStrategyWithClosedLoop()
@@ -507,4 +510,3 @@ export function getStrategyWithAutopilot(
     };
   });
 }
-

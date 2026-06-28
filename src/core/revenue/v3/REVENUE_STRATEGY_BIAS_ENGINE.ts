@@ -1,4 +1,7 @@
 /**
+ * OBSERVABILITY ONLY
+ * DO NOT USE FOR DECISION MAKING
+ *
  * REVENUE_STRATEGY_BIAS_ENGINE.ts — v3.3 Strategy Learning Injection Layer
  *
  * Core bias engine: reads historical outcome stats per (user segment × strategy)
