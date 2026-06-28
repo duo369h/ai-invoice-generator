@@ -144,6 +144,14 @@ export default function AuthPage() {
     return () => clearTimeout(timer);
   }, [router]);
 
+  const getRedirectTarget = () => {
+    if (typeof window === 'undefined') return '/dashboard';
+    const params = new URLSearchParams(window.location.search);
+    const redirectParam = params.get('redirect');
+    if (redirectParam) return redirectParam;
+    return window.sessionStorage.getItem('corvioz_redirect_after_auth') || '/dashboard';
+  };
+
   const handleMagicLink = async (event) => {
     event.preventDefault();
     if (!client || !email.trim()) return;
@@ -154,12 +162,13 @@ export default function AuthPage() {
     trackEvent('signup_start', { method: 'magic_link', source: 'auth_form' });
     trackEvent('signup_login_intent', { method: 'magic_link' });
 
-	    const { error } = await client.auth.signInWithOtp({
-	      email: email.trim(),
-	      options: {
-	        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
-	      },
-	    });
+    const redirectTarget = getRedirectTarget();
+    const { error } = await client.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+      },
+    });
 
     if (error) {
       trackEvent('signup_login_failed', { method: 'magic_link', reason: error.message });
@@ -181,12 +190,13 @@ export default function AuthPage() {
     trackEvent('signup_start', { method: 'google', source: 'auth_form' });
     trackEvent('signup_login_intent', { method: 'google' });
 
-	    const { error } = await client.auth.signInWithOAuth({
-	      provider: 'google',
-	      options: {
-	        redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
-	      },
-	    });
+    const redirectTarget = getRedirectTarget();
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+      },
+    });
 
     if (error) {
       trackEvent('signup_login_failed', { method: 'google', reason: error.message });
@@ -252,28 +262,8 @@ export default function AuthPage() {
           ) : !client ? (
             <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-surface)' }}>
               <p style={{ margin: 0, lineHeight: 1.45, color: 'var(--text-muted)' }}>
-                Supabase is not configured yet. Add your environmental keys to enable database cloud sync.
+                Authentication service is temporarily unavailable. Please configure Supabase environment variables.
               </p>
-              <Button 
-                onClick={() => {
-                  trackEvent('sandbox_start', { method: 'sandbox' });
-                  if (typeof window !== 'undefined') {
-                    window.sessionStorage.setItem('corvioz_sandbox_mode', 'true');
-                    window.sessionStorage.removeItem('corvioz_redirect_after_auth');
-                  }
-                }}
-                href={sandboxRedirectTarget}
-                variant="primary"
-                style={{ width: '100%', textAlign: 'center', display: 'block' }}
-              >
-                {identity === 'starter' 
-                  ? "Proceed to get paid faster" 
-                  : identity === 'growth' 
-                  ? "Proceed to never miss a payment" 
-                  : identity === 'studio' 
-                  ? "Proceed to scale client operations" 
-                  : "Proceed in Demo Sandbox Mode"}
-              </Button>
             </div>
           ) : (
             <>
@@ -311,37 +301,6 @@ export default function AuthPage() {
                   )}
                 </Button>
               </form>
-
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    trackEvent('sandbox_start', { method: 'sandbox' });
-                    if (typeof window !== 'undefined') {
-                      window.sessionStorage.setItem('corvioz_sandbox_mode', 'true');
-                      window.sessionStorage.removeItem('corvioz_redirect_after_auth');
-                      router.push(sandboxRedirectTarget);
-                    }
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  {identity === 'starter' 
-                    ? "⚡ Proceed to get paid faster (Demo Sandbox Mode)" 
-                    : identity === 'growth' 
-                    ? "⚡ Proceed to never miss a payment (Demo Sandbox Mode)" 
-                    : identity === 'studio' 
-                    ? "⚡ Proceed to scale client operations (Demo Sandbox Mode)" 
-                    : "⚡️ Try in Demo Sandbox Mode (No account required)"}
-                </button>
-              </div>
             </>
           )}
 

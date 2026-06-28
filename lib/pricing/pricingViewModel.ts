@@ -125,12 +125,10 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
       ctaLabel = '✓ Current Plan';
     } else if (isFree) {
       ctaLabel = 'Start Free';
-    } else if (isPro) {
-      ctaLabel = 'Get paid faster';
-    } else if (isGrowth) {
-      ctaLabel = 'Never miss a payment';
+    } else if (isPro || isGrowth) {
+      ctaLabel = 'Upgrade';
     } else {
-      ctaLabel = 'Scale client operations';
+      ctaLabel = 'Join Waitlist';
     }
 
     return {

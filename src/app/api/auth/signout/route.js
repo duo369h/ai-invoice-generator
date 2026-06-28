@@ -16,7 +16,7 @@ export async function GET(request) {
 
   await supabase.auth.signOut();
 
-  const response = NextResponse.redirect(new URL('/signup', request.url));
+  const response = NextResponse.redirect(new URL('/', request.url));
   response.cookies.set(ENTRY_AUTH_COOKIE, '', {
     path: '/',
     maxAge: 0,
@@ -40,7 +40,7 @@ export async function POST(request) {
 
   await supabase.auth.signOut();
 
-  const response = NextResponse.redirect(new URL('/signup', request.url));
+  const response = NextResponse.redirect(new URL('/', request.url));
   response.cookies.set(ENTRY_AUTH_COOKIE, '', {
     path: '/',
     maxAge: 0,

@@ -40,8 +40,8 @@ const ROOT = path.resolve(__dirname, "..");
 // ─────────────────────────────────────────────────────────────────────────────
 try {
   const view = getSystemView({ entry_state: "AUTHENTICATED" });
-  if (view.route !== "/proposal/create") {
-    fail("ENTRY", `ROUTE INVALID: expected '/proposal/create', got '${view.route}'`);
+  if (view.route !== "/quotes/create") {
+    fail("ENTRY", `ROUTE INVALID: expected '/quotes/create', got '${view.route}'`);
   }
   const ru = view.uiHints?.revenueUI;
   if (!ru) {

@@ -877,12 +877,20 @@ function PricingContent() {
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
-                      <span style={{ fontSize: isPro ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                        ${price}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                        /{billingPeriod === 'monthly' ? 'mo' : 'mo'}
-                      </span>
+                      {vm.id === 'studio' || vm.id === 'agency' ? (
+                        <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent)' }}>
+                          Coming Soon
+                        </span>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: isPro ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                            ${price}
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                            /{billingPeriod === 'monthly' ? 'mo' : 'mo'}
+                          </span>
+                        </>
+                      )}
                       <span style={{ marginLeft: '8px' }}>
                         {billingPeriod === 'yearly' && savingsText && (
                           <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isGrowth ? 'var(--success)' : isStudio ? 'var(--accent)' : 'var(--primary)', background: isGrowth ? 'rgba(34,197,94,0.08)' : isStudio ? 'rgba(99,102,241,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isGrowth ? 'rgba(34,197,94,0.2)' : isStudio ? 'rgba(99,102,241,0.2)' : 'var(--primary)'}` }}>
@@ -913,8 +921,13 @@ function PricingContent() {
                   <div>
                     <Button
                       onClick={() => {
-                        if (isCurrentPlan || isFree) {
+                        if (isCurrentPlan) return;
+                        if (isFree) {
                           window.location.href = '/dashboard?action=create-profile';
+                          return;
+                        }
+                        if (vm.id === 'studio' || vm.id === 'agency') {
+                          alert("Thank you! You have been added to the Studio waitlist.");
                           return;
                         }
                         const intentLevel = getIntentLevel();
@@ -927,7 +940,7 @@ function PricingContent() {
                       variant={isPro ? 'primary' : 'secondary'}
                       style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isGrowth ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
                     >
-                      {checkoutLoading ? 'Preparing Checkout...' : ui.cta(vm.id === 'free' ? 'pricing_free' : vm.id === 'pro' ? 'pricing_pro' : vm.id === 'growth' ? 'pricing_growth' : 'pricing_studio')}
+                      {checkoutLoading ? 'Preparing Checkout...' : vm.ctaLabel}
                     </Button>
 
                     {/* Trust Microcopy */}

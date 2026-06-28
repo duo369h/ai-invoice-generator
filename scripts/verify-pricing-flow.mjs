@@ -75,7 +75,7 @@ async function runTests() {
     { id: 'free', name: 'Free', price_monthly: 0, price_yearly: 0 },
     { id: 'pro', name: 'Starter', price_monthly: 9, price_yearly: 7 },
     { id: 'growth', name: 'Pro', price_monthly: 19, price_yearly: 15 },
-    { id: 'studio', name: 'Client Growth Pack', price_monthly: 29, price_yearly: 24 }
+    { id: 'studio', name: 'Studio', price_monthly: 0, price_yearly: 0 }
   ];
 
   const vm = getPricingViewModel({
@@ -106,7 +106,7 @@ async function runTests() {
   assert(growthCard.features.includes('Qualify and capture prospective client inquiries'), 'Pro has lead capture');
 
   const studioCard = cards.find(c => c.id === 'studio');
-  assert(studioCard.name === 'Client Growth Pack', 'Studio tier name');
+  assert(studioCard.name === 'Studio', 'Studio tier name');
   assert(studioCard.identity === 'Agency', 'Studio tier identity');
   assert(studioCard.outcome === 'Scale client operations', 'Studio tier outcome');
 

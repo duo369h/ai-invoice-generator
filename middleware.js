@@ -16,6 +16,34 @@ const csp = [
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
+  // Enforce authentication on user-specific pages
+  const isProtectedRoute =
+    pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
+    pathname === '/quotes' || pathname.startsWith('/quotes/') ||
+    pathname === '/invoices' || pathname.startsWith('/invoices/') ||
+    pathname === '/invoice' || pathname.startsWith('/invoice/') ||
+    pathname === '/checkout' || pathname.startsWith('/checkout/');
+
+  if (isProtectedRoute) {
+    const entryCookie = request.cookies.get('corvioz_entry_auth')?.value || '';
+    const hasSbAuth = request.cookies.getAll().some((cookie) => {
+      const name = String(cookie?.name || '');
+      const value = String(cookie?.value || '');
+      return name.startsWith('sb-') && name.includes('auth-token') && value.length > 0;
+    });
+
+    const isUserAuthenticated =
+      entryCookie === 'authenticated' ||
+      entryCookie === 'activation_required' ||
+      hasSbAuth;
+
+    if (!isUserAuthenticated) {
+      const redirectUrl = new URL('/auth', request.url);
+      redirectUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
   // Block internal dashboard routes in production while keeping public SaaS routes exposed.
   const isInternalDashboardRoute =
     pathname === '/dashboard/audit' ||

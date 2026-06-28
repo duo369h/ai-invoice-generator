@@ -61,19 +61,18 @@ const FALLBACK_PLANS = [
   },
   {
     id: 'studio',
-    name: 'Client Growth Pack',
-    description: 'Run multiple clients like a small agency',
-    price_monthly: 29.00,
-    price_yearly: 24.00,
+    name: 'Studio',
+    description: 'Scale client operations',
+    price_monthly: 0.00,
+    price_yearly: 0.00,
     paddle_monthly_price_id: 'pri_agency_placeholder',
     paddle_yearly_price_id: 'pri_agency_yearly_placeholder',
     features: [
-      '2–3 client workspace',
-      'Priority AI generation',
-      'Premium templates pack',
-      'Faster export / batch export'
+      'Brand client workspaces under your custom domain',
+      'Qualify inbound inquiries with budget filters',
+      'Present specialist team members to secure larger contracts'
     ],
-    badge_text: 'Agency',
+    badge_text: 'Coming Soon',
     display_order: 4,
     active: true
   }
@@ -163,14 +162,13 @@ export async function GET() {
           'Share client links instantly'
         ];
       } else if (plan.id === 'studio' || plan.id === 'agency') {
-        name = 'Client Growth Pack';
-        description = 'Run multiple clients like a small agency';
-        badge_text = 'Agency';
+        name = 'Studio';
+        description = 'Scale client operations';
+        badge_text = 'Coming Soon';
         features = [
-          '2–3 client workspace',
-          'Priority AI generation',
-          'Premium templates pack',
-          'Faster export / batch export'
+          'Brand client workspaces under your custom domain',
+          'Qualify inbound inquiries with budget filters',
+          'Present specialist team members to secure larger contracts'
         ];
       }
 

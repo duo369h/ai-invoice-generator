@@ -88,6 +88,7 @@ async function verify() {
       
       // Store the session in localStorage so Next.js app picks it up
       window.localStorage.setItem('sb-fgortrxozlbzxbkerejz-auth-token', JSON.stringify(data.session));
+      document.cookie = "corvioz_entry_auth=authenticated; path=/; max-age=2592000; SameSite=Lax";
       return { success: true };
     }, { email: TEST_EMAIL, password: TEST_PASSWORD });
 
