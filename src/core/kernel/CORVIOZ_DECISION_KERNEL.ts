@@ -18,7 +18,7 @@
 import { isKillSwitchActive } from "../launch/LAUNCH_KILL_SWITCH.ts";
 
 export type CorviozDecision = {
-  route: "/proposal/create" | "/dashboard" | "/dashboard/activation";
+  route: "/quotes/create" | "/dashboard" | "/dashboard/activation";
   entryMode: "GUEST" | "AUTH" | "BLOCKED";
   revenueMode: "ENFORCED" | "TRACKING_ONLY" | "OFF";
   monetizationMode: "NONE" | "SOFT" | "AGGRESSIVE";
@@ -69,9 +69,9 @@ export function getCorviozDecision(userState: any = {}): CorviozDecision {
     entryMode = "AUTH";
   }
 
-  // Revenue route: paid users go to dashboard, all others go to proposal creation
+  // Revenue route: paid users go to dashboard, all others enter the quote creation flow
   const isPaid = revenueProof || userState?.plan === "paid";
-  const route = isPaid ? "/dashboard" : "/proposal/create";
+  const route = isPaid ? "/dashboard" : "/quotes/create";
 
   return {
     route,

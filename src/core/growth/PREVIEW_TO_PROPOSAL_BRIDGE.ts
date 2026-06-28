@@ -26,5 +26,5 @@ export function convertPreviewToProposal(input: PreviewData): string {
     }
   }
 
-  return "/proposal/create?prefill=true";
+  return "/quotes/create?prefill=true";
 }

@@ -38,7 +38,7 @@ export type FrozenUIHints = Readonly<{
  * All fields are precomputed. No dynamic injection permitted.
  */
 export type FrozenSystemView = Readonly<{
-  route: "/proposal/create" | "/dashboard" | "/dashboard/activation" | "/demo/proposal-preview";
+  route: "/quotes/create" | "/dashboard" | "/dashboard/activation" | "/demo/proposal-preview";
   uiHints: FrozenUIHints;
   growthSignals: Readonly<{
     intentScore: number;

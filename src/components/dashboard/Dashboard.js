@@ -66,12 +66,11 @@ const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
 
 const REVENUE_ENTRY_ROUTE_TARGETS = {
-  '/dashboard': '/proposal/create',
+  '/dashboard': '/quotes/create',
   '/dashboard/activation': '/dashboard/activation',
-  '/invoice': '/proposal/create',
-  '/quote': '/proposal/create',
-  '/profile': '/proposal/create',
-  '/proposal/create': '/proposal/create',
+  '/invoice': '/quotes/create',
+  '/quote': '/quotes/create',
+  '/profile': '/quotes/create',
 };
 
 const INVOICE_FLOW_STAGES = [
@@ -2342,7 +2341,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQClientNameTouched(false);
       setQClientEmailTouched(false);
       setQSubmitAttempted(false);
-      router.push('/quotes/create', { scroll: false });
+      if (pathname !== '/quotes/create') {
+        router.push('/quotes/create', { scroll: false });
+      }
       handleDashboardTabChange('quotes', 'quick_action');
       setQuoteView('create');
     });
@@ -6345,9 +6346,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 onClick={() => {
                   setSuggestedActionDoc(null);
                   if (suggestedActionDoc.type === 'invoice') {
-                    router.push('/quotes/create');
+                    handleDashboardTabChange('quotes', 'suggested_action');
+                    setQuoteView('create');
                   } else {
-                    router.push('/invoices/create');
+                    handleDashboardTabChange('invoices', 'suggested_action');
+                    setInvoiceView('create');
                   }
                 }}
                 className="btn btn-secondary"

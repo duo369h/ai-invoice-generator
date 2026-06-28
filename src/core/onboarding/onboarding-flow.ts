@@ -49,14 +49,14 @@ const STEP_CONFIG: Record<OnboardingStep, Omit<OnboardingStepResult, 'step'>> = 
     headline:    'Your workspace is ready',
     instruction: 'This is where you manage invoices, quotes, and clients.',
     cta:         'Create first invoice',
-    cta_route:   '/proposal/create',
+    cta_route:   '/quotes/create',
     progress:    0.33,
   },
   STEP_3_FIRST_INVOICE_GUIDE: {
     headline:    'Create your first invoice',
     instruction: 'Add a client name, amount, and due date — takes under 60 seconds.',
     cta:         'Create invoice now',
-    cta_route:   '/proposal/create',
+    cta_route:   '/quotes/create',
     progress:    0.66,
   },
   ONBOARDING_COMPLETE: {

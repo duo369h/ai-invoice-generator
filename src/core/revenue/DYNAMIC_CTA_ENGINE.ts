@@ -26,7 +26,7 @@ const CTA_MAP: Record<RevenueStrategy, DynamicCTA> = {
   },
   CONVERT: {
     label: "Start Proposal",
-    href: "/proposal/create",
+    href: "/quotes/create",
     action: "PUSH_PROPOSAL",
   },
   MONETIZE: {

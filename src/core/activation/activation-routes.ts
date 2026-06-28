@@ -15,8 +15,8 @@ export const ACTIVATION_ROUTES = {
   /** Primary activation surface — shown to new users instead of full dashboard */
   ACTIVATION_DASHBOARD: '/dashboard/activation',
   /** Core first-action routes */
-  CREATE_INVOICE:        '/proposal/create',
-  CREATE_QUOTE:          '/proposal/create',
+  CREATE_INVOICE:        '/quotes/create',
+  CREATE_QUOTE:          '/quotes/create',
   /** Signup */
   SIGNUP:                '/signup',
 } as const;
@@ -24,7 +24,7 @@ export const ACTIVATION_ROUTES = {
 /** Routes that are essential — always accessible regardless of activation state */
 export const ESSENTIAL_ROUTES: string[] = [
   '/dashboard/activation',
-  '/proposal/create',
+  '/quotes/create',
   '/signup',
   '/login',
   '/dashboard',          // full dashboard still accessible via skip
