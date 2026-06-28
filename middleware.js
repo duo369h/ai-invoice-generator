@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getNextRoute } from './src/core/orchestrator/CORVIOZ_ORCHESTRATOR.ts';
 
 const csp = [
   "default-src 'self'",
@@ -17,12 +16,12 @@ const csp = [
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // TASK 2: Block internal dashboard routes in production
-	const isInternalDashboardRoute =
-	  pathname === '/dashboard/audit' ||
-	  pathname.startsWith('/dashboard/audit/') ||
-	  pathname === '/dashboard/control-plane' ||
-	  pathname.startsWith('/dashboard/control-plane/') ||
+  // Block internal dashboard routes in production while keeping public SaaS routes exposed.
+  const isInternalDashboardRoute =
+    pathname === '/dashboard/audit' ||
+    pathname.startsWith('/dashboard/audit/') ||
+    pathname === '/dashboard/control-plane' ||
+    pathname.startsWith('/dashboard/control-plane/') ||
     pathname === '/dashboard/evolution' ||
     pathname.startsWith('/dashboard/evolution/') ||
     pathname === '/dashboard/optimization' ||
@@ -36,28 +35,8 @@ export function middleware(request) {
     return new NextResponse(null, { status: 404 });
   }
 
-  const cookies = request.cookies;
-  const userState = {
-    entry_state: cookies.get('corvioz_entry_state')?.value || 'GUEST',
-    killSwitchActive: cookies.get('corvioz_kill_switch')?.value === 'true',
-  };
-
-  // Middleware is executor only — no logic, no decisions
-  const isGuardedRoute =
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/invoices') ||
-    pathname.startsWith('/quotes') ||
-    pathname === '/';
-
-  if (isGuardedRoute) {
-    const { route } = getNextRoute(userState);
-    if (pathname !== route) {
-      return NextResponse.redirect(new URL(route, request.url));
-    }
-  }
-
   const response = NextResponse.next();
-  
+
   // CSP: Tighten in production (no 'unsafe-eval')
   const activeCsp = process.env.NODE_ENV === 'production'
     ? csp.replace(" 'unsafe-eval'", '')
