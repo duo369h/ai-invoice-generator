@@ -14,7 +14,7 @@ export interface Entitlements {
 }
 
 /** All plan keys considered "paid" (non-free). */
-export const PAID_PLANS = ['pro', 'professional', 'growth', 'studio', 'agency'] as const;
+export const PAID_PLANS = ['starter', 'pro', 'studio', 'professional', 'growth', 'agency'] as const;
 
 /** Returns true if the given plan string is a paid tier. */
 export function isPaidPlan(plan?: string | null): boolean {
@@ -24,9 +24,9 @@ export function isPaidPlan(plan?: string | null): boolean {
 export function getUserEntitlements(userPlan?: string | null): Entitlements {
   const plan = String(userPlan || 'free').toLowerCase();
 
-  // Starter ($9 plan - 'pro' / 'professional'): Single Client Closure Engine.
+  // Starter ($9 plan - 'starter' / 'professional'): Single Client Closure Engine.
   // Locked: Invoice, CRM/Client tracking, PDF exports. Only allows Proposal and watermarked shares.
-  if (plan === 'pro' || plan === 'professional') {
+  if (plan === 'starter' || plan === 'professional') {
     return {
       invoice: false,
       export_pdf: false,
@@ -38,9 +38,9 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     };
   }
 
-  // Pro ($19 plan - 'growth'): Freelance Operating System.
+  // Pro ($19 plan - 'pro' / 'growth'): Freelance Operating System.
   // Allowed: Invoice generation, Quote creation, basic CRM client tracking, PDF export (no watermark), clean share links.
-  if (plan === 'growth') {
+  if (plan === 'pro' || plan === 'growth') {
     return {
       invoice: true,
       export_pdf: true,

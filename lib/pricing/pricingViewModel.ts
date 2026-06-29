@@ -22,12 +22,13 @@ export interface PricingCardViewModel {
   features: string[];
   isCurrent: boolean;
   ctaLabel: string;
-  highlightedPlan: 'pro' | 'growth' | 'studio' | null;
+  highlightedPlan: 'starter' | 'pro' | 'studio' | null;
   badge: 'RECOMMENDED' | null;
   ctaState: 'normal' | 'emphasized' | 'disabled';
   visualIntensity: number;
   reason: string;
   outcome: string;
+  identity: string;
 }
 
 export interface PricingViewModelInput {
@@ -42,7 +43,7 @@ export interface PricingViewModelOutput {
   cards: PricingCardViewModel[];
   upgradeBanner: {
     shouldShowUpgrade: boolean;
-    targetPlan: 'pro' | 'growth' | 'studio' | null;
+    targetPlan: 'starter' | 'pro' | 'studio' | null;
     reason: string;
   } | null;
 }
@@ -60,13 +61,12 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
 
   const cards = plans.map((plan) => {
     const isFree = plan.id === 'free';
+    const isStarter = plan.id === 'starter';
     const isPro = plan.id === 'pro';
-    const isGrowth = plan.id === 'growth';
-    const isStudio = plan.id === 'studio' || plan.id === 'agency';
+    const isStudio = plan.id === 'studio';
 
     // Determine current plan display status
-    const isCurrent = isAuthenticated && !subLoading &&
-      (userPlan === plan.id || (plan.id === 'studio' && userPlan === 'agency'));
+    const isCurrent = isAuthenticated && !subLoading && userPlan === plan.id;
 
     const isHighlighted = plan.id === ui.highlightPlan;
     const badgeText = isHighlighted ? 'RECOMMENDED FOR YOU' : (plan.badge_text || null);
@@ -87,7 +87,7 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
         'Share your professional Bento card',
         'Export watermarked proposal documents',
       ];
-    } else if (isPro) {
+    } else if (isStarter) {
       name = plan.name || 'Starter';
       identity = 'Starter';
       description = 'Get paid faster';
@@ -97,7 +97,7 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
         'Avoid billing delays with professional templates',
         'Auto-fill client details on future documents',
       ];
-    } else if (isGrowth) {
+    } else if (isPro) {
       name = plan.name || 'Pro';
       identity = 'Pro';
       description = 'Never miss a payment';
@@ -109,7 +109,7 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
       ];
     } else if (isStudio) {
       name = plan.name || 'Studio';
-      identity = 'Agency';
+      identity = 'Studio';
       description = 'Scale client operations';
       outcome = 'Scale client operations';
       features = [
@@ -125,7 +125,7 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
       ctaLabel = '✓ Current Plan';
     } else if (isFree) {
       ctaLabel = 'Start Free';
-    } else if (isPro || isGrowth) {
+    } else if (isStarter || isPro) {
       ctaLabel = 'Upgrade';
     } else {
       ctaLabel = 'Join Waitlist';

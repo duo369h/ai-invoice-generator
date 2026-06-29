@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { ENTRY_AUTH_COOKIE } from '../../../../core/entry/ENTRY_STATE';
 
 export async function GET(request) {
   const supabase = createClient(
@@ -17,7 +16,7 @@ export async function GET(request) {
   await supabase.auth.signOut();
 
   const response = NextResponse.redirect(new URL('/', request.url));
-  response.cookies.set(ENTRY_AUTH_COOKIE, '', {
+  response.cookies.set('sb-auth-token', '', {
     path: '/',
     maxAge: 0,
     sameSite: 'lax',
@@ -41,7 +40,7 @@ export async function POST(request) {
   await supabase.auth.signOut();
 
   const response = NextResponse.redirect(new URL('/', request.url));
-  response.cookies.set(ENTRY_AUTH_COOKIE, '', {
+  response.cookies.set('sb-auth-token', '', {
     path: '/',
     maxAge: 0,
     sameSite: 'lax',

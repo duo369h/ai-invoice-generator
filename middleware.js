@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const csp = [
   "default-src 'self'",
@@ -13,7 +14,7 @@ const csp = [
   "form-action 'self'",
 ].join('; ');
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // Enforce authentication on user-specific pages
@@ -24,17 +25,39 @@ export function middleware(request) {
     pathname === '/client' || pathname.startsWith('/client/');
 
   if (isProtectedRoute) {
-    const entryCookie = request.cookies.get('corvioz_entry_auth')?.value || '';
-    const hasSbAuth = request.cookies.getAll().some((cookie) => {
+    const authCookie = request.cookies.getAll().find((cookie) => {
       const name = String(cookie?.name || '');
-      const value = String(cookie?.value || '');
-      return name.startsWith('sb-') && name.includes('auth-token') && value.length > 0;
+      return name.startsWith('sb-') && name.includes('auth-token');
     });
 
-    const isUserAuthenticated =
-      entryCookie === 'authenticated' ||
-      entryCookie === 'activation_required' ||
-      hasSbAuth;
+    let token = authCookie?.value;
+    if (token) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(token));
+        if (parsed && typeof parsed === 'object') {
+          token = parsed.access_token || token;
+        }
+      } catch (_) {}
+    }
+
+    let isUserAuthenticated = false;
+
+    if (token === 'authenticated' && process.env.NODE_ENV !== 'production') {
+      isUserAuthenticated = true;
+    } else if (token) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (user && !error) {
+          isUserAuthenticated = true;
+        }
+      } catch (err) {
+        console.error('Error verifying Supabase session in middleware:', err);
+      }
+    }
 
     if (!isUserAuthenticated) {
       const redirectUrl = new URL('/auth', request.url);

@@ -70,6 +70,18 @@ export async function POST(request) {
     const context = await getRequestUser(request);
     const contextFailure = requestContextResponse(context, 'invoices');
     if (contextFailure) return contextFailure;
+
+    const profile = await ensureProfile(context.supabase, context.user);
+    const plan = profile?.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
+    if (!entitlements.invoice) {
+      return NextResponse.json({
+        error: "UPGRADE_REQUIRED",
+        requiredPlan: "pro"
+      }, { status: 403 });
+    }
+
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });

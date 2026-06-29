@@ -31,18 +31,18 @@ export function getUIInjection(planId: string): UIInjectionConfig {
   let badgeText = '';
   let helperText = '';
   
-  if (planId === 'pro') {
+  if (planId === 'starter') {
     ctaText = intentLevel === 'HIGH' ? 'Get Starter Now' : 'Get Starter';
     badgeText = intentLevel === 'HIGH' ? '⚡ SECURE OFFER' : 'STARTER';
     helperText = pressure.lossFraming;
-  } else if (planId === 'growth') {
+  } else if (planId === 'pro') {
     ctaText = intentLevel === 'HIGH' ? 'Get Pro Now' : 'Get Pro';
     badgeText = intentLevel === 'HIGH' ? '🔥 MOST POPULAR' : 'PRO';
     helperText = pressure.socialProof;
   } else if (planId === 'studio') {
-    ctaText = 'Get Client Growth Pack';
-    badgeText = 'AGENCY';
-    helperText = pressure.urgencyLabel;
+    ctaText = 'Join Waitlist';
+    badgeText = 'STUDIO';
+    helperText = 'Coming Soon';
   } else {
     ctaText = 'Start Free';
     badgeText = 'TRY';

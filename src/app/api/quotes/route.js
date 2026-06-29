@@ -40,6 +40,25 @@ export async function POST(request) {
     const context = await getRequestUser(request);
     const contextFailure = requestContextResponse(context, 'quotes');
     if (contextFailure) return contextFailure;
+
+    const { ensureProfile } = await import('../../lib/supabase');
+    const profile = await ensureProfile(context.supabase, context.user);
+    const plan = profile?.plan || 'free';
+
+    if (plan === 'free') {
+      const { count, error: countErr } = await context.supabase
+        .from('quotes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', context.user.id);
+
+      if (!countErr && count !== null && count >= 1) {
+        return NextResponse.json({
+          error: "UPGRADE_REQUIRED",
+          requiredPlan: "starter"
+        }, { status: 403 });
+      }
+    }
+
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });

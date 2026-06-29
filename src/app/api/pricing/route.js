@@ -26,7 +26,7 @@ const FALLBACK_PLANS = [
     active: true
   },
   {
-    id: 'pro',
+    id: 'starter',
     name: 'Starter',
     description: 'Get your first client faster',
     price_monthly: 9.00,
@@ -43,7 +43,7 @@ const FALLBACK_PLANS = [
     active: true
   },
   {
-    id: 'growth',
+    id: 'pro',
     name: 'Pro',
     description: 'Start getting paid professionally',
     price_monthly: 19.00,
@@ -65,8 +65,8 @@ const FALLBACK_PLANS = [
     description: 'Scale client operations',
     price_monthly: 0.00,
     price_yearly: 0.00,
-    paddle_monthly_price_id: 'pri_agency_placeholder',
-    paddle_yearly_price_id: 'pri_agency_yearly_placeholder',
+    paddle_monthly_price_id: '',
+    paddle_yearly_price_id: '',
     features: [
       'Brand client workspaces under your custom domain',
       'Qualify inbound inquiries with budget filters',
@@ -105,30 +105,31 @@ export async function GET() {
       plans = FALLBACK_PLANS;
     }
 
+    const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
+    const filteredPlans = plans.filter(p => STRICT_PLAN_IDS.includes(p.id));
+
     // Dynamic mapping of price IDs from environment variables if present
-	    const mappedPlans = plans.map(plan => {
+    const mappedPlans = filteredPlans.map(plan => {
       const proPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID;
       const proYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID;
       const growthPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID;
       const growthYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_YEARLY_PRICE_ID;
-      const agencyPrice = process.env.NEXT_PUBLIC_PADDLE_AGENCY_PRICE_ID;
-      const agencyYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_AGENCY_YEARLY_PRICE_ID;
 
       let paddle_monthly_price_id = plan.paddle_monthly_price_id;
       let paddle_yearly_price_id = plan.paddle_yearly_price_id;
 
-      if (plan.id === 'pro') {
+      if (plan.id === 'starter') {
         if (proPrice) paddle_monthly_price_id = proPrice;
         if (proYearlyPrice) paddle_yearly_price_id = proYearlyPrice;
-      } else if (plan.id === 'growth') {
+      } else if (plan.id === 'pro') {
         if (growthPrice) paddle_monthly_price_id = growthPrice;
         if (growthYearlyPrice) paddle_yearly_price_id = growthYearlyPrice;
-      } else if (plan.id === 'studio' || plan.id === 'agency') {
-        if (agencyPrice) paddle_monthly_price_id = agencyPrice;
-        if (agencyYearlyPrice) paddle_yearly_price_id = agencyYearlyPrice;
+      } else if (plan.id === 'studio') {
+        paddle_monthly_price_id = '';
+        paddle_yearly_price_id = '';
       }
 
-      // v9.5 Overrides to lock deterministic outcome names & descriptions
+      // Overrides to lock deterministic outcome names & descriptions
       let name = plan.name;
       let description = plan.description;
       let features = plan.features || [];
@@ -143,7 +144,7 @@ export async function GET() {
           'Basic profile creation',
           'Watermarked PDF exports'
         ];
-      } else if (plan.id === 'pro') {
+      } else if (plan.id === 'starter') {
         name = 'Starter';
         description = 'Get your first client faster';
         badge_text = 'Starter';
@@ -152,7 +153,7 @@ export async function GET() {
           'Watermark preview enabled',
           'Export disabled'
         ];
-      } else if (plan.id === 'growth') {
+      } else if (plan.id === 'pro') {
         name = 'Pro';
         description = 'Start getting paid professionally';
         badge_text = 'Recommended';
@@ -161,7 +162,7 @@ export async function GET() {
           'Secure PDF export (No watermark)',
           'Share client links instantly'
         ];
-      } else if (plan.id === 'studio' || plan.id === 'agency') {
+      } else if (plan.id === 'studio') {
         name = 'Studio';
         description = 'Scale client operations';
         badge_text = 'Coming Soon';
@@ -172,7 +173,7 @@ export async function GET() {
         ];
       }
 
-	      return {
+      return {
         ...plan,
         name,
         description,
@@ -183,24 +184,24 @@ export async function GET() {
         // Ensure values are numeric
         price_monthly: Number(plan.price_monthly),
         price_yearly: Number(plan.price_yearly)
-	      };
-	    });
+      };
+    });
 
-	    if (process.env.NODE_ENV === 'production') {
-	      const invalidPlan = mappedPlans.find((plan) => {
-	        if (plan.id === 'free') return false;
-	        return hasPlaceholderPriceId(plan.paddle_monthly_price_id) || hasPlaceholderPriceId(plan.paddle_yearly_price_id);
-	      });
+    if (process.env.NODE_ENV === 'production') {
+      const invalidPlan = mappedPlans.find((plan) => {
+        if (plan.id === 'free' || plan.id === 'studio') return false;
+        return hasPlaceholderPriceId(plan.paddle_monthly_price_id) || hasPlaceholderPriceId(plan.paddle_yearly_price_id);
+      });
 
-	      if (invalidPlan) {
-	        return NextResponse.json({
-	          success: false,
-	          error: `Paddle production price IDs are missing or invalid for plan: ${invalidPlan.id}`,
-	        }, { status: 500 });
-	      }
-	    }
-	
-	    return NextResponse.json({ success: true, plans: mappedPlans });
+      if (invalidPlan) {
+        return NextResponse.json({
+          success: false,
+          error: `Paddle production price IDs are missing or invalid for plan: ${invalidPlan.id}`,
+        }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, plans: mappedPlans });
   } catch (err) {
     console.error('Error in GET /api/pricing:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

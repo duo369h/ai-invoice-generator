@@ -38,8 +38,8 @@ function IdentityGate({ onSelect, currentIdentity }) {
       icon: '⚡'
     },
     {
-      id: 'growth',
-      title: 'Growth',
+      id: 'pro',
+      title: 'Pro',
       tagline: 'Never miss a payment',
       desc: 'A complete freelance business operating system. Scale from capturing inbound CRM leads to proposing scopes and repeat business.',
       accent: 'var(--success)',
@@ -542,9 +542,9 @@ function PricingContent() {
                 fontWeight: 850,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
-                color: ui.identity === 'starter' ? 'var(--primary)' : ui.identity === 'growth' ? 'var(--success)' : 'var(--accent)',
+                color: ui.identity === 'starter' ? 'var(--primary)' : ui.identity === 'pro' ? 'var(--success)' : 'var(--accent)',
                 background: 'var(--btn-secondary-bg)',
-                border: `1px solid ${ui.identity === 'starter' ? 'var(--primary)' : ui.identity === 'growth' ? 'var(--success)' : 'var(--accent)'}`,
+                border: `1px solid ${ui.identity === 'starter' ? 'var(--primary)' : ui.identity === 'pro' ? 'var(--success)' : 'var(--accent)'}`,
                 padding: '6px 16px',
                 borderRadius: '99px',
                 cursor: 'pointer'
@@ -554,11 +554,11 @@ function PricingContent() {
                   window.localStorage.removeItem('corvioz_identity');
                 }
               }}>
-                Role: {ui.identity === 'starter' ? 'Starter' : ui.identity === 'growth' ? 'Growth' : 'Studio'} (Click to change)
+                Role: {ui.identity === 'starter' ? 'Starter' : ui.identity === 'pro' ? 'Pro' : 'Studio'} (Click to change)
               </span>
             </div>
           )}
-          <p className="section-kicker" style={{ color: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'growth' ? 'var(--success)' : 'var(--accent)', fontWeight: 800 }}>
+          <p className="section-kicker" style={{ color: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)', fontWeight: 800 }}>
             {mounted && ui.copy ? ui.copy.kicker : "PRICING"}
           </p>
           <h1 className="section-title" style={{ marginBottom: '12px', fontWeight: 900 }}>
@@ -571,14 +571,14 @@ function PricingContent() {
           {/* Engine-driven upgrade nudge banner */}
           {upgradeBanner && (
             <div style={{
-              background: upgradeBanner.targetPlan === 'pro'
+              background: upgradeBanner.targetPlan === 'starter'
                 ? 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(99,102,241,0.03) 100%)'
-                : upgradeBanner.targetPlan === 'growth'
+                : upgradeBanner.targetPlan === 'pro'
                 ? 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.03) 100%)'
                 : 'linear-gradient(135deg, rgba(168,85,247,0.08) 0%, rgba(168,85,247,0.03) 100%)',
-              border: upgradeBanner.targetPlan === 'pro'
+              border: upgradeBanner.targetPlan === 'starter'
                 ? '1px solid rgba(99,102,241,0.3)'
-                : upgradeBanner.targetPlan === 'growth'
+                : upgradeBanner.targetPlan === 'pro'
                 ? '1px solid rgba(34,197,94,0.3)'
                 : '1px solid rgba(168,85,247,0.3)',
               borderRadius: '12px',
@@ -594,7 +594,7 @@ function PricingContent() {
               boxShadow: 'var(--shadow-sm)'
             }}>
               <span style={{ fontSize: '1.25rem' }}>
-                {upgradeBanner.targetPlan === 'studio' ? '🚀' : upgradeBanner.targetPlan === 'growth' ? '📈' : '⚡'}
+                {upgradeBanner.targetPlan === 'studio' ? '🚀' : upgradeBanner.targetPlan === 'pro' ? '📈' : '⚡'}
               </span>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-soft)', fontWeight: 600, textAlign: 'left', lineHeight: 1.4 }}>
                 {upgradeBanner.reason}
@@ -639,7 +639,7 @@ function PricingContent() {
                 onClick={() => setBillingPeriod('monthly')}
                 className={`toggle-btn ${billingPeriod === 'monthly' ? 'active' : ''}`}
                 style={billingPeriod === 'monthly' ? { 
-                  background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'growth' ? 'var(--success)' : 'var(--accent)',
+                  background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)',
                   color: '#ffffff',
                   boxShadow: 'var(--shadow-sm)'
                 } : {}}
@@ -655,7 +655,7 @@ function PricingContent() {
                   alignItems: 'center', 
                   gap: '6px',
                   ...(billingPeriod === 'yearly' ? {
-                    background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'growth' ? 'var(--success)' : 'var(--accent)',
+                    background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)',
                     color: '#ffffff',
                     boxShadow: 'var(--shadow-sm)'
                   } : {})
@@ -793,15 +793,15 @@ function PricingContent() {
           <div className="pricing-grid-v2">
             {viewModels.map((vm) => {
               const isFree = vm.id === 'free';
+              const isStarter = vm.id === 'starter';
               const isPro = vm.id === 'pro';
-              const isGrowth = vm.id === 'growth';
-              const isStudio = vm.id === 'studio' || vm.id === 'agency';
+              const isStudio = vm.id === 'studio';
               
-              const cardClass = isPro ? 'pricing-card-pro' : isGrowth ? 'pricing-card-growth' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
-              const checkColor = isPro ? 'var(--primary)' : isGrowth ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--success)');
+              const cardClass = isStarter ? 'pricing-card-pro' : isPro ? 'pricing-card-growth' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
+              const checkColor = isStarter ? 'var(--primary)' : isPro ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--success)');
               
               const price = billingPeriod === 'monthly' ? vm.priceMonthly : vm.priceYearly;
-              const savingsText = isPro ? 'Save 17%' : isGrowth ? 'Save 16%' : (isStudio ? 'Save 17%' : null);
+              const savingsText = isStarter ? 'Save 17%' : isPro ? 'Save 16%' : (isStudio ? 'Save 17%' : null);
               const billedAnnuallyText = vm.priceYearly > 0 ? `Billed annually ($${Math.round(vm.priceYearly * 12)}/year)` : null;
               
               const isCurrentPlan = vm.isCurrent;
@@ -811,30 +811,30 @@ function PricingContent() {
               const badgeText = uiInject.badgeText;
               const ctaText = uiInject.ctaText;
               const helperText = uiInject.helperText;
-
+ 
               const isRecommended = vm.highlightedPlan === vm.id;
               const intensity = vm.visualIntensity;
-
+ 
               const cardStyle = isRecommended ? {
-                borderColor: vm.id === 'pro' ? 'var(--primary)' : vm.id === 'growth' ? 'var(--success)' : 'var(--accent)',
-                boxShadow: vm.id === 'pro'
+                borderColor: vm.id === 'starter' ? 'var(--primary)' : vm.id === 'pro' ? 'var(--success)' : 'var(--accent)',
+                boxShadow: vm.id === 'starter'
                   ? `0 12px 30px -10px var(--primary-glow), 0 0 0 ${4 + intensity * 2}px var(--primary-glow)`
-                  : vm.id === 'growth'
+                  : vm.id === 'pro'
                   ? `0 12px 30px -10px rgba(34,197,94,${0.1 + intensity * 0.1}), 0 0 0 ${3 + intensity}px rgba(34,197,94,0.1)`
                   : `0 12px 30px -10px rgba(99,102,241,${0.1 + intensity * 0.1}), 0 0 0 ${3 + intensity}px rgba(99,102,241,0.1)`,
-                transform: vm.id === 'pro' ? 'scale(1.04) translateY(-4px)' : 'translateY(-4px)',
+                transform: vm.id === 'starter' ? 'scale(1.04) translateY(-4px)' : 'translateY(-4px)',
                 zIndex: 5,
               } : {};
-
+ 
               return (
                 <div key={vm.id} className={cardClass} style={cardStyle} onMouseEnter={() => trackEvent('pricing_hover_plan', { plan: vm.id })}>
                   {isRecommended && !vm.isCurrent && (
-                    <div style={{ position: 'absolute', top: '-14px', left: '20px', background: vm.id === 'pro' ? 'var(--primary)' : vm.id === 'growth' ? 'var(--success)' : 'var(--accent)', color: '#fff', padding: '4px 14px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>
+                    <div style={{ position: 'absolute', top: '-14px', left: '20px', background: vm.id === 'starter' ? 'var(--primary)' : vm.id === 'pro' ? 'var(--success)' : 'var(--accent)', color: '#fff', padding: '4px 14px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>
                       🔥 RECOMMENDED FOR YOU
                     </div>
                   )}
                   {vm.isCurrent && (
-                    <div style={{ position: 'absolute', top: isPro ? '14px' : '-14px', right: '16px', background: 'var(--success)', color: '#fff', padding: '3px 12px', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                    <div style={{ position: 'absolute', top: isStarter ? '14px' : '-14px', right: '16px', background: 'var(--success)', color: '#fff', padding: '3px 12px', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
                       ✓ Current Plan
                     </div>
                   )}
@@ -844,12 +844,12 @@ function PricingContent() {
                         display: 'inline-block',
                         fontSize: '0.68rem',
                         fontWeight: 800,
-                        color: isPro ? 'var(--primary)' : isGrowth ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--text-muted)'),
+                        color: isStarter ? 'var(--primary)' : isPro ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--text-muted)'),
                         textTransform: 'uppercase',
                         letterSpacing: '0.08em',
                         marginBottom: '14px',
-                        background: isPro ? 'var(--primary-glow)' : isGrowth ? 'rgba(34,197,94,0.08)' : (isStudio ? 'rgba(99,102,241,0.07)' : 'var(--btn-secondary-bg)'),
-                        border: `1px solid ${isPro ? 'var(--primary)' : isGrowth ? 'rgba(34,197,94,0.3)' : (isStudio ? 'rgba(99,102,241,0.2)' : 'var(--border)')}`,
+                        background: isStarter ? 'var(--primary-glow)' : isPro ? 'rgba(34,197,94,0.08)' : (isStudio ? 'rgba(99,102,241,0.07)' : 'var(--btn-secondary-bg)'),
+                        border: `1px solid ${isStarter ? 'var(--primary)' : isPro ? 'rgba(34,197,94,0.3)' : (isStudio ? 'rgba(99,102,241,0.2)' : 'var(--border)')}`,
                         borderRadius: '99px',
                         padding: '3px 10px'
                       }}>
@@ -857,7 +857,7 @@ function PricingContent() {
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                      <h2 style={{ fontSize: isPro ? '1.6rem' : '1.3rem', fontWeight: isPro ? 900 : 800, color: 'var(--text-main)', margin: 0, letterSpacing: isPro ? '-0.02em' : 'normal' }}>
+                      <h2 style={{ fontSize: isStarter ? '1.6rem' : '1.3rem', fontWeight: isStarter ? 900 : 800, color: 'var(--text-main)', margin: 0, letterSpacing: isStarter ? '-0.02em' : 'normal' }}>
                         {vm.name}
                       </h2>
                       {vm.identity && (
@@ -867,7 +867,7 @@ function PricingContent() {
                           textTransform: 'uppercase', 
                           letterSpacing: '0.05em', 
                           color: checkColor, 
-                          background: isPro ? 'var(--primary-glow)' : 'var(--btn-secondary-bg)', 
+                          background: isStarter ? 'var(--primary-glow)' : 'var(--btn-secondary-bg)', 
                           border: `1px solid ${checkColor}`,
                           padding: '3px 10px', 
                           borderRadius: '12px' 
@@ -883,7 +883,7 @@ function PricingContent() {
                         </span>
                       ) : (
                         <>
-                          <span style={{ fontSize: isPro ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                          <span style={{ fontSize: isStarter ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
                             ${price}
                           </span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
@@ -893,7 +893,7 @@ function PricingContent() {
                       )}
                       <span style={{ marginLeft: '8px' }}>
                         {billingPeriod === 'yearly' && savingsText && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isGrowth ? 'var(--success)' : isStudio ? 'var(--accent)' : 'var(--primary)', background: isGrowth ? 'rgba(34,197,94,0.08)' : isStudio ? 'rgba(99,102,241,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isGrowth ? 'rgba(34,197,94,0.2)' : isStudio ? 'rgba(99,102,241,0.2)' : 'var(--primary)'}` }}>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isPro ? 'var(--success)' : isStudio ? 'var(--accent)' : 'var(--primary)', background: isPro ? 'rgba(34,197,94,0.08)' : isStudio ? 'rgba(99,102,241,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isPro ? 'rgba(34,197,94,0.2)' : isStudio ? 'rgba(99,102,241,0.2)' : 'var(--primary)'}` }}>
                             {savingsText}
                           </span>
                         )}
@@ -926,7 +926,7 @@ function PricingContent() {
                           window.location.href = '/dashboard?action=create-profile';
                           return;
                         }
-                        if (vm.id === 'studio' || vm.id === 'agency') {
+                        if (vm.id === 'studio') {
                           alert("Thank you! You have been added to the Studio waitlist.");
                           return;
                         }
@@ -938,23 +938,23 @@ function PricingContent() {
                       }}
                       disabled={checkoutLoading || isCurrentPlan}
                       variant={isPro ? 'primary' : 'secondary'}
-                      style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isGrowth ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
+                      style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isStarter ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
                     >
                       {checkoutLoading ? 'Preparing Checkout...' : vm.ctaLabel}
                     </Button>
 
                     {/* Trust Microcopy */}
+                    {vm.id === 'starter' && (
+                      <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-soft)', marginTop: '10px', marginBottom: 0, fontWeight: 600 }}>
+                        {mounted && ui.copy?.cardTrustMicrocopy}
+                      </p>
+                    )}
                     {vm.id === 'pro' && (
                       <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-soft)', marginTop: '10px', marginBottom: 0, fontWeight: 600 }}>
                         {mounted && ui.copy?.cardTrustMicrocopy}
                       </p>
                     )}
-                    {vm.id === 'growth' && (
-                      <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-soft)', marginTop: '10px', marginBottom: 0, fontWeight: 600 }}>
-                        {mounted && ui.copy?.cardTrustMicrocopy}
-                      </p>
-                    )}
-                    {(vm.id === 'studio' || vm.id === 'agency') && (
+                    {vm.id === 'studio' && (
                       <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-soft)', marginTop: '10px', marginBottom: 0, fontWeight: 600 }}>
                         {mounted && ui.copy?.cardTrustMicrocopy}
                       </p>

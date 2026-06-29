@@ -73,8 +73,8 @@ async function runTests() {
 
   const plans = [
     { id: 'free', name: 'Free', price_monthly: 0, price_yearly: 0 },
-    { id: 'pro', name: 'Starter', price_monthly: 9, price_yearly: 7 },
-    { id: 'growth', name: 'Pro', price_monthly: 19, price_yearly: 15 },
+    { id: 'starter', name: 'Starter', price_monthly: 9, price_yearly: 7 },
+    { id: 'pro', name: 'Pro', price_monthly: 19, price_yearly: 15 },
     { id: 'studio', name: 'Studio', price_monthly: 0, price_yearly: 0 }
   ];
 
@@ -93,29 +93,29 @@ async function runTests() {
   assert(freeCard.name === 'Free', 'Free tier name');
   assert(freeCard.identity === 'Try', 'Free tier identity');
 
-  const proCard = cards.find(c => c.id === 'pro');
-  assert(proCard.name === 'Starter', 'Starter tier name');
-  assert(proCard.identity === 'Starter', 'Starter tier identity');
-  assert(proCard.outcome === 'Get paid faster', 'Starter tier outcome');
-  assert(proCard.features.includes('Auto-fill client details on future documents'), 'Starter has auto-fill details');
+  const starterCard = cards.find(c => c.id === 'starter');
+  assert(starterCard.name === 'Starter', 'Starter tier name');
+  assert(starterCard.identity === 'Starter', 'Starter tier identity');
+  assert(starterCard.outcome === 'Get paid faster', 'Starter tier outcome');
+  assert(starterCard.features.includes('Auto-fill client details on future documents'), 'Starter has auto-fill details');
 
-  const growthCard = cards.find(c => c.id === 'growth');
-  assert(growthCard.name === 'Pro', 'Pro tier name');
-  assert(growthCard.identity === 'Pro', 'Pro tier identity');
-  assert(growthCard.outcome === 'Never miss a payment', 'Pro tier outcome');
-  assert(growthCard.features.includes('Qualify and capture prospective client inquiries'), 'Pro has lead capture');
+  const proCard = cards.find(c => c.id === 'pro');
+  assert(proCard.name === 'Pro', 'Pro tier name');
+  assert(proCard.identity === 'Pro', 'Pro tier identity');
+  assert(proCard.outcome === 'Never miss a payment', 'Pro tier outcome');
+  assert(proCard.features.includes('Qualify and capture prospective client inquiries'), 'Pro has lead capture');
 
   const studioCard = cards.find(c => c.id === 'studio');
   assert(studioCard.name === 'Studio', 'Studio tier name');
-  assert(studioCard.identity === 'Agency', 'Studio tier identity');
+  assert(studioCard.identity === 'Studio', 'Studio tier identity');
   assert(studioCard.outcome === 'Scale client operations', 'Studio tier outcome');
 
   // Verify entitlements mapping
-  const proEnt = getUserEntitlements('pro');
-  assert(proEnt.export_pdf === false, 'Starter plan has export PDF disabled');
+  const starterEnt = getUserEntitlements('starter');
+  assert(starterEnt.export_pdf === false, 'Starter plan has export PDF disabled');
 
-  const growthEnt = getUserEntitlements('growth');
-  assert(growthEnt.export_pdf === true, 'Pro plan has export PDF enabled');
+  const proEnt = getUserEntitlements('pro');
+  assert(proEnt.export_pdf === true, 'Pro plan has export PDF enabled');
 
   console.log('✅ Corvioz Pricing Flow & Entitlements Verification PASSED.');
   

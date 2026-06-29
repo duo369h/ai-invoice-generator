@@ -62,33 +62,14 @@ async function verify() {
     await page.goto('http://localhost:3000/auth');
     
     // Wait for Supabase to be loaded in the page context
-    await page.waitForFunction(() => typeof window !== 'undefined');
+    await page.waitForFunction(() => typeof window !== 'undefined' && typeof window.supabaseClientInstance !== 'undefined');
 
     // Run login script on page to authenticate using signInWithPassword
     const loginResult = await page.evaluate(async ({ email, password }) => {
-      // Find NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from environment or localStorage/session
-      // Since it's /auth page, let's instantiate standard supabase browser client if it exists or use createBrowserSupabaseClient
-      // Wait, we can construct the supabase client ourselves using window.supabase or import it.
-      // Let's use the public environment variables that are exposed to client side.
-      const url = 'https://fgortrxozlbzxbkerejz.supabase.co';
-      const key = 'sb_publishable_uB7utw3Gui6FiQcO9ax6GQ_PwkFBsBs';
-      
-      // Load Supabase script if it's not defined
-      if (typeof window.supabase === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-        document.head.appendChild(script);
-        await new Promise(r => setTimeout(r, 1000));
-      }
-      
-      const client = window.supabase.createClient(url, key);
+      const client = window.supabaseClientInstance;
+      if (!client) return { success: false, error: 'supabaseClientInstance is not exposed' };
       const { data, error } = await client.auth.signInWithPassword({ email, password });
-      
       if (error) return { success: false, error: error.message };
-      
-      // Store the session in localStorage so Next.js app picks it up
-      window.localStorage.setItem('sb-fgortrxozlbzxbkerejz-auth-token', JSON.stringify(data.session));
-      document.cookie = "corvioz_entry_auth=authenticated; path=/; max-age=2592000; SameSite=Lax";
       return { success: true };
     }, { email: TEST_EMAIL, password: TEST_PASSWORD });
 

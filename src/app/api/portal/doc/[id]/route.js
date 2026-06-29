@@ -144,6 +144,23 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Portal document not found' }, { status: 404 });
     }
 
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Portal');
+    const { data: profile } = await serviceSupabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', resolved.data.user_id)
+      .maybeSingle();
+    const plan = profile?.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
+    }
+
     const docMeta = resolved.type === 'invoice' ? withInvoiceMeta(resolved.data) : withQuoteMeta(resolved.data);
     return NextResponse.json({ type: resolved.type, data: docMeta.data });
   } catch (error) {
@@ -182,6 +199,23 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Portal document not found' }, { status: 404 });
     }
 
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Portal comments');
+    const { data: profile } = await serviceSupabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', resolved.data.user_id)
+      .maybeSingle();
+    const plan = profile?.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
+    }
+
     const comment = {
       id: `c_${Math.random().toString(36).substring(2, 14)}`,
       author,
@@ -189,8 +223,6 @@ export async function POST(request, { params }) {
       created_at: new Date().toISOString()
     };
 
-    const serviceSupabase = createServiceSupabaseClient();
-    if (!serviceSupabase) return failClosedResponse('Portal comments');
     const comments = await saveSupabaseCommentById(serviceSupabase, id, resolved.type, resolved.data.user_id, comment);
 
     if (!comments) {
@@ -246,6 +278,20 @@ export async function PATCH(request, { params }) {
 
     const serviceSupabase = createServiceSupabaseClient();
     if (!serviceSupabase) return failClosedResponse('Portal update');
+    const { data: profile } = await serviceSupabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', resolved.data.user_id)
+      .maybeSingle();
+    const plan = profile?.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
+    }
 
     // Fetch freelancer profile for notification routing
     const { data: freelancerProfile } = await serviceSupabase

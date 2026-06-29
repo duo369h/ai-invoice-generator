@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { ENTRY_AUTH_COOKIE, ENTRY_AUTH_COOKIE_VALUES } from '../../../../core/entry/ENTRY_STATE';
 import { recordProductAnalyticsEvent } from '../../../lib/product-analytics-server';
 
 export async function GET(request) {
@@ -40,7 +39,7 @@ export async function GET(request) {
         console.error('Failed to record signup completion:', analyticsError);
       }
       const response = NextResponse.redirect(new URL(next, request.url));
-      response.cookies.set(ENTRY_AUTH_COOKIE, ENTRY_AUTH_COOKIE_VALUES.AUTHENTICATED, {
+      response.cookies.set('sb-auth-token', data.session.access_token, {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
         sameSite: 'lax',

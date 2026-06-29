@@ -174,6 +174,15 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
     }
 
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(resolved.plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
+    }
+
     // Telemetry tracking for Client Reality Loop
     const ownerId = resolved.portalToken.owner_id;
     const serviceSupabase = createServiceSupabaseClient();
@@ -236,6 +245,15 @@ export async function POST(request, { params }) {
     if (resolved === 'production-unconfigured') return failClosedResponse('Portal comments');
     if (!resolved) {
       return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
+    }
+
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(resolved.plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
     }
 
     const comment = {
@@ -306,6 +324,15 @@ export async function PATCH(request, { params }) {
     if (resolved === 'production-unconfigured') return failClosedResponse('Portal update');
     if (!resolved) {
       return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
+    }
+
+    const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(resolved.plan);
+    if (!entitlements.client_portal) {
+      return NextResponse.json({
+        error: 'UPGRADE_REQUIRED',
+        requiredPlan: 'pro'
+      }, { status: 403 });
     }
 
     const { action } = await request.json();
