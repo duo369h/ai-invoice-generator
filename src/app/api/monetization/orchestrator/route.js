@@ -67,21 +67,6 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Monetization orchestrator failed:', error);
-    return NextResponse.json({
-      final_action: 'allow',
-      pricing_tier: 'standard',
-      ui_behavior: 'allow_standard_flow',
-      reason: 'orchestrator_error_fallback',
-      action: 'allow',
-      shouldBlock: false,
-      uiState: 'allow_standard_flow',
-      message: '',
-      scores: {
-        intent_score: 0,
-        value_score: 0,
-        conversion_probability: 0,
-        risk_score: 0,
-      },
-    });
+    return NextResponse.json({ error: 'Failed to evaluate monetization orchestration' }, { status: 500 });
   }
 }

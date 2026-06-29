@@ -11,7 +11,7 @@ import { allowUpgradeExposure } from './safetyGuard';
 import { UIDecisionContext } from './index';
 
 export interface RevenueMetrics {
-  recommendedPlan: 'pro' | 'growth' | 'studio' | null;
+  recommendedPlan: 'starter' | 'pro' | 'studio' | null;
   confidence: number;
   reason: string;
   cooldown: number;
@@ -79,7 +79,7 @@ export function computeRevenueMetrics(context: UIDecisionContext): RevenueMetric
   const upgrade_probability = Math.max(scores.pro_score, scores.growth_score, scores.studio_score) / 100;
   const churn_risk = scores.churn_risk / 100;
 
-  let recommendedPlan: 'pro' | 'growth' | 'studio' | null = null;
+  let recommendedPlan: 'starter' | 'pro' | 'studio' | null = null;
   let confidence = 0;
   let reason = '';
   let exposureType: 'banner' | 'modal' | null = null;
@@ -92,18 +92,18 @@ export function computeRevenueMetrics(context: UIDecisionContext): RevenueMetric
     reason = 'Your client portal activity is high (exceeding 70%). Studio is recommended for dedicated client management.';
     exposureType = 'modal';
   }
-  // Rule 2: Growth Plan
+  // Rule 2: Pro Plan
   else if (invoice_count > 5 && export_actions > 3) {
-    recommendedPlan = 'growth';
+    recommendedPlan = 'pro';
     confidence = scores.growth_score || 75;
-    reason = 'Active creation and export behavior detected (over 5 invoices and 3 exports). Growth recommended.';
+    reason = 'Active creation and export behavior detected (over 5 invoices and 3 exports). Pro recommended.';
     exposureType = 'banner';
   }
-  // Rule 3: Pro Plan
+  // Rule 3: Starter Plan
   else if (upgrade_probability > 0.25 && churn_risk < 0.7) {
-    recommendedPlan = 'pro';
+    recommendedPlan = 'starter';
     confidence = Math.round(upgrade_probability * 100);
-    reason = 'Strong initial conversion probability with low churn risk. Pro recommended.';
+    reason = 'Strong initial conversion probability with low churn risk. Starter recommended.';
     exposureType = 'banner';
   }
 

@@ -52,7 +52,7 @@ const demoProfile = {
   verified_badge: true,
   top_rated_badge: true,
   fast_response_badge: true,
-  cover_banner: 'linear-gradient(135deg, #111827 0%, #4f46e5 45%, #06b6d4 100%)',
+  cover_banner: 'linear-gradient(135deg, var(--gray-900) 0%, var(--primary) 45%, var(--accent) 100%)',
 };
 
 function ensureKeywordRichBio(profile) {

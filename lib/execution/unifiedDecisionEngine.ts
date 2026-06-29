@@ -6,7 +6,7 @@
  */
 
 export interface UnifiedDecision {
-  recommendedPlan: 'free' | 'pro' | 'growth' | 'studio';
+  recommendedPlan: 'free' | 'starter' | 'pro' | 'studio';
   confidence: number; // 0-1
   upgradeSignal: {
     showBanner: boolean;
@@ -71,7 +71,7 @@ export function getUnifiedDecision(userId: string | null): UnifiedDecision {
     } catch (_) {}
 
     // 2. Deterministic Plan & Confidence Logic
-    let recommendedPlan: 'free' | 'pro' | 'growth' | 'studio' = 'free';
+    let recommendedPlan: 'free' | 'starter' | 'pro' | 'studio' = 'free';
     let confidence = 0.0;
     let reason = 'Standard free tier usage.';
 
@@ -81,19 +81,19 @@ export function getUnifiedDecision(userId: string | null): UnifiedDecision {
       confidence = Math.min(1.0, 0.5 + (clientPortalViews - 5) * 0.1);
       reason = `Heavy client portal usage detected (${clientPortalViews} views). Studio plan recommended for client portal operations.`;
     }
-    // Rule: growth → repeated usage + exports + invoices
+    // Rule: pro -> repeated usage + exports + invoices
     else if (invoicesCount > 5 && exportPdf > 2) {
-      recommendedPlan = 'growth';
-      confidence = Math.min(1.0, 0.4 + (invoicesCount - 5) * 0.05 + (exportPdf - 2) * 0.05);
-      reason = `Active invoicing and export volume detected (${invoicesCount} invoices, ${exportPdf} PDF exports). Growth plan recommended.`;
-    }
-    // Rule: pro → usage + intent detected
-    else if (invoicesCount > 0 || quotesCount > 0 || pricingViewed > 0 || intentDetected) {
       recommendedPlan = 'pro';
+      confidence = Math.min(1.0, 0.4 + (invoicesCount - 5) * 0.05 + (exportPdf - 2) * 0.05);
+      reason = `Active invoicing and export volume detected (${invoicesCount} invoices, ${exportPdf} PDF exports). Pro plan recommended.`;
+    }
+    // Rule: starter -> usage + intent detected
+    else if (invoicesCount > 0 || quotesCount > 0 || pricingViewed > 0 || intentDetected) {
+      recommendedPlan = 'starter';
       const usageScore = (invoicesCount > 0 ? 0.2 : 0) + (quotesCount > 0 ? 0.1 : 0);
       const intentScore = (pricingViewed > 0 ? 0.1 : 0) + (intentDetected ? 0.2 : 0);
       confidence = Math.min(1.0, 0.15 + usageScore + intentScore);
-      reason = 'Workflow activity or upgrade intent detected. Pro plan recommended.';
+      reason = 'Workflow activity or upgrade intent detected. Starter plan recommended.';
     }
 
     // 3. Churn Risk Evaluation

@@ -403,7 +403,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, []);
 
   const getPlanInfo = (planId, key, fallback) => {
-    const plan = pricingPlans.find(p => p.id === planId || (planId === 'agency' && p.id === 'studio'));
+    const plan = pricingPlans.find(p => p.id === planId);
     return plan && plan[key] !== undefined ? plan[key] : fallback;
   };
 
@@ -1008,7 +1008,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // v10: renderPaidLockState is REMOVED.
   // Tabs are now freely accessible — upgrade nudges fire AFTER value moments, not before access.
   // This stub is kept for compatibility only; it renders nothing and fires the nudge hook.
-  const renderPaidLockState = (title, description, targetPlan = 'growth') => {
+  const renderPaidLockState = (title, description, targetPlan = 'pro') => {
     // Signal the tier wrapper to fire a success nudge (non-blocking)
     if (typeof window !== 'undefined' && window.__corvioz_fire_success_nudge) {
       // We don't know the exact moment here, so we fire a generic upgrade nudge via window
@@ -2057,21 +2057,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const currentClientCount = clients ? clients.length : 0;
       const userPlan = String(user?.plan || 'free').toLowerCase();
 
-      if ((userPlan === 'free' || userPlan === 'pro' || userPlan === 'professional') && currentClientCount >= 0) {
+      if ((userPlan === 'free' || userPlan === 'starter') && currentClientCount >= 0) {
         setModalProps({
           title: "Upgrade to Pro",
           description: "Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.",
           lockedFeatureValue: "Clients Directory & Billing Records",
           limit: "client_limit",
           source: "client_creation_gate",
-          targetPlan: "growth"
+          targetPlan: "pro"
         });
         setActiveModal('upgrade');
         setFormError('Client directory requires Pro plan.');
         return;
       }
 
-      if (userPlan === 'growth' && currentClientCount >= 1) {
+      if (userPlan === 'pro' && currentClientCount >= 1) {
         setModalProps({
           title: "Upgrade to Client Growth Pack",
           description: "Scale your freelance business with multi-client workspaces, templates, and customized brand kits.",
@@ -2085,7 +2085,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         return;
       }
 
-      if ((userPlan === 'studio' || userPlan === 'agency') && currentClientCount >= 100) {
+      if (userPlan === 'studio' && currentClientCount >= 100) {
         setModalProps({
           title: "Corporate Workspace Scale Limit",
           description: "Your active client roster has reached the policy limit for this business workspace. Please coordinate with your Account Manager to provision additional workspace nodes.",
@@ -2699,8 +2699,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               const isActive = activeTab === tab.id;
               
               // Identity theme accent colors
-              const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'growth' ? 'var(--success)' : 'var(--accent)';
-              const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'growth' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
+              const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
+              const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
 
               return (
                 <button
@@ -3036,7 +3036,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           !session ? (
             renderGuestLockState('Leads CRM', 'Track client inquiry cycles and project valuations. When prospects submit forms on your public profile, inquiries appear here in your sales pipeline.')
           ) : !entitlements.crm ? (
-            renderPaidLockState('Leads Pipeline CRM', 'Track client inquiry cycles and project valuations. When prospects submit forms on your public profile, inquiries appear here in your sales pipeline.', 'growth')
+            renderPaidLockState('Leads Pipeline CRM', 'Track client inquiry cycles and project valuations. When prospects submit forms on your public profile, inquiries appear here in your sales pipeline.', 'pro')
           ) : (
             <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -3290,7 +3290,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           !session && quoteView !== 'create' ? (
             renderGuestLockState('Proposal Estimates', 'Improve your proposal success with clear scope, milestones, and client decision paths that can convert into invoices.')
           ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Proposal Estimates', 'Improve your proposal success with clear scope, milestones, and client decision paths that can convert into invoices.', 'growth')
+            renderPaidLockState('Proposal Estimates', 'Improve your proposal success with clear scope, milestones, and client decision paths that can convert into invoices.', 'pro')
           ) : (
             <div className="animate-fade-in">
             {quoteView === 'list' && (
@@ -3854,7 +3854,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           !session && invoiceView !== 'create' ? (
             renderGuestLockState('Invoices Management', 'Generate tax-compliant professional invoices, track payments automatically, and accept credit card/bank payments from your clients.')
           ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Invoices Management', 'Generate tax-compliant professional invoices, track payments automatically, and accept credit card/bank payments from your clients.', 'growth')
+            renderPaidLockState('Invoices Management', 'Generate tax-compliant professional invoices, track payments automatically, and accept credit card/bank payments from your clients.', 'pro')
           ) : (
             <div className="animate-fade-in">
               {invoiceView === 'list' && (
@@ -4577,8 +4577,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     Get Pro
                                   </Link>
                                   <Link
-                                    href="/pricing?checkout=growth"
-                                    onClick={() => trackEvent('upgrade_trigger_clicked', { plan: 'free', target_plan: 'growth', offer_type: 'soft_banner', cta_text: 'Get Growth' })}
+                                    href="/pricing?checkout=pro"
+                                    onClick={() => trackEvent('upgrade_trigger_clicked', { plan: 'free', target_plan: 'pro', offer_type: 'soft_banner', cta_text: 'Get Pro' })}
                                     style={{
                                       flex: 1,
                                       padding: '6px',
@@ -4655,7 +4655,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           !session && !isSandboxMode ? (
             renderGuestLockState('Clients Directory', 'Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.')
           ) : !entitlements.crm && !isSandboxMode ? (
-            renderPaidLockState('Clients Directory', 'Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.', 'growth')
+            renderPaidLockState('Clients Directory', 'Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.', 'pro')
           ) : (activeTheme === 'studio') ? (
             <StudioSpace
               clients={getActiveClients()}
@@ -6007,7 +6007,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         limit={modalProps.limit}
         source={modalProps.source}
         explanation={modalProps.explanation}
-        targetPlan={modalProps.targetPlan || 'growth'}
+        targetPlan={modalProps.targetPlan || 'pro'}
       />
 
       <ExportRestrictionModal
@@ -6259,11 +6259,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 Explore Preview
               </button>
               <Link
-                href="/pricing?checkout=agency"
+                href="/pricing?checkout=studio"
                 onClick={() => {
                   setShowStudioPreviewModal(false);
-                  saveSelectedPlan('agency', 'studio_preview_modal');
-                  trackUpgradeClick('studio_preview_modal', 'agency');
+                  saveSelectedPlan('studio', 'studio_preview_modal');
+                  trackUpgradeClick('studio_preview_modal', 'studio');
                 }}
                 className="btn btn-primary"
                 style={{ flex: 1, textAlign: 'center', textDecoration: 'none', padding: '10px 0', fontSize: '0.82rem', fontWeight: 700, background: 'var(--primary, #4F46E5)', color: '#fff' }}

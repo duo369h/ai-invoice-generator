@@ -47,33 +47,7 @@ export function routeEvent(validatedEvent) {
   // Route to Plausible / GA4 via sendEvent in analytics.js
   sendEvent(event_type, metadata);
 
-  // Route to the Local Growth Database Backend
-  try {
-    if (typeof window !== 'undefined') {
-      const payload = JSON.stringify({
-        id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `evt-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        event_type,
-        caller: 'event-collector',
-        metadata,
-        timestamp,
-      });
-
-      if (navigator.sendBeacon) {
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon('/api/growth/events', blob);
-        return;
-      }
-
-      fetch('/api/growth/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-        keepalive: true,
-      }).catch(() => {});
-    }
-  } catch (_) {
-    // Fail silently on networking/storage failure to prevent blocking the UI
-  }
+  void timestamp;
 }
 
 /**

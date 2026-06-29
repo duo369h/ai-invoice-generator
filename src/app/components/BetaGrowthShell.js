@@ -113,7 +113,7 @@ export default function BetaGrowthShell({ children }) {
 
             {isSuccess ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '24px 0', gap: '16px' }}>
-                <CheckCircle2 size={48} style={{ color: 'var(--success, #10B981)' }} />
+                <CheckCircle2 size={48} style={{ color: 'var(--success)' }} />
                 <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
                   Thank you. Your feedback helps improve Corvioz.
                 </p>
@@ -177,7 +177,7 @@ export default function BetaGrowthShell({ children }) {
                 </div>
 
                 {status && (
-                  <p className="feedback-status" style={{ color: 'var(--error, #EF4444)', margin: 0 }}>
+                  <p className="feedback-status" style={{ color: 'var(--danger)', margin: 0 }}>
                     {status}
                   </p>
                 )}

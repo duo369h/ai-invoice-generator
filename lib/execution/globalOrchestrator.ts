@@ -9,7 +9,12 @@
  *   4. conversion_context (Lowest)
  */
 
-export type IdentityType = 'starter' | 'growth' | 'studio' | null;
+const PRICING_IDENTITIES = ['free', 'starter', 'pro', 'studio'] as const;
+const COPY_THEMES = ['starter', 'pro', 'studio'] as const;
+
+export type PricingIdentityType = typeof PRICING_IDENTITIES[number];
+export type IdentityType = PricingIdentityType | null;
+type CopyThemeType = typeof COPY_THEMES[number];
 export type BusinessStageType = 'freelancer' | 'business';
 export type WorkspaceModeType = 'studio' | 'standard';
 export type ConversionContextType = 'onboarding' | 'pricing' | 'checkout' | 'dashboard';
@@ -19,6 +24,10 @@ export interface AppState {
   business_stage: BusinessStageType;
   workspace_mode: WorkspaceModeType;
   conversion_context: ConversionContextType;
+}
+
+function isPricingIdentity(value: string | null): value is PricingIdentityType {
+  return Boolean(value && (PRICING_IDENTITIES as readonly string[]).includes(value));
 }
 
 /**
@@ -49,18 +58,17 @@ export function resolveAppState(options?: {
 
   // 2. Resolve Identity
   let identity: IdentityType = null;
-  if (debugIdentity && ['starter', 'growth', 'studio'].includes(debugIdentity)) {
+  if (isPricingIdentity(debugIdentity)) {
     identity = debugIdentity;
   } else {
     const storedIdentity = window.localStorage.getItem('corvioz_identity');
-    if (storedIdentity && ['starter', 'growth', 'studio'].includes(storedIdentity)) {
-      identity = storedIdentity as IdentityType;
+    if (isPricingIdentity(storedIdentity)) {
+      identity = storedIdentity;
     } else {
-      // Fallback to active subscription tier if available
       const plan = options?.activePlan || window.localStorage.getItem('corvioz_user_plan');
-      if (plan === 'pro') identity = 'starter';
-      else if (plan === 'growth') identity = 'growth';
-      else if (plan === 'studio' || plan === 'agency') identity = 'studio';
+      if (isPricingIdentity(plan)) {
+        identity = plan;
+      }
     }
   }
 
@@ -97,7 +105,7 @@ export function resolveAppState(options?: {
       workspace_mode = 'studio';
     } else {
       const plan = options?.activePlan || window.localStorage.getItem('corvioz_user_plan');
-      if (plan === 'studio' || plan === 'agency') {
+      if (plan === 'studio') {
         workspace_mode = 'studio';
       }
     }
@@ -132,11 +140,11 @@ export function resolveAppState(options?: {
  *
  * Strict System Priority:
  *   - `identity` overrides everything else.
- *   - If `identity` is null, falls back to `business_stage`.
+ *   - If `identity` is not a paid tier, resolves from `business_stage`.
  */
 export function getCTA(
   state: AppState, 
-  context: 'onboarding_primary' | 'pricing_select' | 'checkout_continue' | 'checkout_back' | 'dashboard_primary' | 'homepage_final' | 'navbar' | 'pricing_free' | 'pricing_pro' | 'pricing_growth' | 'pricing_studio'
+  context: 'onboarding_primary' | 'pricing_select' | 'checkout_continue' | 'checkout_back' | 'dashboard_primary' | 'homepage_final' | 'navbar' | 'pricing_free' | 'pricing_starter' | 'pricing_pro' | 'pricing_studio'
 ): string {
   const { identity, business_stage } = state;
 
@@ -151,14 +159,14 @@ export function getCTA(
   // Plan-specific Pricing Page / Homepage Pricing Grid CTAs
   if (context === 'pricing_free') {
     if (identity === 'starter') return 'Start free with Starter';
-    if (identity === 'growth') return 'Start free with Growth';
+    if (identity === 'pro') return 'Start free with Pro';
     if (identity === 'studio') return 'Start free with Studio';
     return 'Start Free';
   }
-  if (context === 'pricing_pro') {
+  if (context === 'pricing_starter') {
     return 'Get paid faster';
   }
-  if (context === 'pricing_growth') {
+  if (context === 'pricing_pro') {
     return 'Never miss a payment';
   }
   if (context === 'pricing_studio') {
@@ -169,21 +177,21 @@ export function getCTA(
   if (identity === 'starter') {
     return 'Get paid faster';
   }
-  if (identity === 'growth') {
+  if (identity === 'pro') {
     return 'Never miss a payment';
   }
   if (identity === 'studio') {
     return 'Scale client operations';
   }
 
-  // 2️⃣ Priority Level 2: business_stage fallback
+  // 2️⃣ Priority Level 2: business_stage resolution
   if (business_stage === 'business') {
-    if (context === 'pricing_select') return 'Unlock agency scale';
-    if (context === 'dashboard_primary') return 'Manage agency workload';
+    if (context === 'pricing_select') return 'Unlock studio scale';
+    if (context === 'dashboard_primary') return 'Manage studio workload';
     return 'Scale client operations';
   }
 
-  // Default freelancer fallback
+  // Default freelancer resolution
   if (context === 'pricing_select') return 'Upgrade your business';
   if (context === 'dashboard_primary') return 'Create invoice';
   if (context === 'navbar') return 'Create Invoice';
@@ -253,11 +261,11 @@ const COPY_POOL = {
           outcome: 'Spend less time on admin and start pitching projects.',
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
-        pro: {
+        starter: {
           outcome: 'Get paid faster and present a polished brand.',
           features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
         },
-        growth: {
+        pro: {
           outcome: 'Never lose another payment and secure repeat business.',
           features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
         },
@@ -301,11 +309,11 @@ const COPY_POOL = {
       nudgeText: 'Pitch estimates and bill your first client safely without financial overhead.'
     }
   },
-  growth: {
+  pro: {
     homepage: {
       headline: 'Build Stable Freelance Income',
       lede: 'A complete business operation suite for professional freelancers. Capture inbound leads, send professional proposals, track your CRM pipeline, and secure repeat business.',
-      trustBadge: '📈 Growth OS Active',
+      trustBadge: '📈 Pro OS Active',
       trustMicrocopy: 'Secure client pipeline management',
       trustStripTitle: 'Client trust tools built to secure repeat business',
       trustStripBullets: [
@@ -342,8 +350,8 @@ const COPY_POOL = {
       showcaseLede: 'A complete freelancer business operating system. Scale from capturing inbound leads to proposing scopes, invoicing milestones, and building client relationships for repeat work.',
       faqs: [
         {
-          q: 'How does the Growth mode help build stable income?',
-          a: 'Growth mode includes pipeline CRM features, lead capture forms on your public profile, interactive proposals with milestone signatures, and automated billing rules for repeat clients.'
+          q: 'How does the Pro mode help build stable income?',
+          a: 'Pro mode includes pipeline CRM features, lead capture forms on your public profile, interactive proposals with milestone signatures, and automated billing rules for repeat clients.'
         },
         {
           q: 'How does the lead capture and CRM pipeline work?',
@@ -351,7 +359,7 @@ const COPY_POOL = {
         },
         {
           q: 'Can I connect my own custom payment gateways?',
-          a: 'Yes, in Growth mode you can configure custom payment schedules and attach links to bank transfers, check deposits, or card gateways in your portals.'
+          a: 'Yes, in Pro mode you can configure custom payment schedules and attach links to bank transfers, check deposits, or card gateways in your portals.'
         }
       ]
     },
@@ -364,11 +372,11 @@ const COPY_POOL = {
           outcome: 'Spend less time on admin and start pitching projects.',
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
-        pro: {
+        starter: {
           outcome: 'Get paid faster and present a polished brand.',
           features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
         },
-        growth: {
+        pro: {
           outcome: 'Never lose another payment and secure repeat business.',
           features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
         },
@@ -393,32 +401,32 @@ const COPY_POOL = {
       cardTrustMicrocopy: 'Trusted by growing freelance professionals.'
     },
     checkout: {
-      heading: 'Unlock your Growth workspace',
+      heading: 'Unlock your Pro workspace',
       quote: '“You’re about to upgrade your income system”',
       bullets: [
         'CRM pipeline status board',
         'Legally compliant proposal e-signatures',
         'Automated client reminder sequences'
       ],
-      loadingHeader: 'Initializing your Growth operating system...',
+      loadingHeader: 'Initializing your Pro operating system...',
       loadingDesc: 'Secure client pipeline management. Trusted by growing freelance professionals.',
-      spinnerSub: 'Opening Growth checkout...'
+      spinnerSub: 'Opening Pro checkout...'
     },
     dashboard: {
-      title: 'Corvioz Growth OS',
+      title: 'Corvioz Pro OS',
       description: 'Build stable freelance income. Monitor your pipeline, send proposals, invoice clients, and view analytics in one workspace.',
       badgeLabel: 'Freelancer Mode',
-      nudgeTitle: 'Growth System Recommendation',
+      nudgeTitle: 'Pro System Recommendation',
       nudgeText: 'Connect proposals with legally-binding e-signatures to secure payment terms.'
     }
   },
   studio: {
     homepage: {
-      headline: 'Run Your Freelance Agency',
+      headline: 'Run Your Freelance Studio',
       lede: 'A unified command center for client operations. White-label your client delivery portal, display team profiles, showcase outcome case studies, and qualify high-budget inquiries.',
       trustBadge: '🚀 Studio OS Active',
-      trustMicrocopy: 'Enterprise-grade agency infrastructure',
-      trustStripTitle: 'Enterprise-grade infrastructure for agency operations',
+      trustMicrocopy: 'Enterprise-grade studio infrastructure',
+      trustStripTitle: 'Enterprise-grade infrastructure for studio operations',
       trustStripBullets: [
         'Custom domain white-labeling',
         'Specialist & collaborator rosters',
@@ -435,51 +443,51 @@ const COPY_POOL = {
         { step: '④ Scale Operations', color: 'var(--accent)' }
       ],
       featuresTitle: 'From Scoping Inquiry to Scale',
-      featuresLede: 'Qualify budgets, coordinate specialist team delivery, and manage client operations like an agency.',
+      featuresLede: 'Qualify budgets, coordinate specialist team delivery, and manage client operations like an studio.',
       featuresList: [
         { title: 'Multi-Step Inquiry Flow', text: 'Qualify prospective client budgets and requirements before scoping.' },
         { title: 'Team Delivery Portal', text: 'Coordinate active milestones with specialist team members.' },
         { title: 'White-Labeled Domain', text: 'Apply custom color schemes, logos, and custom domains.' },
         { title: 'Automation command center', text: 'Leverage automated payment reminders and pipeline analytics.' }
       ],
-      profileTitle: 'Your Agency Brand Kit Showcase',
-      profileLede: 'Cohesively showcase agency case study metrics, media embeds, outcomes, and present your specialist team.',
+      profileTitle: 'Your Studio Brand Kit Showcase',
+      profileLede: 'Cohesively showcase studio case study metrics, media embeds, outcomes, and present your specialist team.',
       profileBullets: [
         'White-labeled portal branding & kit',
         'Case studies & outcome metrics',
         'Specialists team presentation roster'
       ],
-      showcaseTitle: 'Agency Operations System',
-      showcaseLede: 'Scale your operation, unify your client relationships, white-label your delivery workspace, build a cohesive custom agency brand kit, and automate business growth.',
+      showcaseTitle: 'Studio Operations System',
+      showcaseLede: 'Scale your operation, unify your client relationships, white-label your delivery workspace, build a cohesive custom studio brand kit, and automate business pro.',
       faqs: [
         {
-          q: 'How does the Studio mode support agency operations?',
+          q: 'How does the Studio mode support studio operations?',
           a: 'Studio is designed for teams and multi-client setups. It provides white-labeled client workspaces, custom domain integration, specialist profiles for team rosters, and inquiry budget thresholds.'
         },
         {
           q: 'Can I white-label my client portal with a custom domain?',
-          a: 'Yes. With Studio, you can map your portals to clients.youragency.com with custom logos and color profiles.'
+          a: 'Yes. With Studio, you can map your portals to clients.yourstudio.com with custom logos and color profiles.'
         },
         {
           q: 'How do specialists team rosters work?',
-          a: 'You can invite freelancers or contractors to join your agency workspace. They get specialist profiles, and clients can see who is assigned to their project milestones.'
+          a: 'You can invite freelancers or contractors to join your studio workspace. They get specialist profiles, and clients can see who is assigned to their project milestones.'
         }
       ]
     },
     pricing: {
-      headline: 'Run your freelance agency',
+      headline: 'Run your freelance studio',
       lede: 'Built for multi-client operations at scale.',
-      kicker: 'ENTERPRISE-GRADE AGENCY INFRASTRUCTURE',
+      kicker: 'ENTERPRISE-GRADE STUDIO INFRASTRUCTURE',
       cards: {
         free: {
           outcome: 'Spend less time on admin and start pitching projects.',
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
-        pro: {
+        starter: {
           outcome: 'Get paid faster and present a polished brand.',
           features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
         },
-        growth: {
+        pro: {
           outcome: 'Never lose another payment and secure repeat business.',
           features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
         },
@@ -488,7 +496,7 @@ const COPY_POOL = {
           features: ['Brand client workspaces under your custom domain', 'Qualify inbound inquiries with budget filters', 'Present specialist team members to secure larger contracts']
         }
       },
-      trustStripTitle: 'Enterprise-grade infrastructure for agency operations',
+      trustStripTitle: 'Enterprise-grade infrastructure for studio operations',
       trustStripBullets: [
         'Custom domain white-labeling',
         'Specialist & collaborator rosters',
@@ -496,7 +504,7 @@ const COPY_POOL = {
         'Ledger export for professional accountants'
       ],
       trustBadges: [
-        'Enterprise-grade agency infrastructure',
+        'Enterprise-grade studio infrastructure',
         'Built for multi-client operations',
         'White-labeled client portals',
         'Multi-step budget screening'
@@ -505,21 +513,21 @@ const COPY_POOL = {
     },
     checkout: {
       heading: 'Unlock your Studio workspace',
-      quote: '“You’re scaling to agency-level operations”',
+      quote: '“You’re scaling to studio-level operations”',
       bullets: [
         'White-labeled client workspace',
         'Team roster delivery slots',
         'Inquiry budget threshold qualification'
       ],
       loadingHeader: 'Scaling to Studio infrastructure...',
-      loadingDesc: 'Enterprise-grade agency infrastructure. Built for multi-client operations at scale.',
+      loadingDesc: 'Enterprise-grade studio infrastructure. Built for multi-client operations at scale.',
       spinnerSub: 'Opening Studio checkout...'
     },
     dashboard: {
       title: 'Corvioz Studio OS',
       description: 'Win clients, generate milestone quotes, send professional invoices, and secure payments in one workspace.',
       badgeLabel: 'Business Mode',
-      nudgeTitle: 'Agency Workspace Active',
+      nudgeTitle: 'Studio Workspace Active',
       nudgeText: 'Run white-labeled client workspaces, coordinate team lists, and manage multiple operations.'
     }
   }
@@ -531,16 +539,16 @@ const COPY_POOL = {
  *
  * Strict System Priority:
  *   - `identity` overrides copy tone.
- *   - If `identity` is null, falls back to `business_stage`:
- *     - 'business' stage defaults to 'studio' copy (agency tone).
+ *   - If `identity` is not a paid tier, resolves from `business_stage`:
+ *     - 'business' stage defaults to 'studio' copy (studio tone).
  *     - 'freelancer' stage defaults to 'starter' copy (beginner safety tone).
  */
 export function resolveCopy(state: AppState, page: 'homepage' | 'pricing' | 'checkout' | 'dashboard') {
   const { identity, business_stage } = state;
 
-  let activeTheme: 'starter' | 'growth' | 'studio' = 'starter';
+  let activeTheme: CopyThemeType = 'starter';
 
-  if (identity) {
+  if (identity && identity !== 'free') {
     activeTheme = identity;
   } else {
     activeTheme = business_stage === 'business' ? 'studio' : 'starter';

@@ -84,7 +84,7 @@ export default function AuthPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('corvioz_identity');
-      if (stored && ['starter', 'growth', 'studio'].includes(stored)) {
+      if (stored && ['starter', 'pro', 'studio'].includes(stored)) {
         setIdentity(stored);
       }
     }
@@ -243,12 +243,12 @@ export default function AuthPage() {
             </div>
           )}
           <Badge style={{ marginBottom: '16px' }}>
-            {identity === 'starter' ? 'Starter OS' : identity === 'growth' ? 'Growth OS' : identity === 'studio' ? 'Studio OS' : 'Freelancer OS'}
+            {identity === 'starter' ? 'Starter OS' : identity === 'pro' ? 'Pro OS' : identity === 'studio' ? 'Studio OS' : 'Freelancer OS'}
           </Badge>
           <h1 className="auth-title">
             {identity === 'starter' && "Safe way to send invoices"}
-            {identity === 'growth' && "Secure client pipeline management"}
-            {identity === 'studio' && "Enterprise-grade agency operations system"}
+            {identity === 'pro' && "Secure client pipeline management"}
+            {identity === 'studio' && "Enterprise-grade studio operations system"}
             {!identity && "Create your account or Sign in"}
           </h1>
           <p className="auth-description">
@@ -295,7 +295,7 @@ export default function AuthPage() {
                   {isLoading ? 'Sending...' : (
                     identity === 'starter' 
                       ? 'Get paid faster' 
-                      : identity === 'growth' 
+                      : identity === 'pro'
                       ? 'Never miss a payment' 
                       : identity === 'studio' 
                       ? 'Scale client operations' 

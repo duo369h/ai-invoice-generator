@@ -19,12 +19,27 @@ import { trackPricingView } from 'lib/monetization/revenueEvents';
 import { validateUIDecisionIsolation } from 'lib/execution/strict';
 import { getPricingViewModel } from './viewModel';
 import { handleUpgradeCheckout } from './controller';
-import { validatePricingIsolation } from 'lib/pricing/pricingIsolationGuard';
+import { validatePricingIsolation } from '../../core/pricing/pricingIsolationGuard';
 import { trackIntentAction, getIntentLevel } from 'lib/revenue/intentTracker';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { getUIInjection } from 'lib/revenue/uiInjection';
 import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
+
+const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
+
+function normalizePricingPlans(rawPlans) {
+  if (!Array.isArray(rawPlans)) return [];
+  const uniquePlansMap = new Map();
+  rawPlans.forEach((plan) => {
+    if (plan && plan.id && !uniquePlansMap.has(plan.id)) {
+      uniquePlansMap.set(plan.id, plan);
+    }
+  });
+  return STRICT_PLAN_IDS
+    .map((id) => uniquePlansMap.get(id))
+    .filter(Boolean);
+}
 
 function IdentityGate({ onSelect, currentIdentity }) {
   const options = [
@@ -50,7 +65,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'studio',
       title: 'Studio',
       tagline: 'Scale client operations',
-      desc: 'An agency command center. White-labeled brand kits, case studies library, dynamic outcome metrics, specialists team, and multi-step budget qualification scoping.',
+      desc: 'A studio command center. White-labeled brand kits, case studies library, dynamic outcome metrics, specialists team, and multi-step budget qualification scoping.',
       accent: 'var(--accent)',
       bgGlow: 'rgba(99, 102, 241, 0.08)',
       icon: '🚀'
@@ -145,7 +160,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
                   padding: '10px',
                   borderRadius: '8px',
                   background: isSelected ? opt.accent : 'var(--btn-secondary-bg)',
-                  color: isSelected ? '#ffffff' : 'var(--text-soft)',
+                  color: isSelected ? 'var(--white)' : 'var(--text-soft)',
                   fontWeight: 700,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
@@ -217,7 +232,7 @@ function PricingContent() {
         if (res.ok) {
           const data = await res.json();
           if (active && data.success && data.plans) {
-            setPlans(data.plans);
+            setPlans(normalizePricingPlans(data.plans));
           }
         }
       } catch (err) {
@@ -242,6 +257,19 @@ function PricingContent() {
     userPlan,
     isAuthenticated,
     subLoading
+  });
+
+  // Task 3: UI-level deduplication guard & fixed order
+  const seenIds = new Set();
+  const uniqueViewModels = [];
+  const RENDER_ORDER = ['free', 'starter', 'pro', 'studio'];
+  
+  RENDER_ORDER.forEach((id) => {
+    const vm = viewModels.find((v) => v.id === id);
+    if (vm && !seenIds.has(vm.id)) {
+      seenIds.add(vm.id);
+      uniqueViewModels.push(vm);
+    }
   });
 
 
@@ -304,7 +332,7 @@ function PricingContent() {
     if (!sessionLoaded || plans.length === 0) return;
     const checkoutPlan = searchParams.get('checkout');
     console.log('[INSTRUMENTATION] pricing checkout redirect check:', { checkoutPlan, hasSession: !!session });
-    if (!checkoutPlan || !['pro', 'agency', 'studio'].includes(checkoutPlan)) return;
+    if (!checkoutPlan || !['starter', 'pro'].includes(checkoutPlan)) return;
     if (checkoutRestoredRef.current) return;
 
     if (!session) {
@@ -326,7 +354,7 @@ function PricingContent() {
     },
     {
       q: 'Do you offer a money-back guarantee?',
-      a: 'Absolutely. We offer a 14-day money-back guarantee. If you are not satisfied with Corvioz Pro, Growth, or Studio for any reason within the first 14 days of upgrading, email support@corvioz.com for a full, prompt refund. No questions asked.',
+      a: 'Absolutely. We offer a 14-day money-back guarantee. If you are not satisfied with Corvioz Starter, Pro, or Studio for any reason within the first 14 days of upgrading, email support@corvioz.com for a full, prompt refund. No questions asked.',
     },
     {
       q: 'Can I cancel or change plans later?',
@@ -394,7 +422,7 @@ function PricingContent() {
         }
         .toggle-btn.active {
           background: var(--primary);
-          color: #ffffff;
+          color: var(--white);
           box-shadow: var(--shadow-sm);
         }
         .pricing-card {
@@ -424,7 +452,7 @@ function PricingContent() {
           top: -14px;
           right: 32px;
           background: var(--primary);
-          color: #ffffff;
+          color: var(--white);
           padding: 4px 12px;
           border-radius: 99px;
           font-size: 0.68rem;
@@ -640,7 +668,7 @@ function PricingContent() {
                 className={`toggle-btn ${billingPeriod === 'monthly' ? 'active' : ''}`}
                 style={billingPeriod === 'monthly' ? { 
                   background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)',
-                  color: '#ffffff',
+                  color: 'var(--white)',
                   boxShadow: 'var(--shadow-sm)'
                 } : {}}
               >
@@ -656,14 +684,14 @@ function PricingContent() {
                   gap: '6px',
                   ...(billingPeriod === 'yearly' ? {
                     background: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)',
-                    color: '#ffffff',
+                    color: 'var(--white)',
                     boxShadow: 'var(--shadow-sm)'
                   } : {})
                 }}
               >
                 Yearly <span style={{ 
                   background: billingPeriod === 'yearly' ? 'rgba(255, 255, 255, 0.25)' : 'var(--success-glow)', 
-                  color: billingPeriod === 'yearly' ? '#ffffff' : 'var(--success)', 
+                  color: billingPeriod === 'yearly' ? 'var(--white)' : 'var(--success)', 
                   fontSize: '0.65rem', 
                   padding: '1px 6px', 
                   borderRadius: '99px', 
@@ -728,6 +756,7 @@ function PricingContent() {
             flex-direction: column;
             justify-content: space-between;
             opacity: 0.85;
+            box-shadow: var(--shadow-md);
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           }
           .pricing-card-free:hover {
@@ -744,15 +773,15 @@ function PricingContent() {
             flex-direction: column;
             justify-content: space-between;
             position: relative;
-            box-shadow: 0 12px 30px -10px var(--primary-glow), 0 0 0 4px var(--primary-glow);
+            box-shadow: var(--shadow-md), 0 12px 30px -10px var(--primary-glow), 0 0 0 4px var(--primary-glow);
             transform: scale(1.03);
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           }
           .pricing-card-pro:hover {
             transform: scale(1.05) translateY(-4px);
-            box-shadow: 0 20px 40px -12px var(--primary-glow), 0 0 0 6px var(--primary-glow);
+            box-shadow: var(--shadow-md), 0 20px 40px -12px var(--primary-glow), 0 0 0 6px var(--primary-glow);
           }
-          .pricing-card-growth {
+          .pricing-card-pro-tier {
             background: linear-gradient(145deg, var(--background-card) 0%, color-mix(in srgb, var(--success) 4%, var(--background-card)) 100%);
             border: 1.5px solid color-mix(in srgb, var(--success) 40%, var(--border));
             border-radius: 14px;
@@ -760,9 +789,10 @@ function PricingContent() {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: var(--shadow-md);
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           }
-          .pricing-card-growth:hover {
+          .pricing-card-pro-tier:hover {
             transform: translateY(-4px);
             box-shadow: var(--shadow-md);
             border-color: var(--success);
@@ -775,6 +805,7 @@ function PricingContent() {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: var(--shadow-md);
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           }
           .pricing-card-studio:hover {
@@ -791,13 +822,13 @@ function PricingContent() {
           </div>
         ) : (
           <div className="pricing-grid-v2">
-            {viewModels.map((vm) => {
+            {uniqueViewModels.map((vm) => {
               const isFree = vm.id === 'free';
               const isStarter = vm.id === 'starter';
               const isPro = vm.id === 'pro';
               const isStudio = vm.id === 'studio';
               
-              const cardClass = isStarter ? 'pricing-card-pro' : isPro ? 'pricing-card-growth' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
+              const cardClass = isStarter ? 'pricing-card-pro' : isPro ? 'pricing-card-pro-tier' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
               const checkColor = isStarter ? 'var(--primary)' : isPro ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--success)');
               
               const price = billingPeriod === 'monthly' ? vm.priceMonthly : vm.priceYearly;
@@ -829,12 +860,12 @@ function PricingContent() {
               return (
                 <div key={vm.id} className={cardClass} style={cardStyle} onMouseEnter={() => trackEvent('pricing_hover_plan', { plan: vm.id })}>
                   {isRecommended && !vm.isCurrent && (
-                    <div style={{ position: 'absolute', top: '-14px', left: '20px', background: vm.id === 'starter' ? 'var(--primary)' : vm.id === 'pro' ? 'var(--success)' : 'var(--accent)', color: '#fff', padding: '4px 14px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>
+                    <div style={{ position: 'absolute', top: '-14px', left: '20px', background: vm.id === 'starter' ? 'var(--primary)' : vm.id === 'pro' ? 'var(--success)' : 'var(--accent)', color: 'var(--white)', padding: '4px 14px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>
                       🔥 RECOMMENDED FOR YOU
                     </div>
                   )}
                   {vm.isCurrent && (
-                    <div style={{ position: 'absolute', top: isStarter ? '14px' : '-14px', right: '16px', background: 'var(--success)', color: '#fff', padding: '3px 12px', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                    <div style={{ position: 'absolute', top: isStarter ? '14px' : '-14px', right: '16px', background: 'var(--success)', color: 'var(--white)', padding: '3px 12px', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
                       ✓ Current Plan
                     </div>
                   )}
@@ -877,7 +908,7 @@ function PricingContent() {
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
-                      {vm.id === 'studio' || vm.id === 'agency' ? (
+                      {vm.id === 'studio' ? (
                         <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent)' }}>
                           Coming Soon
                         </span>
@@ -905,11 +936,11 @@ function PricingContent() {
                       </div>
                     )}
                     <p style={{ fontSize: '0.92rem', fontWeight: 550, color: 'var(--text-muted)', marginBottom: '16px', minHeight: '44px', lineHeight: 1.45 }}>
-                      {(mounted && ui.copy?.cards?.[vm.id]?.outcome) || vm.outcome}
+                      {vm.outcome}
                     </p>
-                    {((mounted && ui.copy?.cards?.[vm.id]?.features) || vm.features) && ((mounted && ui.copy?.cards?.[vm.id]?.features) || vm.features).length > 0 && (
+                    {vm.features && vm.features.length > 0 && (
                       <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
-                        {((mounted && ui.copy?.cards?.[vm.id]?.features) || vm.features).map((feature, fIdx) => (
+                        {vm.features.map((feature, fIdx) => (
                           <li key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.82rem', color: 'var(--text-soft)', fontWeight: 600, lineHeight: '1.4' }}>
                             <span style={{ color: checkColor, fontWeight: 'bold' }}>✓</span>
                             <span>{feature}</span>
@@ -930,6 +961,7 @@ function PricingContent() {
                           alert("Thank you! You have been added to the Studio waitlist.");
                           return;
                         }
+                        if (!['starter', 'pro'].includes(vm.id)) return;
                         const intentLevel = getIntentLevel();
                         trackPricingClick({ position: 'pricing_page_card', plan: vm.id });
                         trackIntentAction('CLICK_CTA');
@@ -1044,7 +1076,7 @@ function PricingContent() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
             <div className="testimonial-card">
               <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', lineHeight: 1.6, margin: '0 0 16px 0', fontStyle: 'italic' }}>
-                &ldquo;Corvioz completely changed how I send estimates and invoices. Clients approve quotes instantly, and the integrated portal makes me look like a 10-person agency.&rdquo;
+                &ldquo;Corvioz completely changed how I send estimates and invoices. Clients approve quotes instantly, and the integrated portal makes my studio look polished.&rdquo;
               </p>
               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)' }}>Sarah L.</strong>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Independent UI/UX Designer</span>

@@ -186,9 +186,9 @@ export default function ProposalCreationFlow() {
     // Paywall Emotional Trigger (PET): Trigger upgrade on second generation attempt
     if (typeof window !== 'undefined') {
       const attempts = Number(window.localStorage.getItem('corvioz_proposal_generation_attempts') || 0);
-      if (attempts >= 1 && (!plan || plan === 'free' || plan === 'pro' || plan === 'professional')) {
-        const isStarter = plan === 'pro' || plan === 'professional';
-        setTargetPlanForModal(isStarter ? 'growth' : 'pro');
+      if (attempts >= 1 && (!plan || plan === 'free' || plan === 'starter')) {
+        const isStarter = plan === 'starter';
+        setTargetPlanForModal(isStarter ? 'pro' : 'starter');
         setModalTitle(isStarter ? 'Start getting paid professionally' : 'Get your first client faster');
         setModalDescription(isStarter
           ? 'You have reached the Starter plan limit (1 proposal/day). Upgrade to Pro for unlimited proposal generation.'
@@ -220,8 +220,8 @@ export default function ProposalCreationFlow() {
       const data = await response.json();
       if (!response.ok) {
         if (data.code === 'REVENUE_LOCK_BLOCKED') {
-          const isStarter = plan === 'pro' || plan === 'professional';
-          setTargetPlanForModal(isStarter ? 'growth' : 'pro');
+          const isStarter = plan === 'starter';
+          setTargetPlanForModal(isStarter ? 'pro' : 'starter');
           setModalTitle(isStarter ? 'Start getting paid professionally' : 'Get your first client faster');
           setModalDescription(isStarter
             ? 'Daily proposal limit reached. Upgrade to Pro for unlimited proposal generation.'
@@ -300,7 +300,7 @@ ${proposal.cta || ''}`;
     // Free plan: block and trigger upgrade to Pro ($19)
     if (plan === 'free' || !plan) {
       setErrorMessage('Sharing clean, professional links requires the Pro plan. Upgrade now.');
-      setTargetPlanForModal('growth');
+      setTargetPlanForModal('pro');
       setModalTitle('Start getting paid professionally');
       setModalDescription('Upgrade to Pro to share clean, un-watermarked proposal links and export secure PDFs.');
       setShowUpgradeModal(true);
@@ -308,21 +308,9 @@ ${proposal.cta || ''}`;
     }
 
     // Starter plan ($9): allow sharing but with watermark
-    if (plan === 'pro' || plan === 'professional') {
+    if (plan === 'starter') {
       try {
-        const payload = {
-          title: proposal.title,
-          overview: proposal.overview,
-          scope: proposal.scope,
-          timeline: proposal.timeline,
-          deliverables: proposal.deliverables,
-          pricing: proposal.pricing,
-          cta: proposal.cta,
-          watermark: true
-        };
-        const json = JSON.stringify(payload);
-        const encoded = btoa(encodeURIComponent(json));
-        const shareUrl = `${window.location.origin}/proposal/share?data=${encoded}&watermark=true`;
+        const shareUrl = `${window.location.origin}/dashboard?tool=proposal`;
         
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
           navigator.clipboard.writeText(shareUrl);
@@ -331,7 +319,7 @@ ${proposal.cta || ''}`;
         }
 
         // Trigger soft upgrade modal to Pro ($19)
-        setTargetPlanForModal('growth');
+        setTargetPlanForModal('pro');
         setModalTitle('Remove Watermark from Client Links');
         setModalDescription('Upgrade to the Pro plan ($19) to send clean, un-watermarked sharing links and PDF exports.');
         setShowUpgradeModal(true);
@@ -344,18 +332,7 @@ ${proposal.cta || ''}`;
 
     // Pro ($19) or Client Growth Pack ($29) plans: unlimited clean share links
     try {
-      const payload = {
-        title: proposal.title,
-        overview: proposal.overview,
-        scope: proposal.scope,
-        timeline: proposal.timeline,
-        deliverables: proposal.deliverables,
-        pricing: proposal.pricing,
-        cta: proposal.cta
-      };
-      const json = JSON.stringify(payload);
-      const encoded = btoa(encodeURIComponent(json));
-      const shareUrl = `${window.location.origin}/proposal/share?data=${encoded}`;
+      const shareUrl = `${window.location.origin}/dashboard?tool=proposal`;
       
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         navigator.clipboard.writeText(shareUrl);
@@ -377,9 +354,9 @@ ${proposal.cta || ''}`;
     trackEvent('proposal_export_clicked', { plan: plan || 'free' });
 
     // Paywall: Free and Starter plans are blocked from PDF exports.
-    if (plan === 'free' || plan === 'pro' || plan === 'professional' || !plan) {
+    if (plan === 'free' || plan === 'starter' || !plan) {
       setErrorMessage('PDF Export requires the Pro plan. Upgrade now.');
-      setTargetPlanForModal('growth');
+      setTargetPlanForModal('pro');
       setModalTitle('Start getting paid professionally');
       setModalDescription('Upgrade to the Pro plan ($19) to export secure, watermark-free PDFs and look like a premium freelancer.');
       setShowUpgradeModal(true);
@@ -652,17 +629,17 @@ ${proposal.cta || ''}`;
             {/* Income Signal & Narrative Box */}
             <div style={{
               background: 'var(--success-glow, rgba(16, 185, 129, 0.08))',
-              border: '1px solid var(--success, #10b981)',
+              border: '1px solid var(--success)',
               borderRadius: '12px',
               padding: '16px 20px',
               marginTop: '16px',
               textAlign: 'left'
             }}>
-              <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 800, color: 'var(--success, #10b981)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 800, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>💰</span>
                 <span>This proposal is designed to help you get paid faster</span>
               </p>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted, #9ca3af)', lineHeight: '1.4' }}>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
                 Used by freelancers to win clients. {proposal.income_signal?.message || "Freelancers using this proposal close 2–3x more clients."}
               </p>
             </div>
@@ -682,37 +659,37 @@ ${proposal.cta || ''}`;
               </div>
             )}
 
-            {/* A4 hidden render target for jsPDF */}
+            {/* A4 hidden render target for server PDF export */}
             <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-              <div id="proposal-pdf-render-target" style={{ width: '794px', padding: '40px', background: '#ffffff', color: '#111827', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#1f2937', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '16px' }}>
+              <div id="proposal-pdf-render-target" style={{ width: '794px', padding: '40px', background: 'var(--white)', color: 'var(--gray-900)', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--gray-800)', marginBottom: '24px', borderBottom: '2px solid var(--border)', paddingBottom: '16px' }}>
                   {proposal.title}
                 </h1>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontSize: '1rem', lineHeight: '1.6' }}>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Project Overview</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Project Overview</h2>
                     <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.overview}</p>
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Scope of Work</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Scope of Work</h2>
                     <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.scope}</p>
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Timeline & Milestones</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Timeline & Milestones</h2>
                     <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.timeline}</p>
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Key Deliverables</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Key Deliverables</h2>
                     <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.deliverables}</p>
                   </div>
                   {proposal.pricing && (
                     <div>
-                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Pricing & Milestones</h2>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Pricing & Milestones</h2>
                       <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.pricing}</p>
                     </div>
                   )}
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f46e5', marginBottom: '8px' }}>Next Steps</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '8px' }}>Next Steps</h2>
                     <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{proposal.cta}</p>
                   </div>
                 </div>

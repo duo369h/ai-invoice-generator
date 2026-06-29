@@ -8,7 +8,7 @@ import { createServiceSupabaseClient } from '../../src/app/lib/supabase';
 export interface RevenueLockResult {
   allowed: boolean;
   reason: string;
-  suggestedUpgrade: 'pro' | 'growth' | 'studio';
+  suggestedUpgrade: 'starter' | 'pro' | 'studio';
   costEstimate: number;
 }
 
@@ -64,16 +64,16 @@ export async function checkRevenueLock(
     } catch (_) {}
   }
 
-  const isUnlimited = plan === 'growth' || plan === 'studio' || plan === 'agency';
-  const isStudio = plan === 'studio' || plan === 'agency';
+  const isUnlimited = plan === 'pro' || plan === 'studio';
+  const isStudio = plan === 'studio';
 
-  // Rule 1: Bulk Export (Locked to Client Growth Pack $29 - 'studio' / 'agency')
+  // Rule 1: Bulk Export (Locked to Studio)
   if (actionType === 'bulk_export') {
     if (!isStudio) {
       return {
         allowed: false,
-        reason: 'Bulk export is locked to the Client Growth Pack plan.',
-        suggestedUpgrade: plan === 'growth' ? 'studio' : 'growth',
+        reason: 'Bulk export is locked to Studio.',
+        suggestedUpgrade: 'studio',
         costEstimate: 0.10,
       };
     }
@@ -115,8 +115,8 @@ export async function checkRevenueLock(
       if (count >= 1) {
         return {
           allowed: false,
-          reason: `Daily proposal generation limit reached (1/day) for ${plan === 'pro' ? 'Starter' : 'Free'} tier.`,
-          suggestedUpgrade: plan === 'pro' ? 'growth' : 'pro',
+          reason: `Daily proposal generation limit reached (1/day) for ${plan === 'starter' ? 'Starter' : 'Free'} tier.`,
+          suggestedUpgrade: plan === 'starter' ? 'pro' : 'starter',
           costEstimate: 0.05,
         };
       }
@@ -149,8 +149,8 @@ export async function checkRevenueLock(
       if (count >= 1) {
         return {
           allowed: false,
-          reason: `Daily profile generation limit reached (1/day) for ${plan === 'pro' ? 'Starter' : 'Free'} tier.`,
-          suggestedUpgrade: plan === 'pro' ? 'growth' : 'pro',
+          reason: `Daily profile generation limit reached (1/day) for ${plan === 'starter' ? 'Starter' : 'Free'} tier.`,
+          suggestedUpgrade: plan === 'starter' ? 'pro' : 'starter',
           costEstimate: 0.03,
         };
       }
@@ -158,7 +158,7 @@ export async function checkRevenueLock(
     return {
       allowed: true,
       reason: 'Profile generation allowed.',
-      suggestedUpgrade: plan === 'pro' ? 'growth' : 'pro',
+      suggestedUpgrade: plan === 'starter' ? 'pro' : 'starter',
       costEstimate: 0.03,
     };
   }

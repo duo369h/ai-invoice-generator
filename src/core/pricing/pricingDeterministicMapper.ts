@@ -5,7 +5,7 @@
  * MUST NOT use session, userPlan, or URL parameters directly.
  */
 
-import { UIDecisionOutput } from '../execution';
+import { UIDecisionOutput } from 'lib/execution';
 
 export interface PricingMapperInput {
   uiDecision: UIDecisionOutput;
@@ -13,7 +13,7 @@ export interface PricingMapperInput {
 }
 
 export interface PricingMapperOutput {
-  highlightedPlan: 'pro' | 'growth' | 'studio' | null;
+  highlightedPlan: 'starter' | 'pro' | 'studio' | null;
   badge: 'RECOMMENDED' | null;
   ctaState: 'normal' | 'emphasized' | 'disabled';
   visualIntensity: number; // 0-1 scale mapping confidence
@@ -27,7 +27,7 @@ export function mapPricingViewModel(input: PricingMapperInput): PricingMapperOut
   const showBadge = !!(isTarget && uiDecision?.ui?.showBadge);
 
   const target = uiDecision?.targetPlan;
-  const highlightedPlan = (target === 'pro' || target === 'growth' || target === 'studio') ? target : null;
+  const highlightedPlan = (target === 'starter' || target === 'pro' || target === 'studio') ? target : null;
 
   // Consume UI Decision Translator signals directly
   const ctaState = isTarget ? (uiDecision?.ui?.ctaState || 'normal') : 'normal';
@@ -40,4 +40,17 @@ export function mapPricingViewModel(input: PricingMapperInput): PricingMapperOut
     visualIntensity,
     reason: uiDecision?.reason || '',
   };
+}
+
+export interface PlanPriceOutput {
+  price: number;
+  billedAnnuallyText: string | null;
+}
+
+export function calculatePlanPrice(plan: any, billingPeriod: 'monthly' | 'yearly'): PlanPriceOutput {
+  const isFree = plan.id === 'free';
+  const isStudio = plan.id === 'studio';
+  const price = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+  const billedAnnuallyText = (plan.price_yearly > 0 && !isFree && !isStudio) ? `billed annually as $${Math.round(plan.price_yearly * 12)}` : null;
+  return { price, billedAnnuallyText };
 }

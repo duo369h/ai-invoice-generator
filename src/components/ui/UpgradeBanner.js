@@ -36,7 +36,7 @@ export function UpgradeBanner({ message, isOpen = true, onClose, ctaText = 'Upgr
           style={{
             fontSize: '0.78rem',
             fontWeight: 700,
-            color: '#ffffff',
+            color: 'var(--white)',
             background: 'var(--primary)',
             padding: '4px 12px',
             borderRadius: '6px',

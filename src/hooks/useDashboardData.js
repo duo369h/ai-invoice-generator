@@ -171,18 +171,6 @@ export function useDashboardData(mode, session = null) {
 
   const fetchData = useCallback(async (token) => {
     if (!isLive) return;
-    if (!token) {
-      setUser({});
-      setLeads([]);
-      setQuotes([]);
-      setInvoices([]);
-      setClients([]);
-      setCardProfile(null);
-      setIsLoading(false);
-      setIsRefreshing(false);
-      return { user: null };
-    }
-
     if (isInitialLoad) {
       setIsLoading(true);
     } else {
@@ -205,9 +193,10 @@ export function useDashboardData(mode, session = null) {
       if (invRes.ok) {
         const invData = await invRes.json();
         const data = invData.data || [];
-        setInvoices(data.length > 0 ? data : MOCK_INVOICES);
+        setInvoices(data);
       } else {
-        setInvoices(MOCK_INVOICES);
+        console.error('Failed to fetch invoices:', invRes.status);
+        setInvoices([]);
       }
 
       // Clients
@@ -215,9 +204,10 @@ export function useDashboardData(mode, session = null) {
       if (cliRes.ok) {
         const cliData = await cliRes.json();
         const data = cliData.data || [];
-        setClients(data.length > 0 ? data : MOCK_CLIENTS);
+        setClients(data);
       } else {
-        setClients(MOCK_CLIENTS);
+        console.error('Failed to fetch clients:', cliRes.status);
+        setClients([]);
       }
 
       // Leads
@@ -225,9 +215,10 @@ export function useDashboardData(mode, session = null) {
       if (leadsRes.ok) {
         const leadsData = await leadsRes.json();
         const data = leadsData.data || [];
-        setLeads(data.length > 0 ? data : MOCK_LEADS);
+        setLeads(data);
       } else {
-        setLeads(MOCK_LEADS);
+        console.error('Failed to fetch leads:', leadsRes.status);
+        setLeads([]);
       }
 
       // Quotes
@@ -235,18 +226,20 @@ export function useDashboardData(mode, session = null) {
       if (quotesRes.ok) {
         const quotesData = await quotesRes.json();
         const data = quotesData.data || [];
-        setQuotes(data.length > 0 ? data : MOCK_QUOTES);
+        setQuotes(data);
       } else {
-        setQuotes(MOCK_QUOTES);
+        console.error('Failed to fetch quotes:', quotesRes.status);
+        setQuotes([]);
       }
 
       // Card profile
       const cpRes = await fetch('/api/card-profile', { headers: authHeaders });
       if (cpRes.ok) {
         const cpData = await cpRes.json();
-        setCardProfile(cpData || MOCK_PROFILE);
+        setCardProfile(cpData || null);
       } else {
-        setCardProfile(MOCK_PROFILE);
+        console.error('Failed to fetch card profile:', cpRes.status);
+        setCardProfile(null);
       }
       return { user: userData };
     } catch (error) {

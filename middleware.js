@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://cdn.paddle.com https://cdn.jsdelivr.net",
@@ -12,39 +14,7 @@ const csp = [
   "form-action 'self'",
 ].join('; ');
 
-export async function middleware(request) {
-  const { pathname } = request.nextUrl;
-
-  // Auth state is owned by the Supabase browser client. User-facing routes
-  // hydrate and redirect from supabase.auth.getSession() on the client.
-  const dashboardToolRedirects = [
-    { matches: pathname === '/quotes' || pathname.startsWith('/quotes/'), tool: 'quote' },
-    { matches: pathname === '/invoices' || pathname.startsWith('/invoices/'), tool: 'invoice' },
-    { matches: pathname === '/invoice', tool: 'invoice' },
-    { matches: pathname === '/proposal' || pathname === '/proposal/create', tool: 'proposal' },
-    { matches: pathname === '/client', tool: 'client' },
-  ];
-
-  const dashboardToolRedirect = dashboardToolRedirects.find((route) => route.matches);
-  if (dashboardToolRedirect) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    url.searchParams.set('tool', dashboardToolRedirect.tool);
-    if (pathname.endsWith('/create')) {
-      url.searchParams.set('mode', 'create');
-    }
-    return NextResponse.redirect(url);
-  }
-
-  // Block internal dashboard routes in production while keeping public SaaS routes exposed.
-
-  if (process.env.NODE_ENV === 'production' && isInternalDashboardRoute) {
-    return new NextResponse(null, { status: 404 });
-  }
-
-  const response = NextResponse.next();
-
-  // CSP: Tighten in production (no 'unsafe-eval')
+function withSecurityHeaders(response) {
   const activeCsp = process.env.NODE_ENV === 'production'
     ? csp.replace(" 'unsafe-eval'", '')
     : csp;
@@ -58,6 +28,142 @@ export async function middleware(request) {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
 
   return response;
+}
+
+function isSupabaseConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
+function getSupabaseAuthStorageKey() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  const hostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
+  const projectRef = hostname.split('.')[0];
+  return `sb-${projectRef}-auth-token`;
+}
+
+function createMiddlewareSupabaseClient(request) {
+  const storageKey = getSupabaseAuthStorageKey();
+  if (!isSupabaseConfigured() || !storageKey) return null;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storageKey,
+        storage: {
+          getItem: (key) => request.cookies.get(key)?.value ?? null,
+          setItem: () => {},
+          removeItem: () => {},
+        },
+      },
+    }
+  );
+}
+
+async function getVerifiedUser(request) {
+  const supabase = createMiddlewareSupabaseClient(request);
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) return null;
+  return data.user;
+}
+
+function isProtectedEntry(pathname) {
+  return (
+    pathname === '/dashboard' ||
+    pathname.startsWith('/dashboard/') ||
+    pathname === '/quotes' ||
+    pathname.startsWith('/quotes/') ||
+    pathname === '/invoices' ||
+    pathname.startsWith('/invoices/') ||
+    pathname === '/invoice' ||
+    pathname === '/proposal' ||
+    pathname.startsWith('/proposal/') ||
+    pathname === '/client'
+  );
+}
+
+function buildAuthRedirect(request, nextPath) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/auth';
+  url.search = '';
+  url.searchParams.set('next', nextPath);
+  return withSecurityHeaders(NextResponse.redirect(url));
+}
+
+export async function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  const dashboardToolRedirects = [
+    { matches: pathname === '/quotes' || pathname.startsWith('/quotes/'), tool: 'quote' },
+    { matches: pathname === '/invoices' || pathname.startsWith('/invoices/'), tool: 'invoice' },
+    { matches: pathname === '/invoice', tool: 'invoice' },
+    { matches: pathname === '/proposal' || pathname.startsWith('/proposal/'), tool: 'proposal' },
+    { matches: pathname === '/client', tool: 'client' },
+  ];
+
+  const dashboardToolRedirect = dashboardToolRedirects.find((route) => route.matches);
+
+  if (pathname === '/auth/callback' && request.nextUrl.searchParams.has('code')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/api/auth/callback';
+    const response = NextResponse.redirect(url);
+    return withSecurityHeaders(response);
+  }
+
+  if (isProtectedEntry(pathname)) {
+    let nextPath = `${pathname}${request.nextUrl.search}`;
+    if (dashboardToolRedirect) {
+      const toolUrl = request.nextUrl.clone();
+      toolUrl.pathname = '/dashboard';
+      toolUrl.search = '';
+      toolUrl.searchParams.set('tool', dashboardToolRedirect.tool);
+      nextPath = `${toolUrl.pathname}${toolUrl.search}`;
+    }
+
+    const user = await getVerifiedUser(request);
+    if (!user) {
+      return buildAuthRedirect(request, nextPath);
+    }
+  }
+
+  if (dashboardToolRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.searchParams.set('tool', dashboardToolRedirect.tool);
+    const response = NextResponse.redirect(url);
+    return withSecurityHeaders(response);
+  }
+
+  // Block internal dashboard routes in production while keeping public SaaS routes exposed.
+  const isInternalDashboardRoute =
+    pathname === '/dashboard/audit' ||
+    pathname.startsWith('/dashboard/audit/') ||
+    pathname === '/dashboard/control-plane' ||
+    pathname.startsWith('/dashboard/control-plane/') ||
+    pathname === '/dashboard/evolution' ||
+    pathname.startsWith('/dashboard/evolution/') ||
+    pathname === '/dashboard/optimization' ||
+    pathname.startsWith('/dashboard/optimization/') ||
+    pathname === '/dashboard/simulation' ||
+    pathname.startsWith('/dashboard/simulation/') ||
+    pathname === '/dashboard/validation' ||
+    pathname.startsWith('/dashboard/validation/');
+
+  if (process.env.NODE_ENV === 'production' && isInternalDashboardRoute) {
+    return withSecurityHeaders(new NextResponse(null, { status: 404 }));
+  }
+
+  const response = NextResponse.next();
+  return withSecurityHeaders(response);
 }
 
 export const config = {

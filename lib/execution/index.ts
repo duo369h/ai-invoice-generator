@@ -20,7 +20,7 @@ export interface UIDecisionContext {
 
 export interface UIDecisionOutput {
   shouldShowUpgrade: boolean;
-  targetPlan: 'pro' | 'growth' | 'studio' | null;
+  targetPlan: 'starter' | 'pro' | 'studio' | null;
   confidence: number;
   reason: string;
   cooldown?: number;
@@ -63,7 +63,7 @@ export function getUIDecision(context: UIDecisionContext): UIDecisionOutput {
       ctaState: targetPlan !== null ? 'emphasized' : 'normal',
       visualIntensity: decision.confidence,
       badgeText: targetPlan !== null ? 'RECOMMENDED' : null,
-      planOrder: ['free', 'pro', 'growth', 'studio'],
+      planOrder: ['free', 'starter', 'pro', 'studio'],
       pricingCardHighlight: targetPlan,
       dashboardCardVisible: !decision.riskSignal.isChurnBlocked,
     },

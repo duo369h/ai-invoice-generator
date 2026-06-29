@@ -54,8 +54,9 @@ function normalizeEvent(actionName) {
 
 function normalizePlanForAnalytics(plan) {
   const normalized = String(plan || 'free').toLowerCase();
-  if (normalized === 'agency') return 'agency';
-  if (normalized === 'pro' || normalized === 'professional') return 'pro';
+  if (normalized === 'studio') return 'studio';
+  if (normalized === 'starter') return 'starter';
+  if (normalized === 'pro') return 'pro';
   return 'free';
 }
 
@@ -259,11 +260,10 @@ export function useRevenueAction(user, usageStats = {}) {
         setIsEvaluating(false);
         return true;
       } catch (err) {
-        // Graceful fallback: always allow on unexpected errors
-        console.error('[useRevenueAction] Decision evaluation error, falling back to allow:', err);
-        if (onSuccess) onSuccess(false);
+        console.error('[useRevenueAction] Decision evaluation error, blocking client-side continuation:', err);
+        setBannerMessage('We could not verify access right now. Please try again.');
         setIsEvaluating(false);
-        return true;
+        return false;
       }
     },
     [evaluate, invoicesCount, quotesCount, exportAttempts, router, user],

@@ -60,24 +60,7 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9000,
-        transform: visible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        background: 'linear-gradient(90deg, #0f0f1a 0%, #1e1b4b 40%, #0f0f1a 100%)',
-        borderTop: '1px solid rgba(79, 70, 229, 0.4)',
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '14px 24px',
-        gap: '16px',
-        flexWrap: 'wrap',
-      }}
+      className={`success-moment-banner ${visible ? 'visible' : ''}`}
       role="status"
       aria-live="polite"
     >
@@ -87,14 +70,14 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
           width: '8px',
           height: '8px',
           borderRadius: '50%',
-          background: '#4ade80',
-          boxShadow: '0 0 8px #4ade80',
+          background: 'var(--success)',
+          boxShadow: '0 0 8px var(--success)',
           flexShrink: 0,
           animation: 'pulse 2s infinite',
         }} />
         <div style={{ minWidth: 0 }}>
           <p style={{
-            color: '#f8fafc',
+            color: 'var(--text-main)',
             fontWeight: 700,
             fontSize: '0.875rem',
             margin: 0,
@@ -106,7 +89,7 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
             {nudge.headline}
           </p>
           <p style={{
-            color: '#94a3b8',
+            color: 'var(--text-muted)',
             fontSize: '0.78rem',
             margin: '2px 0 0',
             whiteSpace: 'nowrap',
@@ -124,8 +107,8 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
           href={`/checkout?plan=${nudge.targetPlan}&intent=high`}
           onClick={handleUpgrade}
           style={{
-            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            color: '#fff',
+            background: 'linear-gradient(135deg, var(--indigo-500), var(--primary))',
+            color: 'var(--white)',
             border: 'none',
             borderRadius: '8px',
             padding: '8px 18px',
@@ -148,7 +131,7 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#64748b',
+            color: 'var(--text-soft)',
             fontSize: '0.8rem',
             cursor: 'pointer',
             padding: '6px 10px',
@@ -159,13 +142,6 @@ export function SuccessMomentBanner({ nudge, onDismiss }) {
           Not now
         </button>
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   );
 }

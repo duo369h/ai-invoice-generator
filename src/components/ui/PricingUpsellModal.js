@@ -89,7 +89,7 @@ export function PricingUpsellModal({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           {/* Pro Plan — MAIN */}
           <Card style={{ padding: '24px', border: '1.5px solid var(--primary)', boxShadow: 'var(--shadow-md)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <span style={{ position: 'absolute', top: '-12px', right: '20px', background: 'var(--primary)', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: '12px', letterSpacing: '0.05em' }}>⭐ MAIN PLAN</span>
+            <span style={{ position: 'absolute', top: '-12px', right: '20px', background: 'var(--primary)', color: 'var(--white)', fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: '12px', letterSpacing: '0.05em' }}>⭐ MAIN PLAN</span>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                 <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{getPlanVal('pro', 'name', 'Pro')} — Earn</h4>

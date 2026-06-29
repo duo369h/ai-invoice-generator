@@ -19,6 +19,7 @@ export interface FunnelState {
 
 export function trackFunnelEvent(event: string, metadata: Record<string, any> = {}): void {
   if (typeof window === 'undefined') return;
+  void metadata;
   
   const stored = window.localStorage.getItem('corvioz_funnel_state');
   const state: FunnelState = stored ? JSON.parse(stored) : {
@@ -45,19 +46,6 @@ export function trackFunnelEvent(event: string, metadata: Record<string, any> = 
     timeToCurrent: Math.round((Date.now() - state.startTime) / 1000),
   });
   
-  // Log event to existing growth events api to record metrics backend
-  fetch('/api/growth/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: event,
-      source: 'user',
-      metadata: {
-        session_id: window.localStorage.getItem('corvioz_session_id') || 'unknown',
-        ...metadata,
-      }
-    })
-  }).catch(() => {});
 }
 
 export function getFunnelReport(): { conversionPath: string[]; dropPoint: string; timeToConversion: number } {

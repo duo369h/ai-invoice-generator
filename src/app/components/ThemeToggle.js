@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 
 export default function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
-    const saved = localStorage.getItem('theme') || 'system';
+    const saved = localStorage.getItem('theme') || 'light';
     setTimeout(() => {
       setTheme(saved);
       setMounted(true);

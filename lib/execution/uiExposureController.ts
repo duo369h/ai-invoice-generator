@@ -9,7 +9,7 @@ import { executeUpgradeStrategy } from './executionEngine';
 import { allowUpgradeExposure } from './safetyGuard';
 
 export interface UIExposureOutput {
-  banner: 'none' | 'pro' | 'growth' | 'studio';
+  banner: 'none' | 'starter' | 'pro' | 'studio';
   modal: null | 'upgrade';
   highlightPlan: string;
   disabled: boolean;
@@ -34,7 +34,7 @@ export function getUIExposureControls(userId: string | null | undefined): UIExpo
   const exec = executeUpgradeStrategy(userId);
 
   // 2. Determine banner exposure by checking safetyGuard
-  let banner: 'none' | 'pro' | 'growth' | 'studio' = 'none';
+  let banner: 'none' | 'starter' | 'pro' | 'studio' = 'none';
   if (exec.shouldShowBanner) {
     const bannerAllowed = allowUpgradeExposure(userId, 'banner');
     if (bannerAllowed) {

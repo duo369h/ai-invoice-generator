@@ -11,7 +11,7 @@ import { computeUpgradeScores } from '../monetization/upgradeScoringEngine';
 export interface ExecutionOutput {
   shouldShowBanner: boolean;
   shouldShowModal: boolean;
-  recommendedPlan: 'pro' | 'growth' | 'studio';
+  recommendedPlan: 'starter' | 'pro' | 'studio';
   confidence: number; // 0-100 percentage
   reason: string;
   cooldown: number; // remaining cooldown in seconds (0 = active/no cooldown)
@@ -95,26 +95,26 @@ export function executeUpgradeStrategy(userId: string | null | undefined): Execu
     };
   }
 
-  // ─── Rule 2: Growth Rule ───
+  // --- Rule 2: Pro Rule ---
   if (invoice_count > 5 && export_actions > 3) {
     return {
       shouldShowBanner: true,
       shouldShowModal: false,
-      recommendedPlan: 'growth',
+      recommendedPlan: 'pro',
       confidence: scores.growth_score || 75,
-      reason: 'Active creation and export behavior detected (over 5 invoices and 3 exports). Growth recommended.',
+      reason: 'Active creation and export behavior detected (over 5 invoices and 3 exports). Pro recommended.',
       cooldown,
     };
   }
 
-  // ─── Rule 3: Pro Rule ───
+  // --- Rule 3: Starter Rule ---
   if (upgrade_probability > 0.25 && churn_risk < 0.7) {
     return {
       shouldShowBanner: true,
       shouldShowModal: false,
-      recommendedPlan: 'pro',
+      recommendedPlan: 'starter',
       confidence: Math.round(upgrade_probability * 100),
-      reason: 'Strong initial conversion probability with low churn risk. Pro recommended.',
+      reason: 'Strong initial conversion probability with low churn risk. Starter recommended.',
       cooldown,
     };
   }

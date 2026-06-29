@@ -38,11 +38,8 @@ export const ESSENTIAL_ROUTES: string[] = [
 export const NON_ESSENTIAL_FOR_NEW_USERS: string[] = [
   '/dashboard/optimization',
   '/dashboard/evolution',
-  '/dashboard/beta-growth',
   '/dashboard/control-plane',
-  '/dashboard/studio',
   '/dashboard/audit',
-  '/dashboard/growth',
   '/dashboard/simulation',
 ];
 

@@ -23,11 +23,18 @@ function isInvalidPaddleValue(value: string): boolean {
   return !normalized || normalized.includes('placeholder');
 }
 
+const CHECKOUT_PLAN_IDS = ['starter', 'pro'] as const;
+
 /**
  * Triggers Paddle checkout opening or redirects anonymous users to sign up.
  */
 export async function handleUpgradeCheckout(context: CheckoutContext): Promise<void> {
   const { planId, billingPeriod, session, plans, searchParams, setCheckoutLoading } = context;
+
+  if (!CHECKOUT_PLAN_IDS.includes(planId as any)) {
+    console.error(`Invalid checkout plan "${planId}". Only starter and pro are purchasable.`);
+    return;
+  }
 
   // 1. Log select event
   trackEvent('pricing_select_plan', {
@@ -66,20 +73,20 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
     const env = process.env.NEXT_PUBLIC_PADDLE_ENV;
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
 
-	    if (isProd) {
-	      if (!env || env !== 'production') {
-	        throw new Error('CRITICAL PADDLE ERROR: Production environment is missing or misconfigured (NEXT_PUBLIC_PADDLE_ENV must be "production").');
-	      }
-	      if (isInvalidPaddleValue(token)) {
-	        throw new Error('CRITICAL PADDLE ERROR: Production client token is missing or contains placeholder.');
-	      }
-	      if (isInvalidPaddleValue(priceId)) {
-	        throw new Error(`CRITICAL PADDLE ERROR: Production price ID is missing or contains placeholder for plan "${planId}".`);
-	      }
-	    }
+    if (isProd) {
+      if (!env || env !== 'production') {
+        throw new Error('CRITICAL PADDLE ERROR: Production environment is missing or misconfigured (NEXT_PUBLIC_PADDLE_ENV must be "production").');
+      }
+      if (isInvalidPaddleValue(token)) {
+        throw new Error('CRITICAL PADDLE ERROR: Production client token is missing or contains placeholder.');
+      }
+      if (isInvalidPaddleValue(priceId)) {
+        throw new Error(`CRITICAL PADDLE ERROR: Production price ID is missing or contains placeholder for plan "${planId}".`);
+      }
+    }
 
-	    const activeEnv = isProd ? env : (env || 'sandbox');
-	    const activeToken = isProd ? token : (token || 'test_token_placeholder');
+    const activeEnv = isProd ? env : (env || 'sandbox');
+    const activeToken = isProd ? token : (token || 'test_token_placeholder');
 
     paddle.Environment.set(activeEnv);
     

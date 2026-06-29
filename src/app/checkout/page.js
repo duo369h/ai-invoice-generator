@@ -15,7 +15,7 @@ No AI inference is allowed here.
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
-import { handleUpgradeCheckout } from 'lib/pricing/pricingController';
+import { handleUpgradeCheckout } from '../../core/pricing/pricingController';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { saveSelectedPlan } from '../lib/intent-store';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
@@ -27,8 +27,8 @@ const themeStyles = {
     glowColor: 'var(--primary-glow)',
     icon: '⚡',
   },
-  growth: {
-    badge: 'Growth OS Active',
+  pro: {
+    badge: 'Pro OS Active',
     accentColor: 'var(--success)',
     glowColor: 'rgba(34,197,94,0.08)',
     icon: '📈',
@@ -88,12 +88,12 @@ function CheckoutContent() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('corvioz_identity');
-      if (stored && ['starter', 'growth', 'studio'].includes(stored)) {
+      if (stored && ['starter', 'pro', 'studio'].includes(stored)) {
         setIdentity(stored);
       } else {
-        if (planId === 'pro') setIdentity('starter');
-        else if (planId === 'growth') setIdentity('growth');
-        else if (planId === 'studio' || planId === 'agency') setIdentity('studio');
+        if (planId === 'starter') setIdentity('starter');
+        else if (planId === 'pro') setIdentity('pro');
+        else if (planId === 'studio') setIdentity('studio');
         else setIdentity('starter');
       }
     }

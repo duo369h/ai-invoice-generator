@@ -9,20 +9,8 @@ export default function ActivityFeed({ invoices = [], quotes = [] }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch('/api/growth/events');
-        if (res.ok) {
-          const data = await res.json();
-          setEvents(data.data || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch global activity feed:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchEvents();
+    setEvents([]);
+    setIsLoading(false);
   }, [invoices, quotes]);
 
   const getFriendlyTimeAgo = (dateStr) => {

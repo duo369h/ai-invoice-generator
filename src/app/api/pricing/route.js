@@ -31,8 +31,8 @@ const FALLBACK_PLANS = [
     description: 'Get your first client faster',
     price_monthly: 9.00,
     price_yearly: 7.00,
-    paddle_monthly_price_id: 'pri_pro_placeholder',
-    paddle_yearly_price_id: 'pri_pro_yearly_placeholder',
+    paddle_monthly_price_id: 'pri_starter_placeholder',
+    paddle_yearly_price_id: 'pri_starter_yearly_placeholder',
     features: [
       '1 proposal/day & 1 profile/day',
       'Watermark preview enabled',
@@ -48,8 +48,8 @@ const FALLBACK_PLANS = [
     description: 'Start getting paid professionally',
     price_monthly: 19.00,
     price_yearly: 16.00,
-    paddle_monthly_price_id: 'pri_growth_placeholder',
-    paddle_yearly_price_id: 'pri_growth_yearly_placeholder',
+    paddle_monthly_price_id: 'pri_pro_placeholder',
+    paddle_yearly_price_id: 'pri_pro_yearly_placeholder',
     features: [
       'Unlimited proposals & profiles',
       'Secure PDF export (No watermark)',
@@ -106,24 +106,36 @@ export async function GET() {
     }
 
     const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
-    const filteredPlans = plans.filter(p => STRICT_PLAN_IDS.includes(p.id));
+    const filteredPlans = [];
+    const seenIds = new Set();
+    
+    for (const id of STRICT_PLAN_IDS) {
+      let plan = plans.find((p) => p.id === id);
+      if (!plan) {
+        plan = FALLBACK_PLANS.find((p) => p.id === id);
+      }
+      if (plan && !seenIds.has(plan.id)) {
+        seenIds.add(plan.id);
+        filteredPlans.push(plan);
+      }
+    }
 
     // Dynamic mapping of price IDs from environment variables if present
     const mappedPlans = filteredPlans.map(plan => {
+      const starterPrice = process.env.NEXT_PUBLIC_PADDLE_STARTER_PRICE_ID;
+      const starterYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_STARTER_YEARLY_PRICE_ID;
       const proPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID;
       const proYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID;
-      const growthPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID;
-      const growthYearlyPrice = process.env.NEXT_PUBLIC_PADDLE_GROWTH_YEARLY_PRICE_ID;
 
       let paddle_monthly_price_id = plan.paddle_monthly_price_id;
       let paddle_yearly_price_id = plan.paddle_yearly_price_id;
 
       if (plan.id === 'starter') {
+        if (starterPrice) paddle_monthly_price_id = starterPrice;
+        if (starterYearlyPrice) paddle_yearly_price_id = starterYearlyPrice;
+      } else if (plan.id === 'pro') {
         if (proPrice) paddle_monthly_price_id = proPrice;
         if (proYearlyPrice) paddle_yearly_price_id = proYearlyPrice;
-      } else if (plan.id === 'pro') {
-        if (growthPrice) paddle_monthly_price_id = growthPrice;
-        if (growthYearlyPrice) paddle_yearly_price_id = growthYearlyPrice;
       } else if (plan.id === 'studio') {
         paddle_monthly_price_id = '';
         paddle_yearly_price_id = '';
@@ -134,6 +146,8 @@ export async function GET() {
       let description = plan.description;
       let features = plan.features || [];
       let badge_text = plan.badge_text;
+      let price_monthly = 0;
+      let price_yearly = 0;
 
       if (plan.id === 'free') {
         name = 'Free';
@@ -144,6 +158,8 @@ export async function GET() {
           'Basic profile creation',
           'Watermarked PDF exports'
         ];
+        price_monthly = 0.00;
+        price_yearly = 0.00;
       } else if (plan.id === 'starter') {
         name = 'Starter';
         description = 'Get your first client faster';
@@ -153,6 +169,8 @@ export async function GET() {
           'Watermark preview enabled',
           'Export disabled'
         ];
+        price_monthly = 9.00;
+        price_yearly = 7.00;
       } else if (plan.id === 'pro') {
         name = 'Pro';
         description = 'Start getting paid professionally';
@@ -162,6 +180,8 @@ export async function GET() {
           'Secure PDF export (No watermark)',
           'Share client links instantly'
         ];
+        price_monthly = 19.00;
+        price_yearly = 16.00;
       } else if (plan.id === 'studio') {
         name = 'Studio';
         description = 'Scale client operations';
@@ -171,6 +191,8 @@ export async function GET() {
           'Qualify inbound inquiries with budget filters',
           'Present specialist team members to secure larger contracts'
         ];
+        price_monthly = 0.00;
+        price_yearly = 0.00;
       }
 
       return {
@@ -181,9 +203,8 @@ export async function GET() {
         badge_text,
         paddle_monthly_price_id,
         paddle_yearly_price_id,
-        // Ensure values are numeric
-        price_monthly: Number(plan.price_monthly),
-        price_yearly: Number(plan.price_yearly)
+        price_monthly,
+        price_yearly
       };
     });
 
@@ -201,7 +222,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, plans: mappedPlans });
+    return NextResponse.json({ success: true, plans: mappedPlans.slice(0, STRICT_PLAN_IDS.length) });
   } catch (err) {
     console.error('Error in GET /api/pricing:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

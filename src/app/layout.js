@@ -1,8 +1,13 @@
-import "./globals.css";
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/utilities.css";
+import "./styles/components.css";
+import "./styles/layouts.css";
 import { getSiteUrl } from "./lib/config";
 import AnalyticsProvider from "./components/AnalyticsProvider";
 import BetaGrowthShell from "./components/BetaGrowthShell";
 import DevDebugOverlay from "../components/DevDebugOverlay";
+import { UI_GATE } from "../core/ui/runtime/UI_GATE";
 
 const siteUrl = getSiteUrl();
 
@@ -82,6 +87,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID;
+  const safeTree = UI_GATE(children);
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -89,16 +95,12 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{__html: `
           (function() {
             try {
-              var savedTheme = localStorage.getItem('theme') || 'system';
+              var savedTheme = localStorage.getItem('theme') || 'light';
               var theme = 'light';
               if (savedTheme === 'dark') {
                 theme = 'dark';
-              } else if (savedTheme === 'light') {
-                theme = 'light';
               } else {
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                  theme = 'dark';
-                }
+                theme = 'light';
               }
               document.documentElement.setAttribute('data-theme', theme);
             } catch (e) {}
@@ -211,7 +213,7 @@ export default function RootLayout({ children }) {
 
         <AnalyticsProvider>
           <BetaGrowthShell>
-            {children}
+            {safeTree}
             <DevDebugOverlay />
           </BetaGrowthShell>
         </AnalyticsProvider>

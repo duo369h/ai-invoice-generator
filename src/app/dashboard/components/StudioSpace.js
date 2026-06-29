@@ -168,21 +168,7 @@ export default function StudioSpace({
   };
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const res = await fetch('/api/growth/events');
-        if (res.ok) {
-          const data = await res.json();
-          const filtered = (data.data || []).filter(e =>
-            ['invoice_sent', 'invoice_viewed', 'client_response_received', 'quote_sent', 'quote_status_pending', 'quote_accepted', 'quote_rejected', 'reminder_sent'].includes(e.event_name)
-          );
-          setActivities(filtered);
-        }
-      } catch (err) {
-        console.error('Failed to fetch studio activities:', err);
-      }
-    };
-    fetchActivities();
+    setActivities([]);
   }, [invoices, quotes]);
 
   const getFriendlyTimeAgo = (dateStr) => {

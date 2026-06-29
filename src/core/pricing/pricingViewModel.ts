@@ -10,8 +10,8 @@
  * Consumes the unifiedDecisionEngine and uiTranslator as a pure renderer wrapper.
  */
 
-import { getUnifiedDecision } from '../execution/unifiedDecisionEngine';
-import { translateDecision } from '../execution/uiTranslator';
+import { getUnifiedDecision } from 'lib/execution/unifiedDecisionEngine';
+import { translateDecision } from 'lib/execution/uiTranslator';
 
 export interface PricingCardViewModel {
   id: string;
@@ -59,7 +59,19 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
   const decision = getUnifiedDecision(userId);
   const ui = translateDecision(decision);
 
-  const cards = plans.map((plan) => {
+  const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
+  const uniquePlansMap = new Map<string, any>();
+  plans.forEach((plan) => {
+    if (plan && plan.id && STRICT_PLAN_IDS.includes(plan.id) && !uniquePlansMap.has(plan.id)) {
+      uniquePlansMap.set(plan.id, plan);
+    }
+  });
+
+  const orderedPlans = STRICT_PLAN_IDS
+    .map((id) => uniquePlansMap.get(id))
+    .filter(Boolean);
+
+  const cards = orderedPlans.map((plan) => {
     const isFree = plan.id === 'free';
     const isStarter = plan.id === 'starter';
     const isPro = plan.id === 'pro';
@@ -71,71 +83,53 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
     const isHighlighted = plan.id === ui.highlightPlan;
     const badgeText = isHighlighted ? 'RECOMMENDED FOR YOU' : (plan.badge_text || null);
 
-    let name = plan.name || plan.id;
-    let description = plan.description || '';
-    let features: string[] = [];
-    let outcome = '';
+    // Enforce 1:1 mapping: free -> Free, starter -> $9, pro -> $19, studio -> Coming Soon
+    let name = '';
+    let priceMonthly = 0;
+    let priceYearly = 0;
     let identity = '';
+    let ctaLabel = '';
 
     if (isFree) {
-      name = plan.name || 'Free';
-      identity = 'Try';
-      description = 'Spend less time on admin and start pitching projects.';
-      outcome = 'Spend less time on admin and start pitching projects.';
-      features = [
-        'Pitch custom estimates & quotes',
-        'Share your professional Bento card',
-        'Export watermarked proposal documents',
-      ];
+      name = 'Free';
+      priceMonthly = 0;
+      priceYearly = 0;
+      identity = 'Free';
+      ctaLabel = isCurrent ? '✓ Current Plan' : 'Start Free';
     } else if (isStarter) {
-      name = plan.name || 'Starter';
+      name = 'Starter';
+      priceMonthly = 9;
+      priceYearly = 7;
       identity = 'Starter';
-      description = 'Get paid faster';
-      outcome = 'Get paid faster';
-      features = [
-        'Collect credit card or bank transfers instantly',
-        'Avoid billing delays with professional templates',
-        'Auto-fill client details on future documents',
-      ];
+      ctaLabel = isCurrent ? '✓ Current Plan' : 'Upgrade';
     } else if (isPro) {
-      name = plan.name || 'Pro';
+      name = 'Pro';
+      priceMonthly = 19;
+      priceYearly = 16;
       identity = 'Pro';
-      description = 'Never miss a payment';
-      outcome = 'Never miss a payment';
-      features = [
-        'Automate follow-ups on late payments',
-        'Build custom client portfolios to win repeat work',
-        'Qualify and capture prospective client inquiries',
-      ];
+      ctaLabel = isCurrent ? '✓ Current Plan' : 'Upgrade';
     } else if (isStudio) {
-      name = plan.name || 'Studio';
+      name = 'Studio';
+      priceMonthly = 0;
+      priceYearly = 0;
       identity = 'Studio';
-      description = 'Scale client operations';
-      outcome = 'Scale client operations';
-      features = [
-        'Brand client workspaces under your custom domain',
-        'Qualify inbound inquiries with budget filters',
-        'Present specialist team members to secure larger contracts',
-      ];
+      ctaLabel = isCurrent ? '✓ Current Plan' : 'Join Waitlist';
+    } else {
+      name = plan.name || plan.id;
+      priceMonthly = Number(plan.price_monthly || 0);
+      priceYearly = Number(plan.price_yearly || 0);
+      identity = plan.id;
+      ctaLabel = isCurrent ? '✓ Current Plan' : 'Select Plan';
     }
 
-    // Compute CTA button labels deterministically (TASK 4 outcome alignment)
-    let ctaLabel = '';
-    if (isCurrent) {
-      ctaLabel = '✓ Current Plan';
-    } else if (isFree) {
-      ctaLabel = 'Start Free';
-    } else if (isStarter || isPro) {
-      ctaLabel = 'Upgrade';
-    } else {
-      ctaLabel = 'Join Waitlist';
-    }
+    const features: string[] = Array.isArray(plan.features) ? plan.features : [];
+    const outcome = plan.description || '';
 
     return {
       id: plan.id,
       name,
-      priceMonthly: plan.price_monthly,
-      priceYearly: plan.price_yearly,
+      priceMonthly,
+      priceYearly,
       badgeText,
       features,
       isCurrent,

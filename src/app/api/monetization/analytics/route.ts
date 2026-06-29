@@ -2,33 +2,25 @@ import { NextResponse } from 'next/server';
 import { createServiceSupabaseClient, isSupabaseConfigured } from '../../../lib/supabase';
 import { requireInternalAdmin } from '../../../lib/internal-admin';
 
-interface AnalyticsPayload {
-  conversion_rate_per_trigger_type: Record<string, number>;
-  revenue_per_user_segment: Record<string, number>;
-  time_to_convert: number; // average in seconds
-  funnel_drop_off_step: Record<string, number>;
-  total_events: number;
-}
-
 export async function GET(request: Request) {
   try {
     const gate = await requireInternalAdmin(request);
     if (gate.response) return gate.response;
     if (!isSupabaseConfigured()) {
       return NextResponse.json({
-        success: true,
-        source: 'synthetic_fallback_no_supabase',
-        ...getSyntheticData(),
-      });
+        success: false,
+        source: 'degraded_no_supabase',
+        ...getEmptyAnalytics(),
+      }, { status: 503 });
     }
 
     const supabase = createServiceSupabaseClient();
     if (!supabase) {
       return NextResponse.json({
-        success: true,
-        source: 'synthetic_fallback_no_service_role',
-        ...getSyntheticData(),
-      });
+        success: false,
+        source: 'degraded_no_service_role',
+        ...getEmptyAnalytics(),
+      }, { status: 503 });
     }
 
     // 1. Fetch all events from revenue_events
@@ -65,12 +57,12 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. If no events in DB yet, return synthetic analytics so it looks populated
+    // 3. If no events exist yet, return explicit empty analytics.
     if (!events || events.length === 0) {
       return NextResponse.json({
         success: true,
-        source: 'synthetic_fallback_empty_db',
-        ...getSyntheticData(),
+        source: 'database_empty',
+        ...getEmptyAnalytics(),
       });
     }
 
@@ -169,29 +161,21 @@ export async function GET(request: Request) {
   }
 }
 
-/**
- * Returns highly realistic synthetic data when database is empty
- */
-function getSyntheticData(): AnalyticsPayload {
+function getEmptyAnalytics() {
   return {
     conversion_rate_per_trigger_type: {
-      usage: 8,
-      intent: 14,
-      risk: 4,
-      revenue_opportunity: 11,
+      usage: 0,
+      intent: 0,
+      risk: 0,
+      revenue_opportunity: 0,
     },
     revenue_per_user_segment: {
-      free: 456,
-      power: 1240,
-      high_intent: 3180,
+      free: 0,
+      power: 0,
+      high_intent: 0,
     },
-    time_to_convert: 172, // 172 seconds (about 3 mins)
-    funnel_drop_off_step: {
-      'dashboard_offer_dismiss': 45,
-      'pricing_page_exit': 28,
-      'export_bypass_close': 14,
-      'checkout_abandon': 9,
-    },
-    total_events: 180,
+    time_to_convert: 0,
+    funnel_drop_off_step: {},
+    total_events: 0,
   };
 }

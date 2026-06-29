@@ -19,7 +19,7 @@ export async function POST(request) {
       }
     }
 
-    const isPaid = ['pro', 'professional', 'agency'].includes(String(userPlan).toLowerCase());
+    const isPaid = ['starter', 'pro', 'studio'].includes(String(userPlan).toLowerCase());
 
     if (isPaid) {
       return NextResponse.json({
@@ -134,12 +134,6 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Error evaluating revenue decision:', error);
-    return NextResponse.json({
-      shouldBlock: false,
-      action: 'allow',
-      uiState: 'none',
-      reason: 'error_fallback',
-      message: 'Safety fallback: allowed.'
-    });
+    return NextResponse.json({ error: 'Failed to evaluate revenue decision' }, { status: 500 });
   }
 }

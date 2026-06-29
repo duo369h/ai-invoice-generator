@@ -87,24 +87,24 @@ export function Hero({ badge, title, subtitle, ctas = [], trustText, style = {},
 }
 
 // 6. PricingCard Component
-export function PricingCard({ title, price, period, features = [], ctaLabel, ctaHref, ctaVariant = 'secondary', popular = false, style = {}, ...props }) {
+export function PricingCard({ title, price, period, features = [], ctaLabel, ctaHref, ctaVariant = 'secondary', variant = 'default', style = {}, ...props }) {
   return (
-    <Card style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      justifyContent: 'space-between', 
-      padding: '36px',
-      border: popular ? '2.5px solid var(--primary)' : '1px solid var(--border)',
-      boxShadow: popular ? 'var(--shadow-glow)' : 'var(--shadow-md)',
-      transform: popular ? 'scale(1.05) translateY(-8px)' : 'none',
-      zIndex: popular ? 2 : 1,
-      ...style 
-    }} {...props}>
+    <Card 
+      className={`pricing-card ${variant}`}
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between', 
+        padding: '36px',
+        ...style 
+      }} 
+      {...props}
+    >
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{title}</h3>
-          {popular && (
-            <Badge style={{ fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'var(--primary)', color: '#ffffff', border: 'none' }}>
+          {variant === 'featured' && (
+            <Badge style={{ fontSize: '0.65rem', fontWeight: 700, backgroundColor: 'var(--primary)', color: 'var(--white)', border: 'none' }}>
               MOST POPULAR
             </Badge>
           )}

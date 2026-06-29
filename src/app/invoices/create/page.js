@@ -5,5 +5,5 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 export default function CreateInvoicePage() {
-  redirect('/dashboard?tool=invoice&mode=create');
+  redirect('/dashboard?tool=invoice');
 }

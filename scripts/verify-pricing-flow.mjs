@@ -57,7 +57,7 @@ fs.writeFileSync(
   'utf8'
 );
 
-const tsContent = fs.readFileSync(path.resolve(__dirname, '../lib/pricing/pricingViewModel.ts'), 'utf8');
+const tsContent = fs.readFileSync(path.resolve(__dirname, '../src/core/pricing/pricingViewModel.ts'), 'utf8');
 const jsContent = transpile(tsContent);
 fs.writeFileSync(path.resolve(tmpDir, './pricingViewModel.mjs'), jsContent, 'utf8');
 

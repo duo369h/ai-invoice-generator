@@ -1,14 +1,35 @@
 import { NextResponse } from 'next/server';
-import { getRequestUser, trackProfileMetric } from '../../lib/supabase';
+import { ensureProfile, getRequestUser, trackProfileMetric } from '../../lib/supabase';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validateClientPayload, validationResponse } from '../../lib/validation';
+import { getUserEntitlements } from '../../../../lib/entitlements';
+
+async function requireClientEntitlement(context) {
+  const profile = await ensureProfile(context.supabase, context.user);
+  const entitlements = getUserEntitlements(profile?.plan || 'free');
+
+  if (!entitlements.client_portal && !entitlements.crm) {
+    return NextResponse.json(
+      {
+        error: 'FORBIDDEN',
+        requiredEntitlement: 'client_portal_or_crm',
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
 
 export async function GET(request) {
   try {
     const context = await getRequestUser(request);
     const contextFailure = requestContextResponse(context, 'clients');
     if (contextFailure) return contextFailure;
+    const entitlementFailure = await requireClientEntitlement(context);
+    if (entitlementFailure) return entitlementFailure;
+
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
@@ -41,6 +62,9 @@ export async function POST(request) {
     const context = await getRequestUser(request);
     const contextFailure = requestContextResponse(context, 'clients');
     if (contextFailure) return contextFailure;
+    const entitlementFailure = await requireClientEntitlement(context);
+    if (entitlementFailure) return entitlementFailure;
+
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
@@ -95,6 +119,9 @@ export async function DELETE(request) {
     const context = await getRequestUser(request);
     const contextFailure = requestContextResponse(context, 'clients');
     if (contextFailure) return contextFailure;
+    const entitlementFailure = await requireClientEntitlement(context);
+    if (entitlementFailure) return entitlementFailure;
+
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });

@@ -91,9 +91,7 @@ export function UpgradeModal({
               ? 'Contact Support' 
               : targetPlan === 'pro' 
               ? 'Get paid faster' 
-              : targetPlan === 'growth' 
-              ? 'Never miss a payment' 
-              : (targetPlan === 'studio' || targetPlan === 'agency') 
+              : targetPlan === 'studio'
               ? 'Scale client operations' 
               : 'Upgrade now'}
           </Link>
@@ -107,7 +105,7 @@ export function UpgradeModal({
         </div>
         
         <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
-          <span>Plans start at just ${getPlanVal('pro', 'price_monthly', 12)}/mo. 🛡️ 14-Day Money-Back Guarantee.</span>
+          <span>Plans start at just ${getPlanVal('starter', 'price_monthly', 9)}/mo. 14-Day Money-Back Guarantee.</span>
           <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>🔒 TLS Encrypted Safe Stripe Payment • Cancel or Downgrade in 1-Click</span>
         </p>
       </div>

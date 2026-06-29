@@ -22,7 +22,7 @@ interface UseUpgradeTriggerOptions {
 interface UseUpgradeTriggerResult {
   decision: {
     should_show_upgrade: boolean;
-    target_plan: 'pro' | 'growth' | 'studio' | null;
+    target_plan: 'starter' | 'pro' | 'studio' | null;
     reason: string;
     confidence: number;
     trigger_type: string;
@@ -65,7 +65,7 @@ export function useUpgradeTrigger({
 
   const mappedScores = {
     pro_score: decision.recommendedPlan === 'pro' ? 80 : 0,
-    growth_score: decision.recommendedPlan === 'growth' ? 80 : 0,
+    growth_score: decision.recommendedPlan === 'pro' ? 80 : 0,
     studio_score: decision.recommendedPlan === 'studio' ? 80 : 0,
     churn_risk: Math.round(decision.riskSignal.churnRisk * 100),
     revenue_potential: 0,

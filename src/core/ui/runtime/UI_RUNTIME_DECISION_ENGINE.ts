@@ -1,3 +1,5 @@
+import { enforceUI } from "../v3/ENFORCEMENT_HUB";
+
 /**
  * Corvioz — UI Runtime Decision Engine
  *
@@ -42,12 +44,12 @@ export function getUIRuntimeDecision(signal: UIRevenueSignal, sectionType?: stri
         priority = 100;
         placement = "TOP";
         reason = "System Header";
-        return { priority, visibility, placement, urgency, mutateUI, reason };
+        return enforceUI({ priority, visibility, placement, urgency, mutateUI, reason });
       case "SAFE_MODE":
         priority = 100;
         placement = "TOP";
         reason = "Safe Mode Lock";
-        return { priority, visibility, placement, urgency, mutateUI, reason };
+        return enforceUI({ priority, visibility, placement, urgency, mutateUI, reason });
       case "FOCUS":
         priority = 50;
         placement = "MIDDLE";
@@ -139,12 +141,12 @@ export function getUIRuntimeDecision(signal: UIRevenueSignal, sectionType?: stri
     reason = "High Churn Risk Invoicing Action";
   }
 
-  return {
+  return enforceUI({
     priority,
     visibility,
     placement,
     urgency,
     mutateUI,
     reason,
-  };
+  });
 }

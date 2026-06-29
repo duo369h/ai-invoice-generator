@@ -141,7 +141,7 @@ async function runTests() {
 
   // --- Static Verifications on View Layer ---
   console.log('Running static audits on components for decision logic leakage...');
-  const pricingViewModelCode = fs.readFileSync(path.resolve(__dirname, '../lib/pricing/pricingViewModel.ts'), 'utf8');
+  const pricingViewModelCode = fs.readFileSync(path.resolve(__dirname, '../src/core/pricing/pricingViewModel.ts'), 'utf8');
   const dashboardCode = fs.readFileSync(path.resolve(__dirname, '../src/components/dashboard/Dashboard.js'), 'utf8');
 
   // Ensure no local conditionals on usage count exist in the view layer

@@ -5,5 +5,5 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 export default function CreateQuotePage() {
-  redirect('/dashboard?tool=quote&mode=create');
+  redirect('/dashboard?tool=quote');
 }

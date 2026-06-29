@@ -1,56 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createServiceSupabaseClient } from '../../../lib/supabase';
-
-function getUserEntitlements(plan) {
-  const p = String(plan || 'free').toLowerCase();
-
-  if (p === 'starter' || p === 'professional') {
-    return {
-      invoice: false,
-      export_pdf: false,
-      client_portal: false,
-      crm: false,
-      automation: false,
-      advanced_invoicing: false,
-      unlimited_invoices: false,
-    };
-  }
-
-  if (p === 'pro' || p === 'growth') {
-    return {
-      invoice: true,
-      export_pdf: true,
-      client_portal: true,
-      crm: true,
-      automation: false,
-      advanced_invoicing: true,
-      unlimited_invoices: true,
-    };
-  }
-
-  if (p === 'studio' || p === 'agency') {
-    return {
-      invoice: true,
-      export_pdf: true,
-      client_portal: true,
-      crm: true,
-      automation: true,
-      advanced_invoicing: true,
-      unlimited_invoices: true,
-    };
-  }
-
-  return {
-    invoice: false,
-    export_pdf: false,
-    client_portal: false,
-    crm: false,
-    automation: false,
-    advanced_invoicing: false,
-    unlimited_invoices: false,
-  };
-}
+import { getUserEntitlements } from '../../../../../lib/entitlements';
 
 function verifyPaddleSignature(signatureHeader, rawBody, webhookSecret) {
   if (!signatureHeader || !rawBody || !webhookSecret) {
@@ -97,8 +48,6 @@ function resolvePlanFromPriceId(priceId) {
   if (!priceId) return null;
 
   const studioIds = [
-    process.env.NEXT_PUBLIC_PADDLE_AGENCY_PRICE_ID,
-    process.env.NEXT_PUBLIC_PADDLE_AGENCY_YEARLY_PRICE_ID,
     process.env.NEXT_PUBLIC_PADDLE_STUDIO_PRICE_ID,
     process.env.NEXT_PUBLIC_PADDLE_STUDIO_YEARLY_PRICE_ID,
   ].filter(Boolean);
@@ -107,21 +56,21 @@ function resolvePlanFromPriceId(priceId) {
     return 'studio';
   }
 
-  const growthIds = [
-    process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID,
-    process.env.NEXT_PUBLIC_PADDLE_GROWTH_YEARLY_PRICE_ID,
-  ].filter(Boolean);
-
-  if (growthIds.includes(priceId)) {
-    return 'pro';
-  }
-
   const proIds = [
     process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID,
     process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID,
   ].filter(Boolean);
 
   if (proIds.includes(priceId)) {
+    return 'pro';
+  }
+
+  const starterIds = [
+    process.env.NEXT_PUBLIC_PADDLE_STARTER_PRICE_ID,
+    process.env.NEXT_PUBLIC_PADDLE_STARTER_YEARLY_PRICE_ID,
+  ].filter(Boolean);
+
+  if (starterIds.includes(priceId)) {
     return 'starter';
   }
 

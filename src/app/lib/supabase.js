@@ -384,4 +384,3 @@ export async function recordServerGrowthEvent(supabase, {
     console.error(`Failed to record server growth event ${eventName}:`, error);
   }
 }
-
