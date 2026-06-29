@@ -514,11 +514,11 @@ function PricingContent() {
           <Button href="/dashboard" variant="secondary" size="sm" onClick={() => trackEvent('cta_click', { cta_name: 'Sign in', position: 'pricing_navbar' })}>Sign in</Button>
           {mounted && ui.identity && (
             <Button
-              href="/invoices/create"
+              href="/dashboard?tool=invoice"
               variant="primary"
               size="sm"
               onClick={() => {
-                saveIntendedRoute('/invoices/create', '/pricing');
+                saveIntendedRoute('/dashboard?tool=invoice', '/pricing');
                 trackEvent('signup_click', { position: 'pricing_navbar' });
                 trackEvent('cta_click', { cta_name: ui.cta('navbar'), position: 'pricing_navbar' });
               }}

@@ -18,7 +18,7 @@ export const SAFE_DEFAULT_UI: Omit<RevenueUIAdapter, "semanticScore"> = Object.f
   }),
   cta: Object.freeze({
     label: "Start Proposal",
-    href: "/quotes/create",
+    href: "/dashboard?tool=quote&mode=create",
     action: "PUSH_PROPOSAL",
   }),
   insight: Object.freeze({

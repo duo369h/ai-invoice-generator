@@ -31,8 +31,8 @@ function safeParseIntent(value: string | null): ConversionIntent {
 }
 
 function routeForGoal(goal?: UserGoal) {
-  if (goal === 'invoice') return '/invoices/create';
-  if (goal === 'quote') return '/quotes/create';
+  if (goal === 'invoice') return '/dashboard?tool=invoice&mode=create';
+  if (goal === 'quote') return '/dashboard?tool=quote&mode=create';
   if (goal === 'profile') return '/dashboard?action=create-profile';
   if (goal === 'pricing') return '/pricing';
   return '/dashboard';
@@ -90,6 +90,15 @@ export function captureSignupIntent(intent: {
 
 export function saveIntendedRoute(intended_route: string, source_page?: string, cta_clicked?: string) {
   let clicked_feature: UserGoal = 'explore';
+  try {
+    const url = new URL(intended_route, 'https://corvioz.local');
+    const tool = url.searchParams.get('tool');
+    if (tool === 'invoice') clicked_feature = 'invoice';
+    if (tool === 'quote' || tool === 'proposal') clicked_feature = 'quote';
+    if (tool === 'profile' || tool === 'client') clicked_feature = 'profile';
+  } catch (_) {
+    // Fall back to legacy substring matching.
+  }
   if (intended_route.includes('/invoices') || intended_route.includes('create-invoice')) clicked_feature = 'invoice';
   if (intended_route.includes('/quotes') || intended_route.includes('create-quote')) clicked_feature = 'quote';
   if (intended_route.includes('create-profile')) clicked_feature = 'profile';

@@ -35,9 +35,9 @@ export default function SeoEntryCta({
             clicked_feature: clickedFeature,
             source_page: eventProps.page_slug || 'seo_entry',
             cta_clicked: ctaName,
-            intended_route: clickedFeature === 'invoice' ? '/invoices/create' : clickedFeature === 'quote' ? '/quotes/create' : href,
+            intended_route: clickedFeature === 'invoice' ? '/dashboard?tool=invoice' : clickedFeature === 'quote' ? '/dashboard?tool=quote' : href,
           });
-          saveIntendedRoute(clickedFeature === 'invoice' ? '/invoices/create' : clickedFeature === 'quote' ? '/quotes/create' : href, eventProps.page_slug || 'seo_entry', ctaName);
+          saveIntendedRoute(clickedFeature === 'invoice' ? '/dashboard?tool=invoice' : clickedFeature === 'quote' ? '/dashboard?tool=quote' : href, eventProps.page_slug || 'seo_entry', ctaName);
           trackEvent('signup_click', {
             destination: href,
             clicked_feature: clickedFeature,

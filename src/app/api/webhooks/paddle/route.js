@@ -3,8 +3,23 @@ import crypto from 'crypto';
 import { createServiceSupabaseClient } from '../../../lib/supabase';
 
 function getUserEntitlements(plan) {
-  if (plan === 'growth') {
+  const p = String(plan || 'free').toLowerCase();
+
+  if (p === 'starter' || p === 'professional') {
     return {
+      invoice: false,
+      export_pdf: false,
+      client_portal: false,
+      crm: false,
+      automation: false,
+      advanced_invoicing: false,
+      unlimited_invoices: false,
+    };
+  }
+
+  if (p === 'pro' || p === 'growth') {
+    return {
+      invoice: true,
       export_pdf: true,
       client_portal: true,
       crm: true,
@@ -14,8 +29,9 @@ function getUserEntitlements(plan) {
     };
   }
 
-  if (plan === 'studio' || plan === 'agency') {
+  if (p === 'studio' || p === 'agency') {
     return {
+      invoice: true,
       export_pdf: true,
       client_portal: true,
       crm: true,
@@ -26,6 +42,7 @@ function getUserEntitlements(plan) {
   }
 
   return {
+    invoice: false,
     export_pdf: false,
     client_portal: false,
     crm: false,
@@ -96,7 +113,7 @@ function resolvePlanFromPriceId(priceId) {
   ].filter(Boolean);
 
   if (growthIds.includes(priceId)) {
-    return 'growth';
+    return 'pro';
   }
 
   const proIds = [
@@ -105,7 +122,7 @@ function resolvePlanFromPriceId(priceId) {
   ].filter(Boolean);
 
   if (proIds.includes(priceId)) {
-    return 'pro';
+    return 'starter';
   }
 
   console.error(`[Paddle Webhook] Unknown price ID "${priceId}" - refusing entitlement update.`);

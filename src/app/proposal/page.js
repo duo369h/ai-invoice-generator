@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function ProposalPage() {
-  redirect('/quotes/create');
+  redirect('/dashboard?tool=proposal');
 }

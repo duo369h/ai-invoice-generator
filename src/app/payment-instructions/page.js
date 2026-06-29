@@ -58,7 +58,7 @@ export default function PaymentInstructionsPage() {
       <header className="navbar">
         <Logo size={22} />
         <div className="nav-links">
-          <Link href="/client" className="nav-link">Client Portal</Link>
+          <Link href="/dashboard?tool=client" className="nav-link">Client Portal</Link>
           <Link href="/pricing" className="nav-link">Pricing</Link>
           <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
         </div>

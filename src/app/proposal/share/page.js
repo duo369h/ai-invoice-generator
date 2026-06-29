@@ -193,7 +193,7 @@ function ShareProposalContent() {
             ✨ Used by freelancers to win clients and get paid faster.
           </div>
           <Link 
-            href="/proposal" 
+            href="/dashboard?tool=proposal" 
             style={{ 
               display: 'inline-flex', 
               alignItems: 'center', 

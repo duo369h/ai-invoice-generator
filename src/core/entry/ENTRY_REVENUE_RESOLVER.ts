@@ -6,7 +6,7 @@
 
 import { getCorviozDecision } from '../kernel/CORVIOZ_DECISION_KERNEL.ts';
 
-export type EntryRevenueRoute = '/dashboard' | '/invoice' | '/quote' | '/profile' | '/dashboard/activation' | '/quotes/create';
+export type EntryRevenueRoute = '/dashboard' | '/dashboard/activation';
 
 export type EntryRevenueResolverInput = {
   entry_state: 'GUEST' | 'AUTHENTICATED' | 'ACTIVATION_REQUIRED';

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createBrowserSupabaseClient } from '@/app/lib/supabase-client';
 
 /**
  * Hook to fetch and expose the current user's subscription plan and entitlements.
@@ -21,8 +22,22 @@ export function useUserSubscription() {
     async function fetchSubscription() {
       setIsLoading(true);
       try {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = supabase ? await supabase.auth.getSession() : { data: null };
+        const token = data?.session?.access_token;
+        if (!token) {
+          if (!cancelled) {
+            setIsAuthenticated(false);
+            setPlan('free');
+            setEntitlements(null);
+          }
+          return;
+        }
+
+        const authHeaders = { Authorization: `Bearer ${token}` };
+
         // Fetch user profile (includes plan)
-        const userRes = await fetch('/api/user', { credentials: 'include' });
+        const userRes = await fetch('/api/user', { headers: authHeaders });
         if (!userRes.ok) {
           // Not authenticated or error — safe default
           if (!cancelled) {
@@ -42,7 +57,7 @@ export function useUserSubscription() {
         }
 
         // Fetch entitlements
-        const entRes = await fetch('/api/user/entitlements', { credentials: 'include' });
+        const entRes = await fetch('/api/user/entitlements', { headers: authHeaders });
         if (entRes.ok) {
           const entData = await entRes.json();
           if (!cancelled && entData.entitlements) {

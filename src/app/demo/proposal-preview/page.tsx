@@ -122,7 +122,7 @@ export default function DemoProposalPreviewPage() {
 
       {/* CTA Box */}
       <div style={{ textAlign: "center" }}>
-        <Link href="/quotes/create?prefill=true" style={{
+        <Link href="/dashboard?tool=quote&prefill=true" style={{
           display: "inline-flex",
           alignItems: "center",
           gap: "8px",

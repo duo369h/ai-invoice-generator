@@ -142,11 +142,11 @@ export default function Home() {
 
           <Button href="/dashboard" variant="secondary" size="sm" onClick={() => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' })}>Sign in</Button>
           <Button
-            href="/quotes/create"
+            href="/dashboard?tool=quote"
             variant="primary"
             size="sm"
             onClick={() => {
-              saveIntendedRoute('/quotes/create', '/');
+              saveIntendedRoute('/dashboard?tool=quote', '/');
               trackEvent('signup_click', { position: 'navbar' });
               trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'navbar' });
             }}
@@ -181,12 +181,12 @@ export default function Home() {
             <div className="mobile-menu-divider" />
             <Button href="/dashboard" variant="secondary" style={{ width: '100%' }} onClick={() => { setMobileMenuOpen(false); trackEvent('cta_click', { cta_name: 'Sign in', position: 'mobile_menu' }); }}>Sign in</Button>
             <Button
-              href="/quotes/create"
+              href="/dashboard?tool=quote"
               variant="primary"
               style={{ width: '100%', marginTop: '8px', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)' }}
               onClick={() => {
                 setMobileMenuOpen(false);
-                saveIntendedRoute('/quotes/create', '/');
+                saveIntendedRoute('/dashboard?tool=quote', '/');
                 trackEvent('signup_click', { position: 'mobile_menu' });
                 trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'mobile_menu' });
               }}
@@ -224,11 +224,11 @@ export default function Home() {
 
           <div className="hero-actions" style={{ justifyContent: 'center', marginBottom: '24px', gap: '16px' }}>
             <Button
-              href="/quotes/create"
+              href="/dashboard?tool=quote"
               variant="primary"
               size="lg"
               onClick={() => {
-                saveIntendedRoute('/quotes/create', '/');
+                saveIntendedRoute('/dashboard?tool=quote', '/');
                 trackHeroCtaClick({ cta_name: 'Create a Quote', position: 'hero' });
                 trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'hero' });
               }}
@@ -675,11 +675,11 @@ export default function Home() {
         </p>
         <div className="hero-actions center" style={{ marginBottom: '8px' }}>
           <Button
-            href="/quotes/create"
+            href="/dashboard?tool=quote"
             variant="primary"
             size="lg"
             onClick={() => {
-              saveIntendedRoute('/quotes/create', '/');
+              saveIntendedRoute('/dashboard?tool=quote', '/');
               trackEvent('quote_create_click', { position: 'final_cta' });
               trackEvent('cta_click', {
                 cta_name: 'Create a Quote',
@@ -718,7 +718,7 @@ export default function Home() {
         <div>
           <strong>Company</strong>
           <Link href="/contact">Contact</Link>
-          <Link href="/client">Client portal</Link>
+          <Link href="/dashboard?tool=client">Client portal</Link>
           <Link href="/dashboard">Sign in</Link>
         </div>
         <div>

@@ -58,7 +58,6 @@ import {
   readEntryRevenueContext,
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
-import { writeClientEntrySessionState } from '../../core/entry/ENTRY_STATE';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -66,11 +65,11 @@ const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
 
 const REVENUE_ENTRY_ROUTE_TARGETS = {
-  '/dashboard': '/quotes/create',
+  '/dashboard': '/dashboard?tool=quote',
   '/dashboard/activation': '/dashboard/activation',
-  '/invoice': '/quotes/create',
-  '/quote': '/quotes/create',
-  '/profile': '/quotes/create',
+  '/invoice': '/dashboard?tool=invoice',
+  '/quote': '/dashboard?tool=quote',
+  '/profile': '/dashboard?tool=profile',
 };
 
 const INVOICE_FLOW_STAGES = [
@@ -82,6 +81,15 @@ const INVOICE_FLOW_STAGES = [
 
 function inferRevenueActionFromRoute(route) {
   if (!route || typeof route !== 'string') return null;
+  try {
+    const url = new URL(route, 'https://corvioz.local');
+    const tool = url.searchParams.get('tool');
+    if (tool === 'invoice') return 'invoice';
+    if (tool === 'quote' || tool === 'proposal') return 'quote';
+    if (tool === 'client' || tool === 'profile') return 'profile';
+  } catch (_) {
+    // Fall back to legacy substring matching below.
+  }
   if (route.includes('/invoices') || route.includes('create-invoice')) return 'invoice';
   if (route.includes('/quotes') || route.includes('create-quote')) return 'quote';
   if (route.includes('create-profile') || route.includes('/profile')) return 'profile';
@@ -114,15 +122,38 @@ function readLegacyRevenueIntent() {
 }
 
 const getInitialDashboardTool = (routeTool = null) => {
-  if (routeTool) return routeTool;
+  const normalizeTool = (tool) => {
+    if (!tool || typeof tool !== 'string') return null;
+    if (['quote', 'quotes', 'proposal', 'proposals'].includes(tool)) return 'quote';
+    if (['invoice', 'invoices'].includes(tool)) return 'invoice';
+    if (['client', 'clients'].includes(tool)) return 'client';
+    if (['profile', 'studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool)) return tool;
+    return null;
+  };
+
+  const explicitTool = normalizeTool(routeTool);
+  if (explicitTool) return explicitTool;
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
-  const tool = params.get('tool');
+  const tool = normalizeTool(params.get('tool'));
   const action = params.get('action');
   if (action === 'create-profile') return 'profile';
   if (action === 'create-quote') return 'quote';
+  if (action === 'create-proposal') return 'quote';
   if (action === 'create-invoice') return 'invoice';
   return tool;
+};
+
+const getDashboardTabForTool = (tool) => {
+  if (tool === 'invoice') return 'invoices';
+  if (tool === 'client') return 'clients';
+  if (tool === 'profile') return 'profile';
+  if (['studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool)) return tool;
+  return 'quotes';
+};
+
+const isAdvancedDashboardTool = (tool) => {
+  return ['invoice', 'client', 'profile', 'studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool);
 };
 
 // Helpers to serialize/deserialize custom metadata in the text notes column
@@ -260,6 +291,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const router = useRouter();
   const pathname = usePathname();
   const supportEmail = getSupportEmail();
+  const redirectToAuth = useCallback((source = 'dashboard_auth_guard') => {
+    const redirectTarget = typeof window !== 'undefined'
+      ? `${window.location.pathname}${window.location.search}`
+      : '/dashboard';
+    saveIntendedRoute(redirectTarget, source);
+    router.replace(`/auth?redirect=${encodeURIComponent(redirectTarget)}`);
+  }, [router]);
   
   // Design system hooks
   const { isLive, isDemo, isPreview, isReadOnly, isInteractive, isResettable } = useDashboardMode(mode);
@@ -288,9 +326,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const activeTheme = kernelUi.pricing_variant;
 
   const [activeTab, setActiveTab] = useState(() => {
-    return 'quotes';
+    return getDashboardTabForTool(initialTool);
   }); // overview, leads, quotes, invoices, clients, profile
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => isAdvancedDashboardTool(initialTool));
   
   const [session, setSession] = useState(null);
   const [supabaseClient, setSupabaseClient] = useState(undefined);
@@ -701,8 +739,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [suggestedActionDoc, setSuggestedActionDoc] = useState(null);
   const [postExportDoc, setPostExportDoc] = useState(null);
 
-  // 10-second success flow: detect first-time guest on /invoices/create
-  const isFirstGuestFlow = !previewMode && !session && (routeInitialTool === 'invoice' || (typeof window !== 'undefined' && window.location.pathname === '/invoices/create'));
+  // 10-second success flow: detect first-time guest invoice mode inside dashboard.
+  const isFirstGuestFlow = !previewMode && !session && initialTool === 'invoice';
   const [firstFlowExportDone, setFirstFlowExportDone] = useState(false);
 
   useEffect(() => {
@@ -1070,11 +1108,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       await supabaseClient.auth.signOut();
     }
     setSession(null);
-    writeClientEntrySessionState(null);
     clearAnalyticsUserId();
     setUser({ name: 'Freelancer', plan: 'free' });
     clearDashboardData();
-    applyEntryRouteTransition(router, { pathname: '/signup' });
+    router.replace('/auth');
   };
 
   // Auth initialization
@@ -1084,7 +1121,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const client = createBrowserSupabaseClient();
       setSupabaseClient(client);
       if (!client) {
-        writeClientEntrySessionState(null);
         fetchData().finally(() => setAuthChecked(true));
       }
     }, 0);
@@ -1105,7 +1141,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       const nextSession = data.session || null;
       setSession(nextSession);
-      writeClientEntrySessionState(nextSession);
 
       if (nextSession) {
         setAnalyticsUserId(nextSession.user?.id);
@@ -1122,9 +1157,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           user: dashboardSnapshot?.user,
           pathname,
         });
-        writeClientEntrySessionState(nextSession, {
-          user: dashboardSnapshot?.user,
-        });
         if (decision.shouldRedirect) {
           applyEntryRouteTransition(router, {
             session: nextSession,
@@ -1137,7 +1169,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       } else {
         clearAnalyticsUserId();
         await fetchData();
-        restoreUserIntent();
+        redirectToAuth('dashboard_initial_auth_guard');
+        return;
       }
 
       if (!cancelled) setAuthChecked(true);
@@ -1148,7 +1181,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
       setAuthChecked(false);
       setSession(nextSession);
-      writeClientEntrySessionState(nextSession);
 
       if (nextSession) {
         setAnalyticsUserId(nextSession.user?.id);
@@ -1169,9 +1201,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           user: dashboardSnapshot?.user,
           pathname,
         });
-        writeClientEntrySessionState(nextSession, {
-          user: dashboardSnapshot?.user,
-        });
         if (decision.shouldRedirect) {
           applyEntryRouteTransition(router, {
             session: nextSession,
@@ -1182,10 +1211,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
         restoreUserIntent(nextSession.user?.id, decision.state);
       } else {
-        writeClientEntrySessionState(null);
         clearAnalyticsUserId();
         await fetchData();
-        applyEntryRouteTransition(router, { pathname: '/signup' });
+        redirectToAuth('dashboard_session_auth_guard');
         return;
       }
       setAuthChecked(true);
@@ -1195,19 +1223,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       cancelled = true;
       listener?.subscription?.unsubscribe();
     };
-  }, [fetchData, pathname, previewMode, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
+  }, [fetchData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
 
   useEffect(() => {
     if (previewMode) return;
 
-    if (pathname === '/quotes/create') {
+    if (initialTool === 'quote') {
       trackEvent('quote_create', { source: 'route_entry' });
     }
 
-    if (pathname === '/invoices/create') {
+    if (initialTool === 'invoice') {
       trackEvent('invoice_create', { source: 'route_entry' });
     }
-  }, [pathname, previewMode]);
+  }, [initialTool, previewMode]);
 
   useEffect(() => {
     if (previewMode) return;
@@ -1556,7 +1584,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           saveIntendedRoute('/dashboard', 'guest_quote_save');
           triggerToast('Quote draft saved locally! Please sign up to save it securely to your account.', 'success');
           setTimeout(() => {
-            applyEntryRouteTransition(router, { pathname: '/signup' });
+            redirectToAuth('guest_quote_save');
           }, 1500);
         } catch (err) {
           console.error(err);
@@ -1695,7 +1723,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           saveIntendedRoute('/dashboard', 'guest_invoice_save');
           triggerToast('Invoice draft saved locally! Please sign up to save it securely to your account.', 'success');
           setTimeout(() => {
-            applyEntryRouteTransition(router, { pathname: '/signup' });
+            redirectToAuth('guest_invoice_save');
           }, 1500);
           return true;
         } catch (err) {
@@ -2341,9 +2369,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQClientNameTouched(false);
       setQClientEmailTouched(false);
       setQSubmitAttempted(false);
-      if (pathname !== '/quotes/create') {
-        router.push('/quotes/create', { scroll: false });
-      }
       handleDashboardTabChange('quotes', 'quick_action');
       setQuoteView('create');
     });
@@ -2371,7 +2396,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceFlowStage('create');
     setInvoiceFlowLocked(true);
     setShowPaymentWaitingBanner(false);
-    router.push('/invoices/create', { scroll: false });
     handleDashboardTabChange('invoices', 'quick_action');
     setInvoiceView('create');
   };
@@ -2750,11 +2774,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Divider & Secondary client portal link */}
             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
             <Link
-              href="/client"
+              href="/dashboard?tool=client"
               onClick={(e) => {
                 e.preventDefault();
                 evaluateAction('client_portal', () => {
-                  router.push('/client');
+                  handleDashboardTabChange('clients', 'sidebar');
                 });
               }}
               style={{
@@ -4486,8 +4510,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Your PDF is ready.</div>
                               </div>
                             </div>
-                            <a
-                              href="/invoices/create"
+                            <button
+                              type="button"
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -4503,10 +4527,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 textAlign: 'center',
                                 cursor: 'pointer'
                               }}
-                              onClick={() => trackEvent('cta_click', { cta_name: 'Create another invoice', source: 'first_flow_success' })}
+                              onClick={() => {
+                                trackEvent('cta_click', { cta_name: 'Create another invoice', source: 'first_flow_success' });
+                                openInvoiceBuilder();
+                              }}
                             >
                               + Create another invoice
-                            </a>
+                            </button>
                             <button
                               onClick={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
                               disabled={isDownloadingPdf}
@@ -6523,13 +6550,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {toast.message}
           </div>
           {firstFlowExportDone && toast.type === 'success' && (
-            <a
-              href="/invoices/create"
+            <button
+              type="button"
               style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.78rem', textDecoration: 'underline', cursor: 'pointer', fontWeight: 700 }}
-              onClick={() => trackEvent('cta_click', { cta_name: 'Create another invoice', source: 'success_toast' })}
+              onClick={() => {
+                trackEvent('cta_click', { cta_name: 'Create another invoice', source: 'success_toast' });
+                openInvoiceBuilder();
+              }}
             >
               Create another invoice →
-            </a>
+            </button>
           )}
         </div>
       )}

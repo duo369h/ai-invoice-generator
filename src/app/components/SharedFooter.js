@@ -94,7 +94,7 @@ export default function SharedFooter({ lang = 'en' }) {
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/contact">{isZh ? '联系我们' : 'Contact'}</Link></li>
-              <li><Link href="/client">{isZh ? '客户门户' : 'Client Portal'}</Link></li>
+              <li><Link href="/dashboard?tool=client">{isZh ? '客户门户' : 'Client Portal'}</Link></li>
               <li>
                 <a href="mailto:support@corvioz.com" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
                   support@corvioz.com

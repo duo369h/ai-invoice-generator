@@ -7,16 +7,11 @@
 export { resolveEntry } from './entry-resolver';
 export { ENTRY_AUTHORITY, applyEntryRouteTransition } from './ENTRY_AUTHORITY';
 export {
-  ENTRY_AUTH_COOKIE,
-  ENTRY_AUTH_COOKIE_VALUES,
   ENTRY_STATES,
-  getEntryCookieValueForState,
   getEntryState,
   isAuthenticatedUser,
   isGuestUser,
   isActivationRequired,
-  writeClientEntryState,
-  writeClientEntrySessionState,
 } from './ENTRY_STATE';
 export {
   clearEntryRevenueContext,

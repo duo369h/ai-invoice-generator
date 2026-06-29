@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { writeClientEntrySessionState } from '../../core/entry/ENTRY_STATE';
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -28,10 +27,6 @@ export function createBrowserSupabaseClient() {
     // Expose instance for E2E tests
     window.supabaseClientInstance = supabaseInstance;
 
-    // Automatically sync auth changes to cookies
-    supabaseInstance.auth.onAuthStateChange((_event, session) => {
-      writeClientEntrySessionState(session);
-    });
   }
   return supabaseInstance;
 }

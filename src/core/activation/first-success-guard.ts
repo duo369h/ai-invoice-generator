@@ -56,7 +56,7 @@ export function ensureFirstSuccess(user: UserSuccessState): FirstSuccessGuidance
     guidance: {
       message:   'Create your first invoice to get paid — takes under 60 seconds.',
       cta:       'Create Invoice',
-      cta_route: '/quotes/create',
+      cta_route: '/dashboard?tool=invoice&mode=create',
     },
   };
 }
@@ -78,5 +78,5 @@ export function hasFirstSuccess(user: UserSuccessState): boolean {
  * Always returns invoice creation — the action with highest revenue signal value.
  */
 export function getFirstSuccessRoute(): string {
-  return '/quotes/create';
+  return '/dashboard?tool=invoice&mode=create';
 }

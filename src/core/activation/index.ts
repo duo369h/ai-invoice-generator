@@ -14,7 +14,7 @@
  *
  *   // 3. Get the single next step
  *   const flow = runActivationFlow(userId);
- *   // → { prompt: 'PROMPT_FIRST_INVOICE', message: '...', action_route: '/invoices/create' }
+ *   // → { prompt: 'PROMPT_FIRST_INVOICE', message: '...', action_route: '/dashboard?tool=invoice&mode=create' }
  *
  *   // 4. After user creates invoice:
  *   trackActivation(userId, ACTIVATION_EVENTS.FIRST_INVOICE_CREATED);

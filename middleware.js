@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://cdn.paddle.com https://cdn.jsdelivr.net",
@@ -17,69 +15,28 @@ const csp = [
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Enforce authentication on user-specific pages
-  const isProtectedRoute =
-    pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
-    pathname === '/quotes' || pathname.startsWith('/quotes/') ||
-    pathname === '/invoices' || pathname.startsWith('/invoices/') ||
-    pathname === '/client' || pathname.startsWith('/client/');
+  // Auth state is owned by the Supabase browser client. User-facing routes
+  // hydrate and redirect from supabase.auth.getSession() on the client.
+  const dashboardToolRedirects = [
+    { matches: pathname === '/quotes' || pathname.startsWith('/quotes/'), tool: 'quote' },
+    { matches: pathname === '/invoices' || pathname.startsWith('/invoices/'), tool: 'invoice' },
+    { matches: pathname === '/invoice', tool: 'invoice' },
+    { matches: pathname === '/proposal' || pathname === '/proposal/create', tool: 'proposal' },
+    { matches: pathname === '/client', tool: 'client' },
+  ];
 
-  if (isProtectedRoute) {
-    const authCookie = request.cookies.getAll().find((cookie) => {
-      const name = String(cookie?.name || '');
-      return name.startsWith('sb-') && name.includes('auth-token');
-    });
-
-    let token = authCookie?.value;
-    if (token) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(token));
-        if (parsed && typeof parsed === 'object') {
-          token = parsed.access_token || token;
-        }
-      } catch (_) {}
+  const dashboardToolRedirect = dashboardToolRedirects.find((route) => route.matches);
+  if (dashboardToolRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.searchParams.set('tool', dashboardToolRedirect.tool);
+    if (pathname.endsWith('/create')) {
+      url.searchParams.set('mode', 'create');
     }
-
-    let isUserAuthenticated = false;
-
-    if (token === 'authenticated' && process.env.NODE_ENV !== 'production') {
-      isUserAuthenticated = true;
-    } else if (token) {
-      try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        if (user && !error) {
-          isUserAuthenticated = true;
-        }
-      } catch (err) {
-        console.error('Error verifying Supabase session in middleware:', err);
-      }
-    }
-
-    if (!isUserAuthenticated) {
-      const redirectUrl = new URL('/auth', request.url);
-      redirectUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
+    return NextResponse.redirect(url);
   }
 
   // Block internal dashboard routes in production while keeping public SaaS routes exposed.
-  const isInternalDashboardRoute =
-    pathname === '/dashboard/audit' ||
-    pathname.startsWith('/dashboard/audit/') ||
-    pathname === '/dashboard/control-plane' ||
-    pathname.startsWith('/dashboard/control-plane/') ||
-    pathname === '/dashboard/evolution' ||
-    pathname.startsWith('/dashboard/evolution/') ||
-    pathname === '/dashboard/optimization' ||
-    pathname.startsWith('/dashboard/optimization/') ||
-    pathname === '/dashboard/simulation' ||
-    pathname.startsWith('/dashboard/simulation/') ||
-    pathname === '/dashboard/validation' ||
-    pathname.startsWith('/dashboard/validation/');
 
   if (process.env.NODE_ENV === 'production' && isInternalDashboardRoute) {
     return new NextResponse(null, { status: 404 });

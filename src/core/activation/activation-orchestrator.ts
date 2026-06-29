@@ -39,11 +39,11 @@ const PROMPTS: Record<ActivationPrompt, Omit<ActivationFlowResult, 'prompt'>> = 
   },
   PROMPT_FIRST_INVOICE: {
     message:      'Create your first invoice and get paid.',
-    action_route: '/quotes/create',
+    action_route: '/dashboard?tool=invoice&mode=create',
   },
   PROMPT_FIRST_QUOTE: {
     message:      'Send your first quote to a client.',
-    action_route: '/quotes/create',
+    action_route: '/dashboard?tool=quote&mode=create',
   },
   PROMPT_FIRST_CLIENT: {
     message:      'Add a client to start your workspace.',

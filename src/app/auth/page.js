@@ -8,7 +8,6 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { sendEvent as trackEvent } from '../lib/analytics';
 import { trackSignupStarted } from '../lib/product-analytics';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
-import { writeClientEntrySessionState } from '../../core/entry/ENTRY_STATE';
 import {
   isEntryIntendedAction,
   isEntrySelectedPlan,
@@ -17,6 +16,15 @@ import {
 
 function inferRevenueActionFromRoute(route) {
   if (!route || typeof route !== 'string') return null;
+  try {
+    const url = new URL(route, 'https://corvioz.local');
+    const tool = url.searchParams.get('tool');
+    if (tool === 'invoice') return 'invoice';
+    if (tool === 'quote' || tool === 'proposal') return 'quote';
+    if (tool === 'client' || tool === 'profile') return 'profile';
+  } catch (_) {
+    // Fall back to legacy substring matching below.
+  }
   if (route.includes('/invoices') || route.includes('create-invoice')) return 'invoice';
   if (route.includes('/quotes') || route.includes('create-quote')) return 'quote';
   if (route.includes('create-profile') || route.includes('/profile')) return 'profile';
@@ -123,14 +131,12 @@ export default function AuthPage() {
         supabase.auth.getSession().then(async ({ data }) => {
           if (data.session) {
             bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
-            writeClientEntrySessionState(data.session);
             try {
               const res = await fetch('/api/user', {
                 headers: { Authorization: `Bearer ${data.session.access_token}` }
               });
               if (res.ok) {
-                const user = await res.json();
-                writeClientEntrySessionState(data.session, { user });
+                await res.json();
                 return;
               }
             } catch (e) {
@@ -162,7 +168,7 @@ export default function AuthPage() {
     const { error } = await client.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
       },
     });
 
@@ -190,7 +196,7 @@ export default function AuthPage() {
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
       },
     });
 

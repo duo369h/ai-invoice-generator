@@ -33,7 +33,7 @@ export interface RevenuePathValidationResult {
  * Validates whether the incoming action or entry context conforms to the
  * single primary proposal loop.
  *
- * If triggered by any non-compliant path, it enforces redirect to "/quotes/create".
+ * If triggered by any non-compliant path, it enforces redirect to dashboard quote mode.
  */
 export function validateRevenuePath(context: RevenuePathContext = {}): RevenuePathValidationResult {
   const source = context.source || '';
@@ -49,7 +49,7 @@ export function validateRevenuePath(context: RevenuePathContext = {}): RevenuePa
   if (isStandaloneInvoice || isStandaloneQuote || isDashboardRevenueEntry || isStandaloneMonetization) {
     return {
       allowed: false,
-      redirect: "/quotes/create"
+      redirect: "/dashboard?tool=quote&mode=create"
     };
   }
 

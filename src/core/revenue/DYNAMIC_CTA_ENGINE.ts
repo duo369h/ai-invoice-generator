@@ -26,12 +26,12 @@ const CTA_MAP: Record<RevenueStrategy, DynamicCTA> = {
   },
   CONVERT: {
     label: "Start Proposal",
-    href: "/quotes/create",
+    href: "/dashboard?tool=quote&mode=create",
     action: "PUSH_PROPOSAL",
   },
   MONETIZE: {
     label: "Generate Invoice",
-    href: "/invoices/create",
+    href: "/dashboard?tool=invoice&mode=create",
     action: "PUSH_INVOICE",
   },
   EXPAND: {

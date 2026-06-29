@@ -54,6 +54,15 @@ function normalizeBillingState(state: unknown): EntryBillingState {
 
 function inferActionFromRoute(route: unknown): EntryIntendedAction {
   if (!route || typeof route !== 'string') return null;
+  try {
+    const url = new URL(route, 'https://corvioz.local');
+    const tool = url.searchParams.get('tool');
+    if (tool === 'invoice') return 'invoice';
+    if (tool === 'quote' || tool === 'proposal') return 'quote';
+    if (tool === 'profile' || tool === 'client') return 'profile';
+  } catch (_) {
+    // Fall back to legacy route matching.
+  }
   if (route.includes('/invoices') || route.includes('create-invoice')) return 'invoice';
   if (route.includes('/quotes') || route.includes('create-quote')) return 'quote';
   if (route.includes('/profile') || route.includes('create-profile')) return 'profile';
@@ -75,6 +84,9 @@ function isProtectedEntryRoute(context: EntryStateReconcilerContext): boolean {
     route.startsWith('/dashboard') ||
     route.startsWith('/invoices') ||
     route.startsWith('/quotes') ||
+    route === '/invoice' ||
+    route.startsWith('/proposal') ||
+    route.startsWith('/client') ||
     route.startsWith('/profile')
   );
 }

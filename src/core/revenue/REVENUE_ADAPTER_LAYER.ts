@@ -75,8 +75,8 @@ function mapBadge(strategy: RevenueStrategy): RevenueUIBadge {
 function mapCTA(strategy: RevenueStrategy): RevenueUICTA {
   const CTA_MAP: Record<RevenueStrategy, RevenueUICTA> = {
     ACQUIRE:  { label: "Try Demo",          href: "/demo/proposal-preview", action: "SHOW_DEMO"     },
-    CONVERT:  { label: "Start Proposal",    href: "/quotes/create",         action: "PUSH_PROPOSAL" },
-    MONETIZE: { label: "Generate Invoice",  href: "/invoices/create",       action: "PUSH_INVOICE"  },
+    CONVERT:  { label: "Start Proposal",    href: "/dashboard?tool=quote&mode=create",   action: "PUSH_PROPOSAL" },
+    MONETIZE: { label: "Generate Invoice",  href: "/dashboard?tool=invoice&mode=create", action: "PUSH_INVOICE"  },
     EXPAND:   { label: "Upgrade Plan",      href: "/settings/billing",      action: "UPGRADE"       },
   };
   return CTA_MAP[strategy];
