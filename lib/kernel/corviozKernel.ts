@@ -8,6 +8,8 @@ import {
   WorkspaceModeType, 
   ConversionContextType 
 } from '../execution/globalOrchestrator';
+import { recordDecisionTelemetry } from '../../src/core/telemetry/decisionTelemetry';
+
 
 export interface UI_STATE {
   identity: IdentityType;
@@ -81,7 +83,7 @@ export const CorviozKernel = {
       }
     };
 
-    return {
+    const result = {
       identity: state.identity,
       business_stage: state.business_stage,
       workspace_mode: state.workspace_mode,
@@ -101,6 +103,16 @@ export const CorviozKernel = {
         cardTrustMicrocopy: pricingCopy?.cardTrustMicrocopy || '',
       }
     };
+
+    recordDecisionTelemetry({
+      source: `lib/kernel/corviozKernel.ts:compute:${page}`,
+      decisionType: 'kernel state compute',
+      legacyOutput: result,
+      tags: ['KERNEL', 'LOG_ONLY', 'v5.2.2'],
+    });
+
+    return result;
+
   }
 };
 export type { AppState, IdentityType, BusinessStageType, WorkspaceModeType, ConversionContextType };

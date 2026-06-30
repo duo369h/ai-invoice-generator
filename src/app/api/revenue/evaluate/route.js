@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestUser } from '../../../lib/supabase';
+import { shadowValidatePlanRead } from '../../../../core/state/planStateAdapter';
 
 export async function POST(request) {
   try {
@@ -17,6 +18,19 @@ export async function POST(request) {
           userPlan = profile.plan;
         }
       }
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      shadowValidatePlanRead(
+        'api.revenue.evaluate.userPlan',
+        userPlan,
+        {
+          userId: context?.user?.id,
+          explicitPlan: body.userPlan,
+          serverPlan: userPlan,
+        },
+        'src/app/api/revenue/evaluate/route.js:body_or_profile_plan',
+        console,
+      );
     }
 
     const isPaid = ['starter', 'pro', 'studio'].includes(String(userPlan).toLowerCase());

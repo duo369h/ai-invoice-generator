@@ -19,6 +19,7 @@ import { handleUpgradeCheckout } from '../../core/pricing/pricingController';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { saveSelectedPlan } from '../lib/intent-store';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
+import { shadowValidatePlanRead } from '../../core/state/planStateAdapter';
 
 const themeStyles = {
   starter: {
@@ -88,6 +89,19 @@ function CheckoutContent() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('corvioz_identity');
+      if (process.env.NODE_ENV !== 'production') {
+        shadowValidatePlanRead(
+          'checkout.planId',
+          planId,
+          {
+            explicitPlan: planId,
+            localStorage: window.localStorage,
+            sessionStorage: window.sessionStorage,
+          },
+          'src/app/checkout/page.js:searchParams.plan',
+          console,
+        );
+      }
       if (stored && ['starter', 'pro', 'studio'].includes(stored)) {
         setIdentity(stored);
       } else {

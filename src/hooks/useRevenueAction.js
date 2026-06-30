@@ -34,6 +34,8 @@ import { saveSelectedPlan } from '@/app/lib/intent-store';
 const trackEvent = () => {};
 import { trackUpgradeClick } from 'lib/monetization/revenueEvents';
 import { useRevenueDecision } from '@/app/lib/revenue/useRevenueDecision';
+import { shadowValidatePlanRead } from '@/core/state/planStateAdapter';
+import { shadowReadDecisionState } from '@/core/decision/decisionAdapter';
 
 // ── Action name normalization ─────────────────────────────────────────────────
 // Maps Dashboard.js action names → Control Plane event names
@@ -139,6 +141,20 @@ export function useRevenueAction(user, usageStats = {}) {
       const userPlan = user?.plan || 'free';
       const analyticsPlan = normalizePlanForAnalytics(userPlan);
       const promptCount = hasShownPromptThisSession ? 1 : 0;
+      if (process.env.NODE_ENV !== 'production') {
+        shadowValidatePlanRead(
+          'useRevenueAction.user_plan',
+          userPlan,
+          {
+            userId: user?.id,
+            serverPlan: userPlan,
+            localStorage: typeof window !== 'undefined' ? window.localStorage : null,
+            sessionStorage: typeof window !== 'undefined' ? window.sessionStorage : null,
+          },
+          'src/hooks/useRevenueAction.js:user.plan',
+          console,
+        );
+      }
 
       try {
         if (actionName === 'export_pdf') {
@@ -168,6 +184,33 @@ export function useRevenueAction(user, usageStats = {}) {
           explicit_retry: Boolean(hasShownPromptThisSession && isExplicitExportSend),
           ...details,
         });
+        if (process.env.NODE_ENV !== 'production') {
+          shadowReadDecisionState(
+            `useRevenueAction.${actionName}`,
+            decision,
+            {
+              userId: user?.id,
+              planState: { userId: user?.id, serverPlan: userPlan },
+              revenue: {
+                action_type: normalizeEvent(actionName),
+                funnel_step: details.funnel_step || actionName,
+                intent_score: intentScore,
+                user_state: userPlan,
+                usage_count: {
+                  invoice_create_count: invoicesCount,
+                  quote_create_count: quotesCount,
+                  export_pdf_count: exportAttempts + (actionName === 'export_pdf' ? 1 : 0),
+                },
+                session_state: {
+                  pricing_view_count: pricingViewCount,
+                  export_attempt_count: exportAttempts + (actionName === 'export_pdf' ? 1 : 0),
+                },
+              },
+            },
+            'src/hooks/useRevenueAction.js:useRevenueDecision.evaluate',
+            console,
+          );
+        }
 
         // ── Handle redirects ─────────────────────────────────────────────────
         if (decision.redirectUrl && !decision.shouldProceed) {

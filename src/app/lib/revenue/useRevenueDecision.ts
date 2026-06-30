@@ -20,6 +20,8 @@
 
 import { useCallback, useRef } from 'react';
 import { trackGA4Event, type GA4EventPayload } from '../analytics/ga4-event-bridge';
+import { recordDecisionTelemetry } from '../../../core/telemetry/decisionTelemetry';
+
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -586,7 +588,15 @@ export function useRevenueDecision(options?: { mode?: 'live' | 'demo' | 'preview
           trackGA4Event(ga4Event.event_name, ga4Event);
         }
 
-        return normalizeBackendResponse(normalizedRaw, input);
+        const finalDecision = normalizeBackendResponse(normalizedRaw, input);
+        recordDecisionTelemetry({
+          source: 'src/app/lib/revenue/useRevenueDecision.ts:evaluate',
+          decisionType: 'useRevenueDecision evaluate',
+          legacyOutput: finalDecision,
+          tags: ['CONTROL_PLANE', 'LOG_ONLY', 'v5.2.2'],
+        });
+        return finalDecision;
+
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
           // Request was cancelled — return a safe allow

@@ -20,6 +20,8 @@ import { validateUIDecisionIsolation } from 'lib/execution/strict';
 import { getPricingViewModel } from './viewModel';
 import { handleUpgradeCheckout } from './controller';
 import { validatePricingIsolation } from '../../core/pricing/pricingIsolationGuard';
+import { shadowValidatePlanRead } from '../../core/state/planStateAdapter';
+import { shadowReadDecisionState } from '../../core/decision/decisionAdapter';
 import { trackIntentAction, getIntentLevel } from 'lib/revenue/intentTracker';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { getUIInjection } from 'lib/revenue/uiInjection';
@@ -258,6 +260,40 @@ function PricingContent() {
     isAuthenticated,
     subLoading
   });
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    shadowValidatePlanRead(
+      'pricing.page.userPlan',
+      userPlan,
+      {
+        userId: session?.user?.id,
+        serverPlan: userPlan,
+        localStorage: typeof window !== 'undefined' ? window.localStorage : null,
+        sessionStorage: typeof window !== 'undefined' ? window.sessionStorage : null,
+      },
+      'src/app/pricing/page.js:useUserSubscription',
+      console,
+    );
+    shadowReadDecisionState(
+      'pricing.page.viewModel',
+      { cards: viewModels, upgradeBanner },
+      {
+        userId: session?.user?.id,
+        planState: { userId: session?.user?.id, serverPlan: userPlan },
+        pricing: {
+          plans,
+          session,
+          userPlan,
+          isAuthenticated,
+          subLoading,
+        },
+        cta: { context: 'pricing_select' },
+      },
+      'src/app/pricing/page.js:getPricingViewModel',
+      console,
+    );
+  }, [upgradeBanner, isAuthenticated, plans, session, subLoading, userPlan, viewModels]);
 
   // Task 3: UI-level deduplication guard & fixed order
   const seenIds = new Set();

@@ -1,5 +1,7 @@
 import { trackPaywallView, trackFeatureBlocked } from '../monetization/revenueEvents';
 import { isFeatureBlocked, UsageStats } from '../usage/usageLimiter';
+import { shadowValidatePlanRead } from '../../src/core/state/planStateAdapter';
+import { recordDecisionTelemetry } from '../../src/core/telemetry/decisionTelemetry';
 
 export interface PaywallTriggerResult {
   shouldBlock: boolean;
@@ -26,10 +28,19 @@ export function evaluatePaywallTrigger(
   userPlan: string,
   triggerSource: string
 ): PaywallTriggerResult {
+  if (process.env.NODE_ENV !== 'production') {
+    shadowValidatePlanRead(
+      `paywall.${featureKey}`,
+      userPlan,
+      { explicitPlan: userPlan },
+      'lib/paywall/paywallEngine.ts:evaluatePaywallTrigger',
+      console,
+    );
+  }
   const isBlocked = isFeatureBlocked(featureKey, usage, userPlan);
 
   if (!isBlocked) {
-    return {
+    const result: PaywallTriggerResult = {
       shouldBlock: false,
       prefilledPlan: 'pro',
       title: '',
@@ -37,6 +48,14 @@ export function evaluatePaywallTrigger(
       lockedFeatureValue: '',
       psychologicalCopy: PSYCHOLOGICAL_COPY,
     };
+    recordDecisionTelemetry({
+      source: 'lib/paywall/paywallEngine.ts:evaluatePaywallTrigger',
+      decisionType: featureKey === 'export_pdf' ? 'export permission' : 'paywall decision',
+      legacyOutput: result,
+      adapterOutput: { featureKey, usage, userPlan, result },
+      tags: ['PAYWALL', featureKey === 'export_pdf' ? 'EXPORT_PERMISSION' : 'FEATURE_GATE', 'LOG_ONLY', 'v5.2.1'],
+    });
+    return result;
   }
 
   // Track feature blocked and paywall view
@@ -75,7 +94,7 @@ export function evaluatePaywallTrigger(
       break;
   }
 
-  return {
+  const result: PaywallTriggerResult = {
     shouldBlock: true,
     prefilledPlan: 'pro',
     title,
@@ -83,4 +102,12 @@ export function evaluatePaywallTrigger(
     lockedFeatureValue,
     psychologicalCopy: PSYCHOLOGICAL_COPY,
   };
+  recordDecisionTelemetry({
+    source: 'lib/paywall/paywallEngine.ts:evaluatePaywallTrigger',
+    decisionType: featureKey === 'export_pdf' ? 'export permission' : 'paywall decision',
+    legacyOutput: result,
+    adapterOutput: { featureKey, usage, userPlan, result },
+    tags: ['PAYWALL', featureKey === 'export_pdf' ? 'EXPORT_PERMISSION' : 'FEATURE_GATE', 'LOG_ONLY', 'v5.2.1'],
+  });
+  return result;
 }

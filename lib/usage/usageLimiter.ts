@@ -1,4 +1,6 @@
 import { isPaidPlan } from '../entitlements';
+import { shadowValidatePlanRead } from '../../src/core/state/planStateAdapter';
+import { recordDecisionTelemetry } from '../../src/core/telemetry/decisionTelemetry';
 
 export interface UsageStats {
   invoicesCount: number;
@@ -30,21 +32,53 @@ export function checkExportLimit(count: number): boolean {
 }
 
 export function isFeatureBlocked(featureKey: string, usage: UsageStats, userPlan: string): boolean {
+  if (process.env.NODE_ENV !== 'production') {
+    shadowValidatePlanRead(
+      `usageLimiter.${featureKey}`,
+      userPlan,
+      { explicitPlan: userPlan },
+      'lib/usage/usageLimiter.ts:isFeatureBlocked',
+      console,
+    );
+  }
   // Check if user has active paid plan
-  if (isPaidPlan(userPlan)) return false;
+  if (isPaidPlan(userPlan)) {
+    recordDecisionTelemetry({
+      source: 'lib/usage/usageLimiter.ts:isFeatureBlocked',
+      decisionType: 'feature gating',
+      legacyOutput: false,
+      adapterOutput: { featureKey, usage, userPlan, shouldBlock: false },
+      tags: ['FEATURE_GATE', 'LOG_ONLY', 'v5.2.1'],
+    });
+    return false;
+  }
 
+  let result = false;
   switch (featureKey) {
     case 'create_invoice':
-      return checkInvoiceLimit(usage.invoicesCount);
+      result = checkInvoiceLimit(usage.invoicesCount);
+      break;
     case 'create_quote':
-      return checkQuoteLimit(usage.quotesCount);
+      result = checkQuoteLimit(usage.quotesCount);
+      break;
     case 'export_pdf':
-      return true; // blocked entirely on free (watermark only)
+      result = true; // blocked entirely on free (watermark only)
+      break;
     case 'client_portal':
-      return true; // blocked entirely on free
+      result = true; // blocked entirely on free
+      break;
     case 'send_invoice':
-      return true; // blocked entirely on free
+      result = true; // blocked entirely on free
+      break;
     default:
-      return false;
+      result = false;
   }
+  recordDecisionTelemetry({
+    source: 'lib/usage/usageLimiter.ts:isFeatureBlocked',
+    decisionType: featureKey === 'export_pdf' ? 'export permission' : 'feature gating',
+    legacyOutput: result,
+    adapterOutput: { featureKey, usage, userPlan, shouldBlock: result },
+    tags: ['FEATURE_GATE', featureKey === 'export_pdf' ? 'EXPORT_PERMISSION' : 'PAYWALL', 'LOG_ONLY', 'v5.2.1'],
+  });
+  return result;
 }

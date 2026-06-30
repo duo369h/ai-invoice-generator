@@ -42,6 +42,7 @@ const clearAnalyticsUserId = () => {};
 const consumeSignupStarted = () => false;
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
 import { canAccess, getUserEntitlements } from 'lib/entitlements';
+import { shadowValidatePlanRead } from '@/core/state/planStateAdapter';
 
 // Import design system hooks, tokens, and icons
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -369,7 +370,22 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   useEffect(() => {
     if (user && user.id) {
       if (typeof window !== 'undefined') {
+        const legacyPlan = user.plan || 'free';
         window.localStorage.setItem(`corvioz_user_plan_${user.id}`, user.plan || 'free');
+        if (process.env.NODE_ENV !== 'production') {
+          shadowValidatePlanRead(
+            'dashboard.user_plan_write',
+            legacyPlan,
+            {
+              userId: user.id,
+              serverPlan: legacyPlan,
+              localStorage: window.localStorage,
+              sessionStorage: window.sessionStorage,
+            },
+            'src/components/dashboard/Dashboard.js:user.plan',
+            console,
+          );
+        }
         if (user.created_at) {
           window.localStorage.setItem(`corvioz_user_created_at_${user.id}`, user.created_at);
         }

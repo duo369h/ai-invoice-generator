@@ -1,4 +1,6 @@
 import { buildControlPlaneGA4Payload, type GA4EventPayload } from '../../analytics/ga4-event-bridge';
+import { evaluateRevenueDecision } from '../revenue-decision-engine';
+import { recordDecisionTelemetry } from '../../../../core/telemetry/decisionTelemetry';
 
 export let SHADOW_MODE = true;
 export let paywallEngineEnabled = true;
@@ -726,6 +728,30 @@ export function evaluateRevenueAction(input: RevenueControlPlaneInput = {}): Rev
       pricing_intent_score: decision.pricing_intent_score,
     });
   }
+
+  const adapterDecision = evaluateRevenueDecision({
+    action_type: normalizedEvent,
+    funnel_step: normalizedFunnelStep,
+    intent_score: input.intent_score,
+    user_state: userPlan,
+    usage_count: {
+      invoice_create_count: invoiceCount,
+      quote_create_count: quoteCount,
+      export_pdf_count: toNumber(input.export_count, 0),
+      pricing_view_count: toNumber(input.session_count, 0),
+    },
+    session_state: {
+      pricing_view_count: toNumber(input.session_count, 0),
+      export_attempt_count: toNumber(input.export_count, 0),
+    },
+  });
+  recordDecisionTelemetry({
+    source: 'src/app/lib/revenue/control-plane/decision-engine.ts:evaluateRevenueAction',
+    decisionType: 'control-plane revenue decision',
+    legacyOutput: decision,
+    adapterOutput: adapterDecision,
+    tags: ['REVENUE', 'PAYWALL', 'EXPORT_PERMISSION', 'LOG_ONLY', 'v5.2.1'],
+  });
 
   return decision;
 }
