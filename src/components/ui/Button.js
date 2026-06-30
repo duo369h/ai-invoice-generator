@@ -24,7 +24,7 @@ export function Button({
   const mergedClassName = ['btn', variantClass, sizeClass, className].filter(Boolean).join(' ');
 
   const content = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+    <span className="btn-content">
       {isLoading && <Icons.Loader size={16} className="animate-spin" />}
       {!isLoading && Icon && <Icon size={16} />}
       {children}

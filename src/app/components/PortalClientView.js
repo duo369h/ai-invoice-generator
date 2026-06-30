@@ -560,10 +560,11 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           border-color: var(--success);
         }
         .timeline-node.completed::after {
-          content: '✓';
-          color: white;
-          font-size: 0.65rem;
-          font-weight: 900;
+          content: '';
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: white;
         }
         .timeline-node.current {
           border-color: var(--primary);
@@ -594,7 +595,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', fontWeight: 700, padding: '4px 12px', borderRadius: '99px', background: 'var(--primary-glow)', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '8px', border: '1px solid var(--border)' }}>
-              🔒 Secure Client Workspace
+              Secure Client Workspace
             </div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
               {docType === 'invoice' ? `Invoice #${doc.invoice_number}` : `Quote #${doc.quote_number}`}
@@ -614,7 +615,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           
           <div style={{ display: 'flex', gap: '12px' }}>
             <button onClick={() => window.print()} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🖨️ Print / Save PDF
+              Print / Save PDF
             </button>
             {docType === 'quote' && doc.status !== 'approved' && doc.status !== 'declined' && (
               <>
@@ -785,7 +786,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </a>
                   )}
                   <button onClick={handleMarkPaid} disabled={paying} className="btn btn-secondary" style={{ padding: '12px 24px', fontWeight: 700, borderRadius: 'var(--radius-md)' }}>
-                    {paying ? 'Processing...' : '✓ Confirm Paid'}
+                    {paying ? 'Processing...' : 'Confirm Paid'}
                   </button>
                 </div>
               </div>
@@ -812,10 +813,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={handleApproveQuote} disabled={approving} className="btn btn-primary" style={{ padding: '12px 24px', fontWeight: 700 }}>
-                    {approving ? 'Approving...' : '✓ Approve Quote'}
+                    {approving ? 'Approving...' : 'Approve Quote'}
                   </button>
                   <button onClick={handleDeclineQuote} disabled={approving} className="btn btn-secondary" style={{ padding: '12px 24px', fontWeight: 700, color: 'var(--danger)' }}>
-                    {approving ? 'Processing...' : '✗ Decline'}
+                    {approving ? 'Processing...' : 'Decline'}
                   </button>
                 </div>
               </div>
@@ -837,7 +838,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--danger)' }}>Quote Declined</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    You have declined this quote. Please contact the freelancer if you'd like to negotiate revisions.
+                    You have declined this quote. Please contact the freelancer if you&apos;d like to negotiate revisions.
                   </p>
                 </div>
               </div>
@@ -1029,7 +1030,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
             color: 'var(--text-muted)'
           }}>
             <p style={{ margin: 0 }}>
-              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz Freelancer OS</Link> — invoice clients, generate proposal quotes, and collaborate instantly.
+              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz Freelancer OS</Link>. Invoice clients, generate proposal quotes, and collaborate instantly.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem' }}>
               Are you a freelancer? <Link href="/" target="_blank" style={{ color: 'var(--accent)', fontWeight: 650, textDecoration: 'underline' }}>Get your free account</Link>
@@ -1057,7 +1058,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           gap: '8px',
           animation: 'fade-in 0.2s ease-out'
         }}>
-          <span>{toast.type === 'error' ? '⚠️' : '✓'}</span>
+          <span>{toast.type === 'error' ? 'Error' : 'Done'}</span>
           {toast.message}
         </div>
       )}

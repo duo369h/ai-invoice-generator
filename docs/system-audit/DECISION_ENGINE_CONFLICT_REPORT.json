@@ -1,0 +1,37 @@
+[
+  {
+    "engineName": "executionEngine",
+    "responsibility": "Computes user upgrade scores locally.",
+    "overlapArea": "unifiedDecisionEngine, revenue-decision-engine",
+    "conflictSeverity": "High",
+    "runtimeCollisionRisk": "High"
+  },
+  {
+    "engineName": "unifiedDecisionEngine",
+    "responsibility": "Handles client UI recommendation highlights.",
+    "overlapArea": "executionEngine, pricingViewModel",
+    "conflictSeverity": "High",
+    "runtimeCollisionRisk": "High"
+  },
+  {
+    "engineName": "revenue-decision-engine",
+    "responsibility": "Generates telemetry data and dry-run actions.",
+    "overlapArea": "executionEngine",
+    "conflictSeverity": "Medium",
+    "runtimeCollisionRisk": "Low"
+  },
+  {
+    "engineName": "globalOrchestrator",
+    "responsibility": "Resolves global AppState and theme modes.",
+    "overlapArea": "Dashboard component logic",
+    "conflictSeverity": "Critical",
+    "runtimeCollisionRisk": "High"
+  },
+  {
+    "engineName": "corviozKernel",
+    "responsibility": "Computes layout and copy configs for UI trees.",
+    "overlapArea": "pricingViewModel",
+    "conflictSeverity": "Medium",
+    "runtimeCollisionRisk": "Medium"
+  }
+]

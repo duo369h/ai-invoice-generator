@@ -1,0 +1,8 @@
+{
+  "architectureStabilityScore": 74,
+  "decisionFragmentationScore": 0.40,
+  "couplingIndex": 0.55,
+  "duplicationIndex": 0.35,
+  "uiPurityScore": 0.92,
+  "finalSystemHealthScore": 76
+}

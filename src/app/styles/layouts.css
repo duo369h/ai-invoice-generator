@@ -14,16 +14,16 @@
   top: 0;
   z-index: 100;
   padding: 0 2rem;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color var(--motion-normal), border-color var(--motion-normal);
 }
 .navbar.landing-nav {
-  height: 60px;
+  height: 64px;
   background-color: var(--navbar-landing-bg);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-bottom: 1px solid var(--navbar-landing-border);
-  padding: 0 32px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0 var(--space-8);
+  transition: background-color var(--motion-normal), border-color var(--motion-normal);
 }
 
 .nav-links {
@@ -34,8 +34,8 @@
 
 /* Landing Page Header / Hero Section */
 .landing-hero {
-  min-height: calc(100vh - 64px);
-  padding: 96px 24px 72px;
+  min-height: calc(92svh - 64px);
+  padding: var(--space-20) var(--space-6) var(--space-16);
   background: var(--hero-bg);
   color: var(--text-main);
   border-bottom: 1px solid var(--border);
@@ -74,16 +74,16 @@
 }
 .hero-copy h1 {
   color: var(--text-main);
-  font-size: clamp(2.8rem, 6vw, 5.2rem);
-  letter-spacing: -0.03em;
-  font-weight: 850;
+  font-size: 4.4rem;
+  letter-spacing: 0;
+  font-weight: 800;
   line-height: 1.05;
   margin-bottom: 20px;
   text-align: center;
 }
 .hero-copy p {
   color: var(--text-muted);
-  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  font-size: var(--text-lg);
   line-height: 1.6;
   margin-bottom: 36px;
   text-align: center;
@@ -101,8 +101,8 @@
 /* Landing Page Grid Systems */
 .pricing-grid {
   display: grid;
-  gap: 28px;
-  margin-top: 42px;
+  gap: var(--space-6);
+  margin-top: var(--space-12);
   text-align: left;
 }
 .pricing-grid-three {
@@ -120,7 +120,7 @@
 .feature-overview-grid {
   grid-template-columns: repeat(3, 1fr);
   text-align: left;
-  margin-top: 42px;
+  margin-top: var(--space-10);
 }
 .blog-grid {
   display: grid;
@@ -131,30 +131,33 @@
 /* Section Kickers & Titles */
 .section-kicker {
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--primary);
   letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-3);
 }
 .section-title {
-  font-size: 2.25rem;
+  font-size: 2.35rem;
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
   color: var(--text-main);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-4);
+  line-height: 1.08;
+  text-wrap: balance;
 }
 .section-lede {
   font-size: 1rem;
   color: var(--text-muted);
-  max-width: 680px;
+  max-width: 620px;
   margin: 0 auto;
-  line-height: 1.5;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
 /* Section structural elements */
 .section {
-  padding: var(--space-12) var(--space-6);
+  padding: var(--space-20) var(--space-6);
   border-top: 1px solid var(--border);
 }
 
@@ -185,7 +188,7 @@
   order: 2;
 }
 .split-section h2 {
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: 3rem;
   line-height: 1.05;
   letter-spacing: 0;
   margin-bottom: 18px;
@@ -202,8 +205,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 48px 32px;
-  gap: 12px;
+  padding: var(--space-8);
+  gap: var(--space-3);
   box-sizing: border-box;
 }
 .workflow-arrow {
@@ -220,11 +223,11 @@
 /* Product Previews & Mockups */
 .hero-product-card {
   width: 100%;
-  min-height: 480px;
+  min-height: 440px;
   overflow: hidden;
 }
 .product-topbar {
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1115,7 +1118,10 @@
 }
 
 @media (max-width: 640px) {
-  .landing-hero { padding: 64px 18px 44px; }
+  .landing-hero {
+    min-height: auto;
+    padding: var(--space-16) 18px var(--space-12);
+  }
   .landing-nav { padding: 0 14px; }
   .landing-nav .nav-links .btn-secondary { display: none; }
   .hero-actions,
@@ -1143,11 +1149,8 @@
     display: grid;
     grid-template-columns: 1fr;
   }
-  .hero-copy h1 {
-    font-size: clamp(2.8rem, 13vw, 4rem);
-  }
   .hero-product-card {
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -1206,7 +1209,7 @@
 @media (max-width: 360px) {
   .hero-copy h1 {
     font-size: 2.4rem !important;
-    letter-spacing: -0.02em !important;
+    letter-spacing: 0 !important;
   }
   .section-title {
     font-size: 1.9rem !important;
@@ -1259,7 +1262,28 @@
 .section-product-preview {
   display: flex;
   justify-content: center;
-  padding: 0 20px 48px 20px;
+  padding: 0 var(--space-6) var(--space-16) var(--space-6);
+}
+
+.landing-section-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.landing-section-container--narrow {
+  max-width: 980px;
+}
+
+.landing-section-container--wide {
+  max-width: 1180px;
+}
+
+.landing-section-container--faq {
+  max-width: 860px;
+}
+
+.landing-section-container--cta {
+  max-width: 840px;
 }
 
 /* How-it-works section override */
@@ -1274,27 +1298,40 @@
 /* Final CTA section override */
 .section-final-cta {}
 
+.trust-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-10);
+}
+
+.screenshot-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
 /* Why cards grid */
 .why-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+  gap: var(--space-5);
   text-align: left;
-  margin-bottom: 40px;
+  margin-bottom: var(--space-12);
 }
 
 /* Workflow steps grid */
 .workflow-steps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-top: 22px;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
 }
 
 /* Transparency grid — two-column */
 .transparency-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
+  gap: var(--space-6);
   text-align: left;
 }

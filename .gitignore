@@ -48,3 +48,9 @@ next-env.d.ts
 # playwright
 .playwright-cli/
 src/core/ai/ai_user_state_store.json
+
+# Local audits and zip packs
+corvioz-audit-pack/
+corvioz-desktop-audit-pack/
+*.zip
+

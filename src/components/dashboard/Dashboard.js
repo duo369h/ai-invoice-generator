@@ -272,7 +272,7 @@ const renderInvoiceTimeline = (status) => {
                 boxShadow: stage.active ? '0 0 12px var(--accent)' : 'none',
                 transition: 'all 0.3s ease'
               }}>
-                {stage.done && !stage.overdue ? '✓' : (stage.overdue ? '!' : idx + 1)}
+                {stage.overdue ? '!' : idx + 1}
               </div>
               <span style={{ fontSize: '0.7rem', marginTop: '6px', color: textColor, fontWeight, whiteSpace: 'nowrap' }}>
                 {stage.label}
@@ -2546,7 +2546,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <span>{getCurrencySymbol(invCurrency)}{totals.tax.toFixed(2)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 900, fontSize: '1rem', marginTop: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 800, fontSize: '1rem', marginTop: '6px' }}>
             <span>Total</span>
             <span>{getCurrencySymbol(invCurrency)}{totals.total.toFixed(2)}</span>
           </div>
@@ -2878,7 +2878,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-main)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
             >
-              💬 Share Beta Feedback
+              Share Beta Feedback
             </a>
             <p>Logged account:</p>
             <p style={{ color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 }}>
@@ -2914,7 +2914,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             flexWrap: 'wrap'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.25rem' }}>⚡</span>
+              <span className="product-state-mark">Preview</span>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 500 }}>
                 You are exploring Corvioz in <strong>Preview Mode</strong>. Your workspace changes are kept locally in your browser.
               </p>
@@ -3060,10 +3060,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   Every project inquiry submitted through your public profile page lands here automatically. Track stages from negotiation to won and generate AI-driven estimate drafts.
                 </p>
                 <button onClick={() => handleDashboardTabChange('profile', 'leads_empty_state')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                  🔗 Set Up & Share Public Profile
+                  Set Up & Share Public Profile
                 </button>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                  🔒 Secure Workspace • GDPR Compliant • Client inquiry database is private and protected. We never sell your data or email contacts.
+                  Secure workspace. GDPR compliant. Client inquiry data stays private and protected.
                 </p>
               </div>
             ) : (
@@ -3112,7 +3112,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               {/* Reminder Notification */}
                               {crm.reminderDate && (
                                 <div style={{ fontSize: '0.65rem', color: 'var(--warning-text, #fbbf24)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
-                                  <span>📅 Reminder: {new Date(crm.reminderDate).toLocaleDateString()}</span>
+                                  <span>Reminder: {new Date(crm.reminderDate).toLocaleDateString()}</span>
                                 </div>
                               )}
 
@@ -3144,7 +3144,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                       style={{ fontSize: '0.65rem', padding: '2px 6px', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                                       title="AI Generate Quote Draft"
                                     >
-                                      <span>{isParsingLead === lead.id ? '⌛' : '✨ AI Proposal'}</span>
+                                      <span>{isParsingLead === lead.id ? 'Generating...' : 'AI Proposal'}</span>
                                       {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
                                     </button>
                                   )}
@@ -3310,10 +3310,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       Draft custom scope phases, configure options, and email private portal links to clients so they can review and approve them online in one click.
                     </p>
                     <button onClick={initCreateQuote} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      💡 Improve your first proposal
+                      Improve your first proposal
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      🔒 Secure Workspace • GDPR Compliant • Proposals are shared via encrypted client-ready URLs.
+                      Secure workspace. GDPR compliant. Proposals are shared through client-ready URLs.
                     </p>
                   </div>
                 ) : (
@@ -3422,19 +3422,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
                 {formError && (
                   <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    ⚠️ {formError}
+                    {formError}
                   </div>
                 )}
                 {formSuccess && (
                   <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    ✓ {formSuccess}
+                    {formSuccess}
                   </div>
                 )}
 
                 {/* Quick Presets & AI Scope Expansion */}
                 <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>✨</span> AI Scope Expansion & Design Presets
+                    AI Scope Expansion & Design Presets
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
                     Quickly apply industry-standard freelancer project templates, or type your project details to let AI automatically generate milestones, deliverables, pricing, and notes.
@@ -3450,12 +3450,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         className="btn btn-secondary btn-sm"
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
                       >
-                        {templateName === 'Web Design' && '🎨'}
-                        {templateName === 'Web Development' && '💻'}
-                        {templateName === 'Mobile App' && '📱'}
-                        {templateName === 'Consulting' && '💼'}
-                        {templateName === 'Marketing' && '📈'}
-                        {templateName === 'Design' && '✏️'}
                         {templateName} Preset
                       </button>
                     ))}
@@ -3483,7 +3477,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       className="btn btn-primary btn-sm"
                       style={{ height: '42px', padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      {isExpandingQuote ? 'Expanding...' : '🪄 Generate Scope'}
+                      {isExpandingQuote ? 'Expanding...' : 'Generate Scope'}
                     </button>
                   </div>
                 </div>
@@ -3590,7 +3584,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Line Items</h3>
                       {qSubmitAttempted && (qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) && (
                         <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 600 }}>
-                          ⚠️ Please add at least one line item with a description.
+                          Please add at least one line item with a description.
                         </div>
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -3666,7 +3660,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 fontSize: '0.8rem',
                                 fontWeight: 600
                               }}>
-                                💡 This quote could be valued at {getCurrencySymbol(qCurrency)}{(qSubtotal * 0.95).toFixed(2)} – {getCurrencySymbol(qCurrency)}{(qSubtotal * 1.15).toFixed(2)} range
+                                This quote could be valued at {getCurrencySymbol(qCurrency)}{(qSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(qCurrency)}{(qSubtotal * 1.15).toFixed(2)} range
                               </div>
                             )}
                           </div>
@@ -3791,7 +3785,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           Client-ready preview building...
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          💡 Clients usually respond within 24h after invoice delivery.
+                          Clients usually respond within 24h after invoice delivery.
                         </div>
                       </div>
 
@@ -3824,7 +3818,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 fontWeight: 700
                               }}
                             >
-                              ✨ Export Client-Ready Pro (Clean)
+                              Export Client-Ready Pro (Clean)
                             </button>
                             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
                               Client-visible watermark will appear
@@ -3881,7 +3875,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       className="btn btn-secondary"
                       style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      ⚡ Batch Export
+                      Batch Export
                     </button>
                     <button onClick={initCreateInvoice} className="btn btn-secondary">Start invoice execution</button>
                   </div>
@@ -4056,19 +4050,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    <span style={{ color: 'var(--primary)' }}>ℹ️</span>
-                    <span>You don’t need an account to start — create your invoice, download the PDF, or sign up to save it. 💡 Note: The form is pre-filled with sample data (e.g., Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
+                    <span className="product-state-mark">Info</span>
+                      <span>You don&apos;t need an account to start. Create your invoice, download the PDF, or sign up to save it. Note: The form is pre-filled with sample data (e.g. Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
                   </div>
                 )}
 
                 {formError && (
                   <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    ⚠️ {formError}
+                    {formError}
                   </div>
                 )}
                 {formSuccess && (
                   <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    ✓ {formSuccess}
+                    {formSuccess}
                   </div>
                 )}
 
@@ -4340,7 +4334,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 fontSize: '0.8rem',
                                 fontWeight: 600
                               }}>
-                                💡 This invoice could be valued at {getCurrencySymbol(invCurrency)}{(invSubtotal * 0.95).toFixed(2)} – {getCurrencySymbol(invCurrency)}{(invSubtotal * 1.15).toFixed(2)} range
+                                This invoice could be valued at {getCurrencySymbol(invCurrency)}{(invSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(invCurrency)}{(invSubtotal * 1.15).toFixed(2)} range
                               </div>
                             )}
                           </div>
@@ -4487,7 +4481,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           Client-ready preview building...
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          💡 Clients usually respond within 24h after invoice delivery.
+                          Clients usually respond within 24h after invoice delivery.
                         </div>
                       </div>
 
@@ -4553,7 +4547,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 textAlign: 'left'
                               }}>
                                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  🚀 Level Up Your Business Profile
+                                  Level Up Your Business Profile
                                 </div>
                                 <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
                                   Upgrade to remove PDF export limits (Pro) or customize client-portal views (Growth) to impress your clients.
@@ -4625,7 +4619,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 fontWeight: 700
                               }}
                             >
-                              ✨ Export Client-Ready Pro (Clean)
+                              Export Client-Ready Pro (Clean)
                             </button>
                             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
                               Client-visible watermark will appear
@@ -4725,7 +4719,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       👉 Enter client details in the form on the right to save your first contact.
                     </p>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '12px', marginBottom: 0 }}>
-                      🔒 Secure Workspace • GDPR Compliant • Client details are encrypted and stored in your private database.
+                      Secure workspace. GDPR compliant. Client details are encrypted and stored in your private database.
                     </p>
                   </div>
                 ) : (
@@ -4766,12 +4760,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   
                   {formError && (
                     <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                      ⚠️ {formError}
+                      {formError}
                     </div>
                   )}
                   {formSuccess && (
                     <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                      ✓ {formSuccess}
+                      {formSuccess}
                     </div>
                   )}
                   
@@ -4807,12 +4801,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
             {formError && (
               <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                ⚠️ {formError}
+                {formError}
               </div>
             )}
             {formSuccess && (
               <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                ✓ {formSuccess}
+                {formSuccess}
               </div>
             )}
 
@@ -4820,7 +4814,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div className="card animate-fade-in" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>✨ AI Public Profile Generator</h3>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>AI Public Profile Generator</h3>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
                     Describe your freelance services in a few words. Let AI instantly generate a complete, high-converting bento profile card.
                   </p>
@@ -4849,7 +4843,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     className="btn btn-primary"
                     style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700 }}
                   >
-                    {isGeneratingProfile ? '⌛ Generating Profile...' : 'Generate for me ✨'}
+                    {isGeneratingProfile ? 'Generating Profile...' : 'Generate for me'}
                   </button>
                   <button
                     type="button"
@@ -4860,7 +4854,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     className="btn btn-secondary"
                     style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700 }}
                   >
-                    Edit manually ✏️
+                    Edit manually
                   </button>
                 </div>
               </form>
@@ -4903,7 +4897,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>🎨</span> Brand Kit & Logo Customization
+                      <span>Brand</span> Brand Kit & Logo Customization
                     </h3>
                     {!entitlements.automation && (
                       <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
@@ -5343,12 +5337,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
               {formError && (
                 <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  ⚠️ {formError}
+                  {formError}
                 </div>
               )}
               {formSuccess && (
                 <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  ✓ {formSuccess}
+                  {formSuccess}
                 </div>
               )}
 
@@ -5633,12 +5627,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
               {formError && (
                 <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  ⚠️ {formError}
+                  {formError}
                 </div>
               )}
               {formSuccess && (
                 <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  ✓ {formSuccess}
+                  {formSuccess}
                 </div>
               )}
 
@@ -6097,8 +6091,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   }}
                 >
                   <option value="draft">📝 Internal Draft Export</option>
-                  <option value="client send">✉️ Send to Client Review</option>
-                  <option value="final invoice">🏛️ Final Accounting Invoice</option>
+                  <option value="client send">Send to Client Review</option>
+                  <option value="final invoice">Final Accounting Invoice</option>
                   <option value="revision export">🔄 Scope Revision / Edit Update</option>
                 </select>
               </div>
@@ -6170,8 +6164,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             fontFamily: 'Outfit, sans-serif'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>💼</span>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
+              <span className="product-state-mark">Pro</span>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
                 Business Mode Activated
               </h3>
             </div>
@@ -6234,8 +6228,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             fontFamily: 'Outfit, sans-serif'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🚀</span>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
+              <span className="product-state-mark studio-modal-mark">Studio</span>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
                 Scale Operations with Studio
               </h3>
             </div>
@@ -6278,7 +6272,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       {suggestedActionDoc && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
           <div className="card animate-fade-in" style={{ maxWidth: '500px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center' }}>
-            <span style={{ fontSize: '3rem', display: 'block', marginBottom: '16px' }}>🎉</span>
+              <span className="product-state-mark">Done</span>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main)' }}>
               {suggestedActionDoc.type === 'invoice' ? 'Invoice Ready!' : 'Quote Ready!'}
             </h3>
@@ -6301,7 +6295,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 justifyContent: 'center',
                 textAlign: 'left'
               }}>
-                <span>✨</span>
+                <span>Pro</span>
                 <span>Pro users get client approval tracking and signature capture.</span>
               </div>
             )}
@@ -6333,7 +6327,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   cursor: 'pointer'
                 }}
               >
-                <span>🔗</span>
+                <span>Link</span>
                 <span>Send to Client (Copy Portal Link)</span>
               </button>
 
@@ -6359,7 +6353,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   cursor: 'pointer'
                 }}
               >
-                <span>📥</span>
+                <span>Export</span>
                 <span>{!entitlements.export_pdf ? 'Watermarked PDF export' : 'Export Client-Ready PDF'}</span>
               </button>
               {!entitlements.export_pdf && (
@@ -6424,14 +6418,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
           <div className="card animate-fade-in" style={{ maxWidth: '500px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>📥 Document Exported</h3>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Document Exported</h3>
               <button onClick={() => setPostExportDoc(null)} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>&times;</button>
             </div>
 
             {/* Behavioral Feedback Panel */}
             <div style={{ padding: '16px', background: 'var(--primary-glow)', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px', textAlign: 'left' }}>
               <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>
-                💡 Next-Step Insights
+                Next-Step Insights
               </h4>
               <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-soft)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <li>Recommended action: Send the client portal link for review.</li>
@@ -6510,7 +6504,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   cursor: 'pointer'
                 }}
               >
-                <span>🔗</span>
+                <span>Link</span>
                 <span>Copy Client Portal Link (Recommended)</span>
               </button>
 
@@ -6546,7 +6540,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           animation: 'fade-in 0.2s ease-out'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{toast.type === 'error' ? '⚠️' : (toast.type === 'info' ? 'ℹ️' : '✓')}</span>
+            <span>{toast.type === 'error' ? 'Error' : (toast.type === 'info' ? 'Info' : 'Done')}</span>
             {toast.message}
           </div>
           {firstFlowExportDone && toast.type === 'success' && (
@@ -6558,7 +6552,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 openInvoiceBuilder();
               }}
             >
-              Create another invoice →
+              Create another invoice
             </button>
           )}
         </div>
@@ -6616,7 +6610,7 @@ function DevDashboardAuditPanel({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.1rem' }}>🛠️</span>
+            <span style={{ fontSize: '0.72rem' }}>Audit</span>
             <strong style={{ fontSize: '0.9rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#38bdf8' }}>Corvioz Verification Audit</strong>
           </div>
           <button
@@ -6709,7 +6703,7 @@ function DevDashboardAuditPanel({
         gap: '6px'
       }}
     >
-      <span>🛠️</span> Audit Debug UI
+      <span>Audit</span> Debug UI
     </button>
   );
 }

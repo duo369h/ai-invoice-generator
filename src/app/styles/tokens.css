@@ -10,10 +10,22 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
 
   --radius-pill: 999px;
   --radius-lg: 8px;
@@ -66,6 +78,8 @@
   --motion-duration-fast: 200ms;
   --motion-duration-standard: 250ms;
   --motion-duration-smooth: 320ms;
+  --motion-fast: 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-normal: 240ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Wireframe surface tokens — theme-independent (mockup skeleton art) */
   --surface-wireframe-bar:                rgba(255, 255, 255, 0.03);
@@ -130,6 +144,8 @@
   --btn-primary-text: #ffffff;
   --btn-primary-hover-bg: #4338ca;
   --btn-primary-hover-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  --btn-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --btn-text-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
 
   --btn-secondary-bg: #ffffff;
   --btn-secondary-hover-bg: #f8fafc;
@@ -222,6 +238,8 @@ html[data-theme="dark"] {
   --btn-primary-border: #4F46E5;
   --btn-primary-hover-bg: #4338ca;
   --btn-primary-hover-shadow: rgba(79, 70, 229, 0.25);
+  --btn-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --btn-text-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
 
   --btn-secondary-bg: rgba(255, 255, 255, 0.03);
   --btn-secondary-hover-bg: rgba(255, 255, 255, 0.06);
