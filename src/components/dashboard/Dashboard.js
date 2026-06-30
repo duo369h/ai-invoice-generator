@@ -42,6 +42,8 @@ const clearAnalyticsUserId = () => {};
 const consumeSignupStarted = () => false;
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
 import { canAccess, getUserEntitlements } from 'lib/entitlements';
+import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
+
 
 // Import design system hooks, tokens, and icons
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -311,6 +313,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   useEffect(() => {
     setMounted(true);
     setKernelUi(CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
+    
+    // Onboarding start funnel validation
+    recordFunnelStep('onboarding_start');
 
     const handleStorageChange = () => {
       setKernelUi(CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
@@ -1636,6 +1641,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             });
           } else {
             trackEvent('quote_created', { quote_number: qNumber, currency: qCurrency, sandbox: isDemo });
+            if (quotes.length === 0) {
+              trackGrowthEvent('first_quote_created', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
+            }
           }
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
           triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
@@ -1717,6 +1725,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             window.localStorage.setItem('corvioz_pending_invoice', JSON.stringify(payload));
             window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
             window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
+            trackGrowthEvent('first_invoice_created', { documentType: 'invoice', invoice_number: invNumber, source: 'guest_flow' });
           }
           trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
 
@@ -1784,6 +1793,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             if (invoices.length === 0) {
               if (typeof window !== 'undefined') {
                 window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
+                trackGrowthEvent('first_invoice_created', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
               }
             }
           }
@@ -2242,6 +2252,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     await evaluateAction('export_pdf', async (shouldProceedWithoutWatermark) => {
       window.localStorage.setItem('corvioz_export_count', String(newCount));
       setExportCount(newCount);
+      trackGrowthEvent('export_triggered', { documentType, export_count: newCount, source: 'export_purpose_modal' });
       const downloadWatermarkFree = !isFree || shouldProceedWithoutWatermark;
       await triggerActualPdfDownload(elementId, name, downloadWatermarkFree, resourceId);
     }, telemetryPayload);

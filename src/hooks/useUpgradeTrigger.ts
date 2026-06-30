@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { getUnifiedDecision } from 'lib/execution/unifiedDecisionEngine';
+import { shadowReadDecisionState } from '@/core/decision/decisionAdapter';
 
 interface UseUpgradeTriggerOptions {
   plan: string;
@@ -76,6 +77,50 @@ export function useUpgradeTrigger({
     cta_text: 'Upgrade Now',
     offer_type: decision.upgradeSignal.showModal ? 'modal' : 'soft_banner',
   };
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    shadowReadDecisionState(
+      `useUpgradeTrigger.${pageContext}`,
+      {
+        decision: {
+          should_show_upgrade: decision.upgradeSignal.showBanner || decision.upgradeSignal.showModal,
+          target_plan: decision.recommendedPlan === 'free' ? null : decision.recommendedPlan,
+          reason: decision.reason,
+          confidence: Math.round(decision.confidence * 100),
+          trigger_type: 'usage',
+        },
+        scores: {
+          pro_score: decision.recommendedPlan === 'pro' ? 80 : 0,
+          growth_score: decision.recommendedPlan === 'pro' ? 80 : 0,
+          studio_score: decision.recommendedPlan === 'studio' ? 80 : 0,
+          churn_risk: Math.round(decision.riskSignal.churnRisk * 100),
+          revenue_potential: 0,
+        },
+        offer: {
+          message: decision.reason,
+          cta_text: 'Upgrade Now',
+          offer_type: decision.upgradeSignal.showModal ? 'modal' : 'soft_banner',
+        },
+      },
+      {
+        userId: activeUserId,
+        planState: { userId: activeUserId, serverPlan: plan },
+      },
+      'src/hooks/useUpgradeTrigger.ts:getUnifiedDecision',
+      console,
+    );
+  }, [
+    activeUserId,
+    decision.confidence,
+    decision.reason,
+    decision.recommendedPlan,
+    decision.riskSignal.churnRisk,
+    decision.upgradeSignal.showBanner,
+    decision.upgradeSignal.showModal,
+    pageContext,
+    plan,
+  ]);
 
   useEffect(() => {
     if (enabled) {

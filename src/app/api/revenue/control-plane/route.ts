@@ -34,6 +34,7 @@ import {
 } from '../../../lib/replay/revenue-replay-engine';
 import { runRevenueSimulation, type RevenueSimulationResult } from '../../../lib/simulation/revenue-simulation-engine';
 import { runRevenueDryRun } from '../../../lib/revenue/final-dry-run';
+import { shadowValidatePlanRead } from '../../../../core/state/planStateAdapter';
 
 const RATE_LIMIT_MS = 800;
 const decisionRateLimit = new Map<string, number>();
@@ -630,6 +631,19 @@ export async function POST(request: Request) {
       const event = normalizeEventKey(body.event || body.action_type || body.action);
       const intentScore = Math.max(0, Math.min(100, toNumber(body.intent_score ?? ctxIntentScore, 0)));
       const userPlan = String(body.user_plan ?? body.plan ?? body.user?.plan ?? ctx.user_plan ?? ctx.plan ?? 'free');
+      if (process.env.NODE_ENV !== 'production') {
+        shadowValidatePlanRead(
+          'api.revenue.control_plane.userPlan',
+          userPlan,
+          {
+            userId,
+            explicitPlan: body.user_plan ?? body.plan ?? body.user?.plan,
+            serverPlan: ctx.user_plan ?? ctx.plan,
+          },
+          'src/app/api/revenue/control-plane/route.ts:body_or_context_plan',
+          console,
+        );
+      }
       const isAuthenticated = Boolean(body.is_authenticated ?? ctx.is_authenticated ?? (userId !== 'anonymous' && userId !== 'guest'));
       const guestModeUser = Boolean(body.guest_mode_user ?? ctx.guest_mode_user ?? !isAuthenticated);
       const monetizationPromptCount = toNumber(body.monetization_prompt_count ?? body.prompt_count ?? ctxPromptCount, 0);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserSupabaseClient } from '@/app/lib/supabase-client';
+import { shadowValidatePlanRead } from '@/core/state/planStateAdapter';
 
 /**
  * Hook to fetch and expose the current user's subscription plan and entitlements.
@@ -50,6 +51,19 @@ export function useUserSubscription() {
 
         const userData = await userRes.json();
         const userPlan = userData.plan || 'free';
+        if (process.env.NODE_ENV !== 'production') {
+          shadowValidatePlanRead(
+            'useUserSubscription.user_api',
+            userPlan,
+            {
+              serverPlan: userPlan,
+              localStorage: typeof window !== 'undefined' ? window.localStorage : null,
+              sessionStorage: typeof window !== 'undefined' ? window.sessionStorage : null,
+            },
+            'src/hooks/useUserSubscription.js:/api/user',
+            console,
+          );
+        }
 
         if (!cancelled) {
           setIsAuthenticated(true);

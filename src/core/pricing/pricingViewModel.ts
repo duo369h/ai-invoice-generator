@@ -12,6 +12,7 @@
 
 import { getUnifiedDecision } from 'lib/execution/unifiedDecisionEngine';
 import { translateDecision } from 'lib/execution/uiTranslator';
+import { recordDecisionTelemetry } from '../telemetry/decisionTelemetry';
 
 export interface PricingCardViewModel {
   id: string;
@@ -152,8 +153,24 @@ export function getPricingViewModel(input: PricingViewModelInput): PricingViewMo
       }
     : null;
 
-  return {
+  const output = {
     cards,
     upgradeBanner,
   };
+
+  recordDecisionTelemetry({
+    source: 'src/core/pricing/pricingViewModel.ts:getPricingViewModel',
+    decisionType: 'pricing decision',
+    legacyOutput: output,
+    adapterOutput: {
+      delegatedEngine: 'src/core/pricing/pricingViewModel.ts',
+      cards,
+      upgradeBanner,
+      unifiedDecision: decision,
+      translatedDecision: ui,
+    },
+    tags: ['PRICING', 'UPGRADE', 'LOG_ONLY', 'v5.2.1'],
+  });
+
+  return output;
 }

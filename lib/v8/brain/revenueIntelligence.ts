@@ -6,6 +6,8 @@
  * Pure math + aggregation.
  */
 
+import { shadowValidatePlanRead } from '../../../src/core/state/planStateAdapter';
+
 export interface RevenueMetrics {
   ltv: number;
   churn_risk: number;
@@ -47,6 +49,19 @@ export function getRevenueMetrics(userId: string | null): RevenueMetrics {
 
   // Retrieve current user plan
   const userPlan = window.localStorage.getItem(`corvioz_user_plan_${userId}`) || 'free';
+  if (process.env.NODE_ENV !== 'production') {
+    shadowValidatePlanRead(
+      'v8.revenueIntelligence.userPlan',
+      userPlan,
+      {
+        userId,
+        localStorage: window.localStorage,
+        sessionStorage: window.sessionStorage,
+      },
+      'lib/v8/brain/revenueIntelligence.ts:user_scoped_localStorage',
+      console,
+    );
+  }
 
   // 2. Compute Engagement Score (0.0 to 1.0)
   const rawEngagement = (invoicesCount * 0.15) + (clientsCount * 0.2) + (exportPdf * 0.1) + (quotesCount * 0.1);

@@ -1,3 +1,6 @@
+import { shadowValidatePlanRead } from '../../src/core/state/planStateAdapter';
+import { recordDecisionTelemetry } from '../../src/core/telemetry/decisionTelemetry';
+
 /**
  * Global App State Orchestrator — Corvioz v10 Deterministic UI Decision Engine
  *
@@ -28,6 +31,37 @@ export interface AppState {
 
 function isPricingIdentity(value: string | null): value is PricingIdentityType {
   return Boolean(value && (PRICING_IDENTITIES as readonly string[]).includes(value));
+}
+
+function shadowPlanRead(label: string, legacyResult: string | null, options?: { activePlan?: string | null }) {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return;
+  shadowValidatePlanRead(
+    label,
+    legacyResult,
+    {
+      explicitPlan: options?.activePlan,
+      localStorage: window.localStorage,
+      sessionStorage: window.sessionStorage,
+    },
+    label,
+    console,
+  );
+}
+
+function observeCTA(state: AppState, context: string, legacyOutput: string): string {
+  recordDecisionTelemetry({
+    source: 'lib/execution/globalOrchestrator.ts:getCTA',
+    decisionType: 'CTA decision',
+    legacyOutput,
+    adapterOutput: {
+      owner: 'lib/execution/globalOrchestrator.ts',
+      output: legacyOutput,
+      state,
+      context,
+    },
+    tags: ['CTA', 'LOG_ONLY', 'v5.2.1'],
+  });
+  return legacyOutput;
 }
 
 /**
@@ -66,6 +100,7 @@ export function resolveAppState(options?: {
       identity = storedIdentity;
     } else {
       const plan = options?.activePlan || window.localStorage.getItem('corvioz_user_plan');
+      shadowPlanRead('globalOrchestrator.identity', plan, options);
       if (isPricingIdentity(plan)) {
         identity = plan;
       }
@@ -105,6 +140,7 @@ export function resolveAppState(options?: {
       workspace_mode = 'studio';
     } else {
       const plan = options?.activePlan || window.localStorage.getItem('corvioz_user_plan');
+      shadowPlanRead('globalOrchestrator.workspace_mode', plan, options);
       if (plan === 'studio') {
         workspace_mode = 'studio';
       }
@@ -126,12 +162,22 @@ export function resolveAppState(options?: {
     }
   }
 
-  return {
+  const resolved = {
     identity,
     business_stage,
     workspace_mode,
     conversion_context,
   };
+
+  recordDecisionTelemetry({
+    source: 'lib/execution/globalOrchestrator.ts:resolveAppState',
+    decisionType: 'AppState resolution',
+    legacyOutput: resolved,
+    tags: ['APP_STATE', 'DRIFT', 'v5.2.2'],
+  });
+
+  return resolved;
+
 }
 
 /**
@@ -150,52 +196,52 @@ export function getCTA(
 
   // Render context-specific decisions
   if (context === 'checkout_continue') {
-    return 'Continue to payment';
+    return observeCTA(state, context, 'Continue to payment');
   }
   if (context === 'checkout_back') {
-    return 'Go back';
+    return observeCTA(state, context, 'Go back');
   }
 
   // Plan-specific Pricing Page / Homepage Pricing Grid CTAs
   if (context === 'pricing_free') {
-    if (identity === 'starter') return 'Start free with Starter';
-    if (identity === 'pro') return 'Start free with Pro';
-    if (identity === 'studio') return 'Start free with Studio';
-    return 'Start Free';
+    if (identity === 'starter') return observeCTA(state, context, 'Start free with Starter');
+    if (identity === 'pro') return observeCTA(state, context, 'Start free with Pro');
+    if (identity === 'studio') return observeCTA(state, context, 'Start free with Studio');
+    return observeCTA(state, context, 'Start Free');
   }
   if (context === 'pricing_starter') {
-    return 'Get paid faster';
+    return observeCTA(state, context, 'Get paid faster');
   }
   if (context === 'pricing_pro') {
-    return 'Never miss a payment';
+    return observeCTA(state, context, 'Never miss a payment');
   }
   if (context === 'pricing_studio') {
-    return 'Scale client operations';
+    return observeCTA(state, context, 'Scale client operations');
   }
 
   // 1️⃣ Priority Level 1: identity override
   if (identity === 'starter') {
-    return 'Get paid faster';
+    return observeCTA(state, context, 'Get paid faster');
   }
   if (identity === 'pro') {
-    return 'Never miss a payment';
+    return observeCTA(state, context, 'Never miss a payment');
   }
   if (identity === 'studio') {
-    return 'Scale client operations';
+    return observeCTA(state, context, 'Scale client operations');
   }
 
   // 2️⃣ Priority Level 2: business_stage resolution
   if (business_stage === 'business') {
-    if (context === 'pricing_select') return 'Unlock studio scale';
-    if (context === 'dashboard_primary') return 'Manage studio workload';
-    return 'Scale client operations';
+    if (context === 'pricing_select') return observeCTA(state, context, 'Unlock studio scale');
+    if (context === 'dashboard_primary') return observeCTA(state, context, 'Manage studio workload');
+    return observeCTA(state, context, 'Scale client operations');
   }
 
   // Default freelancer resolution
-  if (context === 'pricing_select') return 'Upgrade your business';
-  if (context === 'dashboard_primary') return 'Create invoice';
-  if (context === 'navbar') return 'Create Invoice';
-  return 'Start freelancing safely';
+  if (context === 'pricing_select') return observeCTA(state, context, 'Upgrade your business');
+  if (context === 'dashboard_primary') return observeCTA(state, context, 'Create invoice');
+  if (context === 'navbar') return observeCTA(state, context, 'Create Invoice');
+  return observeCTA(state, context, 'Start freelancing safely');
 }
 
 // Copy pools organized by theme

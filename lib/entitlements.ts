@@ -3,6 +3,9 @@
 // Each tier is an independent product experience.
 // No cross-tier dependency is allowed.
 
+import { shadowValidatePlanRead } from '../src/core/state/planStateAdapter';
+import { recordDecisionTelemetry } from '../src/core/telemetry/decisionTelemetry';
+
 export interface Entitlements {
   invoice: boolean;
   export_pdf: boolean;
@@ -23,11 +26,20 @@ export function isPaidPlan(plan?: string | null): boolean {
 
 export function getUserEntitlements(userPlan?: string | null): Entitlements {
   const plan = String(userPlan || 'free').toLowerCase();
+  if (process.env.NODE_ENV !== 'production') {
+    shadowValidatePlanRead(
+      'entitlements.userPlan',
+      plan,
+      { explicitPlan: plan },
+      'lib/entitlements.ts:getUserEntitlements',
+      console,
+    );
+  }
 
   // Starter ($9 plan): Single Client Closure Engine.
   // Locked: Invoice, CRM/Client tracking, PDF exports. Only allows Proposal and watermarked shares.
   if (plan === 'starter') {
-    return {
+    const result = {
       invoice: false,
       export_pdf: false,
       client_portal: false,
@@ -36,12 +48,20 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
       advanced_invoicing: false,
       unlimited_invoices: false,
     };
+    recordDecisionTelemetry({
+      source: 'lib/entitlements.ts:getUserEntitlements',
+      decisionType: 'feature gating',
+      legacyOutput: result,
+      adapterOutput: { plan, entitlements: result },
+      tags: ['FEATURE_GATE', 'LOG_ONLY', 'v5.2.1'],
+    });
+    return result;
   }
 
   // Pro ($19 plan): Freelance Operating System.
   // Allowed: Invoice generation, Quote creation, basic CRM client tracking, PDF export (no watermark), clean share links.
   if (plan === 'pro') {
-    return {
+    const result = {
       invoice: true,
       export_pdf: true,
       client_portal: true,
@@ -50,12 +70,20 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
       advanced_invoicing: true,
       unlimited_invoices: true,
     };
+    recordDecisionTelemetry({
+      source: 'lib/entitlements.ts:getUserEntitlements',
+      decisionType: 'feature gating',
+      legacyOutput: result,
+      adapterOutput: { plan, entitlements: result },
+      tags: ['FEATURE_GATE', 'EXPORT_PERMISSION', 'LOG_ONLY', 'v5.2.1'],
+    });
+    return result;
   }
 
   // Studio plan: Agency Execution Layer.
   // Allowed: Multi-client workspace (2-3 clients), batch exports, brand kits, reusable templates, priority AI.
   if (plan === 'studio') {
-    return {
+    const result = {
       invoice: true,
       export_pdf: true,
       client_portal: true,
@@ -64,10 +92,18 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
       advanced_invoicing: true,
       unlimited_invoices: true,
     };
+    recordDecisionTelemetry({
+      source: 'lib/entitlements.ts:getUserEntitlements',
+      decisionType: 'feature gating',
+      legacyOutput: result,
+      adapterOutput: { plan, entitlements: result },
+      tags: ['FEATURE_GATE', 'EXPORT_PERMISSION', 'LOG_ONLY', 'v5.2.1'],
+    });
+    return result;
   }
 
   // Default / 'free'
-  return {
+  const result = {
     invoice: false,
     export_pdf: false,
     client_portal: false,
@@ -76,6 +112,14 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     advanced_invoicing: false,
     unlimited_invoices: false,
   };
+  recordDecisionTelemetry({
+    source: 'lib/entitlements.ts:getUserEntitlements',
+    decisionType: 'feature gating',
+    legacyOutput: result,
+    adapterOutput: { plan, entitlements: result },
+    tags: ['FEATURE_GATE', 'EXPORT_PERMISSION', 'LOG_ONLY', 'v5.2.1'],
+  });
+  return result;
 }
 
 export async function canAccess(userId: string, feature: string): Promise<boolean> {

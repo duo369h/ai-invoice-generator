@@ -25,6 +25,8 @@ import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { getUIInjection } from 'lib/revenue/uiInjection';
 import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
+import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
+
 
 const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
 
@@ -242,6 +244,10 @@ function PricingContent() {
       }
     };
     fetchPlans();
+    
+    // Funnel tracking validation
+    recordFunnelStep('pricing_view');
+
     return () => {
       active = false;
     };
@@ -399,6 +405,7 @@ function PricingContent() {
               if (typeof window !== 'undefined') {
                 window.localStorage.setItem('corvioz_identity', id);
               }
+              trackGrowthEvent('pricing_selection', { plan: id, source: 'identity_gate' });
             }}
           />
         </main>
@@ -954,10 +961,12 @@ function PricingContent() {
                       onClick={() => {
                         if (isCurrentPlan) return;
                         if (isFree) {
+                          trackGrowthEvent('pricing_selection', { plan: 'free', source: 'pricing_page_card' });
                           window.location.href = '/dashboard?action=create-profile';
                           return;
                         }
                         if (vm.id === 'studio') {
+                          trackGrowthEvent('pricing_selection', { plan: 'studio', source: 'pricing_page_card' });
                           alert("Thank you! You have been added to the Studio waitlist.");
                           return;
                         }
@@ -966,6 +975,7 @@ function PricingContent() {
                         trackPricingClick({ position: 'pricing_page_card', plan: vm.id });
                         trackIntentAction('CLICK_CTA');
                         trackFunnelEvent('cta_click', { plan: vm.id });
+                        trackGrowthEvent('pricing_selection', { plan: vm.id, source: 'pricing_page_card' });
                         router.push(`/checkout?plan=${vm.id}&intent=${intentLevel.toLowerCase()}`);
                       }}
                       disabled={checkoutLoading || isCurrentPlan}

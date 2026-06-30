@@ -1,3 +1,5 @@
+import { recordDecisionTelemetry } from '../../../core/telemetry/decisionTelemetry';
+
 export type RevenueAction =
   | 'allow'
   | 'block'
@@ -82,46 +84,61 @@ function decision(action: RevenueAction, reason: string, trigger: string, recomm
   };
 }
 
+function observedDecision(input: RevenueDecisionInput, result: RevenueDecision): RevenueDecision {
+  recordDecisionTelemetry({
+    source: 'src/app/lib/revenue/revenue-decision-engine.ts:evaluateRevenueDecision',
+    decisionType: 'revenue decision',
+    legacyOutput: result,
+    adapterOutput: {
+      delegatedEngine: 'src/app/lib/revenue/revenue-decision-engine.ts',
+      input: normalizeRevenueDecisionInput(input),
+      output: result,
+    },
+    tags: ['REVENUE', 'PAYWALL', 'EXPORT_PERMISSION', 'LOG_ONLY', 'v5.2.1'],
+  });
+  return result;
+}
+
 export function evaluateRevenueDecision(input: RevenueDecisionInput): RevenueDecision {
   const actionType = String(input.action_type || '').toLowerCase();
   const funnelStep = String(input.funnel_step || '').toLowerCase();
   const intentScore = clampIntentScore(input.intent_score);
 
   if (isPaid(input.user_state)) {
-    return decision('allow', 'Paid user can continue without monetization friction.', 'paid_user_bypass');
+    return observedDecision(input, decision('allow', 'Paid user can continue without monetization friction.', 'paid_user_bypass'));
   }
 
   if (funnelStep === 'pricing_exit' || actionType === 'pricing_exit') {
-    return decision('upsell', 'User exited pricing before selecting a plan.', 'pricing_exit_discount_modal', 'pro');
+    return observedDecision(input, decision('upsell', 'User exited pricing before selecting a plan.', 'pricing_exit_discount_modal', 'pro'));
   }
 
   const isExportAction = actionType === 'export_pdf' || actionType === 'quote_export';
   if (intentScore > 70 && isExportAction) {
-    return decision('paywall', 'High-intent unpaid export attempts require checkout before value leaves the product.', 'high_intent_export_hard_paywall', 'pro');
+    return observedDecision(input, decision('paywall', 'High-intent unpaid export attempts require checkout before value leaves the product.', 'high_intent_export_hard_paywall', 'pro'));
   }
 
   if (actionType === 'quote_export') {
-    return decision('block', 'Quote export is a monetization moment for free users.', 'quote_export_lock_pro_upsell', 'pro');
+    return observedDecision(input, decision('block', 'Quote export is a monetization moment for free users.', 'quote_export_lock_pro_upsell', 'pro'));
   }
 
   if (count(input, 'invoice_create_count') > 2) {
-    return decision('paywall', 'Free invoice creation limit exceeded.', 'invoice_create_count_upgrade_paywall', 'pro');
+    return observedDecision(input, decision('paywall', 'Free invoice creation limit exceeded.', 'invoice_create_count_upgrade_paywall', 'pro'));
   }
 
   const pricingViews = Math.max(count(input, 'pricing_view_count'), sessionCount(input, 'pricing_view_count'));
   if (actionType === 'pricing_view' && pricingViews >= 2) {
-    return decision('upsell', 'Repeated pricing views signal purchase intent and should surface urgency.', 'repeated_pricing_view_urgency_cta', 'pro');
+    return observedDecision(input, decision('upsell', 'Repeated pricing views signal purchase intent and should surface urgency.', 'repeated_pricing_view_urgency_cta', 'pro'));
   }
 
   if (actionType === 'export_pdf') {
-    return decision('upsell', 'PDF export is a paid-value action for free users.', 'export_pdf_pro_upsell', 'pro');
+    return observedDecision(input, decision('upsell', 'PDF export is a paid-value action for free users.', 'export_pdf_pro_upsell', 'pro'));
   }
 
   if (input.user_state === 'free' && intentScore > 60) {
-    return decision('redirect', 'High-intent free user should be moved toward checkout.', 'high_intent_free_user_pricing_redirect', 'pro');
+    return observedDecision(input, decision('redirect', 'High-intent free user should be moved toward checkout.', 'high_intent_free_user_pricing_redirect', 'pro'));
   }
 
-  return decision('allow', 'No monetization rule matched for this action.', 'no_revenue_rule_matched');
+  return observedDecision(input, decision('allow', 'No monetization rule matched for this action.', 'no_revenue_rule_matched'));
 }
 
 export function normalizeRevenueDecisionInput(input: RevenueDecisionInput = {}): RevenueDecisionInput {

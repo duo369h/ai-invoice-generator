@@ -18,6 +18,7 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { handleUpgradeCheckout } from '../../core/pricing/pricingController';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { saveSelectedPlan } from '../lib/intent-store';
+import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 
 const themeStyles = {
@@ -127,6 +128,7 @@ function CheckoutContent() {
 
     if (!session) {
       console.log('[CHECKOUT] Redirecting unauthenticated user to signup for plan:', planId);
+      recordFunnelStep('signup_start', { plan: planId });
       saveSelectedPlan(planId, `/checkout?plan=${planId}&intent=${intent}`);
       router.push(`/signup?redirect=/checkout&plan=${planId}&intent=${intent}`);
       return;
@@ -145,6 +147,7 @@ function CheckoutContent() {
         const data = await res.json();
         const plans = data.plans || [];
 
+        recordFunnelStep('conversion', { plan: planId, source: 'checkout_trigger' });
         await handleUpgradeCheckout({
           planId,
           billingPeriod: 'monthly',
