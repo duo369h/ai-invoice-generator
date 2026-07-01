@@ -11,6 +11,7 @@ import { normalizeEvent } from './eventNormalizer';
 import { isDuplicateEvent } from './dedup';
 import { getSessionId } from './session';
 import { persistEvent } from './eventStore';
+import { processEventForRevenueSignal } from '../revenue/revenueSignalEngine';
 
 // ─── Network Transports (GA4, Plausible, PostHog) ───────────────────────────
 
@@ -129,6 +130,16 @@ export function sendEvent(
 
     // 4. Forward to client transports (GA4, Plausible, PostHog)
     dispatchTransports(normalized.event, enrichedPayload);
+
+    // 5. Feed into Revenue Signal Engine (Sprint C Phase 2.8 - Non-blocking & Advisory)
+    try {
+      processEventForRevenueSignal({
+        ...enrichedPayload,
+        stage: normalized.stage,
+      });
+    } catch (scoringErr) {
+      console.error('[EVENT_ROUTER REVENUE SIGNAL ERROR]', scoringErr);
+    }
   } catch (err) {
     console.error('[EVENT_ROUTER ERROR] Failed to route event:', err);
   }
