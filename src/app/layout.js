@@ -13,11 +13,11 @@ const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
-    default: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
+    default: "Corvioz | Create Quotes, Send Invoices & Get Paid",
     template: "%s | Corvioz",
   },
   description:
-    "Corvioz Freelancer OS helps freelancers in the US and Canada create quotes, send professional invoices, publish public profiles, and get paid faster.",
+    "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
   keywords: [
     "corvioz business os",
     "freelance operating system",
@@ -46,9 +46,9 @@ export const metadata = {
   },
   manifest: '/manifest.webmanifest',
   openGraph: {
-    title: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
+    title: "Corvioz | Create Quotes, Send Invoices & Get Paid",
     description:
-      "Corvioz Freelancer OS helps freelancers create quotes, send professional invoices, publish public profiles, and get paid faster.",
+      "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
     url: siteUrl,
     siteName: "Corvioz",
     locale: "en_US",
@@ -58,15 +58,15 @@ export const metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Corvioz Freelancer OS dashboard preview',
+        alt: 'Corvioz dashboard preview',
       }
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Corvioz Freelancer OS | Win Clients, Send Invoices & Get Paid",
+    title: "Corvioz | Create Quotes, Send Invoices & Get Paid",
     description:
-      "Corvioz Freelancer OS helps freelancers create quotes, send professional invoices, publish public profiles, and get paid faster.",
+      "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
     images: ['/twitter-image.png'],
   },
   robots: {

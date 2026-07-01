@@ -1030,7 +1030,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
             color: 'var(--text-muted)'
           }}>
             <p style={{ margin: 0 }}>
-              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz Freelancer OS</Link>. Invoice clients, generate proposal quotes, and collaborate instantly.
+              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz</Link>. Share invoices, proposals, and client updates in one workspace.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem' }}>
               Are you a freelancer? <Link href="/" target="_blank" style={{ color: 'var(--accent)', fontWeight: 650, textDecoration: 'underline' }}>Get your free account</Link>

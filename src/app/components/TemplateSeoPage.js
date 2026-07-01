@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import FaqAccordion from './FaqAccordion';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 
 export default function TemplateSeoPage({ page }) {
   const faqSchema = {
@@ -22,16 +21,16 @@ export default function TemplateSeoPage({ page }) {
     <main style={{ minHeight: '100vh', background: 'var(--bg-page)', color: 'var(--text-main)' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/blog" className="nav-link">Blog</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={page.canonicalPath || page.ctaHref || 'template-seo'}
+        surfaceId="template-seo-public-header"
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Resources', href: '/blog' },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+      />
 
       <header className="container" style={{ padding: '68px 24px 36px', maxWidth: '980px', margin: '0 auto' }}>
         <h1 style={{ fontSize: 'clamp(2.1rem, 4.5vw, 3.8rem)', lineHeight: 1.08, marginBottom: '18px', fontWeight: 850, letterSpacing: '-0.03em' }}>

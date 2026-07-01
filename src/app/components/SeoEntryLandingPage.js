@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
 import SeoEntryCta from './SeoEntryCta';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 import { getSiteUrl } from '../lib/config';
 
 function buildJsonLd(page) {
@@ -37,7 +36,7 @@ function buildJsonLd(page) {
   const offerSchema = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'Corvioz Freelancer OS',
+    name: 'Corvioz',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     url: getSiteUrl(),
@@ -65,22 +64,17 @@ export default function SeoEntryLandingPage({ page }) {
         />
       ))}
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <SeoEntryCta
-            href="/dashboard?action=create-profile"
-            size="sm"
-            eventProps={{ page_slug: page.analyticsSlug, position: 'navbar' }}
-          >
-            Start Free
-          </SeoEntryCta>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={page.path}
+        surfaceId={`seo-entry-header-${page.analyticsSlug}`}
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Pricing', href: '/pricing' },
+          { label: 'Resources', href: '/blog' },
+        ]}
+        primaryAction={{ label: 'Create Quote', href: '/dashboard?tool=quote', variant: 'primary' }}
+      />
 
       <header className="container" style={{ padding: '72px 24px 44px', maxWidth: '1120px', margin: '0 auto' }}>
         <div className="seo-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.12fr) minmax(320px, 0.88fr)', gap: '34px', alignItems: 'center' }}>

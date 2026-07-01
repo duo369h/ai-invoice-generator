@@ -28,6 +28,12 @@ import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
 import { getPricingAnchorCopy } from '../../core/monetization/valueCapture';
+import {
+  trackPricingView as rbcPricingView,
+  trackPlanHover as rbcPlanHover,
+  trackPlanSelected as rbcPlanSelected,
+  trackCheckoutStart as rbcCheckoutStart,
+} from '../../core/analytics/track';
 
 
 const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
@@ -249,6 +255,8 @@ function PricingContent() {
     
     // Funnel tracking validation
     recordFunnelStep('pricing_view');
+    // Real Behavior Capture Layer
+    rbcPricingView();
 
     return () => {
       active = false;
@@ -980,6 +988,9 @@ function PricingContent() {
                         trackIntentAction('CLICK_CTA');
                         trackFunnelEvent('cta_click', { plan: vm.id });
                         trackGrowthEvent('pricing_selection', { plan: vm.id, source: 'pricing_page_card' });
+                        // Real Behavior Capture Layer
+                        rbcPlanSelected(vm.id);
+                        rbcCheckoutStart(vm.id);
                         router.push(`/checkout?plan=${vm.id}&intent=${intentLevel.toLowerCase()}`);
                       }}
                       disabled={checkoutLoading || isCurrentPlan}

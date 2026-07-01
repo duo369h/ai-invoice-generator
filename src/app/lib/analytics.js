@@ -13,6 +13,8 @@ NO BUSINESS INFERENCE IN RUNTIME
 
 'use client';
 
+import { canActivateAnalytics } from '../../core/trust/consentManager';
+
 export const ANALYTICS_BUILD_VERSION = 'analytics_contract_v3_2026_06_26';
 
 function isAnalyticsDebugEnabled() {
@@ -54,6 +56,10 @@ function ensureDataLayer() {
  */
 export function sendEvent(name, props) {
   if (typeof window === 'undefined') return;
+  if (!canActivateAnalytics()) {
+    debugLog('Analytics suppressed by tracking consent', { event: name });
+    return;
+  }
 
   const dataLayer = ensureDataLayer();
 

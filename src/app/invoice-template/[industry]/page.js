@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import TemplateSeoPage from '../../components/TemplateSeoPage';
+import TemplateViewTracker from '../../components/TemplateViewTracker';
 import { buildTemplatePageData, getTemplateIndustry, templateIndustrySlugs } from '../../lib/seo-data';
 
 export function generateStaticParams() {
@@ -30,5 +31,10 @@ export default async function InvoiceTemplatePage({ params }) {
   const industry = getTemplateIndustry(slug);
   if (!industry) notFound();
 
-  return <TemplateSeoPage page={buildTemplatePageData('invoice', industry)} />;
+  return (
+    <>
+      <TemplateViewTracker templateType="invoice" industry={slug} />
+      <TemplateSeoPage page={buildTemplatePageData('invoice', industry)} />
+    </>
+  );
 }

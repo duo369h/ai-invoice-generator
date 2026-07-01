@@ -46,13 +46,13 @@ const PROPOSAL_TEMPLATES = {
   },
   dev: {
     serviceType: "Next.js Custom Dashboard & API Integration",
-    description: "Build a responsive Next.js client portal dashboard, configure secure Supabase database models, and construct stable Stripe webhook handlers.",
+    description: "Build a responsive Next.js client portal dashboard, configure secure Supabase database models, and construct stable Paddle checkout event handlers.",
     clientContext: "CloudFlow, integrating client billing portal.",
     proposal: {
       title: "Next.js Custom Dashboard & API Integration for CloudFlow",
-      overview: "CloudFlow requires a custom client portal integrated with Stripe and Stripe Webhooks. This proposal outlines the software engineering approach to build a responsive Next.js frontend, configure secure Supabase database models, and construct stable webhook endpoints.",
-      scope: "- Next.js responsive client dashboard interface\n- Supabase schema migrations for users and orders\n- Stripe API checkout session and webhook hook handlers\n- Full Jest integration suite testing coverage",
-      timeline: "- **Phase 1**: Database schema design & API specifications (Week 1)\n- **Phase 2**: Frontend dashboards & mock data wiring (Week 2-3)\n- **Phase 3**: Stripe webhooks & live deployment validation (Week 4)",
+      overview: "CloudFlow requires a custom client portal integrated with Paddle checkout events. This proposal outlines the software engineering approach to build a responsive Next.js frontend, configure secure Supabase database models, and construct stable webhook endpoints.",
+      scope: "- Next.js responsive client dashboard interface\n- Supabase schema migrations for users and orders\n- Paddle checkout event and webhook handling\n- Full Jest integration suite testing coverage",
+      timeline: "- **Phase 1**: Database schema design & API specifications (Week 1)\n- **Phase 2**: Frontend dashboards & mock data wiring (Week 2-3)\n- **Phase 3**: Paddle checkout event validation & live deployment validation (Week 4)",
       deliverables: "- GitHub repository with complete source code\n- API swagger documentation\n- Supabase migration scripts\n- 30 days post-launch bug support",
       pricing: "$5,800 USD total (Milestone payouts: 30% kickoff, 40% dashboard complete, 30% launch)",
       cta: "Click 'Approve Project' below to initialize the repository and begin DB schema design."

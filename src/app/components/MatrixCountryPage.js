@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 
 function buildBreadcrumbSchema(page, siteUrl) {
   return {
@@ -23,15 +22,16 @@ export default function MatrixCountryPage({ page, siteUrl }) {
     <main style={{ minHeight: '100vh', background: 'var(--bg-page)', color: 'var(--text-main)' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={page.canonicalPath || page.breadcrumbs?.[page.breadcrumbs.length - 1]?.item || 'matrix-country'}
+        surfaceId="matrix-country-public-header"
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+        primaryAction={null}
+      />
 
       <header className="container" style={{ padding: '72px 24px 42px', maxWidth: '1080px', margin: '0 auto' }}>
         <nav aria-label="Breadcrumb" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', color: 'var(--text-muted)', fontSize: '0.86rem', marginBottom: '18px' }}>

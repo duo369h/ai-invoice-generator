@@ -7,6 +7,7 @@ import { saveSelectedPlan } from '@/app/lib/intent-store';
 import { trackUpgradeClick } from 'lib/monetization/revenueEvents';
 import Link from 'next/link';
 import { DecisionExplanationPanel } from './DecisionExplanationPanel';
+import { getValueCaptureMessage } from '../../core/monetization/valueCapture';
 
 export function ExportRestrictionModal({
   isOpen,
@@ -43,6 +44,7 @@ export function ExportRestrictionModal({
   if (!isOpen) return null;
 
   const isQuote = documentType === 'quote';
+  const valueMessage = getValueCaptureMessage(isQuote ? 'quote_generated' : 'post_export');
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(8px)' }}>
@@ -59,13 +61,13 @@ export function ExportRestrictionModal({
           <Icons.FileSpreadsheet size={26} style={{ color: 'var(--primary)' }} />
         </div>
 
-        <Badge variant="accent" style={{ marginBottom: '12px' }}>EXPORT OPTIONS</Badge>
+        <Badge variant="accent" style={{ marginBottom: '12px' }}>{valueMessage.badge}</Badge>
 
         <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-          Download your {isQuote ? 'quote' : 'invoice'}
+          {valueMessage.headline}
         </h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px', lineHeight: '1.45' }}>
-          Download a watermarked preview copy now, or upgrade to enable professional invoice delivery and unlock client-ready exports.
+          {valueMessage.body}
         </p>
 
         {/* Behavioral Explanation Layer */}
@@ -85,7 +87,7 @@ export function ExportRestrictionModal({
           textAlign: 'left'
         }}>
           <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Compare Options
+            Value already created
           </p>
           
           <div style={{ display: 'grid', gap: '8px', fontSize: '0.82rem' }}>
@@ -95,17 +97,17 @@ export function ExportRestrictionModal({
               <span style={{ fontWeight: 'bold', width: '80px', textAlign: 'center', color: 'var(--accent)' }}>Pro</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-              <span style={{ color: 'var(--text-main)' }}>Professional Invoice Delivery</span>
+              <span style={{ color: 'var(--text-main)' }}>Clean client delivery</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--danger-text)' }}>Preview</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Client-Ready</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-              <span style={{ color: 'var(--text-main)' }}>Monthly {isQuote ? 'Quote' : 'Invoice'} Limit</span>
+              <span style={{ color: 'var(--text-main)' }}>Repeat {isQuote ? 'quote' : 'invoice'} workflow</span>
               <span style={{ width: '80px', textAlign: 'center' }}>5 {isQuote ? 'Quotes' : 'Invoices'}</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Unlimited</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-main)' }}>Branded Client Portals</span>
+              <span style={{ color: 'var(--text-main)' }}>Client portal and follow-up</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--danger-text)' }}>No</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Yes</span>
             </div>
@@ -126,10 +128,10 @@ export function ExportRestrictionModal({
         }}>
           <div>
             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
-              Recommended Plan
+              ROI Anchor
             </span>
             <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
-              Pro Plan (Cancel Anytime)
+              {valueMessage.roiAnchor}
             </span>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -152,7 +154,7 @@ export function ExportRestrictionModal({
             style={{ width: '100%', padding: '12px', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700 }}
           >
             <Icons.Download size={15} />
-            Download Watermarked Preview (Free)
+            {valueMessage.secondaryCta} (Free)
           </button>
           <Link 
             href="/pricing?checkout=pro" 
@@ -164,7 +166,7 @@ export function ExportRestrictionModal({
             className="btn btn-primary" 
             style={{ width: '100%', padding: '12px', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)', fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}
           >
-            Get paid faster
+            {valueMessage.primaryCta}
           </Link>
         </div>
       </div>

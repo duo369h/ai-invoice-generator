@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import ThemeToggle from '../components/ThemeToggle';
 import { blogPosts } from '../lib/blog-data';
-import { Logo } from '../components/UIComponents';
+import PublicHeader from '../components/PublicHeader';
+import SharedFooter from '../components/SharedFooter';
 
 export default function BlogIndex() {
   const [activeCategory, setActiveCategory] = useState('All');
@@ -18,18 +18,19 @@ export default function BlogIndex() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'Outfit, sans-serif' }}>
       
-      {/* Navbar Header */}
-      <nav className="navbar">
-        <Logo size={22} />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/blog" className="nav-link" style={{ fontWeight: 700 }}>Blog</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/dashboard" className="btn btn-secondary btn-sm">Dashboard</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route="/blog"
+        surfaceId="blog-public-header"
+        logoSize={22}
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Resources', href: '/blog', active: true },
+          { label: 'Pricing', href: '/pricing' },
+          { label: 'Security', href: '/security' },
+        ]}
+        primaryAction={null}
+      />
 
       {/* Main Container */}
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '80px 24px' }}>
@@ -106,10 +107,7 @@ export default function BlogIndex() {
 
       </div>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', backgroundColor: 'var(--bg-surface)' }}>
-        <p>© {new Date().getFullYear()} Corvioz. Handcrafted for independent service providers.</p>
-      </footer>
+      <SharedFooter />
 
     </div>
   );

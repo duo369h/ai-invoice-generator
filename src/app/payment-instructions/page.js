@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { Logo } from '../components/UIComponents';
 import { getSupportEmail } from '../lib/config';
+import PublicHeader from '../components/PublicHeader';
+import SharedFooter from '../components/SharedFooter';
 
 export const metadata = {
   title: 'Payment Activation — Corvioz Pro',
   description:
-    'How to activate Corvioz Pro while automated billing is being finalized.',
+    'How Corvioz Pro billing and Paddle checkout activation work.',
 };
 
 export default function PaymentInstructionsPage() {
@@ -19,22 +20,21 @@ export default function PaymentInstructionsPage() {
     },
     {
       num: '02',
-      title: 'Request a PayPal Payment Link',
+      title: 'Continue through Paddle checkout',
       body: (
         <>
-          Click the PayPal request button below and email us your registered account address.
-          Our team will send you a PayPal payment request for the current Pro plan rate.
-          Please include your Corvioz username or email in the payment
-          note so we can match your account.
+          Continue from the Pricing page or contact support if the Paddle checkout link is not available for your account.
+          Paddle handles subscription checkout, receipts, taxes, and payment records where enabled.
+          Please use the same email address you use for your Corvioz account so access can be matched correctly.
         </>
       ),
     },
     {
       num: '03',
-      title: 'Confirm Payment via Email',
+      title: 'Keep your Paddle receipt',
       body: (
         <>
-          After completing the checkout transfer, send the confirmation receipt to{' '}
+          After completing checkout, keep your Paddle receipt. If access does not update automatically, forward the receipt to{' '}
           <a href={`mailto:${supportEmail}`} style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
             {supportEmail}
           </a>
@@ -46,23 +46,15 @@ export default function PaymentInstructionsPage() {
     },
     {
       num: '04',
-      title: 'Manual Activation',
-      body: 'Our team reviews your transaction receipt manually and updates your account level to Pro. This typically happens within 2 hours on business days. We will reply to confirm activation. Automated credit-card payments will be enabled shortly.',
+      title: 'Billing support fallback',
+      body: 'If Paddle checkout or entitlement sync is delayed, our team reviews the Paddle receipt and account email, then updates access or resolves billing questions. We aim to respond within 2 business days.',
     },
   ];
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
-      {/* NAV */}
-      <header className="navbar">
-        <Logo size={22} />
-        <div className="nav-links">
-          <Link href="/dashboard?tool=client" className="nav-link">Client Portal</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-        </div>
-      </header>
+      <PublicHeader route="/payment-instructions" surfaceId="payment-public-header" logoSize={22} />
 
       {/* MAIN */}
       <main style={{ flex: 1, padding: '80px 24px 60px' }}>
@@ -75,7 +67,7 @@ export default function PaymentInstructionsPage() {
           </Link>
 
           {/* Header */}
-          <span className="badge" style={{ marginBottom: '20px' }}>Manual Activation — Beta</span>
+          <span className="badge" style={{ marginBottom: '20px' }}>Paddle Billing</span>
           <h1 style={{
             fontSize: '2.6rem',
             fontWeight: 800,
@@ -83,11 +75,11 @@ export default function PaymentInstructionsPage() {
             lineHeight: 1.15,
             marginBottom: '16px',
           }}>
-            How to Activate Pro
+            How Corvioz Pro Billing Works
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '52px', maxWidth: '620px' }}>
-            Automated checkout is being finalized. During this setup period, Pro access can be activated
-            <strong style={{ color: 'var(--text-main)' }}> manually by our team</strong> after payment verification.
+            Corvioz paid subscriptions use Paddle checkout where enabled.
+            <strong style={{ color: 'var(--text-main)' }}> Paddle handles payment processing, receipts, tax handling, and billing records</strong>.
             You can also keep using the Free plan and start building your profile immediately.
           </p>
 
@@ -156,10 +148,10 @@ export default function PaymentInstructionsPage() {
               {[
                 ['Plan', 'Corvioz Pro'],
                 ['Amount', 'See current pricing at corvioz.com/pricing'],
-                ['Payment method', 'PayPal'],
-                ['Activation', 'Manual — within 2 hours'],
-                ['Subscription renewal', 'Manual renewal required each month'],
-                ['Refund policy', 'Refund requests reviewed within 7 days'],
+                ['Payment method', 'Paddle checkout where enabled'],
+                ['Activation', 'Automatic where entitlement sync is active; support fallback available'],
+                ['Subscription renewal', 'Managed through Paddle where enabled'],
+                ['Refund policy', '14-day refund window for eligible paid upgrades'],
                 ['Contact', supportEmail],
               ].map(([label, value]) => (
                 <div key={label}>
@@ -179,17 +171,16 @@ export default function PaymentInstructionsPage() {
           {/* DISCLAIMER */}
           <div style={{ marginTop: '36px', padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.7' }}>
             <strong style={{ color: 'var(--text-main)' }}>Note:</strong>{' '}
-            Corvioz Pro is currently in manual-activation beta mode. We do not yet offer automatic
-            recurring billing through PayPal. You will need to renew manually each month.
-            Automatic subscriptions and instant account upgrades will be available after our
-            payment processor approval completes. Your payment is protected by PayPal Buyer Protection where applicable.
+            Corvioz subscriptions are processed through Paddle where checkout is enabled. Paddle may handle payment details,
+            receipts, taxes, refunds, and renewal records as merchant of record. If checkout or entitlement sync is unavailable,
+            contact support and include your Corvioz account email plus Paddle receipt details.
           </div>
 
           {/* CTA */}
           <div style={{ marginTop: '48px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <a
-              href={`mailto:${supportEmail}?subject=Corvioz Pro PayPal Payment Request&body=Hi, I want to upgrade to Corvioz Pro. Please send me a PayPal payment request for $12 USD. My account email or username is: `}
-              id="payment-instructions-paypal-btn"
+              href="/pricing"
+              id="payment-instructions-paddle-btn"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -198,41 +189,27 @@ export default function PaymentInstructionsPage() {
                 borderRadius: '8px',
                 fontWeight: 700,
                 fontSize: '1rem',
-                background: '#FFC439',
-                color: '#003087',
-                boxShadow: '0 4px 14px rgba(255,196,57,0.35)',
+                background: 'var(--primary)',
+                color: '#fff',
+                boxShadow: 'var(--shadow-md)',
                 transition: 'all 0.25s ease',
                 textDecoration: 'none',
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19.554 6.227C19.738 5.118 19.554 4.356 18.972 3.683C18.33 2.947 17.118 2.625 15.572 2.625H10.557C10.194 2.625 9.886 2.898 9.833 3.258L7.727 16.618C7.689 16.879 7.894 17.112 8.158 17.112H11.26L11.076 18.25C11.044 18.479 11.22 18.686 11.452 18.686H14.007C14.325 18.686 14.594 18.447 14.64 18.133L14.66 18.02L15.16 14.856L15.186 14.714C15.232 14.4 15.5 14.161 15.819 14.161H16.209C18.67 14.161 20.597 13.148 21.148 10.255C21.376 9.028 21.259 8.005 20.648 7.289C20.466 7.08 20.025 6.641 19.554 6.227Z" fill="#003087"/>
-                <path d="M9.194 6.58C9.247 6.22 9.556 5.947 9.919 5.947H14.79C15.364 5.947 15.9 5.985 16.388 6.066C16.53 6.09 16.668 6.117 16.803 6.149C16.938 6.181 17.069 6.218 17.196 6.26C17.258 6.281 17.319 6.303 17.379 6.326C17.614 6.42 17.83 6.531 18.025 6.661C18.252 5.117 18.023 4.07 17.173 3.104C16.241 2.039 14.616 1.625 12.535 1.625H6.519C6.156 1.625 5.847 1.898 5.793 2.259L3.402 17.264C3.357 17.556 3.585 17.82 3.879 17.82H7.412L8.294 12.218L9.194 6.58Z" fill="#003087"/>
-              </svg>
-              Request PayPal Payment
+              Continue to Pricing
             </a>
             <a
-              href={`mailto:${supportEmail}?subject=Corvioz Pro Upgrade&body=Hi, I've sent a PayPal payment for Corvioz Pro. My email is: `}
+              href={`mailto:${supportEmail}?subject=Corvioz Pro Billing Support&body=Hi, I need help with Corvioz Pro billing or Paddle checkout. My account email is: `}
               className="btn btn-secondary"
               id="payment-instructions-email-btn"
             >
-              Email Us After Payment
+              Contact Billing Support
             </a>
           </div>
         </div>
       </main>
 
-      {/* FOOTER */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '60px' }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '10px' }}>
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms of Service</Link>
-          <Link href="/refund-policy">Refund Policy</Link>
-          <Link href="/contact">Contact</Link>
-          <Link href="/pricing" style={{ color: 'var(--primary)' }}>Pricing</Link>
-        </div>
-        <p>© 2026 Corvioz. All rights reserved.</p>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

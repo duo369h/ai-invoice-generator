@@ -19,6 +19,7 @@ import { trackUpgradeClick } from 'lib/monetization/revenueEvents';
 const trackEvent = () => {};
 import Link from 'next/link';
 import { DecisionExplanationPanel } from './DecisionExplanationPanel';
+import { getPricingAnchorCopy, getValueCaptureMessage } from '../../core/monetization/valueCapture';
 
 export function PricingUpsellModal({
   isOpen,
@@ -56,6 +57,7 @@ export function PricingUpsellModal({
   };
 
   if (!isOpen) return null;
+  const valueMessage = getValueCaptureMessage('usage_threshold');
 
   const handlePlanSelect = (plan) => {
     saveSelectedPlan(plan, source);
@@ -75,9 +77,9 @@ export function PricingUpsellModal({
         </button>
 
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <Badge variant="accent" style={{ marginBottom: '8px' }}>PLANS & PRICING</Badge>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: '0 0 8px 0' }}>Choose the Plan That Fits Your Scale</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Unlock professional client workflows, automated reminders, and custom branding.</p>
+          <Badge variant="accent" style={{ marginBottom: '8px' }}>{valueMessage.badge}</Badge>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: '0 0 8px 0' }}>{valueMessage.headline}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>{valueMessage.body}</p>
         </div>
 
         <DecisionExplanationPanel
@@ -102,11 +104,11 @@ export function PricingUpsellModal({
                 or ${getPlanVal('pro', 'price_yearly', 10)}/mo billed annually
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                {getPlanVal('pro', 'description', 'Get paid faster.')}
+                {getPricingAnchorCopy('pro')}
               </p>
               
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Stripe-secure payment portal</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Paddle-secure subscription checkout</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Professional invoice templates</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Client detail auto-fill presets</li>
               </ul>
@@ -117,7 +119,7 @@ export function PricingUpsellModal({
               className="btn btn-primary"
               style={{ width: '100%', textAlign: 'center', textDecoration: 'none' }}
             >
-              Get paid faster
+              {valueMessage.primaryCta}
             </Link>
           </Card>
 
@@ -135,7 +137,7 @@ export function PricingUpsellModal({
                 or ${getPlanVal('studio', 'price_yearly', 24)}/mo billed annually
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                {getPlanVal('studio', 'description', 'Scale client operations.')}
+                {getPricingAnchorCopy('studio')}
               </p>
               
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -157,7 +159,7 @@ export function PricingUpsellModal({
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 650 }}>
-            🔒 TLS Encrypted Safe Stripe Payment • 14-Day Refund Guarantee • Cancel Anytime
+            🔒 TLS Encrypted Paddle Checkout • 14-Day Refund Window • Cancel Anytime
           </span>
         </div>
       </div>

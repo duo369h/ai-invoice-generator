@@ -135,7 +135,7 @@ export const blogPosts = [
       },
     ],
     internalLinks: [
-      { title: 'Invoice Generator', url: '/invoice-generator', desc: 'Create client-ready invoices and payment records.' },
+      { title: 'Invoices', url: '/invoice-generator', desc: 'Create client-ready invoices and payment records.' },
       { title: 'Invoice vs Quote vs Receipt', url: '/blog/invoice-vs-quote-vs-receipt', desc: 'Understand the document flow before billing clients.' },
       { title: 'Developer Invoice Template', url: '/invoice-template/developer', desc: 'Use a template for milestone-based software work.' },
     ],
@@ -185,7 +185,7 @@ export const blogPosts = [
     ],
     internalLinks: [
       { title: 'Quote Generator', url: '/quote-generator', desc: 'Create a client-ready quote before kickoff.' },
-      { title: 'Invoice Generator', url: '/invoice-generator', desc: 'Turn approved scope into a payment request.' },
+      { title: 'Invoices', url: '/invoice-generator', desc: 'Turn approved scope into a payment request.' },
       { title: 'Consultant Quote Template', url: '/quote-template/consultant', desc: 'See an example estimate structure.' },
     ],
   },

@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import FaqAccordion from './FaqAccordion';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 import { getSiteUrl } from '../lib/config';
 
 export default function SeoMoneyPage({ page }) {
@@ -39,17 +38,16 @@ export default function SeoMoneyPage({ page }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/blog" className="nav-link">Blog</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={`/${page.slug}`}
+        surfaceId={`seo-money-header-${page.slug}`}
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Resources', href: '/blog' },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+      />
 
       <header className="container" style={{ padding: '76px 24px 48px', maxWidth: '1120px', margin: '0 auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)', gap: '36px', alignItems: 'center' }} className="seo-hero-grid">

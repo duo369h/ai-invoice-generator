@@ -29,13 +29,13 @@ const themeStyles = {
     icon: '⚡',
   },
   pro: {
-    badge: 'Pro OS Active',
+    badge: 'Pro Workspace Active',
     accentColor: 'var(--success)',
     glowColor: 'rgba(34,197,94,0.08)',
     icon: '📈',
   },
   studio: {
-    badge: 'Studio OS Active',
+    badge: 'Studio Workspace Active',
     accentColor: 'var(--accent)',
     glowColor: 'rgba(99,102,241,0.08)',
     icon: '🚀',
@@ -284,7 +284,7 @@ function CheckoutContent() {
               textAlign: 'left'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>🔒</span> Secure payments via Stripe
+                <span>🔒</span> Secure checkout via Paddle
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>🛡️</span> Your data is encrypted
@@ -317,10 +317,10 @@ function CheckoutContent() {
                   <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> No hidden billing logic
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You control your data
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your invoices, clients, and exported documents
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Payments handled securely via Stripe
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Subscription checkout handled securely via Paddle
                 </li>
               </ul>
             </div>

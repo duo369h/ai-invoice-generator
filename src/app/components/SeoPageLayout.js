@@ -2,13 +2,12 @@ import React from 'react';
 import Link from 'next/link';
 import FaqAccordion from './FaqAccordion';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 
 export default function SeoPageLayout({
   title,
   subtitle,
-  ctaText = 'Create Invoice Now',
+  ctaText = 'Create Invoice',
   contentHtml,
   faqItems = [],
   lang = 'en'
@@ -36,18 +35,16 @@ export default function SeoPageLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       
-      {/* Navigation */}
-      <nav className="navbar">
-        <Logo size={24} />
-        <div className="nav-links">
-          <Link href="/#features" className="nav-link">{isZh ? '功能介绍' : 'Features'}</Link>
-          <Link href="/#pricing" className="nav-link">{isZh ? '价格方案' : 'Pricing'}</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">
-            {isZh ? '控制台' : 'Dashboard'}
-          </Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route="seo-page"
+        surfaceId="seo-layout-public-header"
+        logoSize={24}
+        navLinks={[
+          { label: isZh ? '工作流' : 'How it Works', href: '/#how-corvioz-works' },
+          { label: isZh ? '价格方案' : 'Pricing', href: '/pricing' },
+          { label: isZh ? '资源' : 'Resources', href: '/blog' },
+        ]}
+      />
 
       {/* Hero */}
       <header className="container" style={{ padding: '60px 24px 40px 24px', textAlign: 'center' }}>
@@ -95,7 +92,7 @@ export default function SeoPageLayout({
               : 'Try Corvioz for free today. Generate quotes, track client leads, collect payments, and export clean PDFs in seconds.'}
           </p>
           <Link href="/dashboard" className="btn btn-primary" style={{ padding: '0.8rem 2.5rem' }}>
-            {isZh ? '免费体验' : 'Get Started Now'}
+            {isZh ? '免费体验' : 'Get Started'}
           </Link>
         </div>
       </section>

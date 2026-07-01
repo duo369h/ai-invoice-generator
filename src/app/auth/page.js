@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { sendEvent as trackEvent } from '../lib/analytics';
 import { trackSignupStarted } from '../lib/product-analytics';
+import { trackSignup as rbcTrackSignup } from '../../core/analytics/track';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
 import {
   isEntryIntendedAction,
@@ -163,6 +164,7 @@ export default function AuthPage() {
     trackSignupStarted({ method: 'magic_link', source: 'auth_form' });
     trackEvent('signup_start', { method: 'magic_link', source: 'auth_form' });
     trackEvent('signup_login_intent', { method: 'magic_link' });
+    rbcTrackSignup();
 
     const redirectTarget = getRedirectTarget();
     const { error } = await client.auth.signInWithOtp({
@@ -191,6 +193,7 @@ export default function AuthPage() {
     trackSignupStarted({ method: 'google', source: 'auth_form' });
     trackEvent('signup_start', { method: 'google', source: 'auth_form' });
     trackEvent('signup_login_intent', { method: 'google' });
+    rbcTrackSignup();
 
     const redirectTarget = getRedirectTarget();
     const { error } = await client.auth.signInWithOAuth({
@@ -243,7 +246,7 @@ export default function AuthPage() {
             </div>
           )}
           <Badge style={{ marginBottom: '16px' }}>
-            {identity === 'starter' ? 'Starter OS' : identity === 'pro' ? 'Pro OS' : identity === 'studio' ? 'Studio OS' : 'Freelancer OS'}
+            {identity === 'starter' ? 'Starter Workspace' : identity === 'pro' ? 'Pro Workspace' : identity === 'studio' ? 'Studio Workspace' : 'Freelancer Workspace'}
           </Badge>
           <h1 className="auth-title">
             {identity === 'starter' && "Safe way to send invoices"}

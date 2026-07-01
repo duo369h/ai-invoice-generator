@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import ThemeToggle from '../../components/ThemeToggle';
-import { Logo } from '../../components/UIComponents';
+import PublicHeader from '../../components/PublicHeader';
+import SharedFooter from '../../components/SharedFooter';
 import { getSiteUrl } from '../../lib/config';
 import { blogSeoSlugs, getBlogPost } from '../../lib/blog-data';
 
@@ -129,16 +129,18 @@ export default async function BlogPostPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
-      <nav className="navbar">
-        <Logo size={22} />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/blog" className="nav-link" style={{ fontWeight: 700 }}>Blog</Link>
-          <Link href="/dashboard" className="btn btn-secondary btn-sm">Dashboard</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={`/blog/${slug}`}
+        surfaceId="blog-post-public-header"
+        logoSize={22}
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Resources', href: '/blog', active: true },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+        primaryAction={null}
+      />
 
       <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '72px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '52px', alignItems: 'start' }} className="seo-hero-grid">
@@ -203,12 +205,13 @@ export default async function BlogPostPage({ params }) {
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '18px' }}>
                 Use Corvioz to create quotes, send invoices, and publish a profile that clients can understand.
               </p>
-              <Link href="/quote-generator" className="btn btn-secondary btn-sm" style={{ width: '100%', fontWeight: 700, marginBottom: '10px' }}>Create a Quote</Link>
+              <Link href="/quote-generator" className="btn btn-secondary btn-sm" style={{ width: '100%', fontWeight: 700, marginBottom: '10px' }}>Create Quote</Link>
               <Link href="/dashboard?action=create-profile" className="btn btn-primary btn-sm" style={{ width: '100%', fontWeight: 700 }}>Create Free Profile</Link>
             </div>
           </aside>
         </div>
       </div>
+      <SharedFooter />
     </main>
   );
 }

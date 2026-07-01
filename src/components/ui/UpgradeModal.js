@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Icons } from '../../styles/icons';
 import { saveSelectedPlan } from '@/app/lib/intent-store';
 import { trackUpgradeClick } from 'lib/monetization/revenueEvents';
+import { getPaymentTriggerMoment, getValueCaptureMessage } from '../../core/monetization/valueCapture';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 const trackIntentAction = () => {};
@@ -13,8 +14,8 @@ const trackFunnelEvent = () => {};
 export function UpgradeModal({
   isOpen,
   onClose,
-  title = 'Upgrade to Corvioz Pro',
-  description = 'Manage workflow complexity and grow your freelance business.',
+  title = '',
+  description = '',
   lockedFeatureValue = 'Unlimited clients, quotes, and invoices',
   limit = '',
   source = 'dashboard_upgrade_modal',
@@ -53,6 +54,7 @@ export function UpgradeModal({
   };
 
   if (!isOpen) return null;
+  const valueMessage = getValueCaptureMessage(getPaymentTriggerMoment({ actionName: limit }));
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(8px)' }}>
@@ -70,10 +72,10 @@ export function UpgradeModal({
         </div>
 
         <h3 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '12px', letterSpacing: '-0.02em', color: 'var(--text-main)', lineHeight: '1.3' }}>
-          {title || "Unlock a more professional way to get paid."}
+          {title || valueMessage.headline}
         </h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: '1.5', fontWeight: 500 }}>
-          {description || "Used by freelancers who close more clients."}
+          {description || valueMessage.body}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -90,7 +92,7 @@ export function UpgradeModal({
             {targetPlan === 'support' 
               ? 'Contact Support' 
               : targetPlan === 'pro' 
-              ? 'Get paid faster' 
+              ? valueMessage.primaryCta 
               : targetPlan === 'studio'
               ? 'Scale client operations' 
               : 'Upgrade now'}
@@ -105,8 +107,8 @@ export function UpgradeModal({
         </div>
         
         <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
-          <span>Plans start at just ${getPlanVal('starter', 'price_monthly', 9)}/mo. 14-Day Money-Back Guarantee.</span>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>🔒 TLS Encrypted Safe Stripe Payment • Cancel or Downgrade in 1-Click</span>
+          <span>{valueMessage.roiAnchor} Plans start at ${getPlanVal('starter', 'price_monthly', 9)}/mo.</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>🔒 TLS Encrypted Paddle Checkout • Cancel or Downgrade Anytime</span>
         </p>
       </div>
     </div>

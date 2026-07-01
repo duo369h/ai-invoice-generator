@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import ThemeToggle from '../components/ThemeToggle';
-import { Button, Logo } from '../components/UIComponents';
+import { Button } from '../components/UIComponents';
 import SharedFooter from '../components/SharedFooter';
+import PublicHeader from '../components/PublicHeader';
 
 export const metadata = {
   title: 'Corvioz Freelancer Directory | Find Premium Designers & Developers',
@@ -27,7 +27,7 @@ const directoryFaq = [
   },
   {
     q: 'Are there payment fees on Corvioz?',
-    a: 'Corvioz provides direct billing setups. Invoices are paid directly to your account (via custom Stripe, PayPal, or wire links) with 0% platform commission fees.'
+    a: 'Corvioz provides direct billing setups. Invoices can include your own payment links, including Paddle-hosted checkout links, PayPal, or bank-transfer instructions, with 0% Corvioz platform commission fees.'
   }
 ];
 
@@ -58,16 +58,16 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
     <main style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Button href="/dashboard?action=create-profile" variant="primary" size="sm">Create Profile</Button>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route="/freelancers"
+        surfaceId="freelancers-public-header"
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+        primaryAction={{ label: 'Create Profile', href: '/dashboard?action=create-profile', variant: 'primary' }}
+      />
 
       <section style={{ maxWidth: '760px', margin: '0 auto', padding: '80px 24px 48px', textAlign: 'center', flex: 1 }}>
         <span className="badge" style={{ marginBottom: '20px' }}>Product Update</span>
@@ -75,7 +75,7 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
           {label} is coming soon.
         </h1>
         <p className="section-lede" style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: 1.7 }}>
-          {descriptionText} Corvioz is currently optimizing secure private freelancer profiles, quote generation, split portals, and manual stripe checkouts. Public discovery categories will open next month.
+          {descriptionText} Corvioz is currently optimizing secure private freelancer profiles, quote generation, client portals, and Paddle-ready checkout workflows. Public discovery categories will open next month.
         </p>
         <div className="hero-actions center" style={{ marginTop: '32px' }}>
           <Button href="/dashboard?action=create-profile" variant="primary" size="lg">Build Your Public Profile</Button>

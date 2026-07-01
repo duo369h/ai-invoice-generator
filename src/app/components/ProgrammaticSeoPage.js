@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import SharedFooter from './SharedFooter';
-import ThemeToggle from './ThemeToggle';
-import { Logo } from './UIComponents';
+import PublicHeader from './PublicHeader';
 
 export function buildProgrammaticSeoSchemas(page, siteUrl) {
   const canonicalUrl = `${siteUrl}${page.canonicalPath}`;
@@ -63,16 +62,15 @@ export default function ProgrammaticSeoPage({ page, siteUrl }) {
         />
       ))}
 
-      <nav className="navbar">
-        <Logo />
-        <div className="nav-links">
-          <Link href="/invoice-generator" className="nav-link">Invoice Generator</Link>
-          <Link href="/quote-generator" className="nav-link">Quote Generator</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <PublicHeader
+        route={page.canonicalPath}
+        surfaceId="programmatic-seo-public-header"
+        navLinks={[
+          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Quotes', href: '/quote-generator' },
+          { label: 'Pricing', href: '/pricing' },
+        ]}
+      />
 
       <header className="container" style={{ padding: '76px 24px 44px', maxWidth: '1080px', margin: '0 auto' }}>
         <p style={{ color: 'var(--accent)', fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>
@@ -101,7 +99,7 @@ export default function ProgrammaticSeoPage({ page, siteUrl }) {
           </section>
 
           <section>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>How it works</h2>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>How it Works</h2>
             <ol style={{ color: 'var(--text-muted)', lineHeight: 1.75, paddingLeft: '22px' }}>
               {page.sections.how.map((step) => (
                 <li key={step}>{step}</li>

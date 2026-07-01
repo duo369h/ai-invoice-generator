@@ -9,6 +9,7 @@ import { sendEvent as trackEvent } from './lib/analytics';
 import { trackHeroCtaClick, trackLandingViewed, trackPricingClick } from './lib/product-analytics';
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
+import { trackPageView, trackScrollDepth50, trackScrollDepth90, trackClick as rbcTrackClick } from '../core/analytics/track';
 
 const resources = [
   { title: 'Freelance Pricing Guide', href: '/blog/how-to-price-web-design-projects' },
@@ -146,6 +147,24 @@ export default function Home() {
 
   useEffect(() => {
     trackLandingViewed({ source: 'homepage' });
+    // Real Behavior Capture Layer
+    trackPageView('/');
+  }, []);
+
+  // RBC: Scroll depth tracking
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let fired50 = false;
+    let fired90 = false;
+    const handler = () => {
+      const scrolled = window.scrollY + window.innerHeight;
+      const total = document.documentElement.scrollHeight;
+      const pct = total > 0 ? scrolled / total : 0;
+      if (!fired50 && pct >= 0.5) { fired50 = true; trackScrollDepth50('/'); }
+      if (!fired90 && pct >= 0.9) { fired90 = true; trackScrollDepth90('/'); }
+    };
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
   }, []);
 
   useEffect(() => {
@@ -236,6 +255,7 @@ export default function Home() {
                 saveIntendedRoute('/dashboard?tool=quote', '/');
                 trackHeroCtaClick({ cta_name: 'Create Quote', position: 'hero' });
                 trackEvent('cta_click', { cta_name: 'Create Quote', position: 'hero' });
+                rbcTrackClick('Create Quote', '/');
               }}
             >
               Create Quote
@@ -245,7 +265,7 @@ export default function Home() {
               variant="secondary"
               size="lg"
               className="btn-hero-secondary"
-              onClick={() => { trackHeroCtaClick({ cta_name: 'Explore Example', position: 'hero' }); trackEvent('cta_click', { cta_name: 'Explore Example', position: 'hero' }); }}
+              onClick={() => { trackHeroCtaClick({ cta_name: 'Explore Example', position: 'hero' }); trackEvent('cta_click', { cta_name: 'Explore Example', position: 'hero' }); rbcTrackClick('Explore Example', '/'); }}
             >
               Explore Example
             </Button>

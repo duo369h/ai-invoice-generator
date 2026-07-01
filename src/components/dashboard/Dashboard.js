@@ -24,8 +24,8 @@ import { createBrowserSupabaseClient } from '@/app/lib/supabase-client';
 
 
 import { getSupportEmail } from '@/app/lib/config';
-import ThemeToggle from '@/app/components/ThemeToggle';
 import { Logo, Button, Container } from '@/app/components/UIComponents';
+import GlobalHeaderControlCluster from '@/components/layout/GlobalHeaderControlCluster';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 import { UpgradeModal } from '../ui/UpgradeModal';
 import { ExportRestrictionModal } from '../ui/ExportRestrictionModal';
@@ -43,6 +43,7 @@ const consumeSignupStarted = () => false;
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
 import { canAccess, getUserEntitlements } from 'lib/entitlements';
 import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
+import { trackDashboardEnter as rbcDashboardEnter } from '../../core/analytics/track';
 
 
 // Import design system hooks, tokens, and icons
@@ -316,6 +317,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     
     // Onboarding start funnel validation
     recordFunnelStep('onboarding_start');
+    // Real Behavior Capture Layer
+    rbcDashboardEnter();
 
     const handleStorageChange = () => {
       setKernelUi(CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
@@ -2819,7 +2822,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {/* Footer info */}
         <div className="dashboard-sidebar-footer">
           <div style={{ marginBottom: '16px' }}>
-            <ThemeToggle />
+            <GlobalHeaderControlCluster
+              compact
+              surfaceId="dashboard-sidebar-control-surface"
+              route="/dashboard"
+              navLinks={[]}
+              primaryAction={null}
+              accountAction={{
+                label: session?.user?.email ? 'Account' : 'Sign in',
+                href: session?.user?.email ? '/dashboard' : '/auth',
+                variant: 'secondary',
+              }}
+            />
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
