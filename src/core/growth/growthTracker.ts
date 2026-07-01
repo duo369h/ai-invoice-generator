@@ -13,6 +13,8 @@ export type GrowthTrackingPayload = {
   metadata: Record<string, unknown>;
 };
 
+import { sendEvent } from '../analytics/eventRouter';
+
 export function createGrowthEvent(
   event: GrowthFunnelEvent,
   metadata: Record<string, unknown> = {}
@@ -45,108 +47,26 @@ export function trackGrowthEvent(
   metadata: Record<string, unknown> = {}
 ): GrowthTrackingPayload {
   const payload = createGrowthEvent(event, metadata);
-
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('corvioz:growth-event', { detail: payload }));
-    
-    // Wire live collector step timestamps
-    recordFunnelStep(payload.stage, metadata);
-
-    // Save revenue signals for tracking conversions
-    if (event === 'pricing_selection' || event === 'export_triggered') {
-      recordRevenueSignal(event, metadata);
-    }
-  }
-
+  sendEvent(event, metadata);
   return payload;
 }
 
 export function recordFunnelStep(stage: GrowthFunnelStage, metadata: Record<string, unknown> = {}) {
-  if (typeof window === 'undefined') return;
-  try {
-    const stored = window.localStorage.getItem('corvioz_funnel_timestamps');
-    const timestamps = stored ? JSON.parse(stored) : {};
-    
-    if (!timestamps.visit) {
-      timestamps.visit = Date.now();
-    }
-    
-    const now = Date.now();
-    if (!timestamps[stage]) {
-      timestamps[stage] = now;
-      
-      const stagesOrder: GrowthFunnelStage[] = [
-        'visit',
-        'landing_view',
-        'pricing_view',
-        'signup_start',
-        'onboarding_start',
-        'first_action',
-        'activation',
-        'conversion'
-      ];
-      
-      const currentIdx = stagesOrder.indexOf(stage);
-      if (currentIdx > 0) {
-        const prevStage = stagesOrder[currentIdx - 1];
-        const prevTime = timestamps[prevStage];
-        if (prevTime) {
-          const deltaMs = now - prevTime;
-          const deltaSec = Math.round(deltaMs / 1000);
-          const isHesitated = deltaSec > 45;
-
-          const transitions = JSON.parse(window.localStorage.getItem('corvioz_funnel_transitions') || '[]');
-          transitions.push({
-            from: prevStage,
-            to: stage,
-            durationSeconds: deltaSec,
-            hesitation: isHesitated,
-            timestamp: new Date().toISOString()
-          });
-          window.localStorage.setItem('corvioz_funnel_transitions', JSON.stringify(transitions));
-        }
-      }
-    }
-
-    window.localStorage.setItem('corvioz_funnel_timestamps', JSON.stringify(timestamps));
-    updateActivationMetrics(stage, timestamps);
-  } catch (e) {
-    console.error('[FUNNEL_COLLECTOR_ERROR]', e);
-  }
-}
-
-function updateActivationMetrics(stage: GrowthFunnelStage, timestamps: Record<string, number>) {
-  try {
-    const metrics = JSON.parse(window.localStorage.getItem('corvioz_activation_metrics') || '{}');
-    
-    if (stage === 'first_action' && timestamps.first_action && timestamps.visit) {
-      metrics.timeToFirstActionSeconds = Math.round((timestamps.first_action - timestamps.visit) / 1000);
-    }
-    
-    let completedSteps = 0;
-    if (window.localStorage.getItem('corvioz_pending_invoice')) completedSteps++;
-    if (window.localStorage.getItem('corvioz_usage_stats')) completedSteps++;
-    if (window.localStorage.getItem('corvioz_identity')) completedSteps++;
-    
-    metrics.onboardingStepsCompleted = completedSteps;
-    metrics.onboardingCompletionRate = Math.round((completedSteps / 3) * 100);
-    metrics.firstActionSuccess = !!timestamps.first_action;
-
-    window.localStorage.setItem('corvioz_activation_metrics', JSON.stringify(metrics));
-  } catch (e) {}
+  // Map funnel stage to event name and send
+  const stageToEventMap: Record<string, string> = {
+    'landing_view': 'LANDING_VIEW',
+    'pricing_view': 'PRICING_VIEW',
+    'signup_start': 'SIGNUP_STARTED',
+    'onboarding_start': 'DASHBOARD_ENTERED',
+    'first_action': 'FIRST_ACTION_TAKEN',
+    'conversion': 'SIGNUP_COMPLETED',
+  };
+  const eventName = stageToEventMap[stage] || 'CTA_CLICK';
+  sendEvent(eventName, metadata);
 }
 
 export function recordRevenueSignal(signalType: string, metadata: Record<string, unknown> = {}) {
-  if (typeof window === 'undefined') return;
-  try {
-    const signals = JSON.parse(window.localStorage.getItem('corvioz_revenue_signals') || '[]');
-    signals.push({
-      type: signalType,
-      timestamp: new Date().toISOString(),
-      metadata
-    });
-    window.localStorage.setItem('corvioz_revenue_signals', JSON.stringify(signals));
-  } catch (e) {}
+  sendEvent(signalType, metadata);
 }
 
 export function getOrAssignABVariant(experiment: GrowthExperimentKey): GrowthExperimentAssignment {

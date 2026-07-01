@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { Button, Card } from './components/UIComponents';
 import PublicHeader from './components/PublicHeader';
 import SharedFooter from './components/SharedFooter';
-import { sendEvent as trackEvent } from './lib/analytics';
-import { trackHeroCtaClick, trackLandingViewed, trackPricingClick } from './lib/product-analytics';
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
-import { trackPageView, trackScrollDepth50, trackScrollDepth90, trackClick as rbcTrackClick } from '../core/analytics/track';
+import { sendEvent } from '../core/analytics/eventRouter';
 
 const resources = [
   { title: 'Freelance Pricing Guide', href: '/blog/how-to-price-web-design-projects' },
@@ -146,9 +144,8 @@ export default function Home() {
   const [plansLoading, setPlansLoading] = useState(true);
 
   useEffect(() => {
-    trackLandingViewed({ source: 'homepage' });
     // Real Behavior Capture Layer
-    trackPageView('/');
+    sendEvent('LANDING_VIEW', { source: 'homepage' });
   }, []);
 
   // RBC: Scroll depth tracking
@@ -160,8 +157,8 @@ export default function Home() {
       const scrolled = window.scrollY + window.innerHeight;
       const total = document.documentElement.scrollHeight;
       const pct = total > 0 ? scrolled / total : 0;
-      if (!fired50 && pct >= 0.5) { fired50 = true; trackScrollDepth50('/'); }
-      if (!fired90 && pct >= 0.9) { fired90 = true; trackScrollDepth90('/'); }
+      if (!fired50 && pct >= 0.5) { fired50 = true; sendEvent('SCROLL_DEPTH_50', { path: '/' }); }
+      if (!fired90 && pct >= 0.9) { fired90 = true; sendEvent('SCROLL_DEPTH_90', { path: '/' }); }
     };
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
@@ -253,9 +250,7 @@ export default function Home() {
               className="btn-hero-primary"
               onClick={() => {
                 saveIntendedRoute('/dashboard?tool=quote', '/');
-                trackHeroCtaClick({ cta_name: 'Create Quote', position: 'hero' });
-                trackEvent('cta_click', { cta_name: 'Create Quote', position: 'hero' });
-                rbcTrackClick('Create Quote', '/');
+                sendEvent('CTA_CLICK', { cta_name: 'Create Quote', position: 'hero', label: 'Create Quote' });
               }}
             >
               Create Quote
@@ -265,7 +260,7 @@ export default function Home() {
               variant="secondary"
               size="lg"
               className="btn-hero-secondary"
-              onClick={() => { trackHeroCtaClick({ cta_name: 'Explore Example', position: 'hero' }); trackEvent('cta_click', { cta_name: 'Explore Example', position: 'hero' }); rbcTrackClick('Explore Example', '/'); }}
+              onClick={() => { sendEvent('CTA_CLICK', { cta_name: 'Explore Example', position: 'hero', label: 'Explore Example' }); }}
             >
               Explore Example
             </Button>
@@ -575,9 +570,7 @@ export default function Home() {
                         onClick={() => {
                           const planKey = plan.id;
                           saveSelectedPlan(planKey, '/');
-                          trackPricingClick({ position: 'pricing_card', plan: planKey });
-                          trackEvent('pricing_select_plan', { position: 'pricing_card', plan: planKey });
-                          trackEvent('cta_click', { cta_name: ctaText, position: 'pricing_card', plan: planKey });
+                          sendEvent('PLAN_SELECTED', { position: 'pricing_card', plan: planKey, planId: planKey });
                         }}
                       >
                         {ctaText}

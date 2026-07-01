@@ -9,11 +9,11 @@
  */
 
 import { useEffect } from 'react';
-import { trackTemplateView } from '../../core/analytics/track';
+import { sendEvent } from '../../core/analytics/eventRouter';
 
 export default function TemplateViewTracker({ templateType, industry }) {
   useEffect(() => {
-    trackTemplateView(templateType, industry);
+    sendEvent('TEMPLATE_VIEWED', { templateType, industry: industry ?? 'generic' });
   }, [templateType, industry]);
 
   return null;

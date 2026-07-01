@@ -12,8 +12,6 @@ import PublicHeader from '../components/PublicHeader';
 import SharedFooter from '../components/SharedFooter';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { loadPaddleScript } from '../lib/paddle-client';
-import { sendEvent as trackEvent } from '../lib/analytics';
-import { trackPricingClick } from '../lib/product-analytics';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
 import { useUserSubscription } from '../../hooks/useUserSubscription';
 import { trackPricingView } from 'lib/monetization/revenueEvents';
@@ -26,14 +24,8 @@ import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { getUIInjection } from 'lib/revenue/uiInjection';
 import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
-import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
 import { getPricingAnchorCopy } from '../../core/monetization/valueCapture';
-import {
-  trackPricingView as rbcPricingView,
-  trackPlanHover as rbcPlanHover,
-  trackPlanSelected as rbcPlanSelected,
-  trackCheckoutStart as rbcCheckoutStart,
-} from '../../core/analytics/track';
+import { sendEvent } from '../../core/analytics/eventRouter';
 
 
 const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
@@ -254,9 +246,7 @@ function PricingContent() {
     fetchPlans();
     
     // Funnel tracking validation
-    recordFunnelStep('pricing_view');
-    // Real Behavior Capture Layer
-    rbcPricingView();
+    sendEvent('PRICING_VIEW', { source: 'direct' });
 
     return () => {
       active = false;
@@ -302,9 +292,7 @@ function PricingContent() {
       triggerSource = searchParams.get('source') || 'direct';
     }
     trackPricingView(triggerSource);
-    trackPricingClick({ source: 'pricing_page_view', trigger_source: triggerSource });
-    trackEvent('pro_upgrade_view', { source: 'pricing_page', trigger_source: triggerSource });
-    trackEvent('studio_upgrade_view', { source: 'pricing_page', trigger_source: triggerSource });
+    sendEvent('PRICING_VIEW', { source: 'pricing_page_view', trigger_source: triggerSource });
 
     const trackedDepths = new Set();
     const handleScrollDepth = () => {
@@ -978,19 +966,14 @@ function PricingContent() {
                           return;
                         }
                         if (vm.id === 'studio') {
-                          trackGrowthEvent('pricing_selection', { plan: 'studio', source: 'pricing_page_card' });
+                          sendEvent('PLAN_SELECTED', { plan: 'studio', source: 'pricing_page_card', planId: 'studio' });
                           alert("Thank you! You have been added to the Studio waitlist.");
                           return;
                         }
                         if (!['starter', 'pro'].includes(vm.id)) return;
                         const intentLevel = getIntentLevel();
-                        trackPricingClick({ position: 'pricing_page_card', plan: vm.id });
-                        trackIntentAction('CLICK_CTA');
-                        trackFunnelEvent('cta_click', { plan: vm.id });
-                        trackGrowthEvent('pricing_selection', { plan: vm.id, source: 'pricing_page_card' });
-                        // Real Behavior Capture Layer
-                        rbcPlanSelected(vm.id);
-                        rbcCheckoutStart(vm.id);
+                        sendEvent('PLAN_SELECTED', { position: 'pricing_page_card', plan: vm.id, planId: vm.id });
+                        sendEvent('CHECKOUT_STARTED', { planId: vm.id });
                         router.push(`/checkout?plan=${vm.id}&intent=${intentLevel.toLowerCase()}`);
                       }}
                       disabled={checkoutLoading || isCurrentPlan}

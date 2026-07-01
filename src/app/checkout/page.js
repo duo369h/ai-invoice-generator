@@ -16,9 +16,8 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { handleUpgradeCheckout } from '../../core/pricing/pricingController';
-import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { saveSelectedPlan } from '../lib/intent-store';
-import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
+import { sendEvent } from '../../core/analytics/eventRouter';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 
 const themeStyles = {
@@ -124,11 +123,11 @@ function CheckoutContent() {
     if (loading) return;
 
     // Track checkout funnel start
-    trackFunnelEvent('checkout_start', { plan: planId, intent });
+    sendEvent('CHECKOUT_STARTED', { plan: planId, intent, planId: planId });
 
     if (!session) {
       console.log('[CHECKOUT] Redirecting unauthenticated user to signup for plan:', planId);
-      recordFunnelStep('signup_start', { plan: planId });
+      sendEvent('SIGNUP_STARTED', { plan: planId, planId: planId });
       saveSelectedPlan(planId, `/checkout?plan=${planId}&intent=${intent}`);
       router.push(`/signup?redirect=/checkout&plan=${planId}&intent=${intent}`);
       return;

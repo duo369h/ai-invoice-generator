@@ -42,8 +42,7 @@ const clearAnalyticsUserId = () => {};
 const consumeSignupStarted = () => false;
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
 import { canAccess, getUserEntitlements } from 'lib/entitlements';
-import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
-import { trackDashboardEnter as rbcDashboardEnter } from '../../core/analytics/track';
+import { sendEvent } from '../../core/analytics/eventRouter';
 
 
 // Import design system hooks, tokens, and icons
@@ -315,10 +314,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setMounted(true);
     setKernelUi(CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
     
-    // Onboarding start funnel validation
-    recordFunnelStep('onboarding_start');
-    // Real Behavior Capture Layer
-    rbcDashboardEnter();
+    // Real Behavior Capture Layer — Unified Event Router
+    sendEvent('DASHBOARD_ENTERED');
 
     const handleStorageChange = () => {
       setKernelUi(CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
@@ -1645,7 +1642,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           } else {
             trackEvent('quote_created', { quote_number: qNumber, currency: qCurrency, sandbox: isDemo });
             if (quotes.length === 0) {
-              trackGrowthEvent('first_quote_created', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
+              sendEvent('QUOTE_CREATED_INTENT', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
+              sendEvent('FIRST_ACTION_TAKEN', { action: 'first_quote_created' });
             }
           }
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
@@ -1728,7 +1726,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             window.localStorage.setItem('corvioz_pending_invoice', JSON.stringify(payload));
             window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
             window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
-            trackGrowthEvent('first_invoice_created', { documentType: 'invoice', invoice_number: invNumber, source: 'guest_flow' });
+            sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'guest_flow' });
+            sendEvent('FIRST_ACTION_TAKEN', { action: 'first_invoice_created' });
           }
           trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
 
@@ -1796,7 +1795,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             if (invoices.length === 0) {
               if (typeof window !== 'undefined') {
                 window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
-                trackGrowthEvent('first_invoice_created', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
+                sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
+                sendEvent('FIRST_ACTION_TAKEN', { action: 'first_invoice_created' });
               }
             }
           }
@@ -2255,7 +2255,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     await evaluateAction('export_pdf', async (shouldProceedWithoutWatermark) => {
       window.localStorage.setItem('corvioz_export_count', String(newCount));
       setExportCount(newCount);
-      trackGrowthEvent('export_triggered', { documentType, export_count: newCount, source: 'export_purpose_modal' });
+      sendEvent('FIRST_ACTION_TAKEN', { action: 'export_pdf', documentType, export_count: newCount, source: 'export_purpose_modal' });
       const downloadWatermarkFree = !isFree || shouldProceedWithoutWatermark;
       await triggerActualPdfDownload(elementId, name, downloadWatermarkFree, resourceId);
     }, telemetryPayload);

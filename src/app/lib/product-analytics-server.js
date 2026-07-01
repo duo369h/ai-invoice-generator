@@ -85,21 +85,40 @@ export async function recordProductAnalyticsEvent({
   const writer = createServiceSupabaseClient();
   if (!writer) return { stored: false, reason: 'service_role_not_configured', posthog };
 
+  const eventMapping = {
+    'Landing Viewed': 'LANDING_VIEW',
+    'Hero CTA Click': 'CTA_CLICK',
+    'Pricing Click': 'PRICING_VIEW',
+    'Signup Started': 'SIGNUP_STARTED',
+    'Signup Completed': 'SIGNUP_COMPLETED',
+    'Proposal Created': 'QUOTE_CREATED_INTENT',
+    'Proposal Sent': 'QUOTE_CREATED_INTENT',
+    'Invoice Created': 'INVOICE_CREATED_INTENT',
+    'Invoice Paid': 'INVOICE_CREATED_INTENT',
+    'Feedback Submitted': 'CTA_CLICK',
+  };
+  
+  const canonicalName = eventMapping[eventName] || 'CTA_CLICK';
+
   const payload = {
-    event_name: toSnakeEvent(eventName),
+    event: canonicalName,
     session_id: cleanString(sessionId || normalized.session_id || '', 160),
     user_id: userId || null,
-    page_path: cleanString(pagePath || normalized.page_path || '', 500),
-    page_location: cleanString(pageLocation || normalized.page_location || '', 1000),
-    source: cleanString(source || normalized.source || 'direct', 300),
-    properties: normalized,
+    metadata: {
+      ...normalized,
+      page_path: cleanString(pagePath || normalized.page_path || '', 500),
+      page_location: cleanString(pageLocation || normalized.page_location || '', 1000),
+      source: cleanString(source || normalized.source || 'direct', 300),
+      funnel_stage: 'LANDING',
+    },
+    created_at: normalized.timestamp ? new Date(normalized.timestamp).toISOString() : new Date().toISOString(),
   };
 
-  const { error } = await writer.from('growth_events').insert(payload);
-  if (error?.code === 'PGRST205' || error?.message?.includes('growth_events')) {
-    return { stored: false, reason: 'growth_events_schema_not_applied', posthog };
+  const { error } = await writer.from('analytics_events').insert(payload);
+  if (error) {
+    console.warn('[ServerAnalytics] Insert to analytics_events failed:', error.message);
+    return { stored: false, reason: error.message, posthog };
   }
-  if (error) throw error;
 
   return { stored: true, posthog };
 }

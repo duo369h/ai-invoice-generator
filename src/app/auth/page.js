@@ -5,10 +5,8 @@ import Link from 'next/link';
 import { Badge, Button, Logo } from '../components/UIComponents';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
-import { sendEvent as trackEvent } from '../lib/analytics';
-import { trackSignupStarted } from '../lib/product-analytics';
-import { trackSignup as rbcTrackSignup } from '../../core/analytics/track';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
+import { sendEvent } from '../../core/analytics/eventRouter';
 import {
   isEntryIntendedAction,
   isEntrySelectedPlan,
@@ -161,10 +159,7 @@ export default function AuthPage() {
 
     setIsLoading(true);
     setStatus('');
-    trackSignupStarted({ method: 'magic_link', source: 'auth_form' });
-    trackEvent('signup_start', { method: 'magic_link', source: 'auth_form' });
-    trackEvent('signup_login_intent', { method: 'magic_link' });
-    rbcTrackSignup();
+    sendEvent('SIGNUP_STARTED', { method: 'magic_link', source: 'auth_form' });
 
     const redirectTarget = getRedirectTarget();
     const { error } = await client.auth.signInWithOtp({
@@ -190,10 +185,7 @@ export default function AuthPage() {
 
     setIsLoading(true);
     setStatus('');
-    trackSignupStarted({ method: 'google', source: 'auth_form' });
-    trackEvent('signup_start', { method: 'google', source: 'auth_form' });
-    trackEvent('signup_login_intent', { method: 'google' });
-    rbcTrackSignup();
+    sendEvent('SIGNUP_STARTED', { method: 'google', source: 'auth_form' });
 
     const redirectTarget = getRedirectTarget();
     const { error } = await client.auth.signInWithOAuth({

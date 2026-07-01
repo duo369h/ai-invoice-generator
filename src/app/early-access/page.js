@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button, Logo } from '../components/UIComponents';
-import { trackHeroCtaClick, trackSignupStarted } from '../lib/product-analytics';
+import { sendEvent } from '../../core/analytics/eventRouter';
 
 function readUtm() {
   if (typeof window === 'undefined') return {};
@@ -54,7 +54,7 @@ export default function EarlyAccessPage() {
       if (!response.ok) throw new Error(data.error || 'Could not join early access.');
       setStatus(data.duplicate ? 'You are already on the Early Access list.' : 'You are on the Early Access list.');
       setForm({ name: '', email: '', country: '', role: '', reason: '' });
-      trackHeroCtaClick({ source: 'early_access_form_submit', cta_name: 'Join Early Access' });
+      sendEvent('CTA_CLICK', { source: 'early_access_form_submit', label: 'Join Early Access' });
     } catch (err) {
       setError(err.message || 'Could not join early access.');
     } finally {
