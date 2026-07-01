@@ -7,8 +7,9 @@
 import React, { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import ThemeToggle from '../components/ThemeToggle';
-import { Button, Logo } from '../components/UIComponents';
+import { Button } from '../components/UIComponents';
+import PublicHeader from '../components/PublicHeader';
+import SharedFooter from '../components/SharedFooter';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { loadPaddleScript } from '../lib/paddle-client';
 import { sendEvent as trackEvent } from '../lib/analytics';
@@ -26,6 +27,7 @@ import { getUIInjection } from 'lib/revenue/uiInjection';
 import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 import { trackGrowthEvent, recordFunnelStep } from '../../core/growth/growthTracker';
+import { getPricingAnchorCopy } from '../../core/monetization/valueCapture';
 
 
 const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
@@ -49,7 +51,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'starter',
       title: 'Starter',
       tagline: 'Get paid faster',
-      desc: 'A direct outcome-based loop designed for new freelancers. Pitch milestone estimates, invoice billings, and clear payments with zero fluff.',
+      desc: 'For freelancers who need their first repeatable client workflow: create quotes, send invoices, and keep payment follow-up clear.',
       accent: 'var(--primary)',
       bgGlow: 'var(--primary-glow)',
       icon: '⚡'
@@ -58,7 +60,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'pro',
       title: 'Pro',
       tagline: 'Never miss a payment',
-      desc: 'A complete freelance business operating system. Scale from capturing inbound CRM leads to proposing scopes and repeat business.',
+      desc: 'For working freelancers who manage multiple clients and need stronger proposals, branded delivery, and repeatable invoice follow-up.',
       accent: 'var(--success)',
       bgGlow: 'rgba(34, 197, 94, 0.08)',
       icon: '📈'
@@ -67,7 +69,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'studio',
       title: 'Studio',
       tagline: 'Scale client operations',
-      desc: 'A studio command center. White-labeled brand kits, case studies library, dynamic outcome metrics, specialists team, and multi-step budget qualification scoping.',
+      desc: 'For small studios that need shared client operations, stronger brand control, and a clearer path from proposal to paid work.',
       accent: 'var(--accent)',
       bgGlow: 'rgba(99, 102, 241, 0.08)',
       icon: '🚀'
@@ -356,38 +358,37 @@ function PricingContent() {
   const pricingFaq = [
     {
       q: 'Is there a free tier and how does it work?',
-      a: 'Yes! Our Free tier allows you to generate individual quotes, invoices, and set up your public profile with zero credit card required. Watermarked PDF exports are free. You only upgrade to a paid tier when you need custom branding, automatic payment reminders, or unlimited client portal delivery.',
+      a: 'Yes. Free is for trying the core workflow: create quotes, send invoices, and set up your public profile with no credit card required. Upgrade when you need stronger branding, reminders, or broader client portal delivery.',
     },
     {
       q: 'Do you offer a money-back guarantee?',
-      a: 'Absolutely. We offer a 14-day money-back guarantee. If you are not satisfied with Corvioz Starter, Pro, or Studio for any reason within the first 14 days of upgrading, email support@corvioz.com for a full, prompt refund. No questions asked.',
+      a: 'Yes. Corvioz offers a 14-day refund window for paid upgrades processed through Paddle where checkout is enabled. If the product does not fit your freelancer workflow or there is a billing error, email support@corvioz.com with your account email and Paddle receipt.',
     },
     {
       q: 'Can I cancel or change plans later?',
-      a: 'Yes, you can upgrade, downgrade, or cancel your subscription at any time directly from your account settings. There are no lock-in contracts or cancelation fees.',
+      a: 'Yes, you can upgrade, downgrade, or cancel future renewal from your account or through billing support where Paddle checkout is enabled. There are no lock-in contracts or cancellation fees.',
     },
     {
       q: 'How do client portals work?',
-      a: 'When you send a quote or invoice, your client gets a private, secure link. They can approve quotes, write comment feedback, and pay invoices via credit card or bank transfer without needing a Corvioz account. Everything syncs back to your dashboard in real-time.',
+      a: 'When you share a quote, proposal, or invoice, your client gets a private link. They can review the work and respond without creating a Corvioz account, while your dashboard keeps the client record organized.',
     },
     {
       q: 'Is Corvioz full accounting software?',
-      a: 'No. Corvioz is a focused commercial workspace, not full bookkeeping or accounting software. We handle client-facing operations—winning the client with proposals, billing them with professional invoices, and tracking payment status—without accounting complexity.',
+      a: 'No. Corvioz is a focused client workflow workspace, not full bookkeeping or tax software. It helps you win work with quotes and proposals, invoice clients professionally, and keep payment status visible.',
     },
   ];
 
   if (!(mounted && identity !== null)) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)', paddingBottom: '80px' }}>
-        <nav className="navbar pricing-navbar">
-          <Logo />
-          <div className="nav-links">
-            <Button href="/dashboard" variant="secondary" size="sm">Sign in</Button>
-            <span className="pricing-theme-toggle">
-              <ThemeToggle />
-            </span>
-          </div>
-        </nav>
+        <PublicHeader
+            className="navbar pricing-navbar"
+            surfaceId="pricing-identity-gate-control-surface"
+            route="/pricing"
+            navLinks={[]}
+            accountAction={{ label: 'Sign in', href: '/dashboard', variant: 'secondary' }}
+            primaryAction={null}
+        />
         <main style={{ maxWidth: '980px', margin: '0 auto', padding: '120px clamp(16px, 5vw, 24px) 48px', textAlign: 'center' }}>
           <header style={{ marginBottom: '56px' }}>
             <p className="section-kicker" style={{ color: 'var(--primary)', fontWeight: 800 }}>Corvioz Identity Gate</p>
@@ -409,6 +410,7 @@ function PricingContent() {
             }}
           />
         </main>
+        <SharedFooter />
       </div>
     );
   }
@@ -535,37 +537,34 @@ function PricingContent() {
       `}</style>
 
       {/* Navigation */}
-      <nav className="navbar pricing-navbar">
-        <Logo />
-        <div className="nav-links">
-          {mounted && ui.identity && (
-            <>
-              <Link href="/#features" className="nav-link">Features</Link>
-              <Link href="/#how-it-works" className="nav-link">How it works</Link>
-              <Link href="/pricing" className="nav-link" style={{ fontWeight: 700 }}>Pricing</Link>
-              <Link href="/#resources" className="nav-link">Resources</Link>
-            </>
-          )}
-          <Button href="/dashboard" variant="secondary" size="sm" onClick={() => trackEvent('cta_click', { cta_name: 'Sign in', position: 'pricing_navbar' })}>Sign in</Button>
-          {mounted && ui.identity && (
-            <Button
-              href="/dashboard?tool=invoice"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                saveIntendedRoute('/dashboard?tool=invoice', '/pricing');
-                trackEvent('signup_click', { position: 'pricing_navbar' });
-                trackEvent('cta_click', { cta_name: ui.cta('navbar'), position: 'pricing_navbar' });
-              }}
-            >
-              {ui.cta('navbar')}
-            </Button>
-          )}
-          <span className="pricing-theme-toggle">
-            <ThemeToggle />
-          </span>
-        </div>
-      </nav>
+      <PublicHeader
+          className="navbar pricing-navbar"
+          surfaceId="pricing-global-control-surface"
+          route="/pricing"
+          navLinks={mounted && ui.identity ? [
+            { label: 'How it Works', href: '/#how-corvioz-works' },
+            { label: 'Pricing', href: '/pricing', active: true },
+            { label: 'Resources', href: '/#resources' },
+            { label: 'Security', href: '/security' },
+            { label: 'Help Center', href: '/help' },
+          ] : []}
+          accountAction={{
+            label: 'Sign in',
+            href: '/dashboard',
+            variant: 'secondary',
+            onClick: () => trackEvent('cta_click', { cta_name: 'Sign in', position: 'pricing_navbar' }),
+          }}
+          primaryAction={mounted && ui.identity ? {
+            label: ui.cta('navbar'),
+            href: '/dashboard?tool=quote',
+            variant: 'primary',
+            onClick: () => {
+              saveIntendedRoute('/dashboard?tool=quote', '/pricing');
+              trackEvent('signup_click', { position: 'pricing_navbar' });
+              trackEvent('cta_click', { cta_name: ui.cta('navbar'), position: 'pricing_navbar' });
+            },
+          } : null}
+      />
 
       {/* Header */}
       <main style={{ maxWidth: '1120px', margin: '0 auto', padding: '60px clamp(16px, 5vw, 24px) 0', overflowX: 'clip' }}>
@@ -597,10 +596,10 @@ function PricingContent() {
             {mounted && ui.copy ? ui.copy.kicker : "PRICING"}
           </p>
           <h1 className="section-title" style={{ marginBottom: '12px', fontWeight: 900 }}>
-            {mounted && ui.copy ? ui.copy.headline : "Pick your mode."}
+            {mounted && ui.copy ? ui.copy.headline : "Choose the plan that matches your client workflow."}
           </h1>
           <p className="section-lede" style={{ marginBottom: '32px', maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
-            {mounted && ui.copy ? ui.copy.lede : "Most freelancers start on Free and upgrade to Pro within their first two weeks."}
+            {mounted && ui.copy ? ui.copy.lede : "Start with quotes and invoices. Upgrade when branding, client delivery, and follow-up become part of your paid workflow."}
           </p>
 
           {/* Engine-driven upgrade nudge banner */}
@@ -721,7 +720,7 @@ function PricingContent() {
             fontWeight: 600
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🔒</span> Secure payments via Stripe
+              <span>🔒</span> Secure checkout via Paddle
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🛡️</span> Your data is encrypted
@@ -825,7 +824,7 @@ function PricingContent() {
 
         {plansLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-            <p style={{ color: 'var(--text-muted)' }}>Loading plans...</p>
+            <p style={{ color: 'var(--text-muted)' }}>Loading pricing...</p>
           </div>
         ) : (
           <div className="pricing-grid-v2">
@@ -945,6 +944,11 @@ function PricingContent() {
                     <p style={{ fontSize: '0.92rem', fontWeight: 550, color: 'var(--text-muted)', marginBottom: '16px', minHeight: '44px', lineHeight: 1.45 }}>
                       {vm.outcome}
                     </p>
+                    {!isFree && (
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 16px 0', lineHeight: 1.45, fontWeight: 700, background: 'var(--primary-glow)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px' }}>
+                        {getPricingAnchorCopy(vm.id)}
+                      </p>
+                    )}
                     {vm.features && vm.features.length > 0 && (
                       <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
                         {vm.features.map((feature, fIdx) => (
@@ -982,7 +986,7 @@ function PricingContent() {
                       variant={isPro ? 'primary' : 'secondary'}
                       style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isStarter ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
                     >
-                      {checkoutLoading ? 'Preparing Checkout...' : vm.ctaLabel}
+                      {checkoutLoading ? 'Preparing checkout...' : vm.ctaLabel}
                     </Button>
 
                     {/* Trust Microcopy */}
@@ -1047,12 +1051,17 @@ function PricingContent() {
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> No hidden billing logic
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You control your data
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your invoices, clients, and exported documents
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Payments handled securely via Stripe
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Subscription checkout handled securely via Paddle
               </li>
             </ul>
+            <div style={{ marginTop: '18px' }}>
+              <Link href="/trust" className="btn btn-secondary btn-sm">
+                Why Trust Corvioz
+              </Link>
+            </div>
           </div>
         )}
 
@@ -1129,13 +1138,13 @@ function PricingContent() {
           <div>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🛡️ 14-Day Money-Back Guarantee</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Try Corvioz paid tiers risk-free. If it doesn't help you get paid faster or manage clients more efficiently, email support@corvioz.com within 14 days for a full refund. No questions asked.
+              Try Corvioz paid tiers with a clear 14-day refund window. If it does not fit your freelancer workflow or there is a billing error, email support@corvioz.com with your account email and Paddle receipt.
             </p>
           </div>
           <div className="checkout-trust-separator" style={{ borderLeft: '1px solid var(--border)', paddingLeft: '24px' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🔒 Safe & Secure Checkout</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              We partner with Stripe to handle payment processing. Your credit card information is encrypted at rest and never touches our servers. Cancel or downgrade back to the Free plan in 1-click anytime.
+              Paddle handles subscription checkout, receipts, tax handling, and billing records where enabled. Your card details do not touch Corvioz servers. Cancel future renewal or downgrade back to Free from account billing support anytime.
             </p>
           </div>
         </div>
@@ -1180,38 +1189,7 @@ function PricingContent() {
         </section>
       </main>
 
-      <footer style={{ borderTop: '1px solid var(--border)', marginTop: '80px', padding: '44px 24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', backgroundColor: 'var(--bg-surface)' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <Link href="/privacy" style={{ color: 'var(--text-muted)' }}>Privacy Policy</Link>
-          <Link href="/terms" style={{ color: 'var(--text-muted)' }}>Terms of Service</Link>
-          <Link href="/refund-policy" style={{ color: 'var(--text-muted)' }}>Refund Policy</Link>
-          <Link href="/security" style={{ color: 'var(--text-muted)' }}>Security & Data</Link>
-          <Link href="/contact" style={{ color: 'var(--text-muted)' }}>Contact</Link>
-        </div>
-        
-        <p style={{ margin: '16px 0 12px 0', fontSize: '0.85rem', color: 'var(--text-soft)', fontWeight: 600 }}>
-          {mounted && ui.copy?.cardTrustMicrocopy}
-        </p>
-
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: '24px',
-          fontSize: '0.75rem',
-          color: 'var(--text-muted)',
-          fontWeight: 550,
-          marginBottom: '20px'
-        }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🔒 {
-            mounted && ui.copy?.trustBadges?.[0]
-          }</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🇪🇺 GDPR Ready</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>💳 Secure Payments</span>
-        </div>
-
-        <p>© {new Date().getFullYear()} Corvioz. All rights reserved.</p>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

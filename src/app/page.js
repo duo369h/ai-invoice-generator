@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import ThemeToggle from './components/ThemeToggle';
-import { Button, Card, Logo } from './components/UIComponents';
+import { Button, Card } from './components/UIComponents';
+import PublicHeader from './components/PublicHeader';
+import SharedFooter from './components/SharedFooter';
 import { sendEvent as trackEvent } from './lib/analytics';
 import { trackHeroCtaClick, trackLandingViewed, trackPricingClick } from './lib/product-analytics';
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
@@ -17,16 +18,64 @@ const resources = [
 
 const faqs = [
   {
-    q: 'Is Corvioz only for quotes?',
-    a: 'No. While quotes are the starting point of the workflow, you can convert any approved quote into a professional invoice in one click and track the entire payment lifecycle.',
+    q: 'Why Corvioz instead of invoicing software?',
+    a: 'Corvioz starts before the invoice. It helps freelancers create a quote, turn it into a proposal, send the invoice, and keep the client workflow in one workspace.',
   },
   {
     q: 'Who is Corvioz built for?',
-    a: 'Corvioz is designed specifically for solo freelancers, consultants, designers, developers, and marketers who want a clean, professional client billing workflow without bloated software.',
+    a: 'Corvioz is built for freelancers, consultants, designers, developers, photographers, and small studios that need a clear quote-to-invoice workflow without a heavy accounting suite.',
   },
   {
-    q: 'Can I export PDF documents?',
-    a: 'Yes. You can generate professional, clean PDF copies of your quotes and invoices to send directly to clients, or share white-labeled online portal links.',
+    q: 'Can I manage recurring clients?',
+    a: 'Yes. You can keep client records, reuse quote and invoice details, and manage repeat work from the same dashboard.',
+  },
+  {
+    q: 'Which payment methods are supported?',
+    a: 'Paid subscriptions are processed through Paddle where checkout is enabled. Client payment options depend on the payment links and billing setup available in your account.',
+  },
+  {
+    q: 'Can I switch plans later?',
+    a: 'Yes. You can move between Free, Starter, and Pro as your client workflow changes, without changing your existing quotes, invoices, or client records.',
+  },
+  {
+    q: 'Can I cancel before renewal?',
+    a: 'Yes. You can cancel future renewal before the next billing period or request billing support without cancellation fees or long-term contracts.',
+  },
+  {
+    q: 'How do refunds work?',
+    a: 'Paid upgrades include a clear 14-day refund window when processed through Paddle. Email support@corvioz.com with your account email and Paddle receipt.',
+  },
+  {
+    q: 'Who owns my data?',
+    a: 'You own your invoices, quotes, proposals, client records, and exported documents. Corvioz does not sell personal data.',
+  },
+  {
+    q: 'Can I export my invoices?',
+    a: 'Yes. You can export client-ready invoices and quote documents so your records are not locked inside Corvioz.',
+  },
+  {
+    q: 'How long is my data stored?',
+    a: 'Account data is retained while your account is active and handled according to the privacy policy. Deleted account data follows the stated retention and deletion process.',
+  },
+  {
+    q: 'How is my data protected?',
+    a: 'Corvioz uses Supabase for authentication and database storage, Paddle for subscription billing, and scoped access patterns for account data.',
+  },
+  {
+    q: 'Do clients need an account?',
+    a: 'No. Clients can review shared quote, proposal, invoice, and portal links without creating a Corvioz account.',
+  },
+  {
+    q: 'Can I customize invoices?',
+    a: 'Yes. Corvioz supports professional invoice details and paid tiers add stronger branding and delivery controls.',
+  },
+  {
+    q: 'Can I use my own branding?',
+    a: 'Yes. Branding options depend on your plan, with paid tiers designed for freelancers who want more polished client delivery.',
+  },
+  {
+    q: 'Is Corvioz full accounting software?',
+    a: 'No. Corvioz is a client workflow workspace for quotes, proposals, invoices, and client records. It does not replace bookkeeping or tax software.',
   },
 ];
 
@@ -90,7 +139,6 @@ function CheckIcon() {
 }
 
 export default function Home() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [plans, setPlans] = useState([]);
@@ -135,67 +183,35 @@ export default function Home() {
 
   return (
     <main className="landing-page">
-      <nav className="navbar landing-nav">
-        <Logo />
-        <div className="nav-links desktop-only">
-          <a href="#why-corvioz" className="nav-link">Why Corvioz</a>
-          <a href="#how-corvioz-works" className="nav-link">How it works</a>
-          <a href="#pricing" className="nav-link">Pricing</a>
-          <a href="#faq" className="nav-link">FAQ</a>
-
-          <Button href="/dashboard" variant="secondary" size="sm" onClick={() => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' })}>Sign in</Button>
-          <Button
-            href="/dashboard?tool=quote"
-            variant="primary"
-            size="sm"
-            className="btn-navbar-cta"
-            onClick={() => {
+      <PublicHeader
+          className="navbar landing-nav"
+          surfaceId="home-global-control-surface"
+          route="/"
+          navLinks={[
+            { label: 'Why Corvioz', href: '#why-corvioz' },
+            { label: 'How it Works', href: '#how-corvioz-works' },
+            { label: 'Pricing', href: '#pricing' },
+            { label: 'Resources', href: '#resources' },
+            { label: 'Security', href: '/security' },
+            { label: 'Help Center', href: '/help' },
+          ]}
+          accountAction={{
+            label: 'Sign in',
+            href: '/dashboard',
+            variant: 'secondary',
+            onClick: () => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' }),
+          }}
+          primaryAction={{
+            label: 'Create Quote',
+            href: '/dashboard?tool=quote',
+            variant: 'primary',
+            onClick: () => {
               saveIntendedRoute('/dashboard?tool=quote', '/');
               trackEvent('signup_click', { position: 'navbar' });
-              trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'navbar' });
-            }}
-          >
-            Create a Quote
-          </Button>
-          <ThemeToggle />
-        </div>
-        <div className="mobile-nav-actions">
-          <ThemeToggle />
-          <button
-            type="button"
-            className={`hamburger-btn ${mobileMenuOpen ? 'open' : ''}`}
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-        </div>
-        {mobileMenuOpen && (
-          <div className="mobile-menu-drawer animate-fade-in">
-            <a href="#why-corvioz" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Why Corvioz</a>
-            <a href="#how-corvioz-works" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>How it works</a>
-            <a href="#pricing" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
-            <a href="#faq" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
-            <div className="mobile-menu-divider" />
-            <Button href="/dashboard" variant="secondary" className="u-full-width" onClick={() => { setMobileMenuOpen(false); trackEvent('cta_click', { cta_name: 'Sign in', position: 'mobile_menu' }); }}>Sign in</Button>
-            <Button
-              href="/dashboard?tool=quote"
-              variant="primary"
-              className="u-full-width u-mt-2"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                saveIntendedRoute('/dashboard?tool=quote', '/');
-                trackEvent('signup_click', { position: 'mobile_menu' });
-                trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'mobile_menu' });
-              }}
-            >
-              Create a Quote
-            </Button>
-          </div>
-        )}
-      </nav>
+              trackEvent('cta_click', { cta_name: 'Create Quote', position: 'navbar' });
+            },
+          }}
+      />
 
       <header className="landing-hero animate-fade-in">
         <div className="hero-content-center">
@@ -203,11 +219,11 @@ export default function Home() {
             Early Access for Freelancers
           </div>
           <h1 className="hero-title">
-            Get a price.<br />
-            <span className="glow-gradient-text">Win better clients.</span>
+            Turn client requests<br />
+            <span className="glow-gradient-text">into paid work.</span>
           </h1>
           <p className="hero-lede">
-            Corvioz helps freelancers create quotes, send invoices, and get paid faster.
+            Create a quote, turn it into a proposal, send the invoice, and keep every client step moving in one workspace.
           </p>
 
           <div className="hero-actions">
@@ -218,11 +234,11 @@ export default function Home() {
               className="btn-hero-primary"
               onClick={() => {
                 saveIntendedRoute('/dashboard?tool=quote', '/');
-                trackHeroCtaClick({ cta_name: 'Create a Quote', position: 'hero' });
-                trackEvent('cta_click', { cta_name: 'Create a Quote', position: 'hero' });
+                trackHeroCtaClick({ cta_name: 'Create Quote', position: 'hero' });
+                trackEvent('cta_click', { cta_name: 'Create Quote', position: 'hero' });
               }}
             >
-              Create a Quote
+              Create Quote
             </Button>
             <Button
               href="/demo"
@@ -292,12 +308,17 @@ export default function Home() {
           </div>
 
           <div className="trust-badges-row">
-            <span>100% Secure Payments</span>
+            <span>Secure subscription billing via Paddle</span>
             <span className="trust-divider">|</span>
             <span>GDPR &amp; CCPA Compliant</span>
             <span className="trust-divider">|</span>
             <span>No Credit Card Required to Try</span>
           </div>
+          <p style={{ marginTop: '18px' }}>
+            <Link href="/trust" className="btn btn-secondary btn-sm">
+              Why Trust Corvioz
+            </Link>
+          </p>
         </div>
       </section>
 
@@ -444,8 +465,8 @@ export default function Home() {
       <section id="pricing" className="section section-pricing">
         <div className="landing-section-container landing-section-container--wide u-text-center">
           <p className="section-kicker">Pricing</p>
-          <h2 className="section-title">Pick your plan.</h2>
-          <p className="section-lede">Start free. Upgrade only when Corvioz becomes part of your workflow.</p>
+          <h2 className="section-title">Choose how you want to work.</h2>
+          <p className="section-lede">Start free, then upgrade when quotes, invoices, and client delivery become part of your daily workflow.</p>
 
           <div className="billing-period-wrapper">
             <div className="billing-savings-label">
@@ -571,7 +592,7 @@ export default function Home() {
       <section id="faq" className="section section-faq">
         <div className="landing-section-container landing-section-container--faq u-text-center">
           <p className="section-kicker">FAQ</p>
-          <h2 className="section-title">Common Questions</h2>
+          <h2 className="section-title">Questions before you start</h2>
           <div className="faq-list">
             {faqs.map((item, idx) => (
               <div key={item.q} className="faq-item">
@@ -596,7 +617,7 @@ export default function Home() {
                 &quot;Hi, I&apos;m Duo, the creator of Corvioz. Like many of you, I struggled with bloated, expensive CRM software and accounting tools that assumed I had a finance team.
               </p>
               <p className="transparency-body">
-                We built Corvioz to give freelancers a focused, fast, and beautiful space to handle quotes and invoices. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
+                We built Corvioz to give freelancers a focused, fast, and beautiful workspace to handle quotes, proposals, invoices, and clients. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
               </p>
               <strong className="transparency-sig">Duo, Founder of Corvioz</strong>
             </div>
@@ -621,10 +642,10 @@ export default function Home() {
             Built for real freelancers
           </p>
           <h2 className="section-title">
-            Ready to win more clients?
+            Ready to create your first client quote?
           </h2>
           <p className="section-lede">
-            Create milestone quotes, convert to invoices, and secure payments instantly.
+            Start with a quote, move into an invoice, and keep the client workflow clear from day one.
           </p>
           <div className="hero-actions center">
             <Button
@@ -635,12 +656,12 @@ export default function Home() {
                 saveIntendedRoute('/dashboard?tool=quote', '/');
                 trackEvent('quote_create_click', { position: 'final_cta' });
                 trackEvent('cta_click', {
-                  cta_name: 'Create a Quote',
+                  cta_name: 'Create Quote',
                   position: 'final_cta'
                 });
               }}
             >
-              Create a Quote
+              Create Quote
             </Button>
           </div>
           <p className="final-cta-note">
@@ -649,44 +670,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="landing-footer landing-footer-grid">
-        <div>
-          <Logo />
-          <p>
-            Get a price. Win better clients.
-          </p>
-          <p className="footer-tagline">Built for Freelancers in Beta</p>
-        </div>
-        <div>
-          <strong>Product</strong>
-          <a href="#how-corvioz-works">How it works</a>
-          <a href="#why-corvioz">Why Corvioz</a>
-          <a href="#pricing">Pricing</a>
-        </div>
-        <div>
-          <strong>Resources</strong>
-          <Link href="/blog">Blog</Link>
-          <Link href="/blog/how-to-price-web-design-projects">Pricing guide</Link>
-          <Link href="/blog/best-invoice-software-for-freelancers">Get paid</Link>
-        </div>
-        <div>
-          <strong>Company</strong>
-          <Link href="/contact">Contact</Link>
-          <Link href="/dashboard?tool=client">Client portal</Link>
-          <Link href="/dashboard">Sign in</Link>
-        </div>
-        <div>
-          <strong>Legal</strong>
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms of Service</Link>
-          <Link href="/refund-policy">Refund Policy</Link>
-          <Link href="/security">Security &amp; Data</Link>
-        </div>
-
-        <div className="footer-bottom">
-          <p>GDPR Ready • CCPA Compliant • Secure Payments</p>
-        </div>
-      </footer>
+      <SharedFooter />
     </main>
   );
 }

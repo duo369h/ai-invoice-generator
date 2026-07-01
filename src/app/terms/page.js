@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Logo } from "../components/UIComponents";
 import SharedFooter from "../components/SharedFooter";
+import { thirdPartyDisclosures } from "../../legal/thirdPartyDisclosure";
+import PublicHeader from "../components/PublicHeader";
+import LegalPageMeta from "../components/LegalPageMeta";
 
 export const metadata = {
   title: "Terms of Service",
@@ -11,25 +13,12 @@ export const metadata = {
 export default function TermsOfService() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <header className="navbar">
-        <Logo size={24} />
-        <div className="nav-links">
-          <Link href="/" className="nav-link">Home</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-        </div>
-      </header>
+      <PublicHeader route="/terms" surfaceId="terms-public-header" logoSize={24} />
 
       {/* Content */}
       <main className="container" style={{ flex: 1, padding: "60px 24px", maxWidth: "800px", margin: "0 auto" }}>
         <div className="animate-fade-in">
-          <span className="badge" style={{ marginBottom: "16px" }}>Legal</span>
-          <h1 style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "8px", letterSpacing: "-1px" }}>
-            Terms of Service
-          </h1>
-          <p style={{ color: "var(--text-muted)", marginBottom: "40px", fontSize: "0.95rem" }}>
-            Last updated: June 2026
-          </p>
+          <LegalPageMeta title="Terms of Service" />
 
           <div style={{ display: "flex", flexDirection: "column", gap: "32px", lineHeight: 1.8, color: "var(--text-muted)", fontSize: "0.95rem" }}>
             <section>
@@ -79,7 +68,7 @@ export default function TermsOfService() {
               <p>
                 Corvioz offers a Free tier and paid plans (Pro and Studio). Current plan pricing and features are always listed on the{' '}
                 <a href="/pricing" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Pricing page</a>.
-                Roadmap features may be listed as coming soon, but they are not part of the current V1 launch scope. Paid features may be activated manually while automated billing is finalized. We reserve the right to alter features and terms with reasonable prior notice.
+                Paid checkout and subscription billing are handled through Paddle where enabled. Roadmap features may be listed as coming soon, but they are not part of the current V1 launch scope. We reserve the right to alter features and terms with reasonable prior notice.
               </p>
             </section>
 
@@ -88,13 +77,41 @@ export default function TermsOfService() {
                 6. Payment Links & Invoicing
               </h2>
               <p>
-                Invoices generated via Corvioz can display your added payment links, such as Paddle, PayPal, or a bank-transfer instruction. Corvioz helps you create documents and track payment status, but does not process, hold, or route financial transactions unless a future payment processor integration is explicitly enabled.
+                Invoices generated via Corvioz can display your added client payment links, such as Paddle-hosted checkout links, PayPal, or a bank-transfer instruction. Corvioz helps you create documents and track payment status. Corvioz subscriptions, checkout, receipts, tax handling, and related billing records are handled by Paddle where enabled.
               </p>
             </section>
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                7. Limitation of Liability
+                7. Third-Party Services
+              </h2>
+              <p>
+                Corvioz depends on limited third-party providers to operate authentication, storage, payments, and analytics. Current processor categories include:
+              </p>
+              <ul style={{ paddingLeft: "24px", marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                {thirdPartyDisclosures.map((provider) => (
+                  <li key={provider.key}>{provider.name}: {provider.role}</li>
+                ))}
+              </ul>
+            </section>
+
+            <section>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
+                8. Privacy and Data Requests
+              </h2>
+              <p>
+                Use of Corvioz is also governed by the{" "}
+                <Link href="/privacy" style={{ color: "var(--primary)", textDecoration: "underline" }}>
+                  Privacy Policy
+                </Link>
+                . Users may request access, export, correction, or deletion of account data subject to identity verification and required retention obligations.
+                Users own the invoices, quotes, client records, and exported documents they create in Corvioz.
+              </p>
+            </section>
+
+            <section>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
+                9. Limitation of Liability
               </h2>
               <p>
                 In no event shall Corvioz be liable for any transaction failures, client payment disputes, or commercial losses resulting from your independent service contracts.

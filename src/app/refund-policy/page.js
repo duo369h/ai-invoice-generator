@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Logo } from "../components/UIComponents";
-import { getSupportEmail } from "../lib/config";
 import SharedFooter from "../components/SharedFooter";
+import { refundPolicy } from "../../legal/refund-policy";
+import PublicHeader from "../components/PublicHeader";
+import LegalPageMeta from "../components/LegalPageMeta";
 
 export const metadata = {
   title: "Refund Policy",
@@ -10,68 +11,49 @@ export const metadata = {
 };
 
 export default function RefundPolicy() {
-  const supportEmail = getSupportEmail();
+  const supportEmail = refundPolicy.supportEmail;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header className="navbar">
-        <Logo size={24} />
-        <div className="nav-links">
-          <Link href="/" className="nav-link">Home</Link>
-          <Link href="/pricing" className="nav-link">Pricing</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-        </div>
-      </header>
+      <PublicHeader route="/refund-policy" surfaceId="refund-public-header" logoSize={24} />
 
       <main className="container" style={{ flex: 1, padding: "60px 24px", maxWidth: "800px", margin: "0 auto" }}>
         <div className="animate-fade-in">
-          <span className="badge" style={{ marginBottom: "16px" }}>Billing</span>
-          <h1 style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "8px", letterSpacing: "-1px" }}>
-            Refund Policy
-          </h1>
-          <p style={{ color: "var(--text-muted)", marginBottom: "40px", fontSize: "0.95rem" }}>
-            Last updated: June 2026
-          </p>
+          <LegalPageMeta badge="Billing" title="Refund Policy" description={refundPolicy.summary} />
 
           <div style={{ display: "flex", flexDirection: "column", gap: "32px", lineHeight: 1.8, color: "var(--text-muted)", fontSize: "0.95rem" }}>
-            <section>
-              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                1. Beta Manual Activation
-              </h2>
-              <p>
-                Corvioz Pro is currently sold through manual PayPal payment requests or PayPal invoices. After payment is verified, our team manually activates Pro access for the customer account.
-              </p>
-            </section>
+            {refundPolicy.sections.map((section, index) => (
+              <section key={section.title}>
+                <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
+                  {index + 1}. {section.title}
+                </h2>
+                <p>{section.body}</p>
+                <ul style={{ paddingLeft: "24px", marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {section.items.map((item) => (
+                    <li key={item}>
+                      {item.includes(supportEmail) ? (
+                        <>
+                          {item.split(supportEmail)[0]}
+                          <a href={`mailto:${supportEmail}`} style={{ color: "var(--primary)", textDecoration: "underline" }}>{supportEmail}</a>
+                          {item.split(supportEmail)[1]}
+                        </>
+                      ) : item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                2. Refund Eligibility
+                {refundPolicy.sections.length + 1}. Refund FAQ
               </h2>
-              <p>
-                If Pro access has not yet been activated, you may request a full refund. If Pro access has already been activated, refund requests are reviewed case by case within 7 days of payment. We may approve a refund if there was a duplicate payment, an activation issue, or a clear billing error.
-              </p>
-            </section>
-
-            <section>
-              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                3. Non-Refundable Situations
-              </h2>
-              <p>
-                We generally do not provide refunds after substantial use of Pro features, after the refund request window has passed, or when account information provided by the customer was inaccurate and caused a delay in manual activation.
-              </p>
-            </section>
-
-            <section>
-              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                4. How to Request a Refund
-              </h2>
-              <p>
-                Email{" "}
-                <a href={`mailto:${supportEmail}`} style={{ color: "var(--primary)", textDecoration: "underline" }}>
-                  {supportEmail}
-                </a>{" "}
-                with the subject line &quot;Corvioz Refund Request&quot;. Please include your Corvioz username or account email, PayPal transaction ID, payment date, and the reason for the request. We aim to respond within 2 business days.
-              </p>
+              <ul style={{ paddingLeft: "24px", marginTop: "8px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <li><strong style={{ color: "var(--text-main)" }}>Can I cancel anytime?</strong> Yes. You can cancel future renewal through account billing support or Paddle where enabled.</li>
+                <li><strong style={{ color: "var(--text-main)" }}>How long do refunds take?</strong> Approved refunds are coordinated through Paddle. Processing time can vary by payment method and bank.</li>
+                <li><strong style={{ color: "var(--text-main)" }}>Do I lose my invoices?</strong> No. Your invoices, quotes, client records, and exported documents remain your business records according to the Privacy Policy and Terms.</li>
+                <li><strong style={{ color: "var(--text-main)" }}>Can I export my data?</strong> Yes. You can request account and workspace data export through support, subject to identity verification.</li>
+              </ul>
             </section>
           </div>
         </div>

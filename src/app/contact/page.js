@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Logo } from "../components/UIComponents";
 import { getSupportEmail } from "../lib/config";
+import PublicHeader from "../components/PublicHeader";
+import SharedFooter from "../components/SharedFooter";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -25,14 +26,7 @@ export default function ContactPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <header className="navbar">
-        <Logo size={24} />
-        <div className="nav-links">
-          <Link href="/" className="nav-link">Home</Link>
-          <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
-        </div>
-      </header>
+      <PublicHeader route="/contact" surfaceId="contact-public-header" logoSize={24} />
 
       {/* Content */}
       <main className="container" style={{ flex: 1, padding: "60px 24px", maxWidth: "700px", margin: "0 auto" }}>
@@ -73,7 +67,7 @@ export default function ContactPage() {
                 Message Sent!
               </h2>
               <p style={{ color: "var(--text-muted)", marginBottom: "24px" }}>
-                Thank you for reaching out. We&apos;ll get back to you within 2 hours.
+                Thank you for reaching out. We typically respond within one business day.
               </p>
               <button
                 onClick={() => { setSubmitted(false); setFormData({ name: "", email: "", subject: "", message: "" }); }}
@@ -151,16 +145,7 @@ export default function ContactPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "30px 0", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-        <div className="container" style={{ display: "flex", justifyContent: "center", gap: "24px", flexWrap: "wrap" }}>
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms of Service</Link>
-          <Link href="/refund-policy">Refund Policy</Link>
-          <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link>
-        </div>
-        <p style={{ marginTop: "12px" }}>© 2026 Corvioz. All rights reserved.</p>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }
