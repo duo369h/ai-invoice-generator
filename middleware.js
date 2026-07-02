@@ -30,6 +30,16 @@ function withSecurityHeaders(response) {
   return response;
 }
 
+function shouldRedirectToCanonicalHost(request) {
+  return process.env.NODE_ENV === 'production' && request.nextUrl.hostname === 'corvioz.com';
+}
+
+function buildCanonicalHostRedirect(request) {
+  const url = request.nextUrl.clone();
+  url.hostname = 'www.corvioz.com';
+  return withSecurityHeaders(NextResponse.redirect(url, 308));
+}
+
 function isSupabaseConfigured() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -101,6 +111,10 @@ function buildAuthRedirect(request, nextPath) {
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+
+  if (shouldRedirectToCanonicalHost(request)) {
+    return buildCanonicalHostRedirect(request);
+  }
 
   const dashboardToolRedirects = [
     { matches: pathname === '/quotes' || pathname.startsWith('/quotes/'), tool: 'quote' },

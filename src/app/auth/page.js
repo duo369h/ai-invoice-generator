@@ -31,6 +31,18 @@ function inferRevenueActionFromRoute(route) {
   return null;
 }
 
+function safeAuthRedirect(value) {
+  if (!value || typeof value !== 'string') return '/dashboard';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/dashboard';
+  return value;
+}
+
+function readAuthRedirectTarget() {
+  if (typeof window === 'undefined') return '/dashboard';
+  const params = new URLSearchParams(window.location.search);
+  return safeAuthRedirect(params.get('next') || params.get('redirect'));
+}
+
 function readStoredRevenueAction() {
   if (typeof window === 'undefined') return null;
 
@@ -110,7 +122,7 @@ export default function AuthPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const plan = params.get('plan');
-    const redirect = params.get('redirect');
+    const redirect = params.get('next') || params.get('redirect');
     bindAuthRevenueContext(plan);
     if (plan) {
       saveSelectedPlan(plan, 'auth_url_query');
@@ -130,13 +142,14 @@ export default function AuthPage() {
         supabase.auth.getSession().then(async ({ data }) => {
           if (data.session) {
             bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
+            const redirectTarget = readAuthRedirectTarget();
             try {
               const res = await fetch('/api/user', {
                 headers: { Authorization: `Bearer ${data.session.access_token}` }
               });
               if (res.ok) {
                 await res.json();
-                router.replace('/dashboard');
+                router.replace(redirectTarget);
               }
             } catch (e) {
               console.error('Error resolving entry post-session:', e);
@@ -169,7 +182,7 @@ export default function AuthPage() {
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
         setStatus('Logged in successfully! Redirecting...');
-        router.replace('/dashboard');
+        router.replace(readAuthRedirectTarget());
       }
     } catch (err) {
       setStatus(err.message || 'An unexpected error occurred.');
@@ -186,7 +199,7 @@ export default function AuthPage() {
     setStatus('');
     sendEvent('SIGNUP_STARTED', { method: 'magic_link', source: 'auth_form' });
 
-    const redirectTarget = '/dashboard';
+    const redirectTarget = readAuthRedirectTarget();
     const { error } = await client.auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -213,7 +226,7 @@ export default function AuthPage() {
     sendEvent('SIGNUP_STARTED', { method: 'google', source: 'auth_form' });
 
     try {
-      const redirectTarget = '/dashboard';
+      const redirectTarget = readAuthRedirectTarget();
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {

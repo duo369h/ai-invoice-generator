@@ -21,13 +21,23 @@ function safeNextPath(value) {
   return value;
 }
 
-function getCookieOptions() {
-  return {
+function getCookieOptions(request) {
+  const options = {
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 365,
   };
+
+  const hostname = new URL(request.url).hostname;
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (hostname === 'corvioz.com' || hostname === 'www.corvioz.com')
+  ) {
+    options.domain = '.corvioz.com';
+  }
+
+  return options;
 }
 
 function serializeForScript(value) {
@@ -76,7 +86,7 @@ export async function GET(request) {
   }
 
   const memoryStorage = new Map();
-  const cookieOptions = getCookieOptions();
+  const cookieOptions = getCookieOptions(request);
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
