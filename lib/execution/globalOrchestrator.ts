@@ -1,5 +1,6 @@
 import { shadowValidatePlanRead } from '../../src/core/state/planStateAdapter';
 import { recordDecisionTelemetry } from '../../src/core/telemetry/decisionTelemetry';
+import { getUnifiedDecision } from './unifiedDecisionEngine';
 
 /**
  * Global App State Orchestrator — Corvioz v10 Deterministic UI Decision Engine
@@ -117,17 +118,14 @@ export function resolveAppState(options?: {
     let iCount = options?.invoicesCount ?? -1;
     let hasOverdue = options?.hasOverdueInvoices ?? false;
 
-    if (cCount === -1 || iCount === -1) {
-      try {
-        const stats = JSON.parse(window.localStorage.getItem('corvioz_usage_stats') || '{}');
-        if (cCount === -1) cCount = Number(stats.clientsCount || stats.client_count || 0);
-        if (iCount === -1) iCount = Number(stats.invoicesCount || stats.invoice_count || 0);
-        if (!hasOverdue) hasOverdue = Boolean(stats.hasOverdueInvoices || stats.has_overdue || false);
-      } catch (_) {}
+    if (cCount !== -1 && iCount !== -1) {
+      const isStudioMode = cCount >= 3 || iCount >= 5 || hasOverdue;
+      business_stage = isStudioMode ? 'business' : 'freelancer';
+    } else {
+      const userId = typeof window !== 'undefined' ? window.localStorage.getItem('corvioz_user_id') : null;
+      const decision = getUnifiedDecision(userId);
+      business_stage = decision.recommendedPlan === 'studio' ? 'business' : 'freelancer';
     }
-
-    const isStudioMode = cCount >= 3 || iCount >= 5 || hasOverdue;
-    business_stage = isStudioMode ? 'business' : 'freelancer';
   }
 
   // 4. Resolve Workspace Mode

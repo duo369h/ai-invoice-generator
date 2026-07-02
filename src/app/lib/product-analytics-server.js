@@ -1,16 +1,24 @@
 import { createServiceSupabaseClient } from './supabase';
 
 export const PRODUCT_ANALYTICS_EVENTS = new Set([
-  'Landing Viewed',
-  'Hero CTA Click',
-  'Pricing Click',
-  'Signup Started',
-  'Signup Completed',
-  'Proposal Created',
-  'Proposal Sent',
-  'Invoice Created',
-  'Invoice Paid',
-  'Feedback Submitted',
+  'LANDING_VIEW',
+  'CTA_CLICK',
+  'PRODUCT_VIEW',
+  'SCROLL_DEPTH_50',
+  'SCROLL_DEPTH_90',
+  'PRICING_VIEW',
+  'PLAN_HOVER',
+  'PLAN_SELECTED',
+  'CHECKOUT_STARTED',
+  'SIGNUP_STARTED',
+  'SIGNUP_COMPLETED',
+  'DASHBOARD_ENTERED',
+  'FIRST_ACTION_TAKEN',
+  'TEMPLATE_VIEWED',
+  'QUOTE_CREATED_INTENT',
+  'INVOICE_CREATED_INTENT',
+  'FIRST_VALUE_CREATED',
+  'ONBOARDING_DROPOFF'
 ]);
 
 function cleanString(value, max = 500) {
@@ -85,20 +93,7 @@ export async function recordProductAnalyticsEvent({
   const writer = createServiceSupabaseClient();
   if (!writer) return { stored: false, reason: 'service_role_not_configured', posthog };
 
-  const eventMapping = {
-    'Landing Viewed': 'LANDING_VIEW',
-    'Hero CTA Click': 'CTA_CLICK',
-    'Pricing Click': 'PRICING_VIEW',
-    'Signup Started': 'SIGNUP_STARTED',
-    'Signup Completed': 'SIGNUP_COMPLETED',
-    'Proposal Created': 'QUOTE_CREATED_INTENT',
-    'Proposal Sent': 'QUOTE_CREATED_INTENT',
-    'Invoice Created': 'INVOICE_CREATED_INTENT',
-    'Invoice Paid': 'INVOICE_CREATED_INTENT',
-    'Feedback Submitted': 'CTA_CLICK',
-  };
-  
-  const canonicalName = eventMapping[eventName] || 'CTA_CLICK';
+  const canonicalName = eventName;
 
   const payload = {
     event: canonicalName,

@@ -11,7 +11,7 @@ import { computeUpgradeScores } from '../monetization/upgradeScoringEngine';
 export interface ExecutionOutput {
   shouldShowBanner: boolean;
   shouldShowModal: boolean;
-  recommendedPlan: 'starter' | 'pro' | 'studio';
+  recommendedPlan: 'free' | 'starter' | 'pro' | 'studio';
   confidence: number; // 0-100 percentage
   reason: string;
   cooldown: number; // remaining cooldown in seconds (0 = active/no cooldown)
@@ -28,7 +28,7 @@ export function executeUpgradeStrategy(userId: string | null | undefined): Execu
     return {
       shouldShowBanner: false,
       shouldShowModal: false,
-      recommendedPlan: 'pro',
+      recommendedPlan: 'free',
       confidence: 0,
       reason: 'Execution layer inactive (SSR or unauthenticated).',
       cooldown: 0,
@@ -123,7 +123,7 @@ export function executeUpgradeStrategy(userId: string | null | undefined): Execu
   return {
     shouldShowBanner: false,
     shouldShowModal: false,
-    recommendedPlan: 'pro',
+    recommendedPlan: 'free',
     confidence: 0,
     reason: 'Standard tier usage. No upgrade triggers met.',
     cooldown,

@@ -28,6 +28,8 @@ const VALID_EVENTS = new Set([
   'TEMPLATE_VIEWED',
   'QUOTE_CREATED_INTENT',
   'INVOICE_CREATED_INTENT',
+  'FIRST_VALUE_CREATED',
+  'ONBOARDING_DROPOFF',
 ]);
 
 function getServiceSupabase() {

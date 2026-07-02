@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const artifactDir = '/Users/duo/.gemini/antigravity-ide/brain/48cbf972-3a16-4d40-990d-1d69e9c4a98b';
+const artifactDir = '/Users/duo/.gemini/antigravity-ide/brain/15897dc3-eb01-4ad1-ae0f-65648cc0ba66';
 const screenshotDir = path.join(artifactDir, 'screenshots');
 
 if (!fs.existsSync(screenshotDir)) {

@@ -46,16 +46,27 @@ export async function POST(request) {
     const plan = profile?.plan || 'free';
 
     if (plan === 'free') {
-      const { count, error: countErr } = await context.supabase
-        .from('quotes')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', context.user.id);
+      // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
+      const { count: activationEventCount } = await context.supabase
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', context.user.id)
+        .eq('event', 'FIRST_VALUE_CREATED');
 
-      if (!countErr && count !== null && count >= 1) {
-        return NextResponse.json({
-          error: "UPGRADE_REQUIRED",
-          requiredPlan: "starter"
-        }, { status: 403 });
+      const hasActivated = (activationEventCount || 0) > 0;
+
+      if (hasActivated) {
+        const { count, error: countErr } = await context.supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', context.user.id);
+
+        if (!countErr && count !== null && count >= 1) {
+          return NextResponse.json({
+            error: "UPGRADE_REQUIRED",
+            requiredPlan: "starter"
+          }, { status: 403 });
+        }
       }
     }
 

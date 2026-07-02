@@ -18,18 +18,14 @@ export async function GET(request) {
       const profile = await ensureProfile(context.supabase, context.user);
       const quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
 
-      // Check if user has activated (created at least one invoice, quote, or client)
-      const { count: invoiceCount } = await context.supabase
-        .from('invoices')
+      // Check if user has activated (created first value via onboarding)
+      const { count: activationEventCount } = await context.supabase
+        .from('analytics_events')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', context.user.id);
+        .eq('user_id', context.user.id)
+        .eq('event', 'FIRST_VALUE_CREATED');
 
-      const { count: clientCount } = await context.supabase
-        .from('clients')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', context.user.id);
-
-      const hasActivated = (invoiceCount || 0) > 0 || (clientCount || 0) > 0;
+      const hasActivated = (activationEventCount || 0) > 0;
 
       return NextResponse.json({
         id: profile.id,

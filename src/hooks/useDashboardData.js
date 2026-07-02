@@ -171,6 +171,15 @@ export function useDashboardData(mode, session = null) {
 
   const fetchData = useCallback(async (token) => {
     if (!isLive) return;
+    
+    // Dashboard API Guard: Prevent calls if no session and no explicit token
+    if (!token && !session) {
+      setIsLoading(false);
+      setIsRefreshing(false);
+      setIsInitialLoad(false);
+      return { user: null, error: 'no_session' };
+    }
+
     if (isInitialLoad) {
       setIsLoading(true);
     } else {
@@ -186,6 +195,12 @@ export function useDashboardData(mode, session = null) {
       if (userRes.ok) {
         userData = await userRes.json();
         setUser(userData);
+        if (userData && !userData.hasActivated) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+          setIsInitialLoad(false);
+          return { user: userData };
+        }
       }
 
       // Invoices

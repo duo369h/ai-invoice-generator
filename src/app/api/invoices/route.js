@@ -75,7 +75,17 @@ export async function POST(request) {
     const plan = profile?.plan || 'free';
     const { getUserEntitlements } = await import('../../../../lib/entitlements');
     const entitlements = getUserEntitlements(plan);
-    if (!entitlements.invoice) {
+    
+    // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
+    const { count: activationEventCount } = await context.supabase
+      .from('analytics_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', context.user.id)
+      .eq('event', 'FIRST_VALUE_CREATED');
+
+    const hasActivated = (activationEventCount || 0) > 0;
+
+    if (!entitlements.invoice && hasActivated) {
       return NextResponse.json({
         error: "UPGRADE_REQUIRED",
         requiredPlan: "pro"

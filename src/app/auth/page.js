@@ -69,15 +69,13 @@ function bindAuthRevenueContext(plan) {
 export default function AuthPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [activeTab, setActiveTab] = useState('password'); // 'password' or 'magic'
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [client, setClient] = useState(null);
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(true);
-  const [sandboxRedirectTarget] = useState(() => {
-    if (typeof window === 'undefined') return '/dashboard';
-    return window.sessionStorage.getItem('corvioz_redirect_after_auth') || '/dashboard';
-  });
 
   const [pendingDraft, setPendingDraft] = useState(null);
   const [identity, setIdentity] = useState(null);
@@ -122,7 +120,6 @@ export default function AuthPage() {
   }, []);
 
   useEffect(() => {
-
     const timer = setTimeout(() => {
       const supabase = createBrowserSupabaseClient();
       setClient(supabase);
@@ -138,7 +135,7 @@ export default function AuthPage() {
               });
               if (res.ok) {
                 await res.json();
-                return;
+                router.replace('/dashboard');
               }
             } catch (e) {
               console.error('Error resolving entry post-session:', e);
@@ -151,8 +148,33 @@ export default function AuthPage() {
     return () => clearTimeout(timer);
   }, [router]);
 
-  const getRedirectTarget = () => {
-    return '/dashboard';
+  const handlePasswordSignIn = async (event) => {
+    event.preventDefault();
+    if (!client || !email.trim() || !password) return;
+
+    setIsLoading(true);
+    setStatus('');
+    sendEvent('SIGNUP_STARTED', { method: 'password', source: 'auth_form' });
+
+    try {
+      const { data, error } = await client.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+
+      if (error) {
+        trackEvent('signup_login_failed', { method: 'password', reason: error.message });
+        setStatus(error.message);
+      } else {
+        trackEvent('signup_login_requested', { method: 'password' });
+        setStatus('Logged in successfully! Redirecting...');
+        router.replace('/dashboard');
+      }
+    } catch (err) {
+      setStatus(err.message || 'An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleMagicLink = async (event) => {
@@ -163,7 +185,7 @@ export default function AuthPage() {
     setStatus('');
     sendEvent('SIGNUP_STARTED', { method: 'magic_link', source: 'auth_form' });
 
-    const redirectTarget = getRedirectTarget();
+    const redirectTarget = '/dashboard';
     const { error } = await client.auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -190,7 +212,7 @@ export default function AuthPage() {
     sendEvent('SIGNUP_STARTED', { method: 'google', source: 'auth_form' });
 
     try {
-      const redirectTarget = getRedirectTarget();
+      const redirectTarget = '/dashboard';
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -218,7 +240,7 @@ export default function AuthPage() {
         <Logo size={22} />
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
-          <Button href="/dashboard" variant="secondary" size="sm">Dashboard</Button>
+          <Button href="/signup" variant="secondary" size="sm">Create Account</Button>
         </div>
       </header>
 
@@ -254,12 +276,10 @@ export default function AuthPage() {
             {identity === 'starter' && "Safe way to organize client work"}
             {identity === 'pro' && "Secure client pipeline management"}
             {identity === 'studio' && "Studio workspace for client operations"}
-            {!identity && "Create your account or Sign in"}
+            {!identity && "Sign in to your account"}
           </h1>
           <p className="auth-description">
-            {identity 
-              ? "Create your account or sign in to save your identity workspace and sync data."
-              : "Enter your email to receive a secure sign-in magic link. No password required."}
+            Choose your preferred sign in method.
           </p>
 
           {!hasCheckedConfig ? (
@@ -267,7 +287,7 @@ export default function AuthPage() {
               Checking login configuration...
             </div>
           ) : !client ? (
-            <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-surface)' }}>
+            <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontSize: '0.9rem', background: 'var(--bg-surface)' }}>
               <p style={{ margin: 0, lineHeight: 1.45, color: 'var(--text-muted)' }}>
                 Authentication service is temporarily unavailable. Please configure Supabase environment variables.
               </p>
@@ -287,41 +307,112 @@ export default function AuthPage() {
                 </>
               )}
 
-              <form onSubmit={handleMagicLink}>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="auth-email">Email address</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    className="form-input"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
-                  {isLoading ? 'Sending...' : (
-                    identity === 'starter' 
-                      ? 'Organize client delivery' 
-                      : identity === 'pro'
-                      ? 'Keep client follow-up organized' 
-                      : identity === 'studio' 
-                      ? 'Scale client operations' 
-                      : 'Send magic link'
-                  )}
-                </Button>
-              </form>
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--bg-muted)', padding: '4px', borderRadius: '8px' }}>
+                <button 
+                  type="button"
+                  onClick={() => setActiveTab('password')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeTab === 'password' ? 'var(--bg-surface)' : 'transparent',
+                    color: activeTab === 'password' ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: activeTab === 'password' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  Password
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setActiveTab('magic')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: activeTab === 'magic' ? 'var(--bg-surface)' : 'transparent',
+                    color: activeTab === 'magic' ? 'var(--text-main)' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: activeTab === 'magic' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  Magic Link
+                </button>
+              </div>
+
+              {activeTab === 'password' ? (
+                <form onSubmit={handlePasswordSignIn}>
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="auth-email">Email address</label>
+                    <input
+                      id="auth-email"
+                      type="email"
+                      className="form-input"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="input-group" style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label className="input-label" htmlFor="auth-password">Password</label>
+                      <Link href="/reset-password" style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, marginBottom: '6px' }}>
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <input
+                      id="auth-password"
+                      type="password"
+                      className="form-input"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
+                    {isLoading ? 'Signing In...' : 'Sign In'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleMagicLink}>
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="auth-email-magic">Email address</label>
+                    <input
+                      id="auth-email-magic"
+                      type="email"
+                      className="form-input"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
+                    {isLoading ? 'Sending...' : 'Send magic link'}
+                  </Button>
+                </form>
+              )}
             </>
           )}
 
           {status && (
             <div style={{
               padding: '12px 16px',
-              background: status.includes('Check') ? 'var(--success-glow)' : 'var(--danger-glow)',
-              border: `1px solid ${status.includes('Check') ? 'var(--success-border)' : 'var(--danger-border)'}`,
+              background: status.includes('Check') || status.includes('successfully') ? 'var(--success-glow)' : 'var(--danger-glow)',
+              border: `1px solid ${status.includes('Check') || status.includes('successfully') ? 'var(--success-border)' : 'var(--danger-border)'}`,
               borderRadius: '6px',
-              color: status.includes('Check') ? 'var(--success-text)' : 'var(--danger-text)',
+              color: status.includes('Check') || status.includes('successfully') ? 'var(--success-text)' : 'var(--danger-text)',
               marginTop: '16px',
               fontSize: '0.85rem',
               fontWeight: 600,
@@ -329,10 +420,17 @@ export default function AuthPage() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>{status.includes('Check') ? '✓' : '⚠️'}</span>
+              <span>{status.includes('Check') || status.includes('successfully') ? '✓' : '⚠️'}</span>
               <span>{status}</span>
             </div>
           )}
+
+          <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Don't have an account?{' '}
+            <Link href="/signup" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+              Create Account
+            </Link>
+          </div>
         </div>
       </main>
     </div>

@@ -9,7 +9,16 @@ async function requireClientEntitlement(context) {
   const profile = await ensureProfile(context.supabase, context.user);
   const entitlements = getUserEntitlements(profile?.plan || 'free');
 
-  if (!entitlements.client_portal && !entitlements.crm) {
+  // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
+  const { count: activationEventCount } = await context.supabase
+    .from('analytics_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', context.user.id)
+    .eq('event', 'FIRST_VALUE_CREATED');
+
+  const hasActivated = (activationEventCount || 0) > 0;
+
+  if (!entitlements.client_portal && !entitlements.crm && hasActivated) {
     return NextResponse.json(
       {
         error: 'FORBIDDEN',

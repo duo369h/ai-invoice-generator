@@ -94,24 +94,24 @@ async function runTests() {
   assert(anonDecision.upgradeSignal.showBanner === false, 'Anonymous upgrade banner is hidden');
   assert(anonDecision.upgradeSignal.showModal === false, 'Anonymous upgrade modal is hidden');
 
-  // --- Scenario B: Pro Plan (Basic creation usage) ---
+  // --- Scenario B: Starter Plan (Basic creation usage) ---
   window.localStorage.clear();
   window.localStorage.setItem('corvioz_usage_stats', JSON.stringify({ invoicesCount: 1 }));
   const proDecision = getUnifiedDecision(userId);
-  assert(proDecision.recommendedPlan === 'pro', 'Usage (invoicesCount > 0) recommends Pro plan');
-  assert(proDecision.confidence > 0.25, 'Pro plan confidence matches (>0.25)');
-  assert(proDecision.upgradeSignal.showBanner === true, 'Pro plan exposes banner');
-  assert(proDecision.upgradeSignal.showModal === false, 'Pro plan hides modal (confidence <= 0.45)');
+  assert(proDecision.recommendedPlan === 'starter', 'Usage (invoicesCount > 0) recommends Starter plan');
+  assert(proDecision.confidence > 0.15, 'Starter plan confidence matches (>0.15)');
+  assert(proDecision.upgradeSignal.showBanner === true, 'Starter plan exposes banner (confidence > 0.25)');
+  assert(proDecision.upgradeSignal.showModal === false, 'Starter plan hides modal (confidence <= 0.45)');
 
-  // --- Scenario C: Growth Plan (Repeated usage + exports) ---
+  // --- Scenario C: Pro Plan (Repeated usage + exports) ---
   window.localStorage.clear();
   window.localStorage.setItem('corvioz_usage_stats', JSON.stringify({ invoicesCount: 6 }));
   window.localStorage.setItem('corvioz_export_count', '3');
   const growthDecision = getUnifiedDecision(userId);
-  assert(growthDecision.recommendedPlan === 'growth', 'Repeated usage (invoices > 5 & exports > 2) recommends Growth plan');
-  assert(growthDecision.confidence > 0.45, 'Growth plan confidence matches (>0.45)');
-  assert(growthDecision.upgradeSignal.showBanner === true, 'Growth plan exposes banner');
-  assert(growthDecision.upgradeSignal.showModal === true, 'Growth plan exposes modal (low churn risk)');
+  assert(growthDecision.recommendedPlan === 'pro', 'Repeated usage (invoices > 5 & exports > 2) recommends Pro plan');
+  assert(growthDecision.confidence > 0.45, 'Pro plan confidence matches (>0.45)');
+  assert(growthDecision.upgradeSignal.showBanner === true, 'Pro plan exposes banner');
+  assert(growthDecision.upgradeSignal.showModal === true, 'Pro plan exposes modal (low churn risk)');
 
   // --- Scenario D: Studio Plan (Portal usage) ---
   window.localStorage.clear();
@@ -125,18 +125,18 @@ async function runTests() {
   window.localStorage.clear();
   // Zero documents created -> high churn risk
   window.localStorage.setItem('corvioz_selected_plan', 'pro');
-  window.localStorage.setItem('corvioz_pricing_view_count', '5'); // Triggers Pro plan on confidence (>0.4)
+  window.localStorage.setItem('corvioz_pricing_view_count', '5'); // Triggers Starter plan on confidence
   const churnDecision = getUnifiedDecision(userId);
-  assert(churnDecision.recommendedPlan === 'pro', 'Pricing viewed recommends Pro plan');
+  assert(churnDecision.recommendedPlan === 'starter', 'Pricing viewed recommends Starter plan');
   assert(churnDecision.riskSignal.churnRisk === 0.75, 'Zero creation activity causes high churn risk (0.75)');
   assert(churnDecision.riskSignal.isChurnBlocked === true, 'High churn risk blocks monetization exposure');
   assert(churnDecision.upgradeSignal.showModal === false, 'Upgrade modal is blocked under high churn risk');
 
   // --- Test UI Translator Mapping (Pure Mapper) ---
   const mapped = translateDecision(churnDecision);
-  assert(mapped.banner === 'pro', 'Translator maps active banner to recommendedPlan');
+  assert(mapped.banner === 'starter', 'Translator maps active banner to recommendedPlan');
   assert(mapped.modal === null, 'Translator maps showModal=false to modal=null');
-  assert(mapped.highlightPlan === 'pro', 'Translator maps highlightPlan to recommendedPlan');
+  assert(mapped.highlightPlan === 'starter', 'Translator maps highlightPlan to recommendedPlan');
   assert(mapped.disabled === true, 'Translator maps disabled to isChurnBlocked');
 
   // --- Static Verifications on View Layer ---

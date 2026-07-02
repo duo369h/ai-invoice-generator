@@ -1157,6 +1157,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
+        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
+          router.replace('/onboarding');
+          return;
+        }
         const decision = ENTRY_AUTHORITY({
           session: nextSession,
           user: dashboardSnapshot?.user,
@@ -1201,6 +1205,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         }
         const dashboardSnapshot = await fetchData(nextSession.access_token);
+        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
+          router.replace('/onboarding');
+          return;
+        }
         const decision = ENTRY_AUTHORITY({
           session: nextSession,
           user: dashboardSnapshot?.user,
