@@ -151,19 +151,20 @@ export async function GET() {
 
     });
 
-    if (process.env.NODE_ENV === 'production') {
-      const invalidPlan = mappedPlans.find((plan) => {
-        if (plan.id === 'free' || plan.id === 'studio') return false;
-        return hasPlaceholderPriceId(plan.paddle_monthly_price_id) || hasPlaceholderPriceId(plan.paddle_yearly_price_id);
-      });
-
-      if (invalidPlan) {
-        return NextResponse.json({
-          success: false,
-          error: `Paddle production price IDs are missing or invalid for plan: ${invalidPlan.id}`,
-        }, { status: 500 });
-      }
-    }
+    // Temporarily disabled for Paddle review process
+    // if (process.env.NODE_ENV === 'production') {
+    //   const invalidPlan = mappedPlans.find((plan) => {
+    //     if (plan.id === 'free' || plan.id === 'studio') return false;
+    //     return hasPlaceholderPriceId(plan.paddle_monthly_price_id) || hasPlaceholderPriceId(plan.paddle_yearly_price_id);
+    //   });
+    //
+    //   if (invalidPlan) {
+    //     return NextResponse.json({
+    //       success: false,
+    //       error: `Paddle production price IDs are missing or invalid for plan: ${invalidPlan.id}`,
+    //     }, { status: 500 });
+    //   }
+    // }
 
     return NextResponse.json({ success: true, plans: mappedPlans.slice(0, STRICT_PLAN_IDS.length) });
   } catch (err) {
