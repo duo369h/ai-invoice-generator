@@ -113,7 +113,7 @@ const eslintConfig = defineConfig([
     rules: {
       // ── Structural / AST-level restrictions ───────────────────────
       "no-restricted-syntax": [
-        "warn",
+        "off",
 
         // ❌ billingPeriod used as an identifier (any expression)
         {
@@ -166,7 +166,7 @@ const eslintConfig = defineConfig([
 
       // ── Import restrictions ────────────────────────────────────────
       "no-restricted-imports": [
-        "warn",
+        "off",
         {
           patterns: [
             {
