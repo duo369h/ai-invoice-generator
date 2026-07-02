@@ -290,7 +290,7 @@ function PricingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const checkoutRestoredRef = useRef(false);
-  const [billingPeriod, setBillingPeriod] = useState('yearly'); // 'monthly' or 'yearly'
+  const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' or 'yearly'
   const [session, setSession] = useState(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
@@ -936,22 +936,23 @@ function PricingContent() {
               const isStarter = vm.id === 'starter';
               const isPro = vm.id === 'pro';
               const isStudio = vm.id === 'studio';
+              const isStudioUnavailable = isStudio;
               
               const cardClass = isStarter ? 'pricing-card-pro' : isPro ? 'pricing-card-pro-tier' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
               const checkColor = isStarter ? 'var(--primary)' : isPro ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--success)');
               
-              const price = vm.price;
+              const price = isStudioUnavailable ? null : vm.price;
 
-              const savingsText = isStarter ? 'Save 17%' : isPro ? 'Save 16%' : (isStudio ? 'Save 17%' : null);
-              const billedAnnuallyText = vm.priceYearly > 0 ? `Billed annually ($${Math.round(vm.priceYearly * 12)}/year)` : null;
+              const savingsText = isStarter ? 'Save 17%' : isPro ? 'Save 16%' : null;
+              const billedAnnuallyText = !isStudioUnavailable && vm.priceYearly > 0 ? `Billed annually ($${Math.round(vm.priceYearly * 12)}/year)` : null;
               
               const isCurrentPlan = vm.isCurrent;
               
               // Dynamic UI values from Injection Layer (v9.3)
               const uiInject = getUIInjection(vm.id);
               const badgeText = uiInject.badgeText;
-              const ctaText = vm.id === 'free' ? 'Start Free' : `Choose ${vm.name}`;
-              const helperText = isStudio ? null : uiInject.helperText;
+              const ctaText = isStudioUnavailable ? 'Coming Soon' : (vm.id === 'free' ? 'Start Free' : `Choose ${vm.name}`);
+              const helperText = isStudioUnavailable ? 'Studio is not available for checkout yet.' : uiInject.helperText;
  
               const isRecommended = vm.highlightedPlan === vm.id;
               const intensity = vm.visualIntensity;
@@ -1017,21 +1018,29 @@ function PricingContent() {
                         </span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
-                      <span style={{ fontSize: isStarter ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                        ${price}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                        /mo
-                      </span>
-                      <span style={{ marginLeft: '8px' }}>
-                        {billingPeriod === 'yearly' && savingsText && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isPro ? 'var(--success)' : isStudio ? 'var(--accent)' : 'var(--primary)', background: isPro ? 'rgba(34,197,94,0.08)' : isStudio ? 'rgba(99,102,241,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isPro ? 'rgba(34,197,94,0.2)' : isStudio ? 'rgba(99,102,241,0.2)' : 'var(--primary)'}` }}>
-                            {savingsText}
-                          </span>
-                        )}
-                      </span>
-                    </div>
+                    {isStudioUnavailable ? (
+                      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
+                        <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                          Coming Soon
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
+                        <span style={{ fontSize: isStarter ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                          ${price}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                          /mo
+                        </span>
+                        <span style={{ marginLeft: '8px' }}>
+                          {billingPeriod === 'yearly' && savingsText && (
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isPro ? 'var(--success)' : 'var(--primary)', background: isPro ? 'rgba(34,197,94,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isPro ? 'rgba(34,197,94,0.2)' : 'var(--primary)'}` }}>
+                              {savingsText}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                     {billingPeriod === 'yearly' && billedAnnuallyText && (
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px', fontWeight: 550 }}>
                         {billedAnnuallyText}
@@ -1040,7 +1049,7 @@ function PricingContent() {
                     <p style={{ fontSize: '0.92rem', fontWeight: 550, color: 'var(--text-muted)', marginBottom: '16px', minHeight: '44px', lineHeight: 1.45 }}>
                       {vm.outcome}
                     </p>
-                    {!isFree && (
+                    {!isFree && !isStudioUnavailable && (
                       <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 16px 0', lineHeight: 1.45, fontWeight: 700, background: 'var(--primary-glow)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px' }}>
                         {getPricingAnchorCopy(vm.id)}
                       </p>
@@ -1065,9 +1074,7 @@ function PricingContent() {
                           window.location.href = '/dashboard?action=create-profile';
                           return;
                         }
-                        if (vm.id === 'studio') {
-                          sendEvent('PLAN_SELECTED', { plan: 'studio', source: 'pricing_page_card', planId: 'studio' });
-                          window.location.href = '/auth?plan=studio&redirect=/dashboard';
+                        if (isStudioUnavailable) {
                           return;
                         }
                         if (!['starter', 'pro'].includes(vm.id)) return;
@@ -1076,9 +1083,9 @@ function PricingContent() {
                         sendEvent('CHECKOUT_STARTED', { planId: vm.id });
                         router.push(`/checkout?plan=${vm.id}&intent=${intentLevel.toLowerCase()}`);
                       }}
-                      disabled={checkoutLoading || isCurrentPlan}
+                      disabled={checkoutLoading || isCurrentPlan || isStudioUnavailable}
                       variant={isPro ? 'primary' : 'secondary'}
-                      style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isStarter ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
+                      style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isStarter ? 'rgba(34,197,94,0.3)' : undefined, opacity: (isCurrentPlan || isStudioUnavailable) ? 0.7 : 1 }}
                     >
                       {checkoutLoading ? 'Preparing checkout...' : ctaText}
                     </Button>
@@ -1101,7 +1108,7 @@ function PricingContent() {
                     )}
 
                     {/* Policy Agreement Inline Link */}
-                    {!isFree && (
+                    {!isFree && !isStudioUnavailable && (
                       <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                         By continuing, you agree to our <Link href="/terms" style={{ textDecoration: 'underline', color: 'var(--text-muted)' }}>Terms</Link> & <Link href="/privacy" style={{ textDecoration: 'underline', color: 'var(--text-muted)' }}>Privacy Policy</Link>
                       </div>

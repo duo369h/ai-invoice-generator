@@ -590,6 +590,7 @@ export default function Home() {
               {plans.map((plan) => {
                 const isStudio = plan.id === 'studio';
                 const isPro = plan.id === 'pro';
+                const isStudioUnavailable = isStudio;
 
                 const { price, billedAnnuallyText } = calculatePlanPrice(plan, billingPeriod);
 
@@ -597,8 +598,8 @@ export default function Home() {
                 const displayDescription = plan.description;
                 const displayFeatures = plan.features || [];
 
-                const ctaText = plan.id === 'free' ? 'Start Free' : `Choose ${plan.name}`;
-                const hrefVal = plan.id === 'free' ? '/dashboard?action=create-profile' : `/pricing?checkout=${plan.id}`;
+                const ctaText = isStudioUnavailable ? 'Coming Soon' : (plan.id === 'free' ? 'Start Free' : `Choose ${plan.name}`);
+                const hrefVal = isStudioUnavailable ? undefined : (plan.id === 'free' ? '/dashboard?action=create-profile' : `/pricing?checkout=${plan.id}`);
                 const cardClassName = `pricing-card ${plan.id}${isPro ? ' featured' : ''}`;
 
                 return (
@@ -610,11 +611,17 @@ export default function Home() {
                     )}
                     <div>
                       <h3>{displayName}</h3>
-                      <div className={`price-line${(billingPeriod === 'yearly' && billedAnnuallyText) ? ' u-mb-2' : ' u-mb-6'}`}>
-                        <strong>{`$${price}`}</strong>
-                        <span>/month</span>
-                      </div>
-                      {billingPeriod === 'yearly' && billedAnnuallyText && (
+                      {isStudioUnavailable ? (
+                        <div className="price-line u-mb-6">
+                          <strong>Coming Soon</strong>
+                        </div>
+                      ) : (
+                        <div className={`price-line${(billingPeriod === 'yearly' && billedAnnuallyText) ? ' u-mb-2' : ' u-mb-6'}`}>
+                          <strong>{`$${price}`}</strong>
+                          <span>/month</span>
+                        </div>
+                      )}
+                      {!isStudioUnavailable && billingPeriod === 'yearly' && billedAnnuallyText && (
                         <div className="plan-billed-note">
                           {billedAnnuallyText}
                         </div>
@@ -637,17 +644,21 @@ export default function Home() {
                         variant={isPro ? 'primary' : 'secondary'}
                         className={`btn-plan-cta${isPro ? ' btn-plan-cta--featured' : ''}`}
                         onClick={() => {
+                          if (isStudioUnavailable) return;
                           const planKey = plan.id;
                           saveSelectedPlan(planKey, '/');
                           sendEvent('PLAN_SELECTED', { position: 'pricing_card', plan: planKey, planId: planKey });
                         }}
+                        disabled={isStudioUnavailable}
                       >
                         {ctaText}
                       </Button>
 
-                      <div className="plan-cta-note">
-                        By continuing, you agree to our <Link href="/terms">Terms</Link> &amp; <Link href="/privacy">Privacy Policy</Link>
-                      </div>
+                      {!isStudioUnavailable && (
+                        <div className="plan-cta-note">
+                          By continuing, you agree to our <Link href="/terms">Terms</Link> &amp; <Link href="/privacy">Privacy Policy</Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
