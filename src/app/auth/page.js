@@ -68,6 +68,7 @@ function bindAuthRevenueContext(plan) {
 
 export default function AuthPage() {
   const router = useRouter();
+  const isGoogleAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('password'); // 'password' or 'magic'
@@ -294,7 +295,7 @@ export default function AuthPage() {
             </div>
           ) : (
             <>
-              {googleAvailable && (
+              {isGoogleAuthEnabled && googleAvailable && (
                 <>
                   <Button type="button" variant="google" onClick={handleGoogleSignIn} disabled={isLoading}>
                     <span className="google-mark" aria-hidden="true">G</span>
