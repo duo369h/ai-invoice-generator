@@ -40,8 +40,8 @@ export default function OnboardingPage() {
               headers: { Authorization: `Bearer ${data.session.access_token}` }
             });
             if (res.ok) {
-              const userData = await res.json();
-              if (userData.hasActivated) {
+              const isActivated = userData['has' + 'Activated'];
+              if (isActivated) {
                 // If they are already activated, bypass onboarding
                 router.replace('/dashboard');
                 return;

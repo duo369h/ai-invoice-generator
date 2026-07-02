@@ -34,6 +34,10 @@ export const EVENT_REVENUE_WEIGHTS: Record<EventName, number> = {
   [EVENTS.SIGNUP_COMPLETED]: 60,
   [EVENTS.PLAN_SELECTED]: 75,
   [EVENTS.CHECKOUT_STARTED]: 90,
+
+  // Onboarding & Activation
+  [EVENTS.FIRST_VALUE_CREATED]: 80,
+  [EVENTS.ONBOARDING_DROPOFF]: 10,
 };
 
 /**

@@ -73,4 +73,6 @@ export const EVENT_FUNNEL_STAGE: Record<EventName, FunnelStage> = {
   TEMPLATE_VIEWED: 'template',
   QUOTE_CREATED_INTENT: 'document_creation',
   INVOICE_CREATED_INTENT: 'document_creation',
+  FIRST_VALUE_CREATED: 'document_creation',
+  ONBOARDING_DROPOFF: 'dashboard',
 };

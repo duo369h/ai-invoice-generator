@@ -38,7 +38,7 @@ export function getUIExposureControls(userId: string | null | undefined): UIExpo
   if (exec.shouldShowBanner) {
     const bannerAllowed = allowUpgradeExposure(userId, 'banner');
     if (bannerAllowed) {
-      banner = exec.recommendedPlan;
+      banner = exec.recommendedPlan === 'free' ? 'none' : (exec.recommendedPlan as any);
     }
   }
 
