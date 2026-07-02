@@ -46,6 +46,9 @@ export default function SignupPage() {
       const { data, error } = await client.auth.signUp({
         email: email.trim(),
         password: password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard')}`,
+        },
       });
 
       if (error) {
@@ -60,7 +63,7 @@ export default function SignupPage() {
           setStatus('Account created! Redirecting...');
           router.replace('/dashboard');
         } else {
-          setStatus('Confirmation email sent. Please check your inbox to verify your account.');
+          setStatus('Confirmation email sent. Please check your inbox, then use the verification link to open your dashboard.');
         }
       }
     } catch (err) {
