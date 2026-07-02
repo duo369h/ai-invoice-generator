@@ -1,5 +1,5 @@
 // This is NOT a feature hierarchy system.
-// This is a revenue track system.
+// This is a workflow track system.
 // Each tier is an independent product experience.
 // No cross-tier dependency is allowed.
 
@@ -22,7 +22,7 @@ const PROPOSAL_TEMPLATES = {
     clientContext: "Acme AI Corporation, raising a seed round.",
     proposal: {
       title: "Premium Web Design Redesign for Acme AI Corporation",
-      overview: "Acme AI Corporation requires a high-performance marketing website redesign to support their upcoming seed round. This proposal outlines the exact strategy to restructure the layout, implement conversion-focused UI tokens, build clean typography hierarchies, and transfer Webflow workspace ownership.",
+      overview: "Acme AI Corporation requires a high-performance marketing website redesign to support their upcoming seed round. This proposal outlines the exact strategy to restructure the layout, implement conversion-focused UI tokens, build clean typography hierarchies, and hand off Webflow workspace ownership.",
       scope: "- Figma UI mockups for Desktop, Tablet, and Mobile\n- Brand style guides and custom icon sets\n- Conversion optimization review on CTA hierarchy\n- Responsive Webflow deployment and domain integration",
       timeline: "- **Milestone 1**: Wireframing & user flow map (Week 1)\n- **Milestone 2**: Final design mockups & prototype approval (Week 2)\n- **Milestone 3**: Webflow code implementation & domain setup (Week 3)",
       deliverables: "- Figma project source files\n- Custom brand typography stylesheet\n- Responsive Webflow live deployment\n- 14 days post-handover Slack support",
@@ -46,15 +46,15 @@ const PROPOSAL_TEMPLATES = {
   },
   dev: {
     serviceType: "Next.js Custom Dashboard & API Integration",
-    description: "Build a responsive Next.js client portal dashboard, configure secure Supabase database models, and construct stable Paddle checkout event handlers.",
-    clientContext: "CloudFlow, integrating client billing portal.",
+    description: "Build a responsive Next.js client portal dashboard, configure secure Supabase database models, and construct stable checkout event handlers.",
+    clientContext: "CloudFlow, integrating a client operations portal.",
     proposal: {
       title: "Next.js Custom Dashboard & API Integration for CloudFlow",
-      overview: "CloudFlow requires a custom client portal integrated with Paddle checkout events. This proposal outlines the software engineering approach to build a responsive Next.js frontend, configure secure Supabase database models, and construct stable webhook endpoints.",
-      scope: "- Next.js responsive client dashboard interface\n- Supabase schema migrations for users and orders\n- Paddle checkout event and webhook handling\n- Full Jest integration suite testing coverage",
-      timeline: "- **Phase 1**: Database schema design & API specifications (Week 1)\n- **Phase 2**: Frontend dashboards & mock data wiring (Week 2-3)\n- **Phase 3**: Paddle checkout event validation & live deployment validation (Week 4)",
+      overview: "CloudFlow requires a custom client operations portal with stable event handling. This proposal outlines the software engineering approach to build a responsive Next.js frontend, configure secure Supabase database models, and construct stable webhook endpoints.",
+      scope: "- Next.js responsive client dashboard interface\n- Supabase schema migrations for users and orders\n- Checkout event and webhook handling\n- Full Jest integration suite testing coverage",
+      timeline: "- **Phase 1**: Database schema design & API specifications (Week 1)\n- **Phase 2**: Frontend dashboards & mock data wiring (Week 2-3)\n- **Phase 3**: Checkout event validation & live deployment validation (Week 4)",
       deliverables: "- GitHub repository with complete source code\n- API swagger documentation\n- Supabase migration scripts\n- 30 days post-launch bug support",
-      pricing: "$5,800 USD total (Milestone payouts: 30% kickoff, 40% dashboard complete, 30% launch)",
+      pricing: "$5,800 USD total (Milestone structure: kickoff, dashboard completion, launch)",
       cta: "Click 'Approve Project' below to initialize the repository and begin DB schema design."
     }
   }
@@ -115,10 +115,10 @@ export default function ProposalCreationFlow() {
       setClientContext(chosen.clientContext);
       setProposal({
         ...chosen.proposal,
-        income_signal: {
-          message: "Freelancers using this proposal close 2–3x more clients",
+        workflow_signal: {
+          message: "This proposal keeps scope, milestones, and next steps easy to review.",
           confidence: "medium",
-          context: "based on template usage patterns"
+          context: "based on template structure"
         }
       });
     }
@@ -134,10 +134,10 @@ export default function ProposalCreationFlow() {
       setClientContext(chosen.clientContext);
       setProposal({
         ...chosen.proposal,
-        income_signal: {
-          message: "Freelancers using this proposal close 2–3x more clients",
+        workflow_signal: {
+          message: "This proposal keeps scope, milestones, and next steps easy to review.",
           confidence: "medium",
-          context: "based on template usage patterns"
+          context: "based on template structure"
         }
       });
       setSuccessMessage(`Switched to ${key === 'web' ? 'Web Design' : key === 'seo' ? 'SEO Service' : 'Developer'} template.`);
@@ -189,10 +189,10 @@ export default function ProposalCreationFlow() {
       if (attempts >= 1 && (!plan || plan === 'free' || plan === 'starter')) {
         const isStarter = plan === 'starter';
         setTargetPlanForModal(isStarter ? 'pro' : 'starter');
-        setModalTitle(isStarter ? 'Start getting paid professionally' : 'Get your first client faster');
+        setModalTitle(isStarter ? 'Present client work professionally' : 'Organize client delivery');
         setModalDescription(isStarter
           ? 'You have reached the Starter plan limit (1 proposal/day). Upgrade to Pro for unlimited proposal generation.'
-          : 'You have reached the Free plan limit (1 proposal/day). Upgrade to the Starter plan ($9) to keep generating.');
+          : 'You have reached the Free plan limit (1 proposal/day). Upgrade to Starter to keep generating.');
         setErrorMessage(isStarter
           ? 'Starter plan limit reached (1/day). Upgrade to Pro to unlock unlimited proposals.'
           : 'Free plan limit reached (1/day). Upgrade to Starter to unlock more generation.');
@@ -222,10 +222,10 @@ export default function ProposalCreationFlow() {
         if (data.code === 'REVENUE_LOCK_BLOCKED') {
           const isStarter = plan === 'starter';
           setTargetPlanForModal(isStarter ? 'pro' : 'starter');
-          setModalTitle(isStarter ? 'Start getting paid professionally' : 'Get your first client faster');
+          setModalTitle(isStarter ? 'Present client work professionally' : 'Organize client delivery');
           setModalDescription(isStarter
             ? 'Daily proposal limit reached. Upgrade to Pro for unlimited proposal generation.'
-            : 'Daily proposal limit reached. Upgrade to Starter ($9) to keep generating.');
+            : 'Daily proposal limit reached. Upgrade to Starter to keep generating.');
           setShowUpgradeModal(true);
           setErrorMessage(isStarter
             ? 'Starter plan limit reached (1/day). Upgrade to Pro to unlock unlimited proposals.'
@@ -299,9 +299,9 @@ ${proposal.cta || ''}`;
     
     // Free plan: block and trigger upgrade to Pro ($19)
     if (plan === 'free' || !plan) {
-      setErrorMessage('Sharing clean, professional links requires the Pro plan. Upgrade now.');
+      setErrorMessage('Sharing clean, professional links requires the Pro plan.');
       setTargetPlanForModal('pro');
-      setModalTitle('Start getting paid professionally');
+      setModalTitle('Present client work professionally');
       setModalDescription('Upgrade to Pro to share clean, un-watermarked proposal links and export secure PDFs.');
       setShowUpgradeModal(true);
       return;
@@ -355,10 +355,10 @@ ${proposal.cta || ''}`;
 
     // Paywall: Free and Starter plans are blocked from PDF exports.
     if (plan === 'free' || plan === 'starter' || !plan) {
-      setErrorMessage('PDF Export requires the Pro plan. Upgrade now.');
+      setErrorMessage('PDF export requires the Pro plan.');
       setTargetPlanForModal('pro');
-      setModalTitle('Start getting paid professionally');
-      setModalDescription('Upgrade to the Pro plan ($19) to export secure, watermark-free PDFs and look like a premium freelancer.');
+      setModalTitle('Present client work professionally');
+      setModalDescription('Upgrade to Pro to export secure, watermark-free PDFs and present client work professionally.');
       setShowUpgradeModal(true);
       return;
     }
@@ -385,10 +385,10 @@ ${proposal.cta || ''}`;
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid var(--border)', paddingBottom: '20px' }}>
           <div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-              ✨ Win Client Agreements Instantly
+              ✨ Prepare Professional Client Proposals
             </h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Look like a premium studio (used by freelancers who get paid faster). Fill out the fields below and generate your client-ready proposal.
+              Fill out the fields below and generate a structured, client-ready proposal.
             </p>
           </div>
         </header>
@@ -497,7 +497,7 @@ ${proposal.cta || ''}`;
                 <span>Estimated client conversion impact: <strong>High (+42%)</strong></span>
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600 }}>
-                This proposal increases your chance of getting paid. Freelancers using this close more clients.
+                Use this proposal structure to make scope, milestones, and next steps easier for clients to review.
               </div>
             </div>
 
@@ -528,7 +528,7 @@ ${proposal.cta || ''}`;
               </div>
             </div>
 
-            {/* First Payment Moment Optimization (FPMO) CTAs */}
+            {/* First workflow moment CTAs */}
             <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '20px' }}>
               <button 
                 onClick={() => {
@@ -626,7 +626,7 @@ ${proposal.cta || ''}`;
               </div>
             </div>
 
-            {/* Income Signal & Narrative Box */}
+            {/* Workflow Signal & Narrative Box */}
             <div style={{
               background: 'var(--success-glow, rgba(16, 185, 129, 0.08))',
               border: '1px solid var(--success)',
@@ -636,11 +636,11 @@ ${proposal.cta || ''}`;
               textAlign: 'left'
             }}>
               <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 800, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>💰</span>
-                <span>This proposal is designed to help you get paid faster</span>
+                <span>▣</span>
+                <span>This proposal is designed for clearer client review</span>
               </p>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                Used by freelancers to win clients. {proposal.income_signal?.message || "Freelancers using this proposal close 2–3x more clients."}
+                Used by freelancers to present client work clearly. {proposal.workflow_signal?.message || "Keep scope, milestones, and next steps easy to review."}
               </p>
             </div>
 
@@ -648,13 +648,13 @@ ${proposal.cta || ''}`;
             {!isPaid && (
               <div style={{ border: '1.5px dashed var(--primary)', borderRadius: '12px', padding: '16px', background: 'var(--primary-glow)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
                 <div style={{ textAlign: 'left' }}>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', fontWeight: 800 }}>🔓 Get Paid Faster by Clients</h4>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', fontWeight: 800 }}>🔓 Unlock Clean Client Delivery</h4>
                   <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Deliver clean, watermark-free proposals. Upgrade to Growth to unlock PDF exports.
+                    Deliver clean, watermark-free proposals. Upgrade to Pro to unlock PDF exports.
                   </p>
                 </div>
                 <button onClick={() => setShowUpgradeModal(true)} className="btn btn-primary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
-                  Upgrade to Growth
+                  Upgrade Workspace
                 </button>
               </div>
             )}

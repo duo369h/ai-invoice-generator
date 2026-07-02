@@ -218,7 +218,7 @@ export default function StudioSpace({
     return { health: 'Healthy', timezone: 'EST (UTC-5)', sla: '< 24 hours' };
   };
 
-  // Parse clients list with LTV and stats
+  // Parse clients list with document totals and stats
   const clientProfiles = clients.map(cli => {
     const clientInvoices = invoices.filter(inv => inv.client_name === cli.name || inv.client_id === cli.id);
     const clientQuotes = quotes.filter(q => q.client_name === cli.name);
@@ -270,7 +270,7 @@ export default function StudioSpace({
     completed: invoices.filter(inv => inv.status === 'paid')
   };
 
-  // Reminder templates logic
+  // Follow-up templates logic
   useEffect(() => {
     if (!selectedInvoiceId) {
       const firstOverdue = overdueInvoices[0] || invoices[0];
@@ -287,11 +287,11 @@ export default function StudioSpace({
 
     let text = '';
     if (selectedTemplate === 'soft') {
-      text = `Hi ${inv.client_name},\n\nHope you're having a great week! Just a friendly head's up that invoice #${inv.invoice_number} (${amountStr}) is now slightly past due. \n\nYou can review details and pay instantly via the client portal link: [Client Portal URL]\n\nLet me know if you have any questions or need alternative payment details. Thanks so much!\n\nBest regards,\n[Your Name]`;
+      text = `Hi ${inv.client_name},\n\nHope you're having a great week. Just a friendly note that invoice document #${inv.invoice_number} (${amountStr}) is now slightly past due.\n\nYou can review the document details via the client portal link: [Client Portal URL]\n\nLet me know if you have any questions or need the document details adjusted. Thanks so much.\n\nBest regards,\n[Your Name]`;
     } else if (selectedTemplate === 'firm') {
-      text = `Dear ${inv.client_name},\n\nThis is a follow-up reminder that invoice #${inv.invoice_number} is now ${daysStr} overdue. The outstanding balance is ${amountStr}, originally due on ${inv.due_date}.\n\nPlease arrange for payment as soon as possible. You can submit payment securely here: [Client Portal URL]\n\nIf you have already processed this transaction, please let me know so I can reconcile my ledger.\n\nSincerely,\n[Your Name]`;
+      text = `Dear ${inv.client_name},\n\nThis is a follow-up reminder that invoice document #${inv.invoice_number} is now ${daysStr} overdue. The pending document total is ${amountStr}, originally due on ${inv.due_date}.\n\nPlease review the secure client portal here: [Client Portal URL]\n\nIf this document has already been reviewed, please let me know so I can update the client record.\n\nSincerely,\n[Your Name]`;
     } else if (selectedTemplate === 'urgent') {
-      text = `Hello ${inv.client_name},\n\nI am writing to notify you that invoice #${inv.invoice_number} is now significantly overdue (${daysStr}). The total due is ${amountStr}.\n\nThis payment is now critical to avoid project delays or milestone delivery halts. Please complete the transfer immediately via the secure client portal: [Client Portal URL]\n\nPlease reply with payment confirmation once processed.\n\nRegards,\n[Your Name]`;
+      text = `Hello ${inv.client_name},\n\nI am writing to notify you that document #${inv.invoice_number} is now significantly overdue (${daysStr}). The total due is ${amountStr}.\n\nThis update is now important to avoid project delays or milestone delivery halts. Please review the secure client portal: [Client Portal URL]\n\nPlease reply once reviewed.\n\nRegards,\n[Your Name]`;
     }
 
     setReminderText(text);
@@ -327,7 +327,7 @@ export default function StudioSpace({
         throw new Error(data.error || 'Failed to send reminder email');
       }
 
-      triggerToast('📬 Payment reminder email sent successfully to client!', 'success');
+    triggerToast('Client follow-up email sent successfully.', 'success');
 
       trackEvent('client_activity_event', {
         action: 'reminder_sent',
@@ -366,7 +366,7 @@ export default function StudioSpace({
     return acc;
   }, { Healthy: 0, 'At Risk': 0, Critical: 0 });
 
-  // Upcoming Payments listing
+  // Upcoming invoice document listing
   const upcomingPayments = invoices
     .filter(inv => ['pending', 'sent'].includes(inv.status) && inv.due_date)
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
@@ -630,7 +630,7 @@ export default function StudioSpace({
                   </div>
 
                   <div className="input-group">
-                    <label className="input-label">Billing Address</label>
+                    <label className="input-label">Client Address</label>
                     <textarea className="form-textarea" value={client.address} disabled rows={2} style={{ opacity: 0.7, background: 'var(--bg-surface)' }} />
                   </div>
 
@@ -680,7 +680,7 @@ export default function StudioSpace({
                     >
                       <option value="Healthy" style={{ color: 'var(--success)', fontWeight: 700 }}>🟢 Healthy (Deliverables on track)</option>
                       <option value="At Risk" style={{ color: 'var(--warning)', fontWeight: 700 }}>🟡 At Risk (Milestone delays occurring)</option>
-                      <option value="Critical" style={{ color: 'var(--danger)', fontWeight: 700 }}>🔴 Critical (Payment issue / Scope halt)</option>
+                      <option value="Critical" style={{ color: 'var(--danger)', fontWeight: 700 }}>🔴 Critical (Review issue / Scope halt)</option>
                     </select>
                   </div>
                 </form>
@@ -688,17 +688,17 @@ export default function StudioSpace({
 
               {/* Sidebar stats */}
               <div className="card" style={{ padding: '24px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Business Ledger Summary</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Document Summary</h3>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ padding: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>LIFETIME VALUE (LTV)</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>CLIENT RECORD TOTAL</span>
                     <h4 style={{ margin: '4px 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>
                       ${client.ltv.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </h4>
                   </div>
                   <div style={{ padding: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>OUTSTANDING</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PENDING</span>
                     <h4 style={{ margin: '4px 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: client.unpaidAmt > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
                       ${client.unpaidAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </h4>
@@ -795,7 +795,7 @@ export default function StudioSpace({
           {activeWorkspaceTab === 'invoice' && (
             <div className="card animate-fade-in" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Invoices &amp; Ledger</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Invoice Documents</h3>
                 <button
                   onClick={() => {
                     initCreateInvoice();
@@ -1063,13 +1063,13 @@ export default function StudioSpace({
           {activeWorkspaceTab === 'notes' && (
             <div className="card animate-fade-in" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Internal Client Ledger Notes</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Internal Client Notes</h3>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-soft)', background: 'var(--btn-secondary-bg)', padding: '2px 8px', borderRadius: '4px' }}>
                   ✓ Changes auto-saved
                 </span>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                Record client timezone details, business expectations, SLA agreements, or meeting takeaways. Notes are preserved locally in the ledger cache.
+                Record client timezone details, business expectations, SLA agreements, or meeting takeaways. Notes are preserved locally in the client workspace.
               </p>
               <textarea
                 className="form-textarea"
@@ -1279,7 +1279,7 @@ export default function StudioSpace({
               </span>
             )}
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Professional command center for tracking active projects, client status boards, overdue accounts, and payment reminders.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Professional workspace for tracking active projects, client status boards, due dates, and client follow-up reminders.</p>
         </div>
 
         {isSandbox && (
@@ -1292,11 +1292,11 @@ export default function StudioSpace({
       {/* Business Health Header */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue (Total Paid)</span>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed Document Total</span>
           <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>${totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
         </div>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline Value</span>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Document Total</span>
           <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--accent)' }}>${pipelineValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
         </div>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
@@ -1350,23 +1350,23 @@ export default function StudioSpace({
         {activeSubTab === 'dashboard' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {/* Split layout: KPI List & Cash Flow progress */}
+            {/* Split layout: KPI List & Document Status progress */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               
-              {/* Left Column: Upcoming Payments & Project Health list */}
+              {/* Left Column: Upcoming Invoice Documents & Project Health list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 
-                {/* Upcoming Payments Calendar */}
+                {/* Upcoming Invoice Documents Calendar */}
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Upcoming Payments Ledger</h3>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Collections Calendar</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Upcoming Invoice Documents</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Due Date Calendar</span>
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {upcomingPayments.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        No pending collections scheduled.
+                        No pending invoice documents scheduled.
                       </div>
                     ) : (
                       upcomingPayments.map(inv => (
@@ -1416,10 +1416,10 @@ export default function StudioSpace({
 
               {/* Right Column: Workload & Client Pressure & Timeline */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Cash Flow Panel */}
+                {/* Document Status Panel */}
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Cash Flow Overview</h3>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Document Status Overview</h3>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                       Total: <strong>${(totalPaid + totalUnpaid + totalOverdue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                     </span>
@@ -1433,11 +1433,11 @@ export default function StudioSpace({
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
                     <div>
-                      <div style={{ color: 'var(--text-muted)' }}>Paid</div>
+                      <div style={{ color: 'var(--text-muted)' }}>Completed</div>
                       <strong style={{ color: 'var(--success)' }}>${totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                     </div>
                     <div>
-                      <div style={{ color: 'var(--text-muted)' }}>Unpaid</div>
+                      <div style={{ color: 'var(--text-muted)' }}>Pending</div>
                       <strong style={{ color: 'var(--warning)' }}>${totalUnpaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                     </div>
                     <div>
@@ -1590,22 +1590,22 @@ export default function StudioSpace({
               </div>
             </div>
 
-            {/* Column 5: Paid & Completed */}
+            {/* Column 5: Completed */}
             <div style={{ background: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border)', paddingBottom: '8px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--success)', textTransform: 'uppercase' }}>Paid &amp; Settled</span>
+                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--success)', textTransform: 'uppercase' }}>Completed</span>
                 <span style={{ background: 'var(--success-glow)', color: 'var(--success)', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>{pipelineStages.completed.length}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {pipelineStages.completed.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px 10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>No payments processed yet.</div>
+                  <div style={{ textAlign: 'center', padding: '20px 10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>No completed invoice documents yet.</div>
                 ) : (
                   pipelineStages.completed.slice(0, 4).map(inv => (
                     <div key={inv.id} style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{inv.client_name}</strong>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Invoice #{inv.invoice_number}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700, marginTop: '2px' }}>
-                        <span>Paid ✓</span>
+                        <span>Completed ✓</span>
                         <span>{getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}</span>
                       </div>
                     </div>
@@ -1638,8 +1638,8 @@ export default function StudioSpace({
                         <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textAlign: 'left' }}>
                           <th style={{ padding: '12px 8px', fontWeight: 600 }}>Client Name</th>
                           <th style={{ padding: '12px 8px', fontWeight: 600 }}>Health</th>
-                          <th style={{ padding: '12px 8px', fontWeight: 600 }}>Outstanding</th>
-                          <th style={{ padding: '12px 8px', fontWeight: 600 }}>LTV</th>
+                          <th style={{ padding: '12px 8px', fontWeight: 600 }}>Pending</th>
+                          <th style={{ padding: '12px 8px', fontWeight: 600 }}>Client Total</th>
                           <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
                         </tr>
                       </thead>
@@ -1716,7 +1716,7 @@ export default function StudioSpace({
                     <input type="text" className="form-input" value={newClientName} onChange={e => setNewClientName(e.target.value)} required placeholder="e.g. Wayne Enterprises" />
                   </div>
                   <div className="input-group">
-                    <label className="input-label">Primary Billing Email</label>
+                    <label className="input-label">Primary Client Email</label>
                     <input type="email" className="form-input" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} placeholder="e.g. Bruce@wayne.com" />
                   </div>
                   <div className="input-group">
@@ -1730,14 +1730,14 @@ export default function StudioSpace({
           )
         )}
 
-        {/* PANEL 3: OVERDUE INVOICE TRACKER */}
+        {/* PANEL 3: OVERDUE INVOICE DOCUMENT TRACKER */}
         {activeSubTab === 'overdue' && (
           <div className="animate-fade-in style-grid" style={{ display: 'grid', gap: '16px' }}>
             {overdueInvoices.length === 0 ? (
               <div style={{ padding: '48px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '12px', background: 'var(--bg-card)' }}>
                 <span style={{ fontSize: '2rem', display: 'block', marginBottom: '12px' }}>🎉</span>
-                <h4 style={{ margin: 0, fontWeight: 700, color: 'var(--text-main)' }}>Outstanding Balances Reconciled!</h4>
-                <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>You have zero overdue client invoices. Excellent work keeping collections active.</p>
+                <h4 style={{ margin: 0, fontWeight: 700, color: 'var(--text-main)' }}>Pending Documents Clear</h4>
+                <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>You have zero overdue invoice documents.</p>
               </div>
             ) : (
               overdueInvoices.map(inv => (
@@ -1764,7 +1764,7 @@ export default function StudioSpace({
                       <span>Client: <strong style={{ color: 'var(--text-soft)' }}>{inv.client_name}</strong></span>
                       <span>Email: <span style={{ color: 'var(--accent)' }}>{inv.client_email}</span></span>
                       <span>Due Date: <strong style={{ color: 'var(--text-soft)' }}>{inv.due_date}</strong></span>
-                      <span>Terms: <strong style={{ color: 'var(--text-soft)' }}>{inv.payment_terms}</strong></span>
+                      <span>Invoice Terms: <strong style={{ color: 'var(--text-soft)' }}>{inv.payment_terms}</strong></span>
                     </div>
                   </div>
 
@@ -1805,13 +1805,13 @@ export default function StudioSpace({
             {/* Left Side: Template Editor */}
             <div className="card" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Payment Reminder Template Composer</h4>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-soft)' }}>Manual Reminder Dispatcher</span>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Client Follow-up Template Composer</h4>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-soft)' }}>Manual Follow-up Dispatcher</span>
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="input-label">Select Overdue Invoice</label>
+                  <label className="input-label">Select Invoice Document</label>
                   <select
                     className="form-input"
                     value={selectedInvoiceId}
@@ -1888,12 +1888,12 @@ export default function StudioSpace({
                   <span>📬</span> Studio Communications Control
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  You are operating as a professional service business. Studio empowers you to send direct, payment-linked emails to clients and track outstanding workflows.
+                  You are operating as a professional service business. Studio helps you prepare direct client follow-up emails and track pending document workflows.
                 </p>
                 <ul style={{ margin: '10px 0 0 0', paddingLeft: '16px', fontSize: '0.78rem', color: 'var(--text-muted)', display: 'grid', gap: '6px' }}>
-                  <li><strong>Real-time Dispatches:</strong> Trigger payment reminder emails with customized copy and portal links.</li>
+                  <li><strong>Follow-up Messages:</strong> Prepare client follow-up emails with customized copy and portal links.</li>
                   <li><strong>Live Portal Tracking:</strong> Know exactly when clients view, comment, or approve your documents.</li>
-                  <li><strong>Aggregated Ledger:</strong> Track total outstanding billing and overdue days in real-time.</li>
+                  <li><strong>Document Overview:</strong> Track pending invoice documents and overdue days.</li>
                 </ul>
               </div>
             </div>
@@ -2075,11 +2075,11 @@ export default function StudioSpace({
                     <span style={{ fontSize: '1.5rem' }}>📄</span>
                     <h4 style={{ margin: 0, fontWeight: 800 }}>Master Services Agreement (MSA)</h4>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                      Standard boilerplate legal document defining project guidelines, payments liability, and intellectual property ownership boundaries.
+                      Standard boilerplate legal document defining project guidelines, invoice document terms, and intellectual property ownership boundaries.
                     </p>
                     <button
                       onClick={() => {
-                        const msaText = `MASTER SERVICES AGREEMENT\n\nThis Master Services Agreement ("Agreement") is entered into by and between the Service Provider ("Agency") and the Client.\n\n1. SERVICES & WORK ORDERS\nAgency shall perform services described in individual Statements of Work (SOW) executed by both parties.\n\n2. PAYMENT TERMS\nPayments are due within thirty (30) days of invoice date. Late payments shall accrue interest at a rate of 1.5% per month.\n\n3. INTELLECTUAL PROPERTY\nUpon full payment of all outstanding invoices, all deliverables created specifically for Client shall be owned by Client.`;
+                        const msaText = `MASTER SERVICES AGREEMENT\n\nThis Master Services Agreement ("Agreement") is entered into by and between the Service Provider ("Agency") and the Client.\n\n1. SERVICES & WORK ORDERS\nAgency shall perform services described in individual Statements of Work (SOW) executed by both parties.\n\n2. INVOICE TERMS\nInvoice documents are due within thirty (30) days of invoice date unless otherwise agreed in writing.\n\n3. INTELLECTUAL PROPERTY\nUpon completion of the agreed invoice document terms, all deliverables created specifically for Client shall be owned by Client.`;
                         navigator.clipboard.writeText(msaText);
                         triggerToast('MSA contract boilerplate copied to clipboard.', 'success');
                       }}
@@ -2095,7 +2095,7 @@ export default function StudioSpace({
                     <span style={{ fontSize: '1.5rem' }}>📝</span>
                     <h4 style={{ margin: 0, fontWeight: 800 }}>Statement of Work (SOW)</h4>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                      Standard milestone scoping template outlining milestones, deliverables checklist, acceptances rules, and project-specific payment triggers.
+                      Standard milestone scoping template outlining milestones, deliverables checklist, acceptance rules, and project-specific document steps.
                     </p>
                     <button
                       onClick={() => {
@@ -2110,16 +2110,16 @@ export default function StudioSpace({
                     </button>
                   </div>
 
-                  {/* Payment reminder Sequence card */}
+                  {/* Client follow-up sequence card */}
                   <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                     <span style={{ fontSize: '1.5rem' }}>📧</span>
-                    <h4 style={{ margin: 0, fontWeight: 800 }}>Payment Reminder Sequences</h4>
+                    <h4 style={{ margin: 0, fontWeight: 800 }}>Client Follow-up Sequences</h4>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                      Pre-written sequences for client billing communications. Tones range from friendly head's up, to formal notices, to critical payment collections.
+                      Pre-written sequences for client document communications. Tones range from friendly notes to formal follow-ups.
                     </p>
                     <button
                       onClick={() => {
-                        const reminderSequence = `1. FRIENDLY NUDGE (SOFT)\n"Hi [Client Name], Just a friendly head's up that invoice [Invoice #] is now slightly past due. You can review details and pay instantly via the client portal link: [Portal URL]"\n\n2. LEDGER NOTICE (FIRM)\n"Dear [Client Name], This is a follow-up reminder that invoice [Invoice #] is now past due. Outstanding balance is [Amount], originally due on [Date]. Please arrange for payment."`;
+                        const reminderSequence = `1. FRIENDLY NOTE (SOFT)\n"Hi [Client Name], Just a friendly note that invoice document [Invoice #] is now slightly past due. You can review details via the client portal link: [Portal URL]"\n\n2. DOCUMENT NOTICE (FIRM)\n"Dear [Client Name], This is a follow-up reminder that invoice document [Invoice #] is now past due. Pending document total is [Amount], originally due on [Date]. Please review the document when convenient."`;
                         navigator.clipboard.writeText(reminderSequence);
                         triggerToast('Reminder email sequence copy text copied to clipboard.', 'success');
                       }}

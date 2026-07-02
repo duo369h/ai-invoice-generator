@@ -68,16 +68,16 @@ export default function TermsOfService() {
               <p>
                 Corvioz offers a Free tier and paid plans (Pro and Studio). Current plan pricing and features are always listed on the{' '}
                 <a href="/pricing" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Pricing page</a>.
-                Paid checkout and subscription billing are handled through Paddle where enabled. Roadmap features may be listed as coming soon, but they are not part of the current V1 launch scope. We reserve the right to alter features and terms with reasonable prior notice.
+                Paid plan checkout is handled securely by Paddle where enabled. Roadmap features may be listed as coming soon, but they are not part of the current V1 launch scope. We reserve the right to alter features and terms with reasonable prior notice.
               </p>
             </section>
 
             <section>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "12px" }}>
-                6. Payment Links & Invoicing
+                6. Client Documents
               </h2>
               <p>
-                Invoices generated via Corvioz can display your added client payment links, such as Paddle-hosted checkout links, PayPal, or a bank-transfer instruction. Corvioz helps you create documents and track payment status. Corvioz subscriptions, checkout, receipts, tax handling, and related billing records are handled by Paddle where enabled.
+                Corvioz helps you create quotes, proposals, client documents, and delivery records. When you choose a paid plan, Paddle securely handles checkout and receipts. Corvioz does not store card details.
               </p>
             </section>
 

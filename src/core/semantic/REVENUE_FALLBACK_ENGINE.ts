@@ -1,5 +1,5 @@
 /**
- * Corvioz — Revenue Fallback Engine
+ * Corvioz — Workflow Fallback Engine
  *
  * Provides the SAFE_DEFAULT_UI output when semantic validation fails.
  *
@@ -22,8 +22,8 @@ export const SAFE_DEFAULT_UI: Omit<RevenueUIAdapter, "semanticScore"> = Object.f
     action: "PUSH_PROPOSAL",
   }),
   insight: Object.freeze({
-    headline: "Continue building your revenue flow",
-    subtext: "Create a proposal to start winning clients.",
+    headline: "Continue building your client workflow",
+    subtext: "Create a proposal to support client review.",
   }),
   pricingTag: Object.freeze({
     price: "$9/mo",

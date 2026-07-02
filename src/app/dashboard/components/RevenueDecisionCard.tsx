@@ -247,7 +247,7 @@ export function RevenueDecisionCard({
       label: "High Profit",
       price: highOptionPrice,
       winRate: highWinRate,
-      desc: "Best when maximizing revenue",
+      desc: "Best when expanding document scope",
     },
     {
       id: "RECOMMENDED" as const,
@@ -261,7 +261,7 @@ export function RevenueDecisionCard({
       label: "Fast Close",
       price: fastOptionPrice,
       winRate: fastWinRate,
-      desc: "Best for quick cash flow",
+      desc: "Best for quick client review",
     },
   ];
 

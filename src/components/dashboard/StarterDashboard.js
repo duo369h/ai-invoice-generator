@@ -5,7 +5,7 @@
  * Plan: 'pro' ($9/mo) — "First Client Closure Engine"
  *
  * This is NOT a feature gating system.
- * This is a revenue track system.
+ * This is a workflow track system.
  * Each tier is an independent product experience.
  */
 

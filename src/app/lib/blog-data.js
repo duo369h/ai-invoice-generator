@@ -2,8 +2,8 @@ export const blogPosts = [
   {
     slug: 'how-to-price-web-design-projects',
     category: 'Pricing',
-    title: 'Value-Based Pricing: Shifting Away From Hourly Rates',
-    description: 'Hourly rates penalize your efficiency and experience. Learn how to price freelance web design and development projects around client business outcomes.',
+    title: 'Project Pricing: Structuring Work Beyond Hourly Rates',
+    description: 'Learn how to structure freelance web design and development projects around scope, milestones, and client expectations.',
     date: 'June 10, 2026',
     readTime: '6 min read',
     author: 'Sarah Chen',
@@ -12,10 +12,10 @@ export const blogPosts = [
     sections: [
       {
         id: 'toc-1',
-        heading: '1. The Hourly Billing Trap',
+        heading: '1. The Hourly Structure Problem',
         paragraphs: [
-          'Pricing projects by hourly labor registers is the single greatest barrier to scaling your freelance business. When billing by the hour, you create a fundamental conflict of interest with your client: the faster, more experienced, and more efficient you become, the less money you make for completing the exact same work.',
-          'In traditional service agencies, employees log time blocks to track internal capacity. For independent contractors, billing hourly shifts focus from results to execution details. A client buying a redesigned conversion flow cares about the business outcome, not whether it took five hours or fifty.',
+          'Pricing projects only by hourly labor can make client expectations harder to manage. When every discussion centers on hours, scope and deliverables can become less visible.',
+          'In traditional service agencies, employees log time blocks to track internal capacity. For independent contractors, hourly structures often shift focus from project scope to execution details. A client buying a redesigned workflow needs to understand deliverables, timing, and review steps.',
         ],
       },
       {
@@ -41,16 +41,16 @@ export const blogPosts = [
     faq: [
       {
         question: 'Should freelancers charge hourly or fixed project fees?',
-        answer: 'Hourly billing can work for open-ended support, but fixed project fees and value-based packages usually create clearer expectations for client-facing freelance work.',
+        answer: 'Hourly structures can work for open-ended support, but fixed project fees and structured packages usually create clearer expectations for client-facing freelance work.',
       },
       {
         question: 'How does a quote generator help with value-based pricing?',
-        answer: 'A quote generator helps you break scope into options, milestones, deliverables, and payment terms so the client can compare value instead of only hours.',
+        answer: 'A quote generator helps you break scope into options, milestones, deliverables, and invoice terms so the client can compare structure instead of only hours.',
       },
     ],
     internalLinks: [
       { title: 'Quote Generator', url: '/quote-generator', desc: 'Create tiered estimates for project-based freelance work.' },
-      { title: 'Developer Invoice Template', url: '/invoice-template/developer', desc: 'Itemized milestone billing fields for software freelancers.' },
+      { title: 'Developer Invoice Template', url: '/invoice-template/developer', desc: 'Itemized milestone document fields for software freelancers.' },
       { title: 'Freelancer Directory', url: '/freelancers', desc: 'Browse public profile and quote request entry points.' },
     ],
   },
@@ -69,7 +69,7 @@ export const blogPosts = [
         id: 'toc-1',
         heading: '1. The Google SEO Funnel',
         paragraphs: [
-          'Active outbound sales are exhausting and offer low conversion ratios. The highest earning freelancers build inbound systems where clients search and find them at the precise moment they have buying intent.',
+          'Active outbound work can be hard to maintain. Many freelancers use public profiles and template pages so clients can understand their services at the moment they are researching options.',
           'When businesses require a specialized contractor, they search for roles, templates, pricing examples, and proof. A focused public profile lets clients understand your services and request a quote without friction.',
         ],
       },
@@ -100,43 +100,43 @@ export const blogPosts = [
   {
     slug: 'best-invoice-software-for-freelancers',
     category: 'Invoices',
-    title: 'The Modern Billing Stack: Milestone Invoicing vs Hourly Logs',
-    description: 'Compare milestone invoicing workflows with traditional hourly logging and learn how freelancers can get paid faster.',
+    title: 'The Modern Document Workflow: Milestone Invoicing vs Hourly Logs',
+    description: 'Compare milestone document workflows with traditional hourly logging and learn how freelancers can keep client work organized.',
     date: 'April 22, 2026',
     readTime: '7 min read',
     author: 'Sarah Chen',
     authorRole: 'UI/UX Product Designer & Advisor',
-    keywords: ['invoice software for freelancers', 'milestone invoicing', 'freelance billing'],
+    keywords: ['invoice software for freelancers', 'milestone invoicing', 'freelance document workflow'],
     sections: [
       {
         id: 'toc-1',
-        heading: '1. Escrow & Milestone Safety',
+        heading: '1. Milestone Structure',
         paragraphs: [
-          'Traditional invoice generators create simple PDF requests that still require back-and-forth email follow-ups. Milestone invoicing splits projects into logical segments with clearer approval and payment expectations.',
-          'By implementing deposit milestones, you confirm client alignment before committing your calendar. Connecting subsequent deliverables to invoice clearance helps you avoid working for free.',
+          'Traditional invoice generators create simple PDFs that can still require back-and-forth email follow-ups. Milestone invoicing splits projects into logical segments with clearer approval and document expectations.',
+          'By documenting deposit milestones, you confirm client alignment before committing your calendar. Connecting subsequent deliverables to invoice document review helps keep the project record clear.',
         ],
       },
       {
         id: 'toc-2',
         heading: '2. The Quote-to-Invoice Loop',
         paragraphs: [
-          'The cleanest workflow starts with a quote, then turns approved scope into an invoice. This keeps the scope, price, timeline, and payment terms consistent across the client relationship.',
+          'The cleanest workflow starts with a quote, then turns approved scope into an invoice document. This keeps the scope, price, timeline, and invoice terms consistent across the client relationship.',
         ],
       },
     ],
     faq: [
       {
         question: 'What is milestone invoicing?',
-        answer: 'Milestone invoicing splits a project into payment checkpoints such as deposit, prototype approval, launch, and final handoff.',
+        answer: 'Milestone invoicing splits a project into document checkpoints such as deposit record, prototype approval, launch, and final handoff.',
       },
       {
         question: 'Do freelancers need accounting software for simple invoices?',
-        answer: 'Many freelancers can start with a focused quote and invoice workflow before adopting heavier accounting software.',
+        answer: 'Many freelancers can start with a focused quote and invoice document workflow before adopting heavier accounting software.',
       },
     ],
     internalLinks: [
-      { title: 'Invoices', url: '/invoice-generator', desc: 'Create client-ready invoices and payment records.' },
-      { title: 'Invoice vs Quote vs Receipt', url: '/blog/invoice-vs-quote-vs-receipt', desc: 'Understand the document flow before billing clients.' },
+      { title: 'Invoices', url: '/invoice-generator', desc: 'Create client-ready invoice documents and client records.' },
+      { title: 'Invoice vs Quote vs Receipt', url: '/blog/invoice-vs-quote-vs-receipt', desc: 'Understand the document flow before preparing client invoices.' },
       { title: 'Developer Invoice Template', url: '/invoice-template/developer', desc: 'Use a template for milestone-based software work.' },
     ],
   },
@@ -160,16 +160,16 @@ export const blogPosts = [
       },
       {
         id: 'toc-2',
-        heading: '2. Invoice: When Payment Is Due',
+        heading: '2. Invoice Document: For Completed Work',
         paragraphs: [
-          'An invoice is a payment request. It should include line items, dates, payment terms, taxes if needed, notes, and a payment link or instructions.',
+          'An invoice document records completed or delivered work. It should include line items, dates, invoice terms, taxes if needed, notes, and document instructions.',
         ],
       },
       {
         id: 'toc-3',
-        heading: '3. Receipt: After Payment Clears',
+        heading: '3. Receipt: After Completion',
         paragraphs: [
-          'A receipt confirms that payment was made. It is proof of payment, not a request for payment or a project estimate.',
+          'A receipt confirms completion of an invoice record. It is a completion record, not a quote or project estimate.',
         ],
       },
     ],
@@ -185,7 +185,7 @@ export const blogPosts = [
     ],
     internalLinks: [
       { title: 'Quote Generator', url: '/quote-generator', desc: 'Create a client-ready quote before kickoff.' },
-      { title: 'Invoices', url: '/invoice-generator', desc: 'Turn approved scope into a payment request.' },
+      { title: 'Invoices', url: '/invoice-generator', desc: 'Turn approved scope into an invoice document.' },
       { title: 'Consultant Quote Template', url: '/quote-template/consultant', desc: 'See an example estimate structure.' },
     ],
   },

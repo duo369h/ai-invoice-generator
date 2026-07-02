@@ -20,7 +20,7 @@ function fallbackProposalParse(serviceType, description, clientContext) {
   return {
     title: `${service} Proposal for ${client}`,
     overview: `Overview of the project for ${client}. We understand you require ${desc} for your ${service} needs. Our team is ready to deliver a high-quality solution to meet your goals.`,
-    scope: `Detailed scope of services for ${service}:\n- Kickoff and requirements analysis\n- Design and wireframing\n- Implementation and core development\n- Quality assurance and feedback loops\n- Final handoff, launch support, and code transfer`,
+    scope: `Detailed scope of services for ${service}:\n- Kickoff and requirements analysis\n- Design and wireframing\n- Implementation and core development\n- Quality assurance and feedback loops\n- Final handoff, launch support, and code handoff`,
     timeline: `- **Week 1**: Kickoff & Scoping\n- **Week 2-3**: Execution & Development Phase\n- **Week 4**: QA, Revisions & Final Handoff`,
     deliverables: `- Production-ready ${service} source files\n- System setup & deployment guidelines\n- 2 rounds of design/implementation revisions\n- 14 days of post-launch direct support`,
     explanation_text: 'Pricing is calculated by the deterministic pricing engine and returned separately from proposal copy.',

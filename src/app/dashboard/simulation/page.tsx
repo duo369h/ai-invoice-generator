@@ -307,7 +307,7 @@ function SimulationPageDev() {
       {/* Nav */}
       <nav className="sim-nav">
         <div className="sim-nav-brand">
-          <span className="sim-nav-title">Revenue Simulation</span>
+          <span className="sim-nav-title">Workflow Simulation</span>
           <span className="sim-version-badge">v5.0 Sandbox</span>
         </div>
         <Link href="/dashboard" id="back-to-dashboard-btn" className="sim-back-btn">
@@ -317,8 +317,8 @@ function SimulationPageDev() {
 
       {/* Header */}
       <header className="sim-header">
-        <p className="sim-kicker">Multi-Layer Revenue Intelligence Platform</p>
-        <h1 className="sim-title">Autonomous Revenue Sandbox</h1>
+        <p className="sim-kicker">Multi-Layer Workflow Intelligence Platform</p>
+        <h1 className="sim-title">Autonomous Workflow Sandbox</h1>
         <p className="sim-description">
           Evaluate what-if pricing elasticity scenarios and analyze the non-executing Decision Layer suggestions.
         </p>
@@ -458,9 +458,9 @@ function SimulationPageDev() {
               </>
             ) : (
               [
-                { id: 'projected-revenue-val', label: 'Projected MRR', val: results ? fmt(results.projected_mrr) : '—', sub: 'Est. Monthly', glow: 'glow-purple' },
+                { id: 'projected-revenue-val', label: 'Projected Document Total', val: results ? fmt(results.projected_mrr) : '—', sub: 'Est. Monthly', glow: 'glow-purple' },
                 { id: 'conversion-rate-val', label: 'Conversion Rate', val: results ? pct(results.conversion_rate) : '—', sub: 'User → Pro', glow: 'glow-pink' },
-                { id: 'arpu-val', label: 'ARPU', val: results ? fmt(results.arpu) : '—', sub: 'Avg Rev / User', glow: 'glow-cyan' },
+                { id: 'arpu-val', label: 'Average Document Total', val: results ? fmt(results.arpu) : '—', sub: 'Avg Document / User', glow: 'glow-cyan' },
                 { id: 'conversions-val', label: 'Conversions', val: results ? results.conversions : '—', sub: `of ${userCount.toLocaleString()} sessions`, glow: 'glow-green' },
               ].map(({ id, label, val, sub, glow }) => (
                 <div key={id} className={`metric-card ${glow}`}>
@@ -520,11 +520,11 @@ function SimulationPageDev() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>MRR Delta (Scale Projection)</div>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>Document Total Delta (Scale Projection)</div>
                   <div style={{ fontSize: '1.4rem', fontWeight: 800, color: v5Sim.predicted_revenue_change >= 0 ? '#34d399' : '#f87171' }}>
                     {v5Sim.predicted_revenue_change >= 0 ? '+' : ''}{fmt(v5Sim.predicted_revenue_change)}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '4px' }}>Compared to baseline revenue</div>
+                  <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '4px' }}>Compared to baseline document total</div>
                 </div>
 
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px' }}>
@@ -536,11 +536,11 @@ function SimulationPageDev() {
                 </div>
 
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>Simulated ARPU Impact</div>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>Simulated Document Total Impact</div>
                   <div style={{ fontSize: '1.4rem', fontWeight: 800, color: v5Sim.arpu_impact >= 0 ? '#34d399' : '#f87171' }}>
                     {v5Sim.arpu_impact >= 0 ? '+' : ''}{fmt(v5Sim.arpu_impact)}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '4px' }}>Base ARPU: {fmt(v5Sim.base_arpu)}</div>
+                  <div style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '4px' }}>Base Document Total: {fmt(v5Sim.base_arpu)}</div>
                 </div>
 
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px' }}>
@@ -606,9 +606,9 @@ function SimulationPageDev() {
                     target: '> 80%',
                   },
                   {
-                    id: 'revenue-uplift', label: 'Revenue Uplift',
+                    id: 'revenue-uplift', label: 'Workflow Lift',
                     val: fmt(safetyMetrics.revenueUplift),
-                    desc: 'Estimated incremental gain',
+                    desc: 'Estimated workflow index change',
                     status: safetyMetrics.revenueUplift > 500 ? 'safe' : safetyMetrics.revenueUplift > 100 ? 'warning' : 'danger',
                     target: '> $500',
                   },
@@ -669,10 +669,10 @@ function SimulationPageDev() {
             )}
           </section>
 
-          {/* Revenue Decision Timeline */}
+          {/* Workflow Decision Timeline */}
           <section className="section-card" id="decision-timeline-module">
             <h2 className="section-card-title">
-              ⏱️ Revenue Decision Timeline
+              ⏱️ Workflow Decision Timeline
               <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#9ca3af', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
                 Persona: <span style={{ color: selectedPersona.color, fontWeight: 700 }}>{selectedPersona.emoji} {selectedPersona.label}</span>
               </span>
@@ -796,7 +796,7 @@ function SimulationPageDev() {
                     <span className={`readiness-dot ${isReady ? 'green' : isWarning ? 'yellow' : 'red'}`} />
                     <span className="readiness-label">
                       {isReady
-                        ? 'SYSTEM SAFE — Ready for v6 Autonomous Revenue OS evaluation'
+                        ? 'SYSTEM SAFE — Ready for client workflow evaluation'
                         : isWarning
                         ? 'WARNING — Review metrics before enabling v6 autonomy'
                         : 'NOT READY — Risk thresholds exceeded, do not enable v6'}

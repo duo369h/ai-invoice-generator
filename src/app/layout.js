@@ -13,11 +13,11 @@ const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
-    default: "Corvioz | Create Quotes, Send Invoices & Get Paid",
+    default: "Corvioz | Freelancer Workflow System",
     template: "%s | Corvioz",
   },
   description:
-    "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
+    "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
   keywords: [
     "corvioz business os",
     "freelance operating system",
@@ -26,7 +26,7 @@ export const metadata = {
     "invoice generator",
     "quote generator",
     "client portal",
-    "payment status"
+    "client workflow"
   ],
   authors: [{ name: "Corvioz Team" }],
   creator: "Corvioz",
@@ -46,9 +46,9 @@ export const metadata = {
   },
   manifest: '/manifest.webmanifest',
   openGraph: {
-    title: "Corvioz | Create Quotes, Send Invoices & Get Paid",
+    title: "Corvioz | Freelancer Workflow System",
     description:
-      "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
+      "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
     url: siteUrl,
     siteName: "Corvioz",
     locale: "en_US",
@@ -64,9 +64,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Corvioz | Create Quotes, Send Invoices & Get Paid",
+    title: "Corvioz | Freelancer Workflow System",
     description:
-      "Corvioz helps freelancers create quotes, send professional invoices, manage clients, and get paid faster.",
+      "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
     images: ['/twitter-image.png'],
   },
   robots: {

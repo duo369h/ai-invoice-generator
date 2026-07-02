@@ -15,7 +15,7 @@ No AI inference is allowed here.
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
-import { handleUpgradeCheckout } from '../../core/pricing/pricingController';
+import { handleUpgradeCheckout } from '../pricing/controller';
 import { saveSelectedPlan } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
@@ -313,13 +313,13 @@ function CheckoutContent() {
                   <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Built for freelancers in US & Canada
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> No hidden billing logic
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Clear plan terms
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your invoices, clients, and exported documents
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your quotes, client records, and exported documents
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Subscription checkout handled securely via Paddle
+                  <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Paid plan checkout is handled securely by Paddle
                 </li>
               </ul>
             </div>

@@ -177,17 +177,17 @@ function OptimizationPageDev() {
 
       {/* Header */}
       <header className="opt-header">
-        <p className="opt-kicker">Autonomous Optimization OS</p>
-        <h1 className="opt-title">Revenue & Funnel Optimization</h1>
+        <p className="opt-kicker">Workflow Optimization OS</p>
+        <h1 className="opt-title">Workflow & Funnel Optimization</h1>
         <p className="opt-description">
-          Review, simulate, and auto-deploy AI-driven updates. Optimize pricing points, paywall weights, and onboarding friction dynamically.
+          Review, simulate, and manage workflow experiments, plan presentation, and onboarding friction.
         </p>
       </header>
 
       {/* Dynamic Summary Cards */}
       <section className="metrics-row" style={{ marginBottom: '32px' }}>
         <div className="metric-card glow-green">
-          <div className="metric-label">Expected MRR Uplift</div>
+          <div className="metric-label">Expected Workflow Lift</div>
           <div className="metric-value" id="expected-mrr-uplift-val">
             +{pct(calculateTotalUplift())}
           </div>
@@ -381,7 +381,7 @@ function OptimizationPageDev() {
                     <th>Pricing Tier</th>
                     <th>Old Price</th>
                     <th>Suggested Price</th>
-                    <th>Expected Revenue Change</th>
+                    <th>Expected Workflow Change</th>
                   </tr>
                 </thead>
                 <tbody>

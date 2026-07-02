@@ -108,7 +108,7 @@ export function UpgradeModal({
         
         <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
           <span>{valueMessage.roiAnchor} Plans start at ${getPlanVal('starter', 'price_monthly', 9)}/mo.</span>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>🔒 TLS Encrypted Paddle Checkout • Cancel or Downgrade Anytime</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>Secure checkout provider: Paddle • Cancel anytime</span>
         </p>
       </div>
     </div>

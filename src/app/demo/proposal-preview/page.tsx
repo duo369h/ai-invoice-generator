@@ -139,7 +139,7 @@ export default function DemoProposalPreviewPage() {
           Try with your own job →
         </Link>
         <p style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "12px" }}>
-          Free trial. No credit card required.
+          Free trial.
         </p>
       </div>
     </div>

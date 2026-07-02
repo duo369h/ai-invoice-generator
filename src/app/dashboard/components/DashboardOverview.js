@@ -458,7 +458,7 @@ export function ActivityFeed({ ui }) {
                   Outcome: <strong style={{ color: item.outcome === "Won" || item.outcome === "WON" || item.outcome === "Paid" ? "#10b981" : "var(--text-soft)" }}>{item.outcome}</strong>
                 </span>
                 <span>
-                  Revenue: <strong style={{ color: "var(--text-main)" }}>{item.revenue}</strong>
+                  Document Total: <strong style={{ color: "var(--text-main)" }}>{item.revenue}</strong>
                 </span>
               </div>
 
@@ -544,7 +544,7 @@ function RevenueFocusCard({ ui }) {
     <section style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.06) 100%)', border: '1px solid rgba(99, 102, 241, 0.2)', borderRadius: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
-          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary, #6366f1)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>AI Revenue Focus</p>
+          <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary, #6366f1)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Workflow Focus</p>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-soft)' }}>Conversion Probability: {(ui.metric.probability * 100).toFixed(0)}%</p>
         </div>
         <span style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(99,102,241,0.12)', borderRadius: '20px', fontWeight: 600, color: 'var(--primary, #6366f1)' }}>{ui.metric.label}</span>

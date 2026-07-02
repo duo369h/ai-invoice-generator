@@ -309,7 +309,7 @@ export const INDUSTRY_PAGE_TEMPLATE_SPEC = [
   },
   {
     section: 'CTA',
-    rule: 'Use Create Quote, Start Free, or Get Paid Faster depending on page intent.',
+    rule: 'Use Create Quote, Start Free, or Organize Client Delivery depending on page intent.',
   },
 ] as const;
 
@@ -507,7 +507,7 @@ export const VALIDATION_INDUSTRY_PAGES: ValidationIndustryPage[] = [
       {
         question: 'Why not just use project management software?',
         answer:
-          'Project management tools track tasks. Corvioz should own the revenue workflow from quote to invoice to payment follow-up.',
+          'Project management tools track tasks. Corvioz should own the client workflow from quote to proposal to document follow-up.',
       },
     ],
     finalCta: 'Create Quote',

@@ -26,8 +26,8 @@ const directoryFaq = [
     a: 'Yes. Every public freelancer profile card has an integrated inquiry form. Clients submit project details which populate directly in the freelancer Leads Inbox.'
   },
   {
-    q: 'Are there payment fees on Corvioz?',
-    a: 'Corvioz provides direct billing setups. Invoices can include your own payment links, including Paddle-hosted checkout links, PayPal, or bank-transfer instructions, with 0% Corvioz platform commission fees.'
+    q: 'Does Corvioz handle client payments?',
+    a: 'No. Corvioz is a client workflow workspace for freelancer profiles, quote requests, proposals, and client records. Paid plan checkout is handled securely by Paddle.'
   }
 ];
 
@@ -62,7 +62,7 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
         route="/freelancers"
         surfaceId="freelancers-public-header"
         navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Documents', href: '/invoice-generator' },
           { label: 'Quotes', href: '/quote-generator' },
           { label: 'Pricing', href: '/pricing' },
         ]}
@@ -75,7 +75,7 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
           {label} is coming soon.
         </h1>
         <p className="section-lede" style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: 1.7 }}>
-          {descriptionText} Corvioz is currently optimizing secure private freelancer profiles, quote generation, client portals, and Paddle-ready checkout workflows. Public discovery categories will open next month.
+          {descriptionText} Corvioz is currently optimizing secure private freelancer profiles, quote generation, client portals, and structured client delivery workflows. Public discovery categories will open next month.
         </p>
         <div className="hero-actions center" style={{ marginTop: '32px' }}>
           <Button href="/dashboard?action=create-profile" variant="primary" size="lg">Build Your Public Profile</Button>

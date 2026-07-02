@@ -28,8 +28,8 @@ export default function SharedFooter({ lang = 'en' }) {
             <Logo size={22} style={{ fontSize: '1.2rem' }} textStyle={{ letterSpacing: '-0.03em' }} />
             <p style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
               {isZh 
-                ? 'Corvioz 帮助自由职业者创建报价、发送发票、管理客户并更快收款。'
-                : 'Corvioz helps freelancers create quotes, send invoices, manage clients, and get paid faster.'}
+                ? 'Corvioz 帮助自由职业者组织报价、提案、客户文档和项目记录。'
+                : 'Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.'}
             </p>
           </div>
 
@@ -40,9 +40,10 @@ export default function SharedFooter({ lang = 'en' }) {
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/#why-corvioz">{isZh ? '为什么选择 Corvioz' : 'Why Corvioz'}</Link></li>
-              <li><Link href="/invoice-generator">{isZh ? '发票' : 'Invoices'}</Link></li>
+              <li><Link href="/invoice-generator">{isZh ? '发票模板' : 'Invoice Templates'}</Link></li>
               <li><Link href="/quote-generator">{isZh ? '报价' : 'Quotes'}</Link></li>
-              <li><Link href="/#how-corvioz-works">{isZh ? '工作流' : 'How it Works'}</Link></li>
+              <li><Link href="/proposal">{isZh ? '提案' : 'Proposals'}</Link></li>
+              <li><Link href="/#how-corvioz-works">{isZh ? '客户工作流' : 'Client Workflow'}</Link></li>
               <li><Link href="/pricing">{isZh ? '价格' : 'Pricing'}</Link></li>
               <li><Link href="/dashboard">{isZh ? '登录' : 'Sign in'}</Link></li>
             </ul>
@@ -54,11 +55,11 @@ export default function SharedFooter({ lang = 'en' }) {
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/blog">{isZh ? '博客' : 'Blog'}</Link></li>
-              <li><Link href="/blog/invoice-vs-quote-vs-receipt">{isZh ? '如何给客户开具发票' : 'How to Invoice Clients'}</Link></li>
-              <li><Link href="/invoice-template/photographer">{isZh ? '摄影师发票模板' : 'Photographer Invoice Template'}</Link></li>
+              <li><Link href="/blog/invoice-vs-quote-vs-receipt">{isZh ? '客户文档指南' : 'Client Document Guide'}</Link></li>
+              <li><Link href="/invoice-template/photographer">{isZh ? '摄影师文档模板' : 'Photographer Document Template'}</Link></li>
               <li><Link href="/quote-template/consultant">{isZh ? '顾问报价模板' : 'Consultant Quote Template'}</Link></li>
               <li><Link href="/blog/how-to-price-web-design-projects">{isZh ? '自由职业定价策略' : 'Freelance Pricing Guide'}</Link></li>
-              <li><Link href="/blog/best-invoice-software-for-freelancers">{isZh ? '自由职业收款加速技巧' : 'Get Paid Faster Guide'}</Link></li>
+              <li><Link href="/blog/best-invoice-software-for-freelancers">{isZh ? '客户跟进指南' : 'Client Follow-Up Guide'}</Link></li>
             </ul>
           </div>
 
@@ -131,7 +132,7 @@ export default function SharedFooter({ lang = 'en' }) {
           textAlign: 'center'
         }}>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-soft)', fontWeight: 600 }}>
-            {isZh ? '安全订阅、清晰退款、用户拥有自己的业务数据。' : 'Secure subscription billing, clear refunds, and user-owned business records.'}
+            {isZh ? '清晰的订阅条款、清晰的退款政策，以及用户自有的客户记录。' : 'Clear plan terms, clear refunds, and user-owned client records.'}
           </p>
           <div style={{
             display: 'flex',
@@ -143,15 +144,15 @@ export default function SharedFooter({ lang = 'en' }) {
             fontWeight: 550,
             marginBottom: '10px'
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>💳 {isZh ? '通过 Paddle 安全订阅计费' : 'Secure subscription billing via Paddle'}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🧾 {isZh ? '发票和客户数据归您所有' : 'Your invoices and client data remain yours'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>💳 {isZh ? '安全结账服务提供方：Paddle' : 'Secure checkout provider: Paddle'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🧾 {isZh ? '报价和客户记录归您所有' : 'Your quotes and client records remain yours'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🔒 {isZh ? '我们不会出售个人数据' : 'We never sell personal data'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛡️ {isZh ? '采用行业标准安全实践保护' : 'Protected with industry-standard security practices'}</span>
           </div>
           <p style={{ margin: 0, maxWidth: '720px', fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
             {isZh
-              ? '您拥有自己的发票、报价、客户记录和导出文件。我们使用必要数据来运行 Corvioz，并使用产品分析来改进体验。我们不会出售个人数据。'
-              : 'You own your invoices, quotes, client records, and exported documents. We use necessary data to run Corvioz and product analytics to improve the experience. We do not sell personal data.'}
+              ? '您的报价、提案、客户记录和导出文档归您所有。Corvioz 仅使用必要数据来运行工作区，并使用产品分析改进体验。我们不会出售个人数据。'
+              : 'You own your quotes, proposals, client records, and exported documents. Corvioz uses necessary data to run the workspace and product analytics to improve the experience. We do not sell personal data.'}
           </p>
           <p style={{ margin: 0, maxWidth: '720px', fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
             {isZh

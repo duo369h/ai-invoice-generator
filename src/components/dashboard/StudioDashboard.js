@@ -5,7 +5,7 @@
  * Plan: 'studio' ($29/mo) — "Client Growth Pack"
  *
  * This is NOT a feature gating system.
- * This is a revenue track system.
+ * This is a workflow track system.
  * Each tier is an independent product experience.
  */
 

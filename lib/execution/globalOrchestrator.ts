@@ -210,10 +210,10 @@ export function getCTA(
     return observeCTA(state, context, 'Start Free');
   }
   if (context === 'pricing_starter') {
-    return observeCTA(state, context, 'Get paid faster');
+    return observeCTA(state, context, 'Choose Starter');
   }
   if (context === 'pricing_pro') {
-    return observeCTA(state, context, 'Never miss a payment');
+    return observeCTA(state, context, 'Choose Pro');
   }
   if (context === 'pricing_studio') {
     return observeCTA(state, context, 'Scale client operations');
@@ -221,10 +221,10 @@ export function getCTA(
 
   // 1️⃣ Priority Level 1: identity override
   if (identity === 'starter') {
-    return observeCTA(state, context, 'Get paid faster');
+    return observeCTA(state, context, 'Organize client delivery');
   }
   if (identity === 'pro') {
-    return observeCTA(state, context, 'Never miss a payment');
+    return observeCTA(state, context, 'Keep client follow-up organized');
   }
   if (identity === 'studio') {
     return observeCTA(state, context, 'Scale client operations');
@@ -239,39 +239,39 @@ export function getCTA(
 
   // Default freelancer resolution
   if (context === 'pricing_select') return observeCTA(state, context, 'Upgrade your business');
-  if (context === 'dashboard_primary') return observeCTA(state, context, 'Create invoice');
-  if (context === 'navbar') return observeCTA(state, context, 'Create Invoice');
-  return observeCTA(state, context, 'Start freelancing safely');
+  if (context === 'dashboard_primary') return observeCTA(state, context, 'Create document');
+  if (context === 'navbar') return observeCTA(state, context, 'Create Document');
+  return observeCTA(state, context, 'Start Workspace');
 }
 
 // Copy pools organized by theme
 const COPY_POOL = {
   starter: {
     homepage: {
-      headline: 'Get Your First Client & Get Paid',
-      lede: 'The direct milestone-to-payment engine for new freelancers. Pitch estimates, send simple invoices, and clear your very first payment with zero complexity.',
+      headline: 'Run every client workflow with structure.',
+      lede: 'Corvioz helps independent professionals organize quotes, proposals, client documents, and project records in one focused workspace.',
       trustBadge: '⚡ Starter Identity Active',
-      trustMicrocopy: 'Safe way to send your first invoices',
-      trustStripTitle: 'Beginner-safe billing layout designed to start freelancing safely',
+      trustMicrocopy: 'Safe way to organize client work',
+      trustStripTitle: 'Beginner-safe workflow layout designed to organize client delivery',
       trustStripBullets: [
         'Zero bookkeeping setup complexity',
         'Instant 14-day risk-free refund window',
         'Local draft browser sandbox option',
-        'Paddle-ready billing gateway'
+        'Secure checkout provider'
       ],
       threeStepFlow: [
         { step: '① Pitch estimate', color: 'var(--text-soft)' },
         { step: '→', color: 'var(--text-muted)' },
-        { step: '② Send invoice', color: 'var(--text-soft)' },
+        { step: '② Prepare proposal', color: 'var(--text-soft)' },
         { step: '→', color: 'var(--text-muted)' },
-        { step: '③ Get Paid', color: 'var(--primary)' }
+        { step: '③ Manage delivery', color: 'var(--primary)' }
       ],
-      featuresTitle: 'From Estimate to Paid Invoice',
-      featuresLede: 'Draft milestone estimates, send simple invoices, and clear your first contract payment without complexity.',
+      featuresTitle: 'From Request to Delivery Record',
+      featuresLede: 'Draft milestone estimates, prepare client documents, and keep the first workflow organized without complexity.',
       featuresList: [
         { title: 'Milestone estimates', text: 'Create clear, simple quotes for client approval.' },
-        { title: 'Starter invoices', text: 'Send secure professional invoices for your first contract.' },
-        { title: 'First payment tracking', text: 'Receive and track credit card or bank transfer settlements.' },
+        { title: 'Starter documents', text: 'Prepare professional client documents for your first workflow.' },
+        { title: 'Client status tracking', text: 'Track document review and follow-up status.' },
         { title: 'Client portal link', text: 'Give your client a clean portal to approve and view documents.' }
       ],
       profileTitle: 'Your Freelancer Business Card',
@@ -281,54 +281,54 @@ const COPY_POOL = {
         'Direct email inquiry CTA',
         'Clean professional avatar card'
       ],
-      showcaseTitle: 'Your Path to Getting Paid',
-      showcaseLede: 'A direct outcome-based loop designed for new freelancers. From pitching to billing to clearing funds, Starter eliminates clutter so you can focus on what matters.',
+      showcaseTitle: 'Your Path to Structured Client Work',
+      showcaseLede: 'A direct client workflow designed for new freelancers. From request capture to document delivery, Starter eliminates clutter so you can focus on the work.',
       faqs: [
         {
-          q: 'How does the Starter mode help me get my first client?',
-          a: 'Starter mode is built to simplify the conversion loop. You can pitch milestone estimates, send simple professional invoices, and track your first payments with zero complexity.'
+          q: 'How does Starter help me organize client work?',
+          a: 'Starter mode is built to simplify the client workflow. You can pitch milestone estimates, prepare professional documents, and track follow-up with less complexity.'
         },
         {
           q: 'Do I need a registered business to use Starter?',
-          a: 'No. You can use your personal name, upload a profile photo, list your services, and start invoicing clients immediately as a sole proprietor.'
+          a: 'No. You can use your personal name, upload a profile photo, list your services, and prepare client documents as a sole proprietor.'
         },
         {
           q: 'Can I use Starter for free?',
-          a: 'Yes. You can generate local draft invoices, export PDFs, and manage your first client workspace for free.'
+          a: 'Yes. You can generate local draft documents, preview PDFs, and manage your first client workspace for free.'
         }
       ]
     },
     pricing: {
-      headline: 'Get your first client',
-      lede: 'No setup risk. Start freelancing safely.',
-      kicker: 'SAFE WAY TO SEND YOUR FIRST INVOICES',
+      headline: 'Choose the workspace that fits your client operation.',
+      lede: 'Start with a focused client workflow, then upgrade when your documents, clients, and delivery process need more structure.',
+      kicker: 'SIMPLE PLANS FOR CLIENT WORKFLOW MATURITY',
       cards: {
         free: {
           outcome: 'Spend less time on admin and start pitching projects.',
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
         starter: {
-          outcome: 'Get paid faster and present a polished brand.',
-          features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
+          outcome: 'Organize client delivery and present a polished brand.',
+          features: ['Client-ready proposals', 'Quote and document workflow', 'Auto-fill client details on future documents']
         },
         pro: {
-          outcome: 'Never lose another payment and secure repeat business.',
-          features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
+          outcome: 'Keep client follow-up organized for repeat work.',
+          features: ['Organize follow-up moments', 'Build custom client portfolios for repeat work', 'Qualify and capture prospective client inquiries']
         },
         studio: {
           outcome: 'Scale your operations and manage workflow complexity.',
           features: ['Brand client workspaces under your custom domain', 'Qualify inbound inquiries with budget filters', 'Present specialist team members to secure larger contracts']
         }
       },
-      trustStripTitle: 'Beginner-safe billing layout designed to start freelancing safely',
+      trustStripTitle: 'Beginner-safe workflow layout designed to organize client delivery',
       trustStripBullets: [
         'Zero bookkeeping setup complexity',
         'Instant 14-day risk-free refund window',
         'Local draft browser sandbox option',
-        'Paddle-ready billing gateway'
+        'Secure checkout provider'
       ],
       trustBadges: [
-        'Safe way to send your first invoices',
+        'Safe way to organize client work',
         'No setup risk',
         'Cancel anytime in 1 click',
         '14-day zero-risk refund'
@@ -337,22 +337,22 @@ const COPY_POOL = {
     },
     checkout: {
       heading: 'Unlock your Starter workspace',
-      quote: '“Start your freelance journey safely”',
+      quote: '“Organize your first client workflow”',
       bullets: [
-        'Beginner-safe invoice tracking',
-        'Direct client approved quote converter',
+        'Beginner-safe document tracking',
+        'Direct client approval workflow',
         'Instant 14-day full refund window'
       ],
       loadingHeader: 'Setting up your Starter workspace...',
-      loadingDesc: 'Safe way to send your first invoices. No setup risk.',
+      loadingDesc: 'Safe way to organize client work. No setup risk.',
       spinnerSub: 'Opening Starter checkout...'
     },
     dashboard: {
       title: 'Corvioz Starter OS',
-      description: 'Get your first client faster. Create quotes, send invoices, and track payment status in one simple workspace.',
+      description: 'Organize client delivery. Create quotes, prepare client documents, and track review status in one simple workspace.',
       badgeLabel: 'Freelancer Mode',
       nudgeTitle: 'Starter Workspace Ready',
-      nudgeText: 'Pitch estimates and bill your first client safely without financial overhead.'
+      nudgeText: 'Pitch estimates and organize your first client workflow without extra complexity.'
     }
   },
   pro: {
@@ -392,20 +392,20 @@ const COPY_POOL = {
         'Availability indicators & social proof',
         'Inbound lead capture form'
       ],
-      showcaseTitle: 'Your Freelance Income Pipeline',
-      showcaseLede: 'A complete freelancer business operating system. Scale from capturing inbound leads to proposing scopes, invoicing milestones, and building client relationships for repeat work.',
+      showcaseTitle: 'Your Client Delivery Pipeline',
+      showcaseLede: 'A complete freelancer workflow system. Scale from capturing inbound leads to proposing scopes, organizing documents, and building client relationships for repeat work.',
       faqs: [
         {
-          q: 'How does the Pro mode help build stable income?',
-          a: 'Pro mode includes pipeline CRM features, lead capture forms on your public profile, interactive proposals with milestone signatures, and automated billing rules for repeat clients.'
+          q: 'How does Pro help organize repeat client work?',
+          a: 'Pro mode includes pipeline CRM features, lead capture forms on your public profile, interactive proposals with milestone signatures, and organized follow-up for repeat clients.'
         },
         {
           q: 'How does the lead capture and CRM pipeline work?',
-          a: 'When clients visit your public profile, they can submit quote requests. These inquiries flow directly into your CRM Kanban board as new inbound leads, allowing you to track them from pitch to payment.'
+          a: 'When clients visit your public profile, they can submit quote requests. These inquiries flow directly into your CRM Kanban board as new inbound leads, allowing you to track them from pitch to client review.'
         },
         {
-          q: 'Can I connect my own custom payment gateways?',
-          a: 'Yes, in Pro mode you can configure custom payment schedules and attach links to bank transfers, check deposits, or card gateways in your portals.'
+          q: 'Can I organize client document schedules?',
+          a: 'Yes. In Pro mode you can organize client document schedules and keep proposal, quote, and project follow-up context in your workspace.'
         }
       ]
     },
@@ -419,12 +419,12 @@ const COPY_POOL = {
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
         starter: {
-          outcome: 'Get paid faster and present a polished brand.',
-          features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
+          outcome: 'Organize client delivery and present a polished brand.',
+          features: ['Client-ready proposals', 'Quote and document workflow', 'Auto-fill client details on future documents']
         },
         pro: {
-          outcome: 'Never lose another payment and secure repeat business.',
-          features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
+          outcome: 'Keep client follow-up organized for repeat work.',
+          features: ['Organize follow-up moments', 'Build custom client portfolios for repeat work', 'Qualify and capture prospective client inquiries']
         },
         studio: {
           outcome: 'Scale your operations and manage workflow complexity.',
@@ -448,7 +448,7 @@ const COPY_POOL = {
     },
     checkout: {
       heading: 'Unlock your Pro workspace',
-      quote: '“You’re about to upgrade your income system”',
+      quote: '“You’re about to upgrade your client workflow”',
       bullets: [
         'CRM pipeline status board',
         'Legally compliant proposal e-signatures',
@@ -460,10 +460,10 @@ const COPY_POOL = {
     },
     dashboard: {
       title: 'Corvioz Pro OS',
-      description: 'Build stable freelance income. Monitor your pipeline, send proposals, invoice clients, and view analytics in one workspace.',
+      description: 'Manage repeat client work. Monitor your pipeline, prepare proposals, organize client documents, and view workflow analytics in one workspace.',
       badgeLabel: 'Freelancer Mode',
       nudgeTitle: 'Pro System Recommendation',
-      nudgeText: 'Connect proposals with legally-binding e-signatures to secure payment terms.'
+      nudgeText: 'Connect proposals with client review steps to keep delivery terms clear.'
     }
   },
   studio: {
@@ -530,12 +530,12 @@ const COPY_POOL = {
           features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
         },
         starter: {
-          outcome: 'Get paid faster and present a polished brand.',
-          features: ['Collect credit card or bank transfers instantly', 'Avoid billing delays with professional templates', 'Auto-fill client details on future documents']
+          outcome: 'Organize client delivery and present a polished brand.',
+          features: ['Client-ready proposals', 'Quote and document workflow', 'Auto-fill client details on future documents']
         },
         pro: {
-          outcome: 'Never lose another payment and secure repeat business.',
-          features: ['Automate follow-ups on late payments', 'Build custom client portfolios to win repeat work', 'Qualify and capture prospective client inquiries']
+          outcome: 'Keep client follow-up organized for repeat work.',
+          features: ['Organize follow-up moments', 'Build custom client portfolios for repeat work', 'Qualify and capture prospective client inquiries']
         },
         studio: {
           outcome: 'Scale your operations and manage workflow complexity.',

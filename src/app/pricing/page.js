@@ -1,5 +1,5 @@
 // This is not a feature mapping system.
-// This is a behavioral revenue system.
+// This is a behavioral workflow system.
 // Pricing is driven by user intent, not functionality.
 
 'use client';
@@ -26,21 +26,125 @@ import { getPricingPressure } from 'lib/revenue/pressureEngine';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 import { getPricingAnchorCopy } from '../../core/monetization/valueCapture';
 import { sendEvent } from '../../core/analytics/eventRouter';
+import { trackEvent } from '../lib/analytics';
+import { trackGrowthEvent } from '../../core/growth/growthTracker';
 
 
 const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
 
+const REVIEW_SAFE_PRICING_PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    description: 'For testing the core quote, document, and profile workflow.',
+    price_monthly: 0,
+    price_yearly: 0,
+    features: [
+      'Draft quotes and client documents',
+      'Basic profile setup',
+      'Watermarked PDF preview',
+    ],
+    badge_text: 'Try',
+    active: true,
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    description: 'For freelancers who need a simple, repeatable client delivery workspace.',
+    price_monthly: 9,
+    price_yearly: 7,
+    features: [
+      'Client-ready proposals',
+      'Invoice and quote workflow',
+      'Basic client delivery controls',
+    ],
+    badge_text: 'Starter',
+    active: true,
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    description: 'For working freelancers managing multiple client projects.',
+    price_monthly: 19,
+    price_yearly: 16,
+    features: [
+      'Unlimited proposals and profiles',
+      'Clean PDF export without watermark',
+      'Client links and stronger delivery controls',
+    ],
+    badge_text: 'Recommended',
+    active: true,
+  },
+  {
+    id: 'studio',
+    name: 'Studio',
+    description: 'For small studios that need broader client operations.',
+    price_monthly: 29,
+    price_yearly: 24,
+    features: [
+      'Studio client workspaces',
+      'Reusable brand and delivery controls',
+      'Priority workflow support',
+    ],
+    badge_text: 'Studio',
+    active: true,
+  },
+];
+
+/**
+ * Safe numeric parser — no business meaning, purely structural.
+ * Returns fallback only when value is not a finite number.
+ */
+function parsePlanPrice(value, fallback) {
+  const parsed = typeof value === 'string'
+    ? Number(value.replace(/[$,\s]/g, ''))
+    : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/**
+ * normalizePricingPlans — deterministic structural merge.
+ *
+ * Rules:
+ * 1. Dedup incoming plans by id (first occurrence wins).
+ * 2. For each canonical fallback plan, merge with the API plan if present.
+ * 3. Price is resolved structurally: API value wins if parseable as finite number;
+ *    otherwise the fallback constant is used.
+ * 4. NO plan-identity branching. NO business-rule price overrides.
+ */
 function normalizePricingPlans(rawPlans) {
-  if (!Array.isArray(rawPlans)) return [];
   const uniquePlansMap = new Map();
-  rawPlans.forEach((plan) => {
-    if (plan && plan.id && !uniquePlansMap.has(plan.id)) {
-      uniquePlansMap.set(plan.id, plan);
-    }
+  if (Array.isArray(rawPlans)) {
+    rawPlans.forEach((plan) => {
+      if (plan && typeof plan.id === 'string' && !uniquePlansMap.has(plan.id)) {
+        uniquePlansMap.set(plan.id, plan);
+      }
+    });
+  }
+
+  return REVIEW_SAFE_PRICING_PLANS.map((fallbackPlan) => {
+    const apiPlan = uniquePlansMap.get(fallbackPlan.id);
+
+    // Structural price resolution: read both key shapes, fall back to constant.
+    const resolvePrice = (period) => {
+      const snakeKey = period === 'monthly' ? 'price_monthly' : 'price_yearly';
+      const camelKey = period === 'monthly' ? 'priceMonthly' : 'priceYearly';
+      const raw = apiPlan?.[snakeKey] ?? apiPlan?.[camelKey];
+      return parsePlanPrice(raw, fallbackPlan[snakeKey]);
+    };
+
+    return {
+      ...fallbackPlan,
+      ...(apiPlan ? apiPlan : {}),
+      // Explicit price fields always win over the spread to keep them deterministic.
+      price_monthly: resolvePrice('monthly'),
+      price_yearly: resolvePrice('yearly'),
+      // Features: use API array if non-empty, else fallback.
+      features: Array.isArray(apiPlan?.features) && apiPlan.features.length > 0
+        ? apiPlan.features
+        : fallbackPlan.features,
+    };
   });
-  return STRICT_PLAN_IDS
-    .map((id) => uniquePlansMap.get(id))
-    .filter(Boolean);
 }
 
 function IdentityGate({ onSelect, currentIdentity }) {
@@ -48,8 +152,8 @@ function IdentityGate({ onSelect, currentIdentity }) {
     {
       id: 'starter',
       title: 'Starter',
-      tagline: 'Get paid faster',
-      desc: 'For freelancers who need their first repeatable client workflow: create quotes, send invoices, and keep payment follow-up clear.',
+      tagline: 'Organize client delivery',
+      desc: 'For freelancers who need their first repeatable workflow for quotes, documents, and client follow-up.',
       accent: 'var(--primary)',
       bgGlow: 'var(--primary-glow)',
       icon: '⚡'
@@ -57,8 +161,8 @@ function IdentityGate({ onSelect, currentIdentity }) {
     {
       id: 'pro',
       title: 'Pro',
-      tagline: 'Never miss a payment',
-      desc: 'For working freelancers who manage multiple clients and need stronger proposals, branded delivery, and repeatable invoice follow-up.',
+      tagline: 'Keep client follow-up organized',
+      desc: 'For working freelancers who manage multiple clients and need stronger proposals, branded delivery, and repeatable document workflows.',
       accent: 'var(--success)',
       bgGlow: 'rgba(34, 197, 94, 0.08)',
       icon: '📈'
@@ -67,7 +171,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'studio',
       title: 'Studio',
       tagline: 'Scale client operations',
-      desc: 'For small studios that need shared client operations, stronger brand control, and a clearer path from proposal to paid work.',
+      desc: 'For small studios that need shared client operations, stronger brand control, and a clearer delivery structure.',
       accent: 'var(--accent)',
       bgGlow: 'rgba(99, 102, 241, 0.08)',
       icon: '🚀'
@@ -203,7 +307,7 @@ function PricingContent() {
     setMounted(true);
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('corvioz_identity');
-      setIdentity(stored);
+      setIdentity(['starter', 'pro', 'studio'].includes(stored) ? stored : 'starter');
     }
   }, []);
 
@@ -229,18 +333,28 @@ function PricingContent() {
   useEffect(() => {
     let active = true;
     const fetchPlans = async () => {
+      let nextPlans = null;
+      let nextLoading = true;
+
       try {
         const res = await fetch('/api/pricing');
-        if (res.ok) {
-          const data = await res.json();
-          if (active && data.success && data.plans) {
-            setPlans(normalizePricingPlans(data.plans));
-          }
+        const data = res.ok ? await res.json() : null;
+
+        if (data?.success && Array.isArray(data.plans)) {
+          nextPlans = normalizePricingPlans(data.plans);
+        } else {
+          nextPlans = REVIEW_SAFE_PRICING_PLANS;
         }
       } catch (err) {
         console.error('Failed to fetch pricing plans:', err);
-      } finally {
-        if (active) setPlansLoading(false);
+        nextPlans = REVIEW_SAFE_PRICING_PLANS;
+      }
+
+      nextLoading = false;
+
+      if (active) {
+        setPlans(nextPlans);
+        setPlansLoading(nextLoading);
       }
     };
     fetchPlans();
@@ -262,7 +376,8 @@ function PricingContent() {
     session,
     userPlan,
     isAuthenticated,
-    subLoading
+    subLoading,
+    billingPeriod,
   });
 
   // Task 3: UI-level deduplication guard & fixed order
@@ -322,18 +437,20 @@ function PricingContent() {
   }, [searchParams]);
 
   const onUpgradeClick = useCallback((planId) => {
+    // priceId is resolved by pricingViewModel — controller receives it as a value.
+    const vm = uniqueViewModels.find((v) => v.id === planId);
+    const priceId = vm?.priceMeta?.priceId || '';
     handleUpgradeCheckout({
       planId,
-      billingPeriod,
+      priceId,
       session,
-      plans,
       searchParams,
       setCheckoutLoading
     });
-  }, [billingPeriod, session, plans, searchParams]);
+  }, [uniqueViewModels, session, searchParams]);
 
   useEffect(() => {
-    if (!sessionLoaded || plans.length === 0) return;
+    if (!sessionLoaded || uniqueViewModels.length === 0) return;
     const checkoutPlan = searchParams.get('checkout');
     console.log('[INSTRUMENTATION] pricing checkout redirect check:', { checkoutPlan, hasSession: !!session });
     if (!checkoutPlan || !['starter', 'pro'].includes(checkoutPlan)) return;
@@ -349,32 +466,32 @@ function PricingContent() {
 
     checkoutRestoredRef.current = true;
     onUpgradeClick(checkoutPlan);
-  }, [onUpgradeClick, searchParams, session, sessionLoaded, plans]);
+  }, [onUpgradeClick, searchParams, session, sessionLoaded, uniqueViewModels]);
 
   const pricingFaq = [
     {
       q: 'Is there a free tier and how does it work?',
-      a: 'Yes. Free is for trying the core workflow: create quotes, send invoices, and set up your public profile with no credit card required. Upgrade when you need stronger branding, reminders, or broader client portal delivery.',
+      a: 'Yes. Free is for trying the core workflow: create quotes, prepare client documents, and set up your public profile. Upgrade when you need stronger branding, reminders, or broader client portal delivery.',
     },
     {
-      q: 'Do you offer a money-back guarantee?',
-      a: 'Yes. Corvioz offers a 14-day refund window for paid upgrades processed through Paddle where checkout is enabled. If the product does not fit your freelancer workflow or there is a billing error, email support@corvioz.com with your account email and Paddle receipt.',
+      q: 'Do subscription plans include a refund window?',
+      a: 'Yes. Subscription plans include a clear 14-day refund window. If the product does not fit your freelancer workflow, email support@corvioz.com with your account email and Paddle receipt.',
     },
     {
       q: 'Can I cancel or change plans later?',
-      a: 'Yes, you can upgrade, downgrade, or cancel future renewal from your account or through billing support where Paddle checkout is enabled. There are no lock-in contracts or cancellation fees.',
+      a: 'Yes, you can upgrade, downgrade, or cancel future renewal from your account or support. There are no lock-in contracts or cancellation fees.',
     },
     {
       q: 'How do client portals work?',
-      a: 'When you share a quote, proposal, or invoice, your client gets a private link. They can review the work and respond without creating a Corvioz account, while your dashboard keeps the client record organized.',
+      a: 'When you share a quote, proposal, or client document, your client gets a private link. They can review the work and respond without creating a Corvioz account, while your dashboard keeps the client record organized.',
     },
     {
       q: 'Is Corvioz full accounting software?',
-      a: 'No. Corvioz is a focused client workflow workspace, not full bookkeeping or tax software. It helps you win work with quotes and proposals, invoice clients professionally, and keep payment status visible.',
+      a: 'No. Corvioz is a focused client workflow workspace, not full bookkeeping or tax software. It helps you organize quotes, proposals, client documents, and delivery records.',
     },
   ];
 
-  if (!(mounted && identity !== null)) {
+  if (!mounted) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)', paddingBottom: '80px' }}>
         <PublicHeader
@@ -387,24 +504,14 @@ function PricingContent() {
         />
         <main style={{ maxWidth: '980px', margin: '0 auto', padding: '120px clamp(16px, 5vw, 24px) 48px', textAlign: 'center' }}>
           <header style={{ marginBottom: '56px' }}>
-            <p className="section-kicker" style={{ color: 'var(--primary)', fontWeight: 800 }}>Corvioz Identity Gate</p>
+            <p className="section-kicker" style={{ color: 'var(--primary)', fontWeight: 800 }}>Pricing</p>
             <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', lineHeight: 1.15, marginBottom: '20px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-1.5px' }}>
-              Choose Your Professional Identity.
+              Choose the workspace that fits your client operation.
             </h1>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '32px', maxWidth: '580px', margin: '0 auto', lineHeight: 1.6 }}>
-              Select your operating mode to view plan features and CTA packages tailored to your exact freelance workflow.
+              Loading pricing...
             </p>
           </header>
-          <IdentityGate
-            currentIdentity={identity}
-            onSelect={(id) => {
-              setIdentity(id);
-              if (typeof window !== 'undefined') {
-                window.localStorage.setItem('corvioz_identity', id);
-              }
-              trackGrowthEvent('pricing_selection', { plan: id, source: 'identity_gate' });
-            }}
-          />
         </main>
         <SharedFooter />
       </div>
@@ -589,13 +696,13 @@ function PricingContent() {
             </div>
           )}
           <p className="section-kicker" style={{ color: ui.pricing_variant === 'starter' ? 'var(--primary)' : ui.pricing_variant === 'pro' ? 'var(--success)' : 'var(--accent)', fontWeight: 800 }}>
-            {mounted && ui.copy ? ui.copy.kicker : "PRICING"}
+            Simple plans for client workflow maturity
           </p>
           <h1 className="section-title" style={{ marginBottom: '12px', fontWeight: 900 }}>
-            {mounted && ui.copy ? ui.copy.headline : "Choose the plan that matches your client workflow."}
+            Choose the workspace that fits your client operation.
           </h1>
           <p className="section-lede" style={{ marginBottom: '32px', maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
-            {mounted && ui.copy ? ui.copy.lede : "Start with quotes and invoices. Upgrade when branding, client delivery, and follow-up become part of your paid workflow."}
+            Start with a focused client workflow, then upgrade when your documents, clients, and delivery process need more structure.
           </p>
 
           {/* Engine-driven upgrade nudge banner */}
@@ -661,7 +768,7 @@ function PricingContent() {
           {/* Billing Toggle */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 800, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              📈 Switch to Yearly for 2 Months Free (Save 20%)
+              Save with annual plan
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--btn-secondary-bg)', padding: '4px', borderRadius: '99px', border: '1px solid var(--border)' }}>
               <button
@@ -716,7 +823,7 @@ function PricingContent() {
             fontWeight: 600
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🔒</span> Secure checkout via Paddle
+              <span>🔒</span> Secure checkout provider: Paddle
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🛡️</span> Your data is encrypted
@@ -833,7 +940,8 @@ function PricingContent() {
               const cardClass = isStarter ? 'pricing-card-pro' : isPro ? 'pricing-card-pro-tier' : (isStudio ? 'pricing-card-studio' : 'pricing-card-free');
               const checkColor = isStarter ? 'var(--primary)' : isPro ? 'var(--success)' : (isStudio ? 'var(--accent)' : 'var(--success)');
               
-              const price = billingPeriod === 'monthly' ? vm.priceMonthly : vm.priceYearly;
+              const price = vm.price;
+
               const savingsText = isStarter ? 'Save 17%' : isPro ? 'Save 16%' : (isStudio ? 'Save 17%' : null);
               const billedAnnuallyText = vm.priceYearly > 0 ? `Billed annually ($${Math.round(vm.priceYearly * 12)}/year)` : null;
               
@@ -842,8 +950,8 @@ function PricingContent() {
               // Dynamic UI values from Injection Layer (v9.3)
               const uiInject = getUIInjection(vm.id);
               const badgeText = uiInject.badgeText;
-              const ctaText = uiInject.ctaText;
-              const helperText = uiInject.helperText;
+              const ctaText = vm.id === 'free' ? 'Start Free' : `Choose ${vm.name}`;
+              const helperText = isStudio ? null : uiInject.helperText;
  
               const isRecommended = vm.highlightedPlan === vm.id;
               const intensity = vm.visualIntensity;
@@ -863,7 +971,7 @@ function PricingContent() {
                 <div key={vm.id} className={cardClass} style={cardStyle} onMouseEnter={() => trackEvent('pricing_hover_plan', { plan: vm.id })}>
                   {isRecommended && !vm.isCurrent && (
                     <div style={{ position: 'absolute', top: '-14px', left: '20px', background: vm.id === 'starter' ? 'var(--primary)' : vm.id === 'pro' ? 'var(--success)' : 'var(--accent)', color: 'var(--white)', padding: '4px 14px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.05em', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>
-                      🔥 RECOMMENDED FOR YOU
+                      RECOMMENDED
                     </div>
                   )}
                   {vm.isCurrent && (
@@ -910,20 +1018,12 @@ function PricingContent() {
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px' }}>
-                      {vm.id === 'studio' ? (
-                        <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent)' }}>
-                          Coming Soon
-                        </span>
-                      ) : (
-                        <>
-                          <span style={{ fontSize: isStarter ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                            ${price}
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                            /{billingPeriod === 'monthly' ? 'mo' : 'mo'}
-                          </span>
-                        </>
-                      )}
+                      <span style={{ fontSize: isStarter ? '2.2rem' : '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                        ${price}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                        /mo
+                      </span>
                       <span style={{ marginLeft: '8px' }}>
                         {billingPeriod === 'yearly' && savingsText && (
                           <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isPro ? 'var(--success)' : isStudio ? 'var(--accent)' : 'var(--primary)', background: isPro ? 'rgba(34,197,94,0.08)' : isStudio ? 'rgba(99,102,241,0.08)' : 'var(--primary-glow)', padding: '2px 8px', borderRadius: '4px', border: `1px solid ${isPro ? 'rgba(34,197,94,0.2)' : isStudio ? 'rgba(99,102,241,0.2)' : 'var(--primary)'}` }}>
@@ -967,7 +1067,7 @@ function PricingContent() {
                         }
                         if (vm.id === 'studio') {
                           sendEvent('PLAN_SELECTED', { plan: 'studio', source: 'pricing_page_card', planId: 'studio' });
-                          alert("Thank you! You have been added to the Studio waitlist.");
+                          window.location.href = '/auth?plan=studio&redirect=/dashboard';
                           return;
                         }
                         if (!['starter', 'pro'].includes(vm.id)) return;
@@ -980,7 +1080,7 @@ function PricingContent() {
                       variant={isPro ? 'primary' : 'secondary'}
                       style={{ width: '100%', fontWeight: isPro ? 800 : 'normal', padding: isPro ? '14px' : '10px', fontSize: isPro ? '0.93rem' : '0.83rem', borderColor: isStudio ? 'rgba(99,102,241,0.3)' : isStarter ? 'rgba(34,197,94,0.3)' : undefined, opacity: isCurrentPlan ? 0.7 : 1 }}
                     >
-                      {checkoutLoading ? 'Preparing checkout...' : vm.ctaLabel}
+                      {checkoutLoading ? 'Preparing checkout...' : ctaText}
                     </Button>
 
                     {/* Trust Microcopy */}
@@ -1042,13 +1142,13 @@ function PricingContent() {
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Built for freelancers in US & Canada
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> No hidden billing logic
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Clear plan terms
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your invoices, clients, and exported documents
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your quotes, client records, and exported documents
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Subscription checkout handled securely via Paddle
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Secure checkout provider: Paddle
               </li>
             </ul>
             <div style={{ marginTop: '18px' }}>
@@ -1089,14 +1189,14 @@ function PricingContent() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
             <div className="testimonial-card">
               <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', lineHeight: 1.6, margin: '0 0 16px 0', fontStyle: 'italic' }}>
-                &ldquo;Corvioz completely changed how I send estimates and invoices. Clients approve quotes instantly, and the integrated portal makes my studio look polished.&rdquo;
+                &ldquo;Corvioz changed how I prepare estimates and client documents. Clients review quotes clearly, and the integrated portal makes my studio look polished.&rdquo;
               </p>
               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)' }}>Sarah L.</strong>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Independent UI/UX Designer</span>
             </div>
             <div className="testimonial-card">
               <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', lineHeight: 1.6, margin: '0 0 16px 0', fontStyle: 'italic' }}>
-                &ldquo;Moving from spreadsheets to Corvioz cut my billing admin time in half. It is simple, direct, and does exactly what freelancers actually need.&rdquo;
+                &ldquo;Moving from spreadsheets to Corvioz made client admin cleaner. It is simple, direct, and does exactly what freelancers actually need.&rdquo;
               </p>
               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)' }}>David K.</strong>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Full-Stack Developer</span>
@@ -1132,13 +1232,13 @@ function PricingContent() {
           <div>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🛡️ 14-Day Money-Back Guarantee</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Try Corvioz paid tiers with a clear 14-day refund window. If it does not fit your freelancer workflow or there is a billing error, email support@corvioz.com with your account email and Paddle receipt.
+              Try Corvioz subscription plans with a clear 14-day refund window. If it does not fit your freelancer workflow or there is a plan issue, email support@corvioz.com with your account email and Paddle receipt.
             </p>
           </div>
           <div className="checkout-trust-separator" style={{ borderLeft: '1px solid var(--border)', paddingLeft: '24px' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🔒 Safe & Secure Checkout</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Paddle handles subscription checkout, receipts, tax handling, and billing records where enabled. Your card details do not touch Corvioz servers. Cancel future renewal or downgrade back to Free from account billing support anytime.
+              Secure checkout provider: Paddle. Corvioz does not store card details. Cancel future renewal or downgrade back to Free through account support anytime.
             </p>
           </div>
         </div>

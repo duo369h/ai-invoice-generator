@@ -48,6 +48,6 @@ export function getVariantCopy(experiment: GrowthExperimentKey, variant: GrowthV
     return 'Create your first client quote';
   }
   if (variant === 'preview_first') return 'Preview first, upgrade when delivery matters.';
-  if (variant === 'invoice_first') return 'Starter is the shortest path to the first paid invoice.';
-  return 'Choose based on how you get paid.';
+  if (variant === 'invoice_first') return 'Starter is the shortest path to a structured client document.';
+  return 'Choose based on how you organize client work.';
 }

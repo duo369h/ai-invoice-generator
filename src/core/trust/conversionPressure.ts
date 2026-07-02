@@ -30,7 +30,7 @@ export function getPlanPressureHint(planId: string): string {
 
 export function getOnboardingPressureCopy(identity: string | null): string {
   if (identity === 'starter') return 'Your first invoice workspace is one sign-in away.';
-  if (identity === 'pro') return 'Keep the preview, client pipeline, and payment follow-up together.';
+  if (identity === 'pro') return 'Keep the preview, client pipeline, and document follow-up together.';
   if (identity === 'studio') return 'Save the studio preview before you prepare operations.';
   return 'Preview the output first, then sign in to keep it.';
 }

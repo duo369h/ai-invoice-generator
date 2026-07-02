@@ -8,17 +8,98 @@ import SharedFooter from './components/SharedFooter';
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
 import { sendEvent } from '../core/analytics/eventRouter';
+import { trackEvent } from './lib/analytics';
+
+const REVIEW_SAFE_PRICING_PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    description: 'For testing the core quote, document, and profile workflow.',
+    price_monthly: 0,
+    price_yearly: 0,
+    features: [
+      'Draft quotes and client documents',
+      'Basic profile setup',
+      'Watermarked PDF preview',
+    ],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    description: 'For freelancers who need a simple, repeatable client delivery workspace.',
+    price_monthly: 9,
+    price_yearly: 7,
+    features: [
+      'Client-ready proposals',
+      'Invoice and quote workflow',
+      'Basic client delivery controls',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    description: 'For working freelancers managing multiple client projects.',
+    price_monthly: 19,
+    price_yearly: 16,
+    features: [
+      'Unlimited proposals and profiles',
+      'Clean PDF export without watermark',
+      'Client links and stronger delivery controls',
+    ],
+  },
+  {
+    id: 'studio',
+    name: 'Studio',
+    description: 'For small studios that need broader client operations.',
+    price_monthly: 29,
+    price_yearly: 24,
+    features: [
+      'Studio client workspaces',
+      'Reusable brand and delivery controls',
+      'Priority workflow support',
+    ],
+  },
+];
+
+function normalizePlansForReview(rawPlans) {
+  const uniquePlansMap = new Map();
+  if (Array.isArray(rawPlans)) {
+    rawPlans.forEach((plan) => {
+      if (plan?.id && !uniquePlansMap.has(plan.id)) {
+        uniquePlansMap.set(plan.id, plan);
+      }
+    });
+  }
+
+  return REVIEW_SAFE_PRICING_PLANS.map((fallbackPlan) => {
+    const apiPlan = uniquePlansMap.get(fallbackPlan.id);
+    const apiMonthly = Number(apiPlan?.price_monthly ?? fallbackPlan.price_monthly);
+    const apiYearly = Number(apiPlan?.price_yearly ?? fallbackPlan.price_yearly);
+    const useFallbackStudioPrice = fallbackPlan.id === 'studio' && (apiMonthly <= 0 || apiYearly <= 0);
+
+    return {
+      ...fallbackPlan,
+      ...(apiPlan || {}),
+      features: Array.isArray(apiPlan?.features)
+        && apiPlan.features.length > 0
+        ? apiPlan.features
+        : fallbackPlan.features,
+      price_monthly: useFallbackStudioPrice ? fallbackPlan.price_monthly : apiMonthly,
+      price_yearly: useFallbackStudioPrice ? fallbackPlan.price_yearly : apiYearly,
+    };
+  });
+}
 
 const resources = [
   { title: 'Freelance Pricing Guide', href: '/blog/how-to-price-web-design-projects' },
-  { title: 'How to Get Paid Faster', href: '/blog/best-invoice-software-for-freelancers' },
+  { title: 'Client Follow-Up Guide', href: '/blog/best-invoice-software-for-freelancers' },
   { title: 'Invoice vs Quote vs Receipt', href: '/blog/invoice-vs-quote-vs-receipt' },
 ];
 
 const faqs = [
   {
     q: 'Why Corvioz instead of invoicing software?',
-    a: 'Corvioz starts before the invoice. It helps freelancers create a quote, turn it into a proposal, send the invoice, and keep the client workflow in one workspace.',
+    a: 'Corvioz starts before the final document. It helps freelancers create a quote, prepare a proposal, and keep the client workflow organized in one workspace.',
   },
   {
     q: 'Who is Corvioz built for?',
@@ -29,8 +110,8 @@ const faqs = [
     a: 'Yes. You can keep client records, reuse quote and invoice details, and manage repeat work from the same dashboard.',
   },
   {
-    q: 'Which payment methods are supported?',
-    a: 'Paid subscriptions are processed through Paddle where checkout is enabled. Client payment options depend on the payment links and billing setup available in your account.',
+    q: 'How are subscription plans handled?',
+    a: 'Secure checkout provider: Paddle. Corvioz does not store card details.',
   },
   {
     q: 'Can I switch plans later?',
@@ -38,11 +119,11 @@ const faqs = [
   },
   {
     q: 'Can I cancel before renewal?',
-    a: 'Yes. You can cancel future renewal before the next billing period or request billing support without cancellation fees or long-term contracts.',
+    a: 'Yes. You can cancel future renewal before the next plan period or request plan support without cancellation fees or long-term contracts.',
   },
   {
     q: 'How do refunds work?',
-    a: 'Paid upgrades include a clear 14-day refund window when processed through Paddle. Email support@corvioz.com with your account email and Paddle receipt.',
+    a: 'Subscription plans include a clear 14-day refund window. Email support@corvioz.com with your account email and Paddle receipt.',
   },
   {
     q: 'Who owns my data?',
@@ -58,7 +139,7 @@ const faqs = [
   },
   {
     q: 'How is my data protected?',
-    a: 'Corvioz uses Supabase for authentication and database storage, Paddle for subscription billing, and scoped access patterns for account data.',
+    a: 'Corvioz uses Supabase for authentication and database storage, Paddle as the secure checkout provider, and scoped access patterns for account data.',
   },
   {
     q: 'Do clients need an account?',
@@ -66,11 +147,11 @@ const faqs = [
   },
   {
     q: 'Can I customize invoices?',
-    a: 'Yes. Corvioz supports professional invoice details and paid tiers add stronger branding and delivery controls.',
+    a: 'Yes. Corvioz supports professional invoice document details and subscription plans add stronger branding and delivery controls.',
   },
   {
     q: 'Can I use my own branding?',
-    a: 'Yes. Branding options depend on your plan, with paid tiers designed for freelancers who want more polished client delivery.',
+    a: 'Yes. Branding options depend on your plan, with subscription plans designed for freelancers who want more polished client delivery.',
   },
   {
     q: 'Is Corvioz full accounting software?',
@@ -79,34 +160,34 @@ const faqs = [
 ];
 
 const launchWorkflowSteps = [
-  { title: 'Create Quote', icon: '01' },
-  { title: 'Generate Proposal', icon: '02' },
-  { title: 'Send Invoice', icon: '03' },
-  { title: 'Get Paid', icon: '04' },
+  { title: 'Capture Request', icon: '01' },
+  { title: 'Create Quote', icon: '02' },
+  { title: 'Prepare Proposal', icon: '03' },
+  { title: 'Manage Delivery', icon: '04' },
 ];
 
 function ProductPreview() {
   const steps = [
-    { icon: '01', label: 'Quote', text: '$3,200 milestone estimate', badge: 'Drafted' },
-    { icon: '02', label: 'Accepted', text: 'Client approval captured', badge: 'Ready' },
-    { icon: '03', label: 'Invoice', text: 'Payment link delivered', badge: 'Sent' },
-    { icon: '04', label: 'Paid', text: 'Transfer recorded', badge: 'Completed' },
-    { icon: '$3.2k', label: 'Revenue', text: 'Workspace balance updated', badge: 'Received', isOutcome: true }
+    { icon: '01', label: 'Request', text: 'Project scope captured', badge: 'Logged' },
+    { icon: '02', label: 'Quote', text: 'Milestone estimate prepared', badge: 'Drafted' },
+    { icon: '03', label: 'Proposal', text: 'Client document delivered', badge: 'Sent' },
+    { icon: '04', label: 'Approval', text: 'Client approval captured', badge: 'Approved' },
+    { icon: '05', label: 'Delivery', text: 'Workspace timeline updated', badge: 'Completed', isOutcome: true }
   ];
 
   return (
     <div className="hero-product-card" aria-label="Corvioz product preview">
       <div className="product-topbar">
         <div className="window-dots"><span /><span /><span /></div>
-        <span>workspace / quotes</span>
+        <span>workspace / client workflow</span>
         <span>Live workflow preview</span>
       </div>
       <div className="product-preview-header">
         <div>
-          <span className="preview-label">Client billing flow</span>
-          <h3>Quote to paid, in one workspace.</h3>
+          <span className="preview-label">Client delivery flow</span>
+          <h3>Quote to client approval, in one workspace.</h3>
         </div>
-        <div className="preview-summary-pill">5 steps tracked</div>
+        <div className="preview-summary-pill">5 steps organized</div>
       </div>
       <div className="workflow-container">
         {steps.map((step, idx) => (
@@ -172,21 +253,14 @@ export default function Home() {
         if (res.ok) {
           const data = await res.json();
           if (active && data.success && data.plans) {
-            const STRICT_PLAN_IDS = ['free', 'starter', 'pro', 'studio'];
-            const uniquePlansMap = new Map();
-            data.plans.forEach((plan) => {
-              if (plan && plan.id && !uniquePlansMap.has(plan.id)) {
-                uniquePlansMap.set(plan.id, plan);
-              }
-            });
-            const orderedPlans = STRICT_PLAN_IDS
-              .map((id) => uniquePlansMap.get(id))
-              .filter(Boolean);
-            setPlans(orderedPlans);
+            setPlans(normalizePlansForReview(data.plans));
+            return;
           }
         }
+        if (active) setPlans(REVIEW_SAFE_PRICING_PLANS);
       } catch (err) {
         console.error('Failed to fetch pricing plans on homepage:', err);
+        if (active) setPlans(REVIEW_SAFE_PRICING_PLANS);
       } finally {
         if (active) setPlansLoading(false);
       }
@@ -232,14 +306,14 @@ export default function Home() {
       <header className="landing-hero animate-fade-in">
         <div className="hero-content-center">
           <div className="hero-badge">
-            Early Access for Freelancers
+            Freelancer Workflow System
           </div>
           <h1 className="hero-title">
-            Turn client requests<br />
-            <span className="glow-gradient-text">into paid work.</span>
+            Run every client workflow<br />
+            <span className="glow-gradient-text">with structure.</span>
           </h1>
           <p className="hero-lede">
-            Create a quote, turn it into a proposal, send the invoice, and keep every client step moving in one workspace.
+            Corvioz helps independent professionals organize quotes, proposals, client documents, and project records in one focused workspace.
           </p>
 
           <div className="hero-actions">
@@ -262,13 +336,13 @@ export default function Home() {
               className="btn-hero-secondary"
               onClick={() => { sendEvent('CTA_CLICK', { cta_name: 'Explore Example', position: 'hero', label: 'Explore Example' }); }}
             >
-              Explore Example
+              View Example
             </Button>
           </div>
           <div className="hero-social-proof">
-            <span>No credit card required</span>
-            <span>Free during Early Access</span>
-            <span>Built with real freelancer feedback</span>
+            <span>Free to start</span>
+            <span>Built for independent professionals</span>
+            <span>Secure checkout provider: Paddle</span>
           </div>
         </div>
       </header>
@@ -279,7 +353,8 @@ export default function Home() {
 
       <section id="how-corvioz-works" className="section section-how-it-works">
         <div className="landing-section-container landing-section-container--narrow u-text-center">
-          <p className="section-kicker">How Corvioz Works</p>
+            <p className="section-kicker">How Corvioz Works</p>
+            <p className="section-lede">One workspace for turning client requests into organized documents, approvals, and delivery records.</p>
           <div className="workflow-steps-grid">
             {launchWorkflowSteps.map((step) => (
               <div key={step.title} className="workflow-step-card">
@@ -298,36 +373,36 @@ export default function Home() {
           <div className="section-header">
             <p className="section-kicker">Why Corvioz</p>
             <h2 className="section-title">Built for Independent Freelancers</h2>
-            <p className="section-lede">The simple, professional workspace to handle billing, client management, and portfolios without subscription creep.</p>
+            <p className="section-lede">The simple, professional workspace to handle quotes, proposals, client records, and portfolio delivery without subscription creep.</p>
           </div>
 
           <div className="why-cards-grid">
             <div className="card why-card">
               <h3 className="card-heading">Work more professionally</h3>
               <p className="card-body">
-                Send quotes, invoices, and client updates from one workspace.
+                Create consistent quotes, proposals, and client documents without rebuilding the same workflow every time.
               </p>
             </div>
             <div className="card why-card">
-              <h3 className="card-heading">Charge with confidence</h3>
+              <h3 className="card-heading">Keep client work clear</h3>
               <p className="card-body">
-                Track project outcomes and build confidence in future pricing decisions.
+                Track client records, document status, and project context from one organized workspace.
               </p>
             </div>
             <div className="card why-card">
-              <h3 className="card-heading">Stay in control</h3>
+              <h3 className="card-heading">Own your client records</h3>
               <p className="card-body">
-                Your projects, your clients, your data. No lock-in.
+                Your quotes, proposals, client notes, and exported documents remain part of your working archive.
               </p>
             </div>
           </div>
 
           <div className="trust-badges-row">
-            <span>Secure subscription billing via Paddle</span>
+            <span>Secure checkout provider: Paddle</span>
             <span className="trust-divider">|</span>
             <span>GDPR &amp; CCPA Compliant</span>
             <span className="trust-divider">|</span>
-            <span>No Credit Card Required to Try</span>
+            <span>Free to try</span>
           </div>
           <p style={{ marginTop: '18px' }}>
             <Link href="/trust" className="btn btn-secondary btn-sm">
@@ -357,14 +432,14 @@ export default function Home() {
               <span className="trust-stat-label trust-stat-label--success">Global Trust</span>
               <h3 className="trust-stat-heading">Used worldwide</h3>
               <p className="trust-stat-body">
-                Freelancers use Corvioz to draft milestone quotes, send professional invoices, and collect client payments worldwide.
+                Freelancers use Corvioz to draft milestone quotes, prepare client-ready documents, and keep project records organized.
               </p>
             </Card>
             <Card className="trust-stat-card">
               <span className="trust-stat-label trust-stat-label--accent">Active Development</span>
               <h3 className="trust-stat-heading">Early Access</h3>
               <p className="trust-stat-body">
-                We grow with real feedback. We prioritize simple, direct freelance billing workflows over complex systems and algorithms.
+                We grow with real feedback. We prioritize simple, direct client workflows over complex systems and algorithms.
               </p>
             </Card>
           </div>
@@ -375,7 +450,7 @@ export default function Home() {
                 <span className="preview-label">Layout 01</span>
                 <h4 className="preview-heading">Freelancer Dashboard</h4>
                 <p className="preview-body">
-                  A focused workspace for pipeline status, active clients, open invoices, and revenue outcomes.
+                  A focused workspace for project status, active clients, open documents, and delivery outcomes.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -425,9 +500,9 @@ export default function Home() {
             <div className="product-preview-card">
               <div>
                 <span className="preview-label">Layout 03</span>
-                <h4 className="preview-heading">Invoice &amp; Payments</h4>
+                <h4 className="preview-heading">Documents &amp; Client Updates</h4>
                 <p className="preview-body">
-                  Create branded invoices, track payment status, and keep client billing records in one place.
+                  Create branded client documents, track review status, and keep project records in one place.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -435,10 +510,10 @@ export default function Home() {
                 <div className="wireframe-box">
                   <div className="wireframe-row space-between">
                     <span className="wireframe-bar md w-40"></span>
-                    <span className="wireframe-bar paid">PAID</span>
+                    <span className="wireframe-bar paid">DONE</span>
                   </div>
                   <div className="wireframe-placeholder">
-                    Invoice timeline
+                    Document timeline
                   </div>
                   <div className="wireframe-divider">
                     <span className="wireframe-bar sm w-20"></span>
@@ -453,7 +528,7 @@ export default function Home() {
                 <span className="preview-label">Layout 04</span>
                 <h4 className="preview-heading">Client Portal</h4>
                 <p className="preview-body">
-                  Give clients a direct place to review proposals, invoices, approvals, and payment updates.
+                  Give clients a direct place to review proposals, documents, approvals, and project updates.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -481,7 +556,7 @@ export default function Home() {
         <div className="landing-section-container landing-section-container--wide u-text-center">
           <p className="section-kicker">Pricing</p>
           <h2 className="section-title">Choose how you want to work.</h2>
-          <p className="section-lede">Start free, then upgrade when quotes, invoices, and client delivery become part of your daily workflow.</p>
+          <p className="section-lede">Start with a focused client workflow, then upgrade when your documents, clients, and delivery process need more structure.</p>
 
           <div className="billing-period-wrapper">
             <div className="billing-savings-label">
@@ -522,8 +597,8 @@ export default function Home() {
                 const displayDescription = plan.description;
                 const displayFeatures = plan.features || [];
 
-                const ctaText = plan.id === 'free' ? 'Start Free' : isStudio ? 'Join Waitlist' : plan.id === 'starter' ? 'Get Starter' : 'Get Pro';
-                const hrefVal = plan.id === 'free' ? '/dashboard?action=create-profile' : isStudio ? '/pricing' : `/pricing?checkout=${plan.id}`;
+                const ctaText = plan.id === 'free' ? 'Start Free' : `Choose ${plan.name}`;
+                const hrefVal = plan.id === 'free' ? '/dashboard?action=create-profile' : `/pricing?checkout=${plan.id}`;
                 const cardClassName = `pricing-card ${plan.id}${isPro ? ' featured' : ''}`;
 
                 return (
@@ -536,14 +611,8 @@ export default function Home() {
                     <div>
                       <h3>{displayName}</h3>
                       <div className={`price-line${(billingPeriod === 'yearly' && billedAnnuallyText) ? ' u-mb-2' : ' u-mb-6'}`}>
-                        {isStudio ? (
-                          <strong className="price-coming-soon">Coming Soon</strong>
-                        ) : (
-                          <>
-                            <strong>{`$${price}`}</strong>
-                            <span>/month</span>
-                          </>
-                        )}
+                        <strong>{`$${price}`}</strong>
+                        <span>/month</span>
                       </div>
                       {billingPeriod === 'yearly' && billedAnnuallyText && (
                         <div className="plan-billed-note">
@@ -630,7 +699,7 @@ export default function Home() {
                 &quot;Hi, I&apos;m Duo, the creator of Corvioz. Like many of you, I struggled with bloated, expensive CRM software and accounting tools that assumed I had a finance team.
               </p>
               <p className="transparency-body">
-                We built Corvioz to give freelancers a focused, fast, and beautiful workspace to handle quotes, proposals, invoices, and clients. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
+                We built Corvioz to give freelancers a focused, fast, and beautiful workspace to handle quotes, proposals, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
               </p>
               <strong className="transparency-sig">Duo, Founder of Corvioz</strong>
             </div>
@@ -642,7 +711,7 @@ export default function Home() {
                 We respect your data and trust. Guest mode drafts are secured locally in your own browser cache using localStorage. We do not track or store your client information on our servers until you choose to sign up and sync it.
               </p>
               <p className="transparency-body u-mb-0">
-                Our monetization is simple: Professional Invoice Delivery, custom client portals, and CRM management are Pro features. We never sell your data, and we do not use manipulative pricing or fake urgency timers.
+                Our monetization is simple: client-ready document export, custom client portals, and client record management are Pro features. We never sell your data, and we do not use manipulative pricing or fake urgency timers.
               </p>
             </div>
           </div>
@@ -658,7 +727,7 @@ export default function Home() {
             Ready to create your first client quote?
           </h2>
           <p className="section-lede">
-            Start with a quote, move into an invoice, and keep the client workflow clear from day one.
+            Start with a quote, prepare a client document, and keep the client workflow clear from day one.
           </p>
           <div className="hero-actions center">
             <Button
@@ -678,7 +747,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="final-cta-note">
-            Free during early access. No credit card required.
+            Free during early access.
           </p>
         </div>
       </section>

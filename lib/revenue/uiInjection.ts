@@ -32,17 +32,17 @@ export function getUIInjection(planId: string): UIInjectionConfig {
   let helperText = '';
   
   if (planId === 'starter') {
-    ctaText = intentLevel === 'HIGH' ? 'Get Starter Now' : 'Get Starter';
-    badgeText = intentLevel === 'HIGH' ? '⚡ SECURE OFFER' : 'STARTER';
+    ctaText = 'Choose Starter';
+    badgeText = intentLevel === 'HIGH' ? 'WORKFLOW FIT' : 'STARTER';
     helperText = pressure.lossFraming;
   } else if (planId === 'pro') {
-    ctaText = intentLevel === 'HIGH' ? 'Get Pro Now' : 'Get Pro';
-    badgeText = intentLevel === 'HIGH' ? '🔥 MOST POPULAR' : 'PRO';
+    ctaText = 'Choose Pro';
+    badgeText = intentLevel === 'HIGH' ? 'RECOMMENDED' : 'PRO';
     helperText = pressure.socialProof;
   } else if (planId === 'studio') {
-    ctaText = 'Join Waitlist';
+    ctaText = 'Choose Studio';
     badgeText = 'STUDIO';
-    helperText = 'Coming Soon';
+    helperText = 'Best for teams coordinating higher client delivery volume.';
   } else {
     ctaText = 'Start Free';
     badgeText = 'TRY';

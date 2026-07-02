@@ -65,15 +65,15 @@ function normalizePlanForAnalytics(plan) {
 // ── Modal title / description helpers (same as before) ───────────────────────
 function getUpgradeModalProps(actionName, decisionMessage, decision = null) {
   const titleMap = {
-    create_invoice: 'Get paid faster with Starter',
+    create_invoice: 'Organize client delivery with Starter',
     create_quote: 'Pitch projects with professional quotes',
-    send_invoice: 'Never lose another payment',
+    send_invoice: 'Keep client follow-up organized',
     client_portal: 'Build client trust with professional workspaces',
   };
   const descMap = {
-    create_invoice: 'Get paid faster and present a polished brand',
+    create_invoice: 'Present polished client documents from one workspace',
     create_quote: 'Pitch proposals with clear project milestones',
-    send_invoice: 'Avoid payment delays with automated reminders',
+    send_invoice: 'Keep client documents and follow-up organized',
     client_portal: 'Secure client approvals via professional portal links',
   };
 

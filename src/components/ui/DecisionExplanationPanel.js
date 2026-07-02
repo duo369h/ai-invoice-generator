@@ -16,7 +16,7 @@ export function DecisionExplanationPanel({
 }) {
   const effectiveExplanation = explanation || {
     summary: 'Based on your freelance business stage.',
-    factors: ['Upgrade to unlock professional billing capabilities.'],
+    factors: ['Upgrade to unlock professional client workflow capabilities.'],
   };
 
   const factors = compactFactors(effectiveExplanation);

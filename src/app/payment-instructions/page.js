@@ -4,9 +4,9 @@ import PublicHeader from '../components/PublicHeader';
 import SharedFooter from '../components/SharedFooter';
 
 export const metadata = {
-  title: 'Payment Activation — Corvioz Pro',
+  title: 'Checkout Activation — Corvioz Pro',
   description:
-    'How Corvioz Pro billing and Paddle checkout activation work.',
+    'How Corvioz Pro checkout activation works with Paddle as the secure checkout provider.',
 };
 
 export default function PaymentInstructionsPage() {
@@ -16,22 +16,22 @@ export default function PaymentInstructionsPage() {
     {
       num: '01',
       title: 'Select Pro',
-      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited invoices, AI-assisted quotes, client portals, PDF exports, payment status tracking, and custom branding. See the current price on the Pricing page.',
+      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited client documents, AI-assisted quotes, client portals, PDF exports, organized review status, and custom branding. See the current price on the Pricing page.',
     },
     {
       num: '02',
-      title: 'Continue through Paddle checkout',
+      title: 'Continue through secure checkout',
       body: (
         <>
-          Continue from the Pricing page or contact support if the Paddle checkout link is not available for your account.
-          Paddle handles subscription checkout, receipts, taxes, and payment records where enabled.
+          Continue from the Pricing page or contact support if secure checkout is not available for your account.
+          Paddle is the secure checkout provider for paid plan checkout where enabled.
           Please use the same email address you use for your Corvioz account so access can be matched correctly.
         </>
       ),
     },
     {
       num: '03',
-      title: 'Keep your Paddle receipt',
+      title: 'Keep your checkout receipt',
       body: (
         <>
           After completing checkout, keep your Paddle receipt. If access does not update automatically, forward the receipt to{' '}
@@ -46,8 +46,8 @@ export default function PaymentInstructionsPage() {
     },
     {
       num: '04',
-      title: 'Billing support fallback',
-      body: 'If Paddle checkout or entitlement sync is delayed, our team reviews the Paddle receipt and account email, then updates access or resolves billing questions. We aim to respond within 2 business days.',
+      title: 'Plan support fallback',
+      body: 'If secure checkout or entitlement sync is delayed, our team reviews the Paddle receipt and account email, then updates access or resolves plan questions. We aim to respond within 2 business days.',
     },
   ];
 
@@ -67,7 +67,7 @@ export default function PaymentInstructionsPage() {
           </Link>
 
           {/* Header */}
-          <span className="badge" style={{ marginBottom: '20px' }}>Paddle Billing</span>
+          <span className="badge" style={{ marginBottom: '20px' }}>Secure Checkout Provider</span>
           <h1 style={{
             fontSize: '2.6rem',
             fontWeight: 800,
@@ -75,11 +75,11 @@ export default function PaymentInstructionsPage() {
             lineHeight: 1.15,
             marginBottom: '16px',
           }}>
-            How Corvioz Pro Billing Works
+            How Corvioz Pro Checkout Works
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '52px', maxWidth: '620px' }}>
-            Corvioz paid subscriptions use Paddle checkout where enabled.
-            <strong style={{ color: 'var(--text-main)' }}> Paddle handles payment processing, receipts, tax handling, and billing records</strong>.
+            Corvioz paid plans use secure checkout where enabled.
+            <strong style={{ color: 'var(--text-main)' }}> Paddle is the secure checkout provider for paid plan checkout and receipts</strong>.
             You can also keep using the Free plan and start building your profile immediately.
           </p>
 
@@ -142,15 +142,15 @@ export default function PaymentInstructionsPage() {
           <div className="card" style={{ marginTop: '56px', padding: '32px', borderColor: 'rgba(99, 102, 241, 0.25)', background: 'rgba(99, 102, 241, 0.02)' }}>
             <h3 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01"/></svg>
-              Payment Summary
+              Checkout Summary
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 40px', fontSize: '0.93rem' }}>
               {[
                 ['Plan', 'Corvioz Pro'],
                 ['Amount', 'See current pricing at corvioz.com/pricing'],
-                ['Payment method', 'Paddle checkout where enabled'],
+                ['Checkout provider', 'Paddle where enabled'],
                 ['Activation', 'Automatic where entitlement sync is active; support fallback available'],
-                ['Subscription renewal', 'Managed through Paddle where enabled'],
+                ['Subscription renewal', 'Managed through account support where enabled'],
                 ['Refund policy', '14-day refund window for eligible paid upgrades'],
                 ['Contact', supportEmail],
               ].map(([label, value]) => (
@@ -171,8 +171,7 @@ export default function PaymentInstructionsPage() {
           {/* DISCLAIMER */}
           <div style={{ marginTop: '36px', padding: '20px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.7' }}>
             <strong style={{ color: 'var(--text-main)' }}>Note:</strong>{' '}
-            Corvioz subscriptions are processed through Paddle where checkout is enabled. Paddle may handle payment details,
-            receipts, taxes, refunds, and renewal records as merchant of record. If checkout or entitlement sync is unavailable,
+            When you choose a paid plan, Paddle securely handles checkout and receipts where enabled. Corvioz does not store card details. If checkout or entitlement sync is unavailable,
             contact support and include your Corvioz account email plus Paddle receipt details.
           </div>
 
@@ -199,11 +198,11 @@ export default function PaymentInstructionsPage() {
               Continue to Pricing
             </a>
             <a
-              href={`mailto:${supportEmail}?subject=Corvioz Pro Billing Support&body=Hi, I need help with Corvioz Pro billing or Paddle checkout. My account email is: `}
+              href={`mailto:${supportEmail}?subject=Corvioz Pro Checkout Support&body=Hi, I need help with Corvioz Pro checkout. My account email is: `}
               className="btn btn-secondary"
               id="payment-instructions-email-btn"
             >
-              Contact Billing Support
+              Contact Plan Support
             </a>
           </div>
         </div>

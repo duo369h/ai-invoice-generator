@@ -78,7 +78,7 @@ const INVOICE_FLOW_STAGES = [
   { id: 'create', label: 'Create' },
   { id: 'preview', label: 'Preview' },
   { id: 'send', label: 'Send' },
-  { id: 'paid', label: 'Paid' },
+  { id: 'paid', label: 'Completed' },
 ];
 
 function inferRevenueActionFromRoute(route) {
@@ -213,13 +213,13 @@ const deserializeInvoiceNotes = (fullNotes) => {
   return { notes: fullNotes, billing_type: 'standard', edit_count: 0, comments: [], files: [] };
 };
 
-// Render interactive invoice payment status timeline
+// Render interactive invoice document status timeline
 const renderInvoiceTimeline = (status) => {
   const stages = [
     { key: 'created', label: 'Created', done: true, active: status === 'draft' },
     { key: 'viewed', label: 'Sent', done: ['pending', 'sent', 'paid', 'overdue'].includes(status), active: status === 'pending' },
     { key: 'opened', label: 'Opened', done: ['sent', 'paid', 'overdue'].includes(status), active: status === 'sent' },
-    { key: 'paid', label: 'Paid', done: status === 'paid', active: status === 'paid', overdue: status === 'overdue' }
+    { key: 'paid', label: 'Completed', done: status === 'paid', active: status === 'paid', overdue: status === 'overdue' }
   ];
 
   return (
@@ -610,7 +610,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qId, setQId] = useState('');
   const [qNumber, setQNumber] = useState(() => initialTool === 'quote' ? generateRandomNumberString('QT') : '');
   const [qClientName, setQClientName] = useState(() => initialTool === 'quote' ? 'Acme Corporation' : '');
-  const [qClientEmail, setQClientEmail] = useState(() => initialTool === 'quote' ? 'billing@acme.com' : '');
+  const [qClientEmail, setQClientEmail] = useState(() => initialTool === 'quote' ? 'client@acme.com' : '');
   const [qClientAddress, setQClientAddress] = useState(() => initialTool === 'quote' ? '123 Creative Way\nSan Francisco, CA 94107' : '');
   const [qItems, setQItems] = useState(() => initialTool === 'quote' ? [{ description: 'Brand Design & Front-End Development Services', quantity: 1, unitPrice: 2500 }] : [{ description: '', quantity: 1, unitPrice: 0 }]);
   const [qTaxRate, setQTaxRate] = useState(0);
@@ -629,7 +629,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invId, setInvId] = useState('');
   const [invNumber, setInvNumber] = useState(() => initialTool === 'invoice' ? generateRandomNumberString('INV') : '');
   const [invClientName, setInvClientName] = useState(() => initialTool === 'invoice' ? 'Acme Corporation' : '');
-  const [invClientEmail, setInvClientEmail] = useState(() => initialTool === 'invoice' ? 'billing@acme.com' : '');
+  const [invClientEmail, setInvClientEmail] = useState(() => initialTool === 'invoice' ? 'client@acme.com' : '');
   const [invClientAddress, setInvClientAddress] = useState(() => initialTool === 'invoice' ? '123 Creative Way\nSan Francisco, CA 94107' : '');
   const [invItems, setInvItems] = useState(() => initialTool === 'invoice' ? [
     { description: 'Software Development & Consulting Services', quantity: 1, unitPrice: 1500 }
@@ -637,7 +637,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invTaxRate, setInvTaxRate] = useState(0);
   const [invDiscountRate, setInvDiscountRate] = useState(0);
   const [invCurrency, setInvCurrency] = useState('USD');
-  const [invNotes, setInvNotes] = useState(() => initialTool === 'invoice' ? 'Thank you for your business! Payment is due within 30 days.' : '');
+  const [invNotes, setInvNotes] = useState(() => initialTool === 'invoice' ? 'Thank you. Please review the invoice document details.' : '');
   const [invDate, setInvDate] = useState(() => initialTool === 'invoice' ? new Date().toISOString().substring(0, 10) : '');
   const [invDueDate, setInvDueDate] = useState(() => {
     if (initialTool !== 'invoice') return '';
@@ -724,7 +724,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [leadNotes, setLeadNotes] = useState('');
   const [leadReminderDate, setLeadReminderDate] = useState('');
 
-  // Quote AI Scope Expansion prompt
+  // Quote scope helper prompt
   const [quotePrompt, setQuotePrompt] = useState('');
   const [isExpandingQuote, setIsExpandingQuote] = useState(false);
   // Modals
@@ -833,7 +833,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     return d.toISOString().substring(0, 10);
   };
 
-  // Adjust due dates based on payment terms
+  // Adjust due dates based on invoice terms
   const updateDueDateFromTerms = (terms, dateStr) => {
     const baseDate = dateStr ? new Date(dateStr) : new Date();
     if (isNaN(baseDate.getTime())) return;
@@ -1398,7 +1398,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setInvPaymentTerms('Net 30');
       setInvStatus('pending');
       setInvQuoteId(quote.id);
-      setInvPaymentLink(''); // Allow freelancer to set their payment link
+      setInvPaymentLink(''); // Allow freelancer to set their client document link
       setInvoiceFlowStage('create');
       setInvoiceFlowLocked(true);
       setShowPaymentWaitingBanner(false);
@@ -1433,7 +1433,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       trackEvent('quote_convert_to_invoice', { quote_id: quote.id });
       handleDashboardTabChange('invoices', 'quote_conversion');
       setInvoiceView('create');
-      triggerToast('Quote loaded into Invoice builder! Add payment terms and click save.', 'success');
+      triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
     });
   };
 
@@ -1519,7 +1519,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       { description: 'Email copywriting automation & lead capture campaigns setup', quantity: 1, unitPrice: 800 }
     ],
     'Design': [
-      { description: 'Corporate Brand Identity System & Logo design files transfer', quantity: 1, unitPrice: 1500 }
+      { description: 'Corporate Brand Identity System & Logo design files handoff', quantity: 1, unitPrice: 1500 }
     ]
   };
 
@@ -1539,12 +1539,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQItems([
         { description: `Milestone 1: Project Alignment & UI Wireframes for "${quotePrompt}"`, quantity: 1, unitPrice: 1350 },
         { description: 'Milestone 2: Frontend Engineering & Staging integration', quantity: 1, unitPrice: 1800 },
-        { description: 'Milestone 3: Final transfer, Domain routing & 14-day support', quantity: 1, unitPrice: 1350 }
+        { description: 'Milestone 3: Final handoff, Domain routing & 14-day support', quantity: 1, unitPrice: 1350 }
       ]);
       setQNotes(`Project Scope details auto-expanded based on specifications: "${quotePrompt}". Term details: Standard 5% late fee policy applies. Active delivery over Net 30.`);
       setIsExpandingQuote(false);
       setQuotePrompt('');
-      triggerToast('AI Scope Expansion complete! Project milestones and pricing have been loaded.', 'success');
+      triggerToast('Scope helper complete. Project milestones and document details have been loaded.', 'success');
     }, 1200);
   };
 
@@ -1871,10 +1871,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     if (typeof window !== 'undefined') {
       const attempts = Number(window.localStorage.getItem('corvioz_profile_generation_attempts') || 0);
       if (attempts >= 1 && isFree) {
-        setFormError('Daily limit reached. Used by freelancers who get paid faster.');
+        setFormError('Daily limit reached. Upgrade when you need repeated client workflow support.');
         setModalProps({
-          title: "Upgrade to Growth Plan",
-          description: "Unlock professional branding, indexable SEO profile, and unlimited proposals. Used by freelancers who get paid faster.",
+          title: "Upgrade Workspace",
+          description: "Unlock professional branding, indexable SEO profile, and unlimited proposals for repeated client delivery workflows.",
           lockedFeatureValue: "SEO-boosted public profile and unlimited AI creations",
           limit: "profile",
           source: "profile_generation_gate"
@@ -1901,14 +1901,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (!response.ok) {
         if (data.code === 'REVENUE_LOCK_BLOCKED') {
           setModalProps({
-            title: "Upgrade to Growth Plan",
-            description: "Unlock professional branding, indexable SEO profile, and unlimited proposals. Used by freelancers who get paid faster.",
+            title: "Upgrade Workspace",
+            description: "Unlock professional branding, indexable SEO profile, and unlimited proposals for repeated client delivery workflows.",
             lockedFeatureValue: "SEO-boosted public profile and unlimited AI creations",
             limit: "profile",
             source: "profile_generation_gate"
           });
           setActiveModal('upgrade');
-          setFormError(data.error || 'Daily limit reached. Used by freelancers who get paid faster.');
+          setFormError(data.error || 'Daily limit reached. Upgrade when you need repeated client workflow support.');
         } else {
           setFormError(data.error || 'Failed to generate profile. Please try again.');
         }
@@ -2073,8 +2073,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if ((userPlan === 'free' || userPlan === 'starter') && currentClientCount >= 0) {
         setModalProps({
           title: "Upgrade to Pro",
-          description: "Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.",
-          lockedFeatureValue: "Clients Directory & Billing Records",
+          description: "Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.",
+          lockedFeatureValue: "Clients Directory & Client Records",
           limit: "client_limit",
           source: "client_creation_gate",
           targetPlan: "pro"
@@ -2304,18 +2304,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     if (activeReminderTemplate === '7') {
       return {
-        subject: `Friendly Reminder: Invoice #${invNo} is overdue`,
-        body: `Hi ${cliName},\n\nHope you are doing well.\n\nThis is a quick friendly reminder that invoice #${invNo} for ${amountStr} was due on ${due} and is now a week overdue.\n\nCould you please check on the payment status and let me know when we can expect it? If you need another copy of the invoice or the payment link, feel free to reply.\n\nThank you for your business!\n\nBest regards,\n${bName}`
+        subject: `Friendly Reminder: Document #${invNo} needs review`,
+        body: `Hi ${cliName},\n\nHope you are doing well.\n\nThis is a quick friendly reminder that document #${invNo} for ${amountStr} was due on ${due} and is now a week overdue.\n\nCould you please review the document status and let me know if you need another copy or any clarification?\n\nThank you!\n\nBest regards,\n${bName}`
       };
     } else if (activeReminderTemplate === '14') {
       return {
-        subject: `Urgent Follow-up: Invoice #${invNo} is 14 days overdue`,
-        body: `Hi ${cliName},\n\nI am writing to follow up on invoice #${invNo} for ${amountStr} which was due on ${due}. It is now 14 days past due.\n\nWe would appreciate it if you could process this payment as soon as possible. Please confirm when the payment has been initiated, or let me know if there are any billing issues preventing payment.\n\nThank you for your prompt attention to this matter.\n\nRegards,\n${bName}`
+        subject: `Follow-up: Document #${invNo} is 14 days overdue`,
+        body: `Hi ${cliName},\n\nI am writing to follow up on document #${invNo} for ${amountStr} which was due on ${due}. It is now 14 days past due.\n\nWe would appreciate it if you could review the document as soon as possible. Please confirm when it has been reviewed, or let me know if there are any questions blocking review.\n\nThank you for your prompt attention to this matter.\n\nRegards,\n${bName}`
       };
     } else {
       return {
-        subject: `FINAL NOTICE: Overdue Invoice #${invNo} - Action Required`,
-        body: `Hi ${cliName},\n\nThis is a final notice regarding invoice #${invNo} of ${amountStr} which was due on ${due}. This invoice is now 30 days past due.\n\nPlease remit payment immediately using the payment link or instructions provided. If payment is not received, we may have to pause any current work or escalate this matter.\n\nRegards,\n${bName}`
+        subject: `Final Follow-up: Document #${invNo} needs review`,
+        body: `Hi ${cliName},\n\nThis is a final follow-up regarding document #${invNo} of ${amountStr} which was due on ${due}. This document is now 30 days past due.\n\nPlease review the document instructions provided. If review is not completed, we may need to pause current work or revisit the project timeline.\n\nRegards,\n${bName}`
       };
     }
   };
@@ -2356,7 +2356,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const getActiveClients = () => clients;
   const getActiveProfile = () => cardProfile;
 
-  // Income computations
+  // Document total computations
   const currentInvoices = getActiveInvoices();
   const totalPaid = currentInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
   const totalPending = currentInvoices.filter(i => i.status === 'pending' || i.status === 'sent' || i.status === 'unpaid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
@@ -2371,7 +2371,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQId('');
       setQNumber(generateRandomNumberString('QT'));
       setQClientName('Acme Corporation');
-      setQClientEmail('billing@acme.com');
+      setQClientEmail('client@acme.com');
       setQClientAddress('123 Creative Way\nSan Francisco, CA 94107');
       setQItems([{ description: 'Brand Design & Front-End Development Services', quantity: 1, unitPrice: 2500 }]);
       setQTaxRate(0);
@@ -2393,13 +2393,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvId('');
     setInvNumber(generateRandomNumberString('INV'));
     setInvClientName('Acme Corporation');
-    setInvClientEmail('billing@acme.com');
+    setInvClientEmail('client@acme.com');
     setInvClientAddress('123 Creative Way\nSan Francisco, CA 94107');
     setInvItems([{ description: 'Software Development & Consulting Services', quantity: 1, unitPrice: 1500 }]);
     setInvTaxRate(0);
     setInvDiscountRate(0);
     setInvCurrency('USD');
-    setInvNotes('Thank you for your business! Payment is due within 30 days.');
+    setInvNotes('Thank you. Please review the invoice document details.');
     setInvDate(getTodayString());
     setInvDueDate(getFutureDateString(30));
     setInvPaymentTerms('Net 30');
@@ -3068,7 +3068,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Leads Pipeline CRM</h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                  Track client inquiry cycles and project valuations. Total Pipeline Value: <strong style={{ color: 'var(--accent)' }}>
+                  Track client inquiry cycles and project records. Active Document Total: <strong style={{ color: 'var(--accent)' }}>
                     ${getActiveLeads().reduce((sum, l) => sum + Number(getLeadCRMFields(l).value || 0), 0).toLocaleString()}
                   </strong>
                 </p>
@@ -3313,16 +3313,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {activeTab === 'quotes' && (
           !session && quoteView !== 'create' ? (
-            renderGuestLockState('Proposal Estimates', 'Improve your proposal success with clear scope, milestones, and client decision paths that can convert into invoices.')
+            renderGuestLockState('Proposal Estimates', 'Prepare clear scope, milestones, and client decision paths that can connect to invoice documents.')
           ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Proposal Estimates', 'Improve your proposal success with clear scope, milestones, and client decision paths that can convert into invoices.', 'pro')
+            renderPaidLockState('Proposal Estimates', 'Prepare clear scope, milestones, and client decision paths that can connect to invoice documents.', 'pro')
           ) : (
             <div className="animate-fade-in">
             {quoteView === 'list' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Proposal Estimates</h1>
-                  <button onClick={initCreateQuote} className="btn btn-primary">Improve proposal success</button>
+                  <button onClick={initCreateQuote} className="btn btn-primary">Prepare proposal estimate</button>
                 </div>
 
                  {getActiveQuotes().length === 0 ? (
@@ -3330,12 +3330,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Interactive milestone estimates show clear scope breakdown, boosting client acceptance and alignment by 30%.</p>
+                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Interactive milestone estimates show clear scope breakdown for client review.</p>
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
                       Draft custom scope phases, configure options, and email private portal links to clients so they can review and approve them online in one click.
                     </p>
                     <button onClick={initCreateQuote} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      Improve your first proposal
+                      Prepare your first proposal
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
                       Secure workspace. GDPR compliant. Proposals are shared through client-ready URLs.
@@ -3348,7 +3348,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--btn-secondary-bg)' }}>
                           <th style={{ padding: '14px 18px' }}>Quote #</th>
                           <th style={{ padding: '14px 18px' }}>Recipient Client</th>
-                          <th style={{ padding: '14px 18px' }}>Financial Total</th>
+                          <th style={{ padding: '14px 18px' }}>Document Total</th>
                           <th style={{ padding: '14px 18px' }}>Status</th>
                           <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
                         </tr>
@@ -3440,7 +3440,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                    {quoteView === 'create' ? 'Improve proposal success' : `Edit Quote ${qNumber}`}
+                    {quoteView === 'create' ? 'Prepare proposal estimate' : `Edit Quote ${qNumber}`}
                   </h2>
                   <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
                 </div>
@@ -3456,13 +3456,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 )}
 
-                {/* Quick Presets & AI Scope Expansion */}
+                {/* Quick Presets & Scope Helper */}
                 <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    AI Scope Expansion & Design Presets
+                    Scope Helper & Document Presets
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Quickly apply industry-standard freelancer project templates, or type your project details to let AI automatically generate milestones, deliverables, pricing, and notes.
+                    Quickly apply freelancer project templates, or type your project details to prepare milestones, deliverables, document totals, and notes.
                   </p>
 
                   {/* Presets Grid */}
@@ -3486,13 +3486,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Describe your project (e.g. 'SaaS dashboard with Figma UI + custom payment link + Next.js build')..."
+                        placeholder="Describe your project (e.g. 'SaaS dashboard with Figma UI + client portal + Next.js build')..."
                         value={quotePrompt}
                         onChange={(e) => setQuotePrompt(e.target.value)}
                         style={{ paddingRight: '100px' }}
                       />
                       <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        AI Writer
+                        Scope Helper
                       </span>
                     </div>
                     <button
@@ -3502,7 +3502,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       className="btn btn-primary btn-sm"
                       style={{ height: '42px', padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      {isExpandingQuote ? 'Expanding...' : 'Generate Scope'}
+                      {isExpandingQuote ? 'Preparing...' : 'Prepare Scope'}
                     </button>
                   </div>
                 </div>
@@ -3587,7 +3587,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             setQClientEmailTouched(true);
                           }}
                           onBlur={() => setQClientEmailTouched(true)}
-                          placeholder="e.g. billing@wayne.com"
+                          placeholder="e.g. client@wayne.com"
                           style={{
                             borderColor: (qSubmitAttempted || qClientEmailTouched) && qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim()) ? 'var(--danger)' : 'var(--border)'
                           }}
@@ -3599,7 +3599,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         )}
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Billing Address</label>
+                        <label className="input-label">Client Address</label>
                         <input type="text" className="form-input" value={qClientAddress} onChange={e => setQClientAddress(e.target.value)} placeholder="e.g. 1007 Mountain Dr, Gotham" />
                       </div>
                     </div>
@@ -3629,7 +3629,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   {/* Right Summary Card */}
                   <div>
                     <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Financial Summary</h3>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
                       <div className="input-group">
                         <label className="input-label">Tax Rate (%)</label>
                         <input type="number" className="form-input" value={qTaxRate} onChange={e => setQTaxRate(Number(e.target.value))} />
@@ -3694,7 +3694,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
                       <div className="input-group" style={{ marginTop: '20px' }}>
                         <label className="input-label">Quote Notes</label>
-                        <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed payment stages, terms of valid options..." />
+                        <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
                       </div>
 
                       <button onClick={handleSaveQuote} disabled={isSaving} className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }}>
@@ -3810,7 +3810,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           Client-ready preview building...
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Clients usually respond within 24h after invoice delivery.
+                          Track client review status after document delivery.
                         </div>
                       </div>
 
@@ -3871,20 +3871,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {activeTab === 'invoices' && (
           !session && invoiceView !== 'create' ? (
-            renderGuestLockState('Invoices Management', 'Generate tax-compliant professional invoices, track payments automatically, and accept credit card/bank payments from your clients.')
+            renderGuestLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.')
           ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Invoices Management', 'Generate tax-compliant professional invoices, track payments automatically, and accept credit card/bank payments from your clients.', 'pro')
+            renderPaidLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.', 'pro')
           ) : (
             <div className="animate-fade-in">
               {invoiceView === 'list' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Invoices Management</h1>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Invoice Documents</h1>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <button 
                       onClick={() => {
                         if (entitlements.automation) {
-                          triggerToast('Batch export generated successfully. Files compiled for ledger reconciliation.', 'success');
+                          triggerToast('Batch export generated successfully. Files compiled for document review.', 'success');
                         } else {
                           setModalProps({
                             title: "Upgrade to Studio Workspace",
@@ -3913,13 +3913,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     </svg>
                     <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Move approved work into a clear invoice path with simple client-ready terms.</p>
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Use the example preview to start faster, then adjust the client, line items, due date, and payment instructions.
+                      Use the example preview to start faster, then adjust the client, line items, due date, and invoice notes.
                     </p>
                     <button onClick={initCreateInvoice} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
                       Create your first invoice
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      Get paid faster with a clear invoice your client can understand.
+                      Keep client review clear with a document your client can understand.
                     </p>
                   </div>
                 ) : (
@@ -3930,7 +3930,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <th style={{ padding: '14px 18px' }}>Invoice #</th>
                           <th style={{ padding: '14px 18px' }}>Recipient Client</th>
                           <th style={{ padding: '14px 18px' }}>Issue & Due dates</th>
-                          <th style={{ padding: '14px 18px' }}>Financial Total</th>
+                          <th style={{ padding: '14px 18px' }}>Document Total</th>
                           <th style={{ padding: '14px 18px' }}>Status</th>
                           <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
                         </tr>
@@ -4014,7 +4014,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     }}
                                     className="btn btn-secondary btn-sm"
                                     style={{ color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                    title="Send Payment Reminder"
+                                    title="Send Client Follow-up"
                                   >
                                     <span>🔔 Reminder</span>
                                     {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
@@ -4028,7 +4028,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                   Delete
                                 </button>
                                 {inv.payment_link && (
-                                  <a href={inv.payment_link} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ color: 'var(--accent)' }}>Pay Link</a>
+                                  <a href={inv.payment_link} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ color: 'var(--accent)' }}>Client Link</a>
                                 )}
                               </div>
                             </td>
@@ -4047,10 +4047,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <div>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                      {invoiceFlowStage === 'paid' ? 'Invoice Paid' : invoiceFlowStage === 'send' ? 'Send Invoice' : invoiceFlowStage === 'preview' ? 'Preview Invoice' : (invoiceView === 'create' ? 'Create Invoice' : `Edit Invoice ${invNumber}`)}
+                      {invoiceFlowStage === 'paid' ? 'Document Completed' : invoiceFlowStage === 'send' ? 'Send Document' : invoiceFlowStage === 'preview' ? 'Preview Document' : (invoiceView === 'create' ? 'Create Document' : `Edit Document ${invNumber}`)}
                     </h2>
                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      Create, preview, send, then mark paid when the client completes payment.
+                      Create, preview, send, then mark completed when the client review is done.
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -4076,7 +4076,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     gap: '8px'
                   }}>
                     <span className="product-state-mark">Info</span>
-                      <span>You don&apos;t need an account to start. Create your invoice, download the PDF, or sign up to save it. Note: The form is pre-filled with sample data (e.g. Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
+                      <span>You don&apos;t need an account to start. Create your client document, download the PDF, or sign up to save it. Note: The form is pre-filled with sample data (e.g. Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
                   </div>
                 )}
 
@@ -4102,7 +4102,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     fontSize: '0.86rem',
                     fontWeight: 750
                   }}>
-                    Waiting for client payment
+                    Waiting for client review
                   </div>
                 )}
 
@@ -4118,7 +4118,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         className="btn btn-primary"
                         style={{ fontWeight: 800 }}
                       >
-                        {isSaving ? 'Saving...' : 'Send Invoice'}
+                        {isSaving ? 'Saving...' : 'Send Document'}
                       </button>
                     </div>
                   </div>
@@ -4141,7 +4141,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           className="btn btn-primary"
                           style={{ fontWeight: 800 }}
                         >
-                          Mark as paid
+                          Mark as completed
                         </button>
                       </div>
                     </div>
@@ -4161,7 +4161,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       fontSize: '0.86rem',
                       fontWeight: 800
                     }}>
-                      Paid invoice recorded as a read-only state.
+                      Completed document recorded as a read-only state.
                     </div>
                     <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-primary" style={{ alignSelf: 'flex-start', fontWeight: 800 }}>
                       Exit to dashboard
@@ -4226,7 +4226,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <input type="email" className="form-input" value={invClientEmail} onChange={e => setInvClientEmail(e.target.value)} placeholder="e.g. tony@stark.com" />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Billing Address</label>
+                        <label className="input-label">Client Address</label>
                         <input type="text" className="form-input" value={invClientAddress} onChange={e => setInvClientAddress(e.target.value)} placeholder="e.g. Malibu Malibu, CA" />
                       </div>
                     </div>
@@ -4247,18 +4247,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <button onClick={() => addItem('invoice')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>
                     </div>
 
-                    {/* Payment Link */}
+                    {/* Client Document Link */}
                     <div className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
                       <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', textTransform: 'uppercase' }}>
-                        Payment Link
+                        Client Document Link
                       </h3>
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                        Add your Paddle or PayPal payment link
+                        Add an optional external client document link
                       </p>
                       <input
                         type="url"
                         className="form-input"
-                        placeholder="https://buy.paddle.com/... or https://paypal.me/..."
+                        placeholder="https://example.com/client-document"
                         value={invPaymentLink}
                         onChange={e => setInvPaymentLink(e.target.value)}
                       />
@@ -4268,9 +4268,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   {/* Right Summary Card */}
                   <div>
                     <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Financial Summary</h3>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
                       <div className="input-group">
-                        <label className="input-label">Payment Terms</label>
+                        <label className="input-label">Invoice Terms</label>
                         <select
                           className="form-select"
                           value={invPaymentTerms || 'Net 30'}
@@ -4367,8 +4367,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       })()}
 
                       <div className="input-group" style={{ marginTop: '20px' }}>
-                        <label className="input-label">Payment Notes</label>
-                        <textarea className="form-textarea" value={invNotes} onChange={e => setInvNotes(e.target.value)} placeholder="Bank details, wire instructions..." />
+                        <label className="input-label">Invoice Notes</label>
+                        <textarea className="form-textarea" value={invNotes} onChange={e => setInvNotes(e.target.value)} placeholder="Document notes for the client..." />
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
@@ -4449,13 +4449,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             <div>
                               {invNotes && (
                                 <>
-                                  <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Payment Notes:</h6>
+                                  <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Invoice Notes:</h6>
                                   <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4' }}>{invNotes}</p>
                                 </>
                               )}
                               {invPaymentLink && (
                                 <div style={{ marginTop: '15px', padding: '10px', background: 'var(--btn-secondary-bg)', border: '1px dashed var(--border)', borderRadius: '4px' }}>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Online Checkout URL:</span>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Client Document Link:</span>
                                   <a href={invPaymentLink} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#4f46e5', textDecoration: 'underline', wordBreak: 'break-all' }}>{invPaymentLink}</a>
                                 </div>
                               )}
@@ -4506,7 +4506,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           Client-ready preview building...
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Clients usually respond within 24h after invoice delivery.
+                          Track client review status after document delivery.
                         </div>
                       </div>
 
@@ -4672,9 +4672,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {activeTab === 'clients' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Clients Directory', 'Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.')
+            renderGuestLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.')
           ) : !entitlements.crm && !isSandboxMode ? (
-            renderPaidLockState('Clients Directory', 'Store client billing details, default currencies, email contacts, and view active milestone histories to automate your billing admin.', 'pro')
+            renderPaidLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.', 'pro')
           ) : (activeTheme === 'studio') ? (
             <StudioSpace
               clients={getActiveClients()}
@@ -4736,9 +4736,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H7m0-3a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Manage client billing records in one centralized directory to automate quotes and invoices instantly.</p>
+                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Manage client records in one centralized directory to prepare quotes and documents quickly.</p>
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Add client contacts, corporate billing details, and default terms to generate customized documents in seconds without repetitive copy-pasting.
+                      Add client contacts, company details, and default terms to generate customized documents in seconds without repetitive copy-pasting.
                     </p>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-soft)', fontWeight: 700 }}>
                       👉 Enter client details in the form on the right to save your first contact.
@@ -4804,8 +4804,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <input type="email" className="form-input" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} placeholder="e.g. Bruce@wayne.com" />
                     </div>
                     <div className="input-group">
-                      <label className="input-label">Billing Address</label>
-                      <textarea className="form-textarea" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} placeholder="Mailing / Corporate billing address..." />
+                      <label className="input-label">Client Address</label>
+                      <textarea className="form-textarea" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} placeholder="Mailing / company address..." />
                     </div>
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }}>Save Client</button>
                   </form>
@@ -5795,18 +5795,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {/* TAB 10: STUDIO REPORTS */}
         {activeTab === 'reports' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Studio Reports', 'Access analytics tracking: pipeline velocity, customer acquisition rates, and revenue projections.')
+            renderGuestLockState('Studio Reports', 'Access analytics tracking: pipeline velocity, client acquisition rates, and delivery projections.')
           ) : (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>Agency Reports &amp; Analytics</h1>
-                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>Real-time agency metrics, contract values, and payment velocity indicators.</p>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>Real-time agency metrics, contract values, and delivery velocity indicators.</p>
               </div>
 
               {/* Top stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CRM Pipeline Value</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Document Total</span>
                   <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--primary)' }}>
                     ${leads.reduce((sum, l) => {
                       const utm = typeof l.source_utm === 'object' ? l.source_utm : JSON.parse(l.source_utm || '{}');
@@ -5828,10 +5828,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </div>
               </div>
 
-              {/* Revenue & Pipeline charts */}
+              {/* Client workflow charts */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '24px', alignItems: 'stretch' }}>
                 <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0 }}>Monthly Net Billing Growth</h3>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0 }}>Monthly Client Workflow Growth</h3>
                   <div style={{ display: 'flex', gap: '20px', height: '200px', alignItems: 'flex-end', borderBottom: '1px solid var(--border)', paddingBottom: '10px', paddingTop: '20px' }}>
                     {[
                       { month: 'Jan', val: 40, amt: '$4,000' },
@@ -5879,7 +5879,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {/* TAB 11: STUDIO AUTOMATION */}
         {activeTab === 'automation' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Automation Engine', 'Automate Net-14 payment reminders, Slack notification channels, and CRM webhooks.')
+            renderGuestLockState('Automation Engine', 'Automate document follow-up reminders, Slack notification channels, and CRM webhooks.')
           ) : (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
@@ -5914,7 +5914,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <input type="checkbox" style={{ marginTop: '3px' }} />
                       <div>
                         <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--text-main)' }}>Auto-generate Receipts</strong>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Generate and email watermarked PDFs to clients immediately upon payment settlement.</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Generate and email watermarked PDFs to clients after document review.</span>
                       </div>
                     </label>
                   </div>
@@ -5934,7 +5934,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Slack Webhooks</h3>
                     <span style={{ fontSize: '0.7rem', color: 'var(--success)', background: 'var(--success-glow)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>Sandbox Connected</span>
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-soft)', lineHeight: '1.4' }}>Receive Slack alerts in your team channel whenever a new lead enters the CRM pipeline or an invoice is paid.</p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-soft)', lineHeight: '1.4' }}>Receive Slack alerts in your team channel whenever a new lead enters the CRM pipeline or a document is completed.</p>
                   
                   <div style={{ background: 'var(--btn-secondary-bg)', padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
                     Webhook URL:<br/>
@@ -5948,7 +5948,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <span style={{ color: 'var(--success)', fontWeight: 700 }}>[SUCCESS]</span> lead.created: Client <strong>Pepper Potts</strong> submitted inquiry &bull; 1h ago
                       </div>
                       <div style={{ fontSize: '0.72rem', padding: '6px 8px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-muted)' }}>
-                        <span style={{ color: 'var(--success)', fontWeight: 700 }}>[SUCCESS]</span> invoice.paid: Invoice <strong>#INV-041</strong> paid ($4,500.00) &bull; 4h ago
+                        <span style={{ color: 'var(--success)', fontWeight: 700 }}>[SUCCESS]</span> document.completed: Document <strong>#INV-041</strong> completed &bull; 4h ago
                       </div>
                     </div>
                   </div>

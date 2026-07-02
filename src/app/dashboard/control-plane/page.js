@@ -152,8 +152,8 @@ function ControlPlaneDashboardDev() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="cp-header">
-        <p className="cp-kicker">Revenue Control Tower · v5.95 CONTROL PLANE</p>
-        <h1 className="cp-title">Revenue Autopilot Control Plane</h1>
+        <p className="cp-kicker">Workflow Control Tower · v5.95 CONTROL PLANE</p>
+        <h1 className="cp-title">Workflow Control Plane</h1>
         <p className="cp-description">
           Monitor decision streams, configure safety layers, audit risk indices, and trigger
           manual rollback directives.
@@ -248,10 +248,10 @@ function ControlPlaneDashboardDev() {
 
       {/* ── Main Grid ──────────────────────────────────────────── */}
       <div className="cp-grid">
-        {/* ── MODULE 2: Revenue Decisions Stream ───────────────── */}
-        <section className="cp-card" id="decisions-stream-module" aria-label="Revenue Decisions Stream">
+        {/* ── MODULE 2: Workflow Decisions Stream ───────────────── */}
+        <section className="cp-card" id="decisions-stream-module" aria-label="Workflow Decisions Stream">
           <h2 className="cp-card-title">
-            💰 Revenue Decisions Stream
+            Workflow Decisions Stream
             <span className="cp-live-badge">LIVE</span>
           </h2>
 

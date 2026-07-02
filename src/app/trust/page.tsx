@@ -4,21 +4,21 @@ import SharedFooter from '../components/SharedFooter';
 
 export const metadata = {
   title: 'Why Trust Corvioz | Corvioz',
-  description: 'Why freelancers can trust Corvioz with quotes, invoices, client data, Paddle billing, privacy, and product transparency.',
+  description: 'Why freelancers can trust Corvioz with quotes, proposals, client documents, client data, secure checkout, privacy, and product transparency.',
 };
 
 const trustSections = [
   {
     title: 'Product Philosophy',
-    body: 'Corvioz is built for freelancers who need a focused revenue workflow: quote the work, clarify the proposal, send the invoice, and keep the client relationship organized.',
+    body: 'Corvioz is built for freelancers who need a focused client workflow: quote the work, clarify the proposal, prepare client documents, and keep the client relationship organized.',
   },
   {
     title: 'Data Ownership',
-    body: 'You own your invoices, quotes, proposals, client records, and exported documents. Corvioz exists to help you manage that work, not to take ownership of it.',
+    body: 'You own your quotes, proposals, client records, and exported documents. Corvioz exists to help you manage that work, not to take ownership of it.',
   },
   {
     title: 'Transparency',
-    body: 'Subscription checkout is handled through Paddle where enabled. Corvioz keeps plan messaging clear, avoids hidden fees, and supports cancellation before renewal.',
+    body: 'Paid plan checkout is handled securely by Paddle where enabled. Corvioz keeps plan messaging clear, avoids hidden fees, and supports cancellation before renewal.',
   },
   {
     title: 'Privacy Commitment',
@@ -26,11 +26,11 @@ const trustSections = [
   },
   {
     title: 'Security Summary',
-    body: 'Corvioz uses secure web transport, managed authentication, scoped access patterns, and Paddle billing so freelancers can run client workflows with a clearer trust boundary.',
+    body: 'Corvioz uses secure web transport, managed authentication, scoped access patterns, and Paddle as the secure checkout provider so freelancers can run client workflows with a clearer trust boundary.',
   },
   {
     title: 'Founder Message',
-    body: 'Corvioz exists because freelancers should not need heavy CRM or accounting systems just to look professional, quote clearly, invoice confidently, and get paid for completed work.',
+    body: 'Corvioz exists because freelancers should not need heavy CRM or accounting systems just to look professional, quote clearly, prepare client documents, and keep delivery organized.',
   },
   {
     title: 'Building Corvioz in Public',
@@ -38,7 +38,7 @@ const trustSections = [
   },
   {
     title: 'Our Principles',
-    body: 'Simplicity over complexity. Your data belongs to you. Revenue before busywork. Transparent pricing. Continuous improvement.',
+    body: 'Simplicity over complexity. Your data belongs to you. Workflow clarity before busywork. Transparent pricing. Continuous improvement.',
   },
   {
     title: 'Help Shape Corvioz',
@@ -57,7 +57,7 @@ export default function TrustPage() {
           Built for freelancers who need clear, trustworthy client work
         </h1>
         <p className="section-lede" style={{ maxWidth: '760px' }}>
-          Corvioz is designed around a simple promise: help freelancers move from client request to quote, proposal, invoice, and paid work without hiding data ownership, billing, or privacy terms.
+          Corvioz is designed around a simple promise: help freelancers move from client request to quote, proposal, client document, and delivery record without hiding data ownership, plan terms, or privacy terms.
         </p>
       </section>
 

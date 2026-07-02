@@ -109,10 +109,10 @@ function AuditDashboard() {
 
       {/* Header */}
       <header className="audit-header">
-        <p className="audit-kicker">Revenue Safety Audit Tower</p>
+        <p className="audit-kicker">Workflow Safety Audit Tower</p>
         <h1 className="audit-title">v5.9 Core Safety Auditor</h1>
         <p className="audit-description">
-          Evaluate risk indices, verify funnel transition integrity, and configure safety overrides to determine if the codebase is ready for v6 Autonomous Revenue OS rollout.
+          Evaluate risk indices, verify workflow transition integrity, and configure safety overrides to determine if the codebase is ready for the next client workflow rollout.
         </p>
       </header>
 

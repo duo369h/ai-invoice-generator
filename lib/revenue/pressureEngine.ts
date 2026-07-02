@@ -23,19 +23,19 @@ export function getPricingPressure(): PricingPressure {
   
   if (intentLevel === 'HIGH') {
     return {
-      socialProof: '12 freelancers upgraded in the last hour',
-      urgencyLabel: 'Early access pricing ends shortly',
-      lossFraming: "You're missing client-ready proposals & losing deals now"
+      socialProof: 'Built for freelancers who need cleaner client delivery',
+      urgencyLabel: 'Early access pricing active',
+      lossFraming: "You're missing client-ready proposal structure"
     };
   } else if (intentLevel === 'MEDIUM') {
     return {
-      socialProof: '12 freelancers upgraded today',
+      socialProof: 'Built for freelancers who need cleaner client delivery',
       urgencyLabel: 'Limited early access pricing',
-      lossFraming: "You're missing client-ready proposals"
+      lossFraming: "You're missing client-ready proposal structure"
     };
   } else {
     return {
-      socialProof: 'Freelancers are upgrading to secure clients',
+      socialProof: 'Built for freelancers who need cleaner client delivery',
       urgencyLabel: 'Early access pricing active',
       lossFraming: 'Upgrade to create client-ready documents'
     };

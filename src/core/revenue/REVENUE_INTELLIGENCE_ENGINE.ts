@@ -1,12 +1,12 @@
 /**
- * Corvioz — Revenue Intelligence Engine
+ * Corvioz — Workflow Intelligence Engine
  *
  * PURE DETERMINISTIC SCORING ENGINE
  *
  * Rules:
- *   ✔ ONLY source of business intelligence in the Revenue OS
+ *   ✔ ONLY source of workflow intelligence in the internal model
  *   ✔ No CI input, semantic validator dependency, or adapter validation loops
- *   ✔ Generates raw revenue signals from user state deterministically
+ *   ✔ Generates raw workflow signals from user state deterministically
  *   ❌ Does NOT modify Kernel routing or override Orchestrator decisions
  */
 

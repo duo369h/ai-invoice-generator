@@ -18,8 +18,8 @@ export function getRevenueSimulation(): RevenueSimulation {
 
 export function getPlanRevenueSignal(planId: string): string {
   if (planId === 'free') return 'Preview the workflow before client delivery.';
-  if (planId === 'starter') return 'Send real invoices and track payment status.';
+  if (planId === 'starter') return 'Organize early client work with a consistent process.';
   if (planId === 'pro') return 'Manage repeat clients and follow-up moments.';
   if (planId === 'studio') return 'Prepare higher-volume delivery operations.';
-  return 'Understand the revenue path before choosing a plan.';
+  return 'Understand the workflow before choosing a plan.';
 }

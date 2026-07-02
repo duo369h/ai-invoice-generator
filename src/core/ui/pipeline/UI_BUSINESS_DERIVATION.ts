@@ -146,10 +146,10 @@ export function deriveBusinessData(data: NormalizedData): DerivedBusinessData {
   const onboardingSteps = [
     {
       id: "invoice",
-      title: "Improve your revenue outcome",
-      description: "Start from the revenue result you want, then prepare the invoice when the client is ready.",
+      title: "Improve your client workflow",
+      description: "Start from the client result you want, then prepare the document when the client is ready.",
       done: invoiceCount > 0,
-      actionLabel: "Start revenue outcome",
+      actionLabel: "Start client workflow",
       action: "createInvoice",
     },
     {

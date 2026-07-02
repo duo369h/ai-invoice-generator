@@ -173,10 +173,10 @@ function ValidationDashboard() {
 
       {/* Header */}
       <header className="val-header">
-        <p className="val-kicker">Revenue Safety Control Tower</p>
+        <p className="val-kicker">Workflow Safety Control Tower</p>
         <h1 className="val-title">Validation Layer Guardrails</h1>
         <p className="val-description">
-          Monitor risk scoring, audit validation decisions, override automated optimization actions, and view real-user conversion drift.
+          Monitor risk scoring, audit validation decisions, override automated workflow actions, and view user behavior drift.
         </p>
       </header>
 
@@ -187,7 +187,7 @@ function ValidationDashboard() {
           <div className="metric-value" id="total-evaluated-val">
             {metrics.total_evaluated}
           </div>
-          <div className="metric-sub">Monetization events verified</div>
+          <div className="metric-sub">Workflow events verified</div>
         </div>
 
         <div className="metric-card glow-green">
@@ -373,10 +373,10 @@ function ValidationDashboard() {
 
         {/* Right Column: Drift Monitor & Alerts */}
         <aside style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* Revenue Drift Panel */}
+          {/* Workflow Drift Panel */}
           <section className="val-card" id="revenue-drift-monitor">
             <h2 className="val-card-title">
-              <span>📉</span> Revenue Drift Monitor
+              <span>📉</span> Workflow Drift Monitor
             </h2>
             <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: '20px', lineHeight: 1.5 }}>
               Compare simulated models against live user behavior. Red offset lines indicate churn or conversion divergence.

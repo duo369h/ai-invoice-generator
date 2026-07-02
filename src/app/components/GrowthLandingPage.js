@@ -66,7 +66,7 @@ export default function GrowthLandingPage({ spec }) {
           </div>
           <div className="hero-social-proof">
             <span>Preview before signup</span>
-            <span>No credit card required</span>
+            <span>Free to start</span>
             <span>Built around first action speed</span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function GrowthLandingPage({ spec }) {
               <p className="card-body">Show what the invoice, quote, or client record looks like before signup friction appears.</p>
             </div>
             <div className="card why-card">
-              <h3 className="card-heading">Revenue follow-up</h3>
+              <h3 className="card-heading">Client follow-up</h3>
               <p className="card-body">Connect acquisition intent to the quote-to-invoice workflow already used by Corvioz.</p>
             </div>
           </div>

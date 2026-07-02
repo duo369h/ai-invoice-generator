@@ -88,7 +88,7 @@ export function getExpressionConfig(plan: PlanTier): ExpressionConfig {
         plan: 'growth',
         identity: {
           tierLabel: 'Pro',
-          tierTagline: 'Start getting paid like a professional.',
+          tierTagline: 'Present client work professionally.',
           accentColor: '#10b981',
           sidebarGradient: 'linear-gradient(160deg, #0d1117 0%, #064e3b 50%, #0d1117 100%)',
           showVerifiedBadge: true,
@@ -119,7 +119,7 @@ export function getExpressionConfig(plan: PlanTier): ExpressionConfig {
         plan: 'pro',
         identity: {
           tierLabel: 'Starter',
-          tierTagline: 'Get your first client faster.',
+          tierTagline: 'Organize client delivery.',
           accentColor: '#4f46e5',
           sidebarGradient: 'linear-gradient(160deg, #0d1117 0%, #1e1b4b 50%, #0d1117 100%)',
           showVerifiedBadge: false,

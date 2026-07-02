@@ -138,7 +138,7 @@ function emailLayout({ title, previewText, bodyHtml }) {
  */
 export function getWelcomeEmailHtml(freelancerName) {
   const title = 'Welcome to Corvioz!';
-  const previewText = 'Your freelancer setup is ready. Let’s get you paid faster!';
+  const previewText = 'Your freelancer setup is ready. Let’s organize your client workflow.';
   const bodyHtml = `
     <h2 style="font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">Welcome aboard, ${freelancerName}!</h2>
     <p style="margin-top: 0; margin-bottom: 16px;">
@@ -465,5 +465,4 @@ export async function sendPaymentReminderEmail(toEmail, invoice, portalUrl, remi
     html: getPaymentReminderEmailHtml(invoice, portalUrl, reminderText, freelancerName),
   });
 }
-
 

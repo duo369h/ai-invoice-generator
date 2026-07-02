@@ -772,11 +772,11 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 boxShadow: 'var(--shadow-md)'
               }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>Clear Outstanding Balance</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>Review Client Document</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     {doc.payment_link 
-                      ? 'Pay this invoice instantly via the secure payment link.' 
-                      : 'Please contact the freelancer for wire transfer / offline payment details, then click "Confirm Paid" to notify them.'}
+                      ? 'Review this document using the secure client link.' 
+                      : 'Please contact the freelancer for document instructions, then click the confirmation button to notify them.'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>

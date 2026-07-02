@@ -244,10 +244,10 @@ function EvolutionDashboardDev() {
 
       {/* Header */}
       <header className="evo-header">
-        <p className="evo-kicker">Revenue Autopilot Control Tower</p>
-        <h1 className="evo-title">Self-Evolving Optimization Engine</h1>
+        <p className="evo-kicker">Workflow Control Tower</p>
+        <h1 className="evo-title">Workflow Optimization Engine</h1>
         <p className="evo-description">
-          Monitor real-time decision feeds, manage active A/B experiments, and toggle safety protocols on the self-evolving monetization autopilot.
+          Monitor real-time decision feeds, manage active A/B experiments, and toggle safety protocols for workflow experiments.
         </p>
       </header>
 
@@ -262,11 +262,11 @@ function EvolutionDashboardDev() {
         </div>
 
         <div className="metric-card glow-green">
-          <div className="metric-label">Expected MRR Uplift</div>
+          <div className="metric-label">Expected Workflow Lift</div>
           <div className="metric-value" id="mrr-uplift-val">
             +{pct(metrics.expected_uplift)}
           </div>
-          <div className="metric-sub">Net revenue evolution index</div>
+          <div className="metric-sub">Net workflow evolution index</div>
         </div>
 
         <div className="metric-card glow-purple">
@@ -392,7 +392,7 @@ function EvolutionDashboardDev() {
                       <div className="variant-title">{exp.variant_a.name}</div>
                       <div className="variant-metric-row">
                         <span className="variant-metric-val">{exp.variant_a.conversion_rate} CR</span>
-                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{exp.variant_a.revenue} Rev</span>
+                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{exp.variant_a.revenue} Index</span>
                       </div>
                     </div>
 
@@ -400,7 +400,7 @@ function EvolutionDashboardDev() {
                       <div className="variant-title">{exp.variant_b.name}</div>
                       <div className="variant-metric-row">
                         <span className="variant-metric-val">{exp.variant_b.conversion_rate} CR</span>
-                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{exp.variant_b.revenue} Rev</span>
+                        <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>{exp.variant_b.revenue} Index</span>
                       </div>
                     </div>
                   </div>
@@ -450,7 +450,7 @@ function EvolutionDashboardDev() {
             )}
             
             <h2 className="section-card-title">
-              <span>📊</span> Revenue Impact Visualization
+              <span>📊</span> Workflow Impact Visualization
             </h2>
 
             {simulationData ? (

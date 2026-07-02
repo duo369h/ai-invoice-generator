@@ -94,7 +94,7 @@ export function PricingUpsellModal({
             <span style={{ position: 'absolute', top: '-12px', right: '20px', background: 'var(--primary)', color: 'var(--white)', fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: '12px', letterSpacing: '0.05em' }}>⭐ MAIN PLAN</span>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{getPlanVal('pro', 'name', 'Pro')} — Earn</h4>
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{getPlanVal('pro', 'name', 'Pro')}</h4>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
                   <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)' }}>${getPlanVal('pro', 'price_monthly', 12)}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/mo</span>
@@ -108,8 +108,8 @@ export function PricingUpsellModal({
               </p>
               
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Paddle-secure subscription checkout</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Professional invoice templates</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Secure checkout provider: Paddle</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Professional document templates</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Client detail auto-fill presets</li>
               </ul>
             </div>
@@ -143,7 +143,7 @@ export function PricingUpsellModal({
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Everything in Pro</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Custom domain white-labeling</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Smart automated reminders</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Client follow-up reminders</li>
               </ul>
             </div>
             <Link 
@@ -159,7 +159,7 @@ export function PricingUpsellModal({
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 650 }}>
-            🔒 TLS Encrypted Paddle Checkout • 14-Day Refund Window • Cancel Anytime
+            Secure checkout provider: Paddle • 14-day refund window • cancel anytime
           </span>
         </div>
       </div>

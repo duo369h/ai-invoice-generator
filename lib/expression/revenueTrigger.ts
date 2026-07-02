@@ -42,7 +42,7 @@ const NUDGE_MAP: Record<SuccessMoment, Partial<Record<PlanTier, SuccessNudge>>> 
     free: {
       moment: 'PROPOSAL_GENERATED',
       headline: 'Your proposal is ready.',
-      outcome: 'Send it without a watermark. Start getting paid professionally.',
+      outcome: 'Send it without a watermark and present client work professionally.',
       ctaLabel: 'Upgrade to Starter — $9/mo',
       targetPlan: 'pro',
       source: 'proposal_generated_free',
@@ -86,7 +86,7 @@ const NUDGE_MAP: Record<SuccessMoment, Partial<Record<PlanTier, SuccessNudge>>> 
     pro: {
       moment: 'QUOTE_CREATED',
       headline: 'Quote sent.',
-      outcome: 'Create unlimited quotes. Close clients faster.',
+      outcome: 'Create unlimited quotes and keep client review moving.',
       ctaLabel: 'Upgrade to Pro — $19/mo',
       targetPlan: 'growth',
       source: 'quote_created_starter',
@@ -96,7 +96,7 @@ const NUDGE_MAP: Record<SuccessMoment, Partial<Record<PlanTier, SuccessNudge>>> 
     growth: {
       moment: 'FIRST_CLIENT_ADDED',
       headline: 'First client added.',
-      outcome: 'Scale to 3 client workspaces. Run your freelance business like an agency.',
+      outcome: 'Scale to 3 client workspaces. Keep client operations organized.',
       ctaLabel: 'Upgrade to Studio — $29/mo',
       targetPlan: 'studio',
       source: 'first_client_added_growth',

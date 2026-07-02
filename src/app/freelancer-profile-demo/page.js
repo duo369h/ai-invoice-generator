@@ -13,22 +13,22 @@ const page = {
     'Public profile with services, bio, portfolio, and proof',
     'Quote request path for incoming project inquiries',
     'Pricing context, availability, response time, and location',
-    'A connected workflow from profile lead to quote and invoice',
+    'A connected workflow from profile lead to quote and client document',
   ],
   primaryCta: { label: 'Start Free', href: '/dashboard?action=create-profile' },
   secondaryCta: { label: 'View Demo Profile', href: '/profile/demo' },
   whyTitle: 'A public profile should do more than list your bio',
-  whyBody: 'Freelancers need a profile that helps clients understand services, trust signals, availability, and the next step. Corvioz keeps the profile connected to lead capture, quotes, invoices, and client portals.',
+  whyBody: 'Freelancers need a profile that helps clients understand services, trust signals, availability, and the next step. Corvioz keeps the profile connected to lead capture, quotes, client documents, and client portals.',
   featureCards: [
     { title: 'Service packaging', body: 'Show what you offer with clear service names, descriptions, starting prices, and project context.' },
     { title: 'Client trust signals', body: 'Present testimonials, portfolio examples, location, response time, and availability without a custom website build.' },
-    { title: 'Lead-to-billing flow', body: 'Turn profile inquiries into structured client records, quotes, invoices, and payment follow-up.' },
+    { title: 'Lead-to-client workflow', body: 'Turn profile inquiries into structured client records, quotes, client documents, and organized follow-up.' },
   ],
   workflowTitle: 'How freelancers use the profile demo',
   workflowSteps: [
     { title: 'Review the demo profile', body: 'See how a public Corvioz profile organizes services, proof, pricing context, and quote requests.' },
     { title: 'Create your own profile', body: 'Start free and add your own services, bio, portfolio examples, and client-facing details.' },
-    { title: 'Use it as your entry point', body: 'Share the profile with prospects and keep incoming requests connected to quotes and invoices.' },
+    { title: 'Use it as your entry point', body: 'Share the profile with prospects and keep incoming requests connected to quotes and client documents.' },
   ],
   faq: [
     {
@@ -37,15 +37,15 @@ const page = {
     },
     {
       question: 'Can I create my own freelancer profile in Corvioz?',
-      answer: 'Yes. Start free to create a public profile and connect it to the quote, invoice, and client portal workflow.',
+      answer: 'Yes. Start free to create a public profile and connect it to the quote, client document, and client portal workflow.',
     },
     {
       question: 'Is the profile demo the same as a marketplace listing?',
-      answer: 'No. The profile is a client-facing business page for your own workflow. Corvioz focuses on helping freelancers win clients, quote work, invoice, and get paid faster.',
+      answer: 'No. The profile is a client-facing business page for your own workflow. Corvioz focuses on helping freelancers organize quotes, proposals, client documents, and client records.',
     },
   ],
   finalCtaTitle: 'Create your freelancer profile in Corvioz',
-  finalCtaBody: 'Use the demo as a reference, then create a profile that connects new leads to quotes, invoices, and client records.',
+  finalCtaBody: 'Use the demo as a reference, then create a profile that connects new leads to quotes, client documents, and client records.',
 };
 
 export const metadata = {

@@ -65,10 +65,10 @@ export default function RevenueValidationPage() {
         headers: await authHeaders(),
       });
       const next = await response.json();
-      if (!response.ok) throw new Error(next.error || 'Failed to load revenue validation');
+      if (!response.ok) throw new Error(next.error || 'Failed to load workflow validation');
       setData(next);
     } catch (err) {
-      setError(err.message || 'Failed to load revenue validation');
+      setError(err.message || 'Failed to load workflow validation');
     } finally {
       setLoading(false);
     }
@@ -94,23 +94,23 @@ export default function RevenueValidationPage() {
 
       <header style={styles.header}>
         <p style={styles.kicker}>Internal Validation</p>
-        <h1 style={styles.title}>Revenue Validation</h1>
-        <p style={styles.copy}>Product validation metrics for proposal acceptance, invoice payment, and revenue mix.</p>
+        <h1 style={styles.title}>Workflow Validation</h1>
+        <p style={styles.copy}>Product validation metrics for proposal acceptance, invoice document completion, and workflow mix.</p>
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
-      {!data?.configured && !loading && <div style={styles.warning}>Revenue validation data is not configured in this environment.</div>}
+      {!data?.configured && !loading && <div style={styles.warning}>Workflow validation data is not configured in this environment.</div>}
 
       <section style={styles.grid}>
         <Metric label="Proposal Acceptance Rate" value={loading ? '...' : pct(data?.metrics?.proposal_acceptance_rate)} detail={`${data?.counts?.accepted_quotes || 0} accepted`} />
-        <Metric label="Invoice Payment Rate" value={loading ? '...' : pct(data?.metrics?.invoice_payment_rate)} detail={`${data?.counts?.paid_invoices || 0} paid`} />
-        <Metric label="Average Revenue" value={loading ? '...' : currency(data?.metrics?.average_revenue)} detail="paid invoices" />
+        <Metric label="Invoice Document Completion Rate" value={loading ? '...' : pct(data?.metrics?.invoice_payment_rate)} detail={`${data?.counts?.paid_invoices || 0} completed`} />
+        <Metric label="Average Document Total" value={loading ? '...' : currency(data?.metrics?.average_revenue)} detail="completed invoice documents" />
       </section>
 
       <section style={styles.bucketGrid}>
-        <BucketTable title="Revenue by Country" rows={data?.revenue_by_country} />
-        <BucketTable title="Revenue by Plan" rows={data?.revenue_by_plan} />
-        <BucketTable title="Revenue by Client Type" rows={data?.revenue_by_client_type} />
+        <BucketTable title="Document Total by Country" rows={data?.revenue_by_country} />
+        <BucketTable title="Document Total by Plan" rows={data?.revenue_by_plan} />
+        <BucketTable title="Document Total by Client Type" rows={data?.revenue_by_client_type} />
       </section>
     </main>
   );

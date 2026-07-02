@@ -2,10 +2,10 @@
 
 /*
  * Growth Dashboard — Corvioz v10
- * Plan: 'growth' ($19/mo) — "Income Engine"
+ * Plan: 'growth' ($19/mo) — "Workflow Engine"
  *
  * This is NOT a feature gating system.
- * This is a revenue track system.
+ * This is a workflow track system.
  * Each tier is an independent product experience.
  */
 

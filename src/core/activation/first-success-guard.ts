@@ -54,7 +54,7 @@ export function ensureFirstSuccess(user: UserSuccessState): FirstSuccessGuidance
   return {
     result: 'FORCE_GUIDED_FIRST_ACTION',
     guidance: {
-      message:   'Create your first invoice to get paid — takes under 60 seconds.',
+      message:   'Create your first client-ready document in under 60 seconds.',
       cta:       'Create Invoice',
       cta_route: '/dashboard?tool=invoice&mode=create',
     },

@@ -1,9 +1,9 @@
 /**
- * Corvioz — Revenue Semantic Validator
+ * Corvioz — Workflow Semantic Validator
  *
  * Validates adapter output for semantic consistency before it reaches the UI.
  *
- * Principle: "UI is not allowed to display inconsistent revenue meaning."
+ * Principle: "UI is not allowed to display inconsistent workflow meaning."
  *
  * Rules:
  *   ✔ Runs after adaptRevenueToUI() produces output

@@ -43,20 +43,20 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
 
   const sectionPropsMap: Record<string, any> = {
     HEADER: {
-      title: "Turn proposals into paid work",
-      description: "Win more clients with professional proposals and smart pricing guidance",
+      title: "Turn proposals into structured client work",
+      description: "Organize client work with professional proposals and clear pricing context",
       badge: rawData.businessModeBadge,
     },
     SAFE_MODE: {
-      message: "Revenue is locked in safe mode",
+      message: "Workflow is locked in safe mode",
     },
     EMPTY_STATE: {
       isEmpty: true,
-      title: "Improve your revenue outcome",
-      description: "Create the first client-ready invoice path and keep proposal-to-payment work moving.",
-      actionLabel: "Create your first invoice",
+      title: "Improve your client workflow",
+      description: "Create the first client-ready document path and keep proposal-to-delivery work moving.",
+      actionLabel: "Create your first document",
       action: "createFirstInvoice",
-      outcome: "Get paid faster",
+      outcome: "Organize client delivery",
       previewLines: [
         { label: "Design sprint", amount: "$1,500.00" },
         { label: "Client revisions", amount: "$300.00" },
@@ -64,22 +64,22 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       previewTotal: "$1,800.00",
     },
     SYSTEM: {
-      eyebrow: "Revenue OS",
-      title: "Your Revenue System",
-      description: "Proposal is the starting point of revenue generation. Invoice remains the execution layer after the client decision.",
+      eyebrow: "Client Delivery Workspace",
+      title: "Your Workflow System",
+      description: "Proposal is the starting point of client delivery. Client documents remain the execution layer after the client decision.",
       metrics: [
         { label: "Active proposals", value: derived.activeProposalsCount || rawData.rawLeads.length || "Start with one" },
         { label: "Win rate", value: derived.winRate > 0 ? `${Math.round(derived.winRate * 100)}%` : "Set after decisions" },
-        { label: "Revenue outcome", value: "Improve conversion" },
+        { label: "Workflow outcome", value: "Improve clarity" },
       ],
     },
     IMPACT: {
-      title: "Your Revenue Impact",
-      description: "Quantifies whether proposal and pricing strategies are connected to better revenue outcomes.",
+      title: "Your Workflow Impact",
+      description: "Quantifies whether proposal and pricing strategies are connected to clearer client outcomes.",
       proofBadge: derived.revenueCausality.first_revenue_proof_triggered ? "First proof moment" : null,
       metrics: [
         {
-          label: "Revenue change",
+          label: "Document total change",
           value: `${derived.revenueCausality.revenue_uplift > 0 ? "+" : derived.revenueCausality.revenue_uplift < 0 ? "-" : ""}$${Math.abs(derived.revenueCausality.revenue_uplift / 100).toFixed(2)}`,
           tone: derived.revenueCausality.revenue_uplift > 0 ? "success" : "default",
         },
@@ -101,9 +101,9 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       },
     },
     FLOW: {
-      title: "Revenue Flow Insight",
-      description: "Understand revenue as a client decision flow before it becomes invoice execution.",
-      steps: ["Proposal", "Client Decision", "Invoice", "Payment", "Revenue"],
+      title: "Workflow Insight",
+      description: "Understand the client decision flow before it becomes invoice document execution.",
+      steps: ["Proposal", "Client Decision", "Invoice Document", "Review", "Client Record"],
     },
     FOCUS: revenueUI,
     DEMO: {
@@ -111,7 +111,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
     },
     ONBOARDING: {
       title: "Get Started Checklist",
-      description: "Complete the core setup steps to launch your revenue workspace.",
+      description: "Complete the core setup steps to launch your client workspace.",
       steps: derived.onboarding.steps,
       doneCount: derived.onboarding.doneCount,
       totalCount: derived.onboarding.totalCount,
@@ -132,7 +132,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
         badge: { label: lead?.status || "New", bg: "var(--primary-glow)", color: "var(--primary)" },
         actions: [
           { label: "View details", action: "viewLead", payload: { id: lead?.id } },
-          { label: "Improve proposal success", action: "generateQuoteFromLead", payload: { id: lead?.id } },
+          { label: "Prepare proposal estimate", action: "generateQuoteFromLead", payload: { id: lead?.id } },
         ],
       })),
       empty: {
@@ -147,7 +147,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       empty: {
         title: "Pitch Your Next Project",
         description: "Draft clean estimate quotes with milestone pricing.",
-        actionLabel: "Improve proposal success",
+        actionLabel: "Prepare proposal estimate",
         action: "createQuote",
       },
       rows: rawData.rawQuotes.slice(0, 3).map((q: any) => ({
@@ -162,9 +162,9 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
     INVOICES: {
       title: "Recent Invoices",
       empty: {
-        title: "Request Payment Instantly",
-        description: "Turn approved work into a clear invoice path.",
-        actionLabel: "Start invoice execution",
+        title: "Prepare Invoice Document",
+        description: "Turn approved work into a clear invoice document path.",
+        actionLabel: "Start invoice document",
         action: "createInvoice",
       },
       rows: rawData.rawInvoices.slice(0, 3).map((i: any) => ({
@@ -205,9 +205,9 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
         : { label: "Configure Profile", action: "configureProfile" },
     },
     REVENUE_DECISION: {
-      recommendedAction: "INCREASE_PRICE",
-      revenueUplift: "+32% revenue increase",
-      riskLevel: "LOW PRICING DETECTED",
+      recommendedAction: "REVIEW_PRICE",
+      revenueUplift: "Document total review",
+      riskLevel: "PRICING REVIEW",
       upsells: ["+ Add rush fee (+15%)", "+ Add revision package"],
     },
   };

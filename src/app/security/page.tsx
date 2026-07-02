@@ -5,7 +5,7 @@ import LegalPageMeta from '../components/LegalPageMeta';
 
 export const metadata = {
   title: 'Security Center | Corvioz',
-  description: 'How Corvioz protects freelancer invoices, client data, usage data, authentication, and Paddle billing.',
+  description: 'How Corvioz protects freelancer client documents, client data, usage data, authentication, and secure checkout.',
 };
 
 const sections = [
@@ -15,15 +15,15 @@ const sections = [
   },
   {
     title: 'Data Security',
-    body: 'Invoices, quotes, proposals, client records, and usage data are stored through managed application infrastructure and protected with access controls appropriate for a SaaS workspace. We treat client and billing workflow data as private business records.',
+    body: 'Quotes, proposals, client documents, client records, and usage data are stored through managed application infrastructure and protected with access controls appropriate for a SaaS workspace. We treat client workflow data as private business records.',
   },
   {
     title: 'Authentication',
     body: 'Corvioz uses a secure login system with managed authentication and session handling. User access is scoped to the signed-in account and workspace context.',
   },
   {
-    title: 'Billing Security',
-    body: 'Subscription payments are processed by Paddle where checkout is enabled. Corvioz does not store raw card numbers on its own servers, and Paddle handles checkout, receipts, tax handling, and billing records where applicable.',
+    title: 'Checkout Security',
+    body: 'Paid plan checkout is handled securely by Paddle where enabled. Corvioz does not store raw card numbers on its own servers.',
   },
   {
     title: 'Data Protection Principles',
@@ -31,7 +31,7 @@ const sections = [
   },
   {
     title: 'Responsible Disclosure',
-    body: 'If you believe you have found a vulnerability, email security@corvioz.com with the affected page, reproduction steps, and potential impact. We review responsible reports and prioritize issues that could affect account, client, invoice, or billing data.',
+    body: 'If you believe you have found a vulnerability, email security@corvioz.com with the affected page, reproduction steps, and potential impact. We review responsible reports and prioritize issues that could affect account, client document, or client record data.',
   },
 ];
 
@@ -44,7 +44,7 @@ export default function SecurityPage() {
         <LegalPageMeta
           badge="Security Center"
           title="How Corvioz protects your client workflow"
-          description="Corvioz is built for freelancers who depend on quotes, proposals, invoices, client records, and payment workflows. This page explains the security practices we use without claiming certifications we have not implemented."
+          description="Corvioz is built for freelancers who depend on quotes, proposals, client documents, and client records. This page explains the security practices we use without claiming certifications we have not implemented."
         />
       </section>
 

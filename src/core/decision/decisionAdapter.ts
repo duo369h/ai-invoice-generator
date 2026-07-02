@@ -56,8 +56,10 @@ function defaultPricingInput(plan: string): PricingViewModelInput {
     userPlan: plan,
     isAuthenticated: plan !== "free",
     subLoading: false,
+    billingPeriod: 'monthly',
   };
 }
+
 
 export function readDecisionState(input: DecisionAdapterInput = {}): DecisionAdapterResult {
   const planState = resolvePlanState({

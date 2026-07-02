@@ -13,6 +13,7 @@
     "verify:decision-single-source": "node scripts/verify-decision-single-source.mjs",
     "verify:revenue-lock": "node scripts/verify-revenue-lock.mjs",
     "verify:pricing-flow": "node scripts/verify-pricing-flow.mjs",
+    "verify:pricing-contract": "node scripts/verify-pricing-contract.mjs",
     "verify:production-loop": "node scripts/verify-production-loop.mjs",
     "lint:ui": "node scripts/ui-guard.js",
     "ui:guard": "node scripts/ui-guard.js"

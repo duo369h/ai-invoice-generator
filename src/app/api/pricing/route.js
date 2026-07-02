@@ -45,7 +45,7 @@ const FALLBACK_PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    description: 'Start getting paid professionally',
+    description: 'Present client work professionally',
     price_monthly: 19.00,
     price_yearly: 16.00,
     paddle_monthly_price_id: 'pri_pro_placeholder',
@@ -141,71 +141,14 @@ export async function GET() {
         paddle_yearly_price_id = '';
       }
 
-      // Overrides to lock deterministic outcome names & descriptions
-      let name = plan.name;
-      let description = plan.description;
-      let features = plan.features || [];
-      let badge_text = plan.badge_text;
-      let price_monthly = 0;
-      let price_yearly = 0;
-
-      if (plan.id === 'free') {
-        name = 'Free';
-        description = 'Try the core tools before you commit.';
-        badge_text = 'Try';
-        features = [
-          'Draft quotes and estimates',
-          'Basic profile creation',
-          'Watermarked PDF exports'
-        ];
-        price_monthly = 0.00;
-        price_yearly = 0.00;
-      } else if (plan.id === 'starter') {
-        name = 'Starter';
-        description = 'Get your first client faster';
-        badge_text = 'Starter';
-        features = [
-          '1 proposal/day & 1 profile/day',
-          'Watermark preview enabled',
-          'Export disabled'
-        ];
-        price_monthly = 9.00;
-        price_yearly = 7.00;
-      } else if (plan.id === 'pro') {
-        name = 'Pro';
-        description = 'Start getting paid professionally';
-        badge_text = 'Recommended';
-        features = [
-          'Unlimited proposals & profiles',
-          'Secure PDF export (No watermark)',
-          'Share client links instantly'
-        ];
-        price_monthly = 19.00;
-        price_yearly = 16.00;
-      } else if (plan.id === 'studio') {
-        name = 'Studio';
-        description = 'Scale client operations';
-        badge_text = 'Coming Soon';
-        features = [
-          'Brand client workspaces under your custom domain',
-          'Qualify inbound inquiries with budget filters',
-          'Present specialist team members to secure larger contracts'
-        ];
-        price_monthly = 0.00;
-        price_yearly = 0.00;
-      }
-
+      // Pass-through: return plan data as-is from the selected source (DB or FALLBACK_PLANS).
+      // No price decisions here. pricingViewModel.ts is the sole pricing decision layer.
       return {
         ...plan,
-        name,
-        description,
-        features,
-        badge_text,
         paddle_monthly_price_id,
         paddle_yearly_price_id,
-        price_monthly,
-        price_yearly
       };
+
     });
 
     if (process.env.NODE_ENV === 'production') {

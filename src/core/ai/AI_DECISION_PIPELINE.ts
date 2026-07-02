@@ -82,8 +82,8 @@ export function runAIDecisionPipeline(
       const timing = state.urgency_sensitivity > 1.2 ? "in 1 day" : "in 3 days";
       const urgencyLevel = Math.round(state.urgency_sensitivity * 2);
       const messageSuggestion = state.preferred_strategy === 'PREMIUM'
-        ? "A payment request has been issued for your premium deliverables. You can review details and complete the transaction securely."
-        : "Friendly reminder: your invoice payment link is active and ready. Let us know if you have any questions!";
+        ? "An invoice document has been issued for your premium deliverables. You can review the details securely."
+        : "Friendly reminder: your invoice document link is active and ready. Let us know if you have any questions!";
 
       output = {
         followUpTiming: timing,

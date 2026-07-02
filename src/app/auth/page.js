@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
+import { trackEvent } from '../lib/analytics';
 import {
   isEntryIntendedAction,
   isEntrySelectedPlan,
@@ -72,6 +73,7 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [client, setClient] = useState(null);
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
+  const [googleAvailable, setGoogleAvailable] = useState(true);
   const [sandboxRedirectTarget] = useState(() => {
     if (typeof window === 'undefined') return '/dashboard';
     return window.sessionStorage.getItem('corvioz_redirect_after_auth') || '/dashboard';
@@ -187,17 +189,25 @@ export default function AuthPage() {
     setStatus('');
     sendEvent('SIGNUP_STARTED', { method: 'google', source: 'auth_form' });
 
-    const redirectTarget = getRedirectTarget();
-    const { error } = await client.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
-      },
-    });
+    try {
+      const redirectTarget = getRedirectTarget();
+      const { error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+        },
+      });
 
-    if (error) {
-      trackEvent('signup_login_failed', { method: 'google', reason: error.message });
-      setStatus(error.message);
+      if (error) {
+        trackEvent('signup_login_failed', { method: 'google', reason: error.message });
+        setGoogleAvailable(false);
+        setStatus('Google sign-in is temporarily unavailable. Continue with email instead.');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      trackEvent('signup_login_failed', { method: 'google', reason: error?.message || 'oauth_exception' });
+      setGoogleAvailable(false);
+      setStatus('Google sign-in is temporarily unavailable. Continue with email instead.');
       setIsLoading(false);
     }
   };
@@ -232,7 +242,7 @@ export default function AuthPage() {
                   Your draft has been saved!
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: 1.45 }}>
-                  Draft Invoice <strong>{pendingDraft.invoice_number || 'Unnamed Draft'}</strong> is secured locally. Create an account to continue where you left off and sync it to the cloud.
+                  Your draft document <strong>{pendingDraft.invoice_number || 'Unnamed Draft'}</strong> is saved locally. Create an account to continue where you left off and sync it to the cloud.
                 </p>
               </div>
             </div>
@@ -241,9 +251,9 @@ export default function AuthPage() {
             {identity === 'starter' ? 'Starter Workspace' : identity === 'pro' ? 'Pro Workspace' : identity === 'studio' ? 'Studio Workspace' : 'Freelancer Workspace'}
           </Badge>
           <h1 className="auth-title">
-            {identity === 'starter' && "Safe way to send invoices"}
+            {identity === 'starter' && "Safe way to organize client work"}
             {identity === 'pro' && "Secure client pipeline management"}
-            {identity === 'studio' && "Enterprise-grade studio operations system"}
+            {identity === 'studio' && "Studio workspace for client operations"}
             {!identity && "Create your account or Sign in"}
           </h1>
           <p className="auth-description">
@@ -264,14 +274,18 @@ export default function AuthPage() {
             </div>
           ) : (
             <>
-              <Button type="button" variant="google" onClick={handleGoogleSignIn} disabled={isLoading}>
-                <span className="google-mark" aria-hidden="true">G</span>
-                Continue with Google
-              </Button>
+              {googleAvailable && (
+                <>
+                  <Button type="button" variant="google" onClick={handleGoogleSignIn} disabled={isLoading}>
+                    <span className="google-mark" aria-hidden="true">G</span>
+                    Continue with Google
+                  </Button>
 
-              <div className="auth-divider">
-                <span>or</span>
-              </div>
+                  <div className="auth-divider">
+                    <span>or</span>
+                  </div>
+                </>
+              )}
 
               <form onSubmit={handleMagicLink}>
                 <div className="input-group">
@@ -289,9 +303,9 @@ export default function AuthPage() {
                 <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
                   {isLoading ? 'Sending...' : (
                     identity === 'starter' 
-                      ? 'Get paid faster' 
+                      ? 'Organize client delivery' 
                       : identity === 'pro'
-                      ? 'Never miss a payment' 
+                      ? 'Keep client follow-up organized' 
                       : identity === 'studio' 
                       ? 'Scale client operations' 
                       : 'Send magic link'

@@ -46,7 +46,7 @@ const getServiceDeliverables = (srvName, description) => {
       'Responsive implementation notes and handoff checklist',
       'Simple deployment notes for the final deliverable',
       'Rigorous performance auditing & page speed optimization',
-      'Complete repository ownership transfer & Vercel deploy'
+      'Complete repository ownership handoff & Vercel deploy'
     ];
   } else if (
     nameLower.includes('consult') || 

@@ -16,35 +16,35 @@ export type ValueCaptureMessage = {
 
 const messages: Record<MonetizationMoment, ValueCaptureMessage> = {
   post_export: {
-    badge: 'Output ready',
-    headline: 'Your client-ready document is ready to send.',
+    badge: 'Document preview ready',
+    headline: 'Your client-ready document preview is ready.',
     body: 'You already created the value. Upgrade when you need the clean PDF, client portal, and full delivery workflow without the preview watermark.',
-    primaryCta: 'Unlock clean client delivery',
-    secondaryCta: 'Download watermarked preview',
-    roiAnchor: 'One accepted invoice can cover months of Pro.',
+    primaryCta: 'Unlock Clean Export',
+    secondaryCta: 'Download Watermarked Preview',
+    roiAnchor: 'Upgrade when clean client delivery saves repeated admin time.',
   },
   invoice_created: {
-    badge: 'Invoice ready',
-    headline: 'Your invoice is ready. Now unlock the delivery layer.',
-    body: 'Keep the invoice moving with clean export, payment follow-up, and client-ready delivery instead of stopping at the draft.',
-    primaryCta: 'Send this invoice cleanly',
+    badge: 'Document ready',
+    headline: 'Your document is ready. Unlock the delivery workflow when you need it.',
+    body: 'Keep the client document moving with clean export, client portal access, and organized follow-up.',
+    primaryCta: 'Export clean client document',
     secondaryCta: 'Keep editing preview',
-    roiAnchor: 'Pro is priced below the cost of one delayed follow-up.',
+    roiAnchor: 'Pro is designed for repeated client delivery workflows.',
   },
   quote_generated: {
     badge: 'Quote ready',
-    headline: 'The quote is ready. Keep the approval path moving.',
-    body: 'Upgrade when you want the approved quote to become a clean invoice and client portal workflow.',
-    primaryCta: 'Unlock quote-to-invoice workflow',
-    secondaryCta: 'Keep preview version',
-    roiAnchor: 'A single approved quote can pay back the workflow.',
+    headline: 'The quote is ready. Keep the approval path organized.',
+    body: 'Upgrade when approved quotes need clean documents, client links, and connected delivery records.',
+    primaryCta: 'Unlock Client Workflow',
+    secondaryCta: 'Keep Preview Version',
+    roiAnchor: 'Use Pro when quote follow-up becomes a repeated workflow.',
   },
   usage_threshold: {
     badge: 'Workflow limit reached',
-    headline: 'You are using Corvioz like a paid workflow now.',
-    body: 'When exports, invoices, and clients repeat, Pro keeps the full system unlocked instead of forcing manual workarounds.',
-    primaryCta: 'Unlock the full workflow',
-    secondaryCta: 'Stay on preview mode',
+    headline: 'Your client workflow is ready for more structure.',
+    body: 'Upgrade when clean exports, client links, and organized delivery records become part of your regular workflow.',
+    primaryCta: 'Upgrade Workspace',
+    secondaryCta: 'Continue Preview',
     roiAnchor: 'Upgrade when repeated delivery costs more time than the plan.',
   },
   client_signal: {
@@ -75,8 +75,8 @@ export function getPaymentTriggerMoment(input: {
 }
 
 export function getPricingAnchorCopy(planId: string): string {
-  if (planId === 'starter') return 'Starter pays for itself when it helps one invoice leave on time.';
+  if (planId === 'starter') return 'Best for organizing early client work with a consistent process.';
   if (planId === 'pro') return 'Pro is the delivery layer after value is already created.';
   if (planId === 'studio') return 'Studio is for teams where client delivery volume already justifies operations.';
-  return 'Free is for proving value before payment.';
+  return 'Best for exploring the workflow before client volume grows.';
 }

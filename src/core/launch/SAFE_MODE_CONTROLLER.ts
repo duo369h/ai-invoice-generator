@@ -1,7 +1,7 @@
 /**
  * Corvioz — Safe Mode Controller (SMC)
  *
- * Ensures the system NEVER breaks a user's core revenue flow during launch.
+ * Ensures the system NEVER breaks a user's core workflow during launch.
  *
  * WHEN any of the following occurs:
  *  - revenue_causality returns null / throws

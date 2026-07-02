@@ -1,11 +1,11 @@
 /**
- * Corvioz — Revenue Semantic Contract
+ * Corvioz — Workflow Semantic Contract
  *
- * Defines the semantic rules that govern Revenue UI consistency.
+ * Defines the semantic rules that govern workflow UI consistency.
  * All rules are enforced by REVENUE_SEMANTIC_VALIDATOR.ts at adapter output time.
  *
  * Principle:
- *   "UI is not allowed to display inconsistent revenue meaning."
+ *   "UI is not allowed to display inconsistent workflow meaning."
  *
  * No UI should ever show a CTA that contradicts the user's funnel stage,
  * or a price that misaligns with their behavioral segment.

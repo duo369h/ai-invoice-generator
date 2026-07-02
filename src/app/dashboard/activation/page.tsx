@@ -31,8 +31,8 @@ interface ActivationAction {
 const ACTIVATION_ACTIONS: ActivationAction[] = [
   {
     id:          'create-invoice',
-    label:       'Create Invoice',
-    description: 'Bill a client and get paid.',
+    label:       'Create Document',
+    description: 'Prepare a client-ready document.',
     route:       '/dashboard?tool=invoice&mode=create',
     primary:     true,
   },

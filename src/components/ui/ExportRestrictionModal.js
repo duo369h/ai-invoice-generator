@@ -74,7 +74,7 @@ export function ExportRestrictionModal({
         <DecisionExplanationPanel
           explanation={explanation}
           intentBreakdown={intentBreakdown}
-          title={isQuote ? "Why am I seeing this quote paywall?" : "Why am I seeing this paywall?"}
+          title={isQuote ? "Why am I seeing this quote prompt?" : "Why am I seeing this prompt?"}
         />
 
         {/* Free vs Pro Comparison */}
@@ -87,7 +87,7 @@ export function ExportRestrictionModal({
           textAlign: 'left'
         }}>
           <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Value already created
+            Workflow fit
           </p>
           
           <div style={{ display: 'grid', gap: '8px', fontSize: '0.82rem' }}>
@@ -102,8 +102,8 @@ export function ExportRestrictionModal({
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Client-Ready</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
-              <span style={{ color: 'var(--text-main)' }}>Repeat {isQuote ? 'quote' : 'invoice'} workflow</span>
-              <span style={{ width: '80px', textAlign: 'center' }}>5 {isQuote ? 'Quotes' : 'Invoices'}</span>
+              <span style={{ color: 'var(--text-main)' }}>Repeat {isQuote ? 'quote' : 'document'} workflow</span>
+              <span style={{ width: '80px', textAlign: 'center' }}>5 {isQuote ? 'Quotes' : 'Documents'}</span>
               <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Unlimited</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -128,7 +128,7 @@ export function ExportRestrictionModal({
         }}>
           <div>
             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>
-              ROI Anchor
+              Workflow fit
             </span>
             <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
               {valueMessage.roiAnchor}

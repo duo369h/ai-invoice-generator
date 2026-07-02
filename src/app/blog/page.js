@@ -23,7 +23,7 @@ export default function BlogIndex() {
         surfaceId="blog-public-header"
         logoSize={22}
         navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
+          { label: 'Documents', href: '/invoice-generator' },
           { label: 'Quotes', href: '/quote-generator' },
           { label: 'Resources', href: '/blog', active: true },
           { label: 'Pricing', href: '/pricing' },
@@ -44,7 +44,7 @@ export default function BlogIndex() {
             Corvioz Blog
           </h1>
           <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', maxWidth: '540px', margin: '0 auto' }}>
-            Guides, blueprints, and workflow templates designed to help independent designers, engineers, and marketers get paid on time.
+            Guides, blueprints, and workflow templates designed to help independent designers, engineers, and marketers organize client work.
           </p>
         </header>
 

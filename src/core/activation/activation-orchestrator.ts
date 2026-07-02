@@ -38,7 +38,7 @@ const PROMPTS: Record<ActivationPrompt, Omit<ActivationFlowResult, 'prompt'>> = 
     action_route: '/dashboard',
   },
   PROMPT_FIRST_INVOICE: {
-    message:      'Create your first invoice and get paid.',
+    message:      'Prepare your first client-ready document.',
     action_route: '/dashboard?tool=invoice&mode=create',
   },
   PROMPT_FIRST_QUOTE: {

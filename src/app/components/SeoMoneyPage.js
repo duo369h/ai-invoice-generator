@@ -83,10 +83,10 @@ export default function SeoMoneyPage({ page }) {
       <section style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '58px 0' }}>
         <div className="container" style={{ maxWidth: '980px', margin: '0 auto', padding: '0 24px' }}>
           <h2 style={{ fontSize: '2rem', marginBottom: '18px' }}>
-            Built for the V1 freelancer billing workflow
+            Built for the V1 freelancer document workflow
           </h2>
           <p style={{ color: 'var(--text-muted)', lineHeight: 1.75, marginBottom: '22px' }}>
-            Corvioz focuses on the parts freelancers need first: quotes, invoices, public profiles, client portals, PDF export, and payment status. Proposal, contract, and tax content stays out of this V1 SEO build until the product surface is ready to support it.
+            Corvioz focuses on the parts freelancers need first: quotes, invoice documents, public profiles, client portals, PDF export, and document status. Proposal, contract, and tax content stays out of this V1 SEO build until the product surface is ready to support it.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
             <Link href="/invoice-template/photographer" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Invoice template examples</Link>
