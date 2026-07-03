@@ -1,17 +1,45 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Script from 'next/script';
 import { ANALYTICS_BUILD_VERSION } from '../lib/analytics';
+import AnalyticsConsentBanner from './AnalyticsConsentBanner';
 
 export default function AnalyticsProvider({ children }) {
   const gaId = process.env.NEXT_PUBLIC_GA_ID;
   const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID;
+
+  const [consent, setConsent] = useState('undecided');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const stored = localStorage.getItem('corvioz_analytics_consent');
+    if (stored === 'accepted' || stored === 'declined') {
+      setConsent(stored);
+    }
+  }, []);
+
+  const handleAccept = () => {
+    localStorage.setItem('corvioz_analytics_consent', 'accepted');
+    document.cookie = 'corvioz_analytics_consent=accepted; path=/; max-age=31536000; SameSite=Lax';
+    setConsent('accepted');
+  };
+
+  const handleDecline = () => {
+    localStorage.setItem('corvioz_analytics_consent', 'declined');
+    document.cookie = 'corvioz_analytics_consent=declined; path=/; max-age=31536000; SameSite=Lax';
+    setConsent('declined');
+  };
+
+  const showBanner = mounted && consent === 'undecided';
+  const analyticsEnabled = mounted && consent === 'accepted';
 
   return (
     <>
       {/* GA4 Integration */}
-      {gaId && (
+      {analyticsEnabled && gaId && (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
@@ -45,7 +73,7 @@ export default function AnalyticsProvider({ children }) {
       )}
 
       {/* Plausible Integration */}
-      {plausibleDomain && (
+      {analyticsEnabled && plausibleDomain && (
         <Script
           data-domain={plausibleDomain}
           src="https://plausible.io/js/script.js"
@@ -53,7 +81,28 @@ export default function AnalyticsProvider({ children }) {
         />
       )}
 
+      {/* Microsoft Clarity Integration */}
+      {analyticsEnabled && clarityId && (
+        <Script id="clarity-init" strategy="afterInteractive">
+          {`
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window,document,"clarity","script","${clarityId}");
+          `}
+        </Script>
+      )}
+
       {children}
+
+      {showBanner && (
+        <AnalyticsConsentBanner
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+        />
+      )}
     </>
   );
 }
+

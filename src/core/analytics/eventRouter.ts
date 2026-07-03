@@ -105,6 +105,14 @@ export function sendEvent(
   rawMetadata: Record<string, any> = {}
 ): void {
   try {
+    // Consent check
+    if (typeof window !== 'undefined') {
+      const consent = localStorage.getItem('corvioz_analytics_consent');
+      if (consent !== 'accepted') {
+        return;
+      }
+    }
+
     // 1. Deduplicate check
     if (isDuplicateEvent(eventName, rawMetadata)) {
       return;

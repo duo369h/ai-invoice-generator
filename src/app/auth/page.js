@@ -89,6 +89,7 @@ export default function AuthPage() {
   const [client, setClient] = useState(null);
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(true);
+  const [cooldown, setCooldown] = useState(0);
 
   const [pendingDraft, setPendingDraft] = useState(null);
   const [identity, setIdentity] = useState(null);
@@ -101,6 +102,14 @@ export default function AuthPage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -162,6 +171,34 @@ export default function AuthPage() {
     return () => clearTimeout(timer);
   }, [router]);
 
+  const handleResendConfirmation = async () => {
+    if (!client || !email.trim() || cooldown > 0) return;
+
+    setIsLoading(true);
+    setStatus('');
+    try {
+      const redirectTarget = readAuthRedirectTarget();
+      const { error } = await client.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`
+        }
+      });
+
+      if (error) {
+        setStatus(`Error resending confirmation: ${error.message} / 发送失败: ${error.message}`);
+      } else {
+        setStatus('Confirmation email resent successfully! Please check your inbox and spam folder. / 确认邮件已重新发送！请检查收件箱与垃圾邮件文件夹。');
+        setCooldown(60);
+      }
+    } catch (err) {
+      setStatus(err.message || 'An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePasswordSignIn = async (event) => {
     event.preventDefault();
     if (!client || !email.trim() || !password) return;
@@ -178,7 +215,11 @@ export default function AuthPage() {
 
       if (error) {
         trackEvent('signup_login_failed', { method: 'password', reason: error.message });
-        setStatus(error.message);
+        if (error.message.toLowerCase().includes('invalid login credentials')) {
+          setStatus('Invalid login credentials. If you just created an account, verify your email first or resend the confirmation email. / 登录凭证无效。如果您刚刚创建了账户，请先验证您的邮箱或重新发送确认邮件。');
+        } else {
+          setStatus(error.message);
+        }
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
         setStatus('Logged in successfully! Redirecting...');
@@ -416,6 +457,30 @@ export default function AuthPage() {
                     {isLoading ? 'Sending...' : 'Send magic link'}
                   </Button>
                 </form>
+              )}
+
+              {email.trim() && (
+                <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={isLoading || cooldown > 0}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      opacity: (isLoading || cooldown > 0) ? 0.6 : 1
+                    }}
+                  >
+                    {cooldown > 0
+                      ? `Resend confirmation email in ${cooldown}s / ${cooldown}秒后可重新发送`
+                      : 'Resend confirmation email / 重新发送确认邮件'}
+                  </button>
+                </div>
               )}
             </>
           )}

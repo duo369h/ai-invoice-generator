@@ -1335,3 +1335,16 @@
   gap: var(--space-6);
   text-align: left;
 }
+
+/* Consent Banner Layout positioning */
+.consent-banner-layout {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+

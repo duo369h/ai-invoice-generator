@@ -62,16 +62,18 @@ export default function OnboardingPage() {
       if (typeof window !== 'undefined' && !window.localStorage.getItem('corvioz_activation')) {
         window.localStorage.setItem('corvioz_dropoff_reason', 'onboarding_friction');
         // Telemetry trigger
-        fetch('/api/product/analytics', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: 'ONBOARDING_DROPOFF',
-            path: '/onboarding',
-            userAgent: 'Browser Onboarding',
-            properties: { reason: 'onboarding_friction', time_spent: 60 }
-          })
-        }).catch(() => {});
+        if (window.localStorage.getItem('corvioz_analytics_consent') === 'accepted') {
+          fetch('/api/product/analytics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'ONBOARDING_DROPOFF',
+              path: '/onboarding',
+              userAgent: 'Browser Onboarding',
+              properties: { reason: 'onboarding_friction', time_spent: 60 }
+            })
+          }).catch(() => {});
+        }
       }
     }, 60000);
 
@@ -150,20 +152,22 @@ export default function OnboardingPage() {
         // Send FIRST_VALUE_CREATED activation event
         const timeToActivation = Math.round((Date.now() - startTimeRef.current) / 1000);
         
-        await fetch('/api/product/analytics', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: 'FIRST_VALUE_CREATED',
-            path: '/onboarding',
-            userAgent: 'Browser Onboarding',
-            properties: {
-              type: selectedAction,
-              time_to_activation: timeToActivation,
-              timestamp: new Date().toISOString()
-            }
-          })
-        });
+        if (typeof window !== 'undefined' && window.localStorage.getItem('corvioz_analytics_consent') === 'accepted') {
+          await fetch('/api/product/analytics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'FIRST_VALUE_CREATED',
+              path: '/onboarding',
+              userAgent: 'Browser Onboarding',
+              properties: {
+                type: selectedAction,
+                time_to_activation: timeToActivation,
+                timestamp: new Date().toISOString()
+              }
+            })
+          }).catch(() => {});
+        }
 
         // Set local state
         if (typeof window !== 'undefined') {

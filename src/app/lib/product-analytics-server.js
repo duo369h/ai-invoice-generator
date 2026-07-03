@@ -1,4 +1,5 @@
 import { createServiceSupabaseClient } from './supabase';
+import { cookies } from 'next/headers';
 
 export const PRODUCT_ANALYTICS_EVENTS = new Set([
   'LANDING_VIEW',
@@ -80,6 +81,19 @@ export async function recordProductAnalyticsEvent({
   source = '',
   properties = {},
 }) {
+  let consentAccepted = false;
+  try {
+    const cookieStore = await cookies();
+    const consent = cookieStore.get('corvioz_analytics_consent')?.value;
+    consentAccepted = consent === 'accepted';
+  } catch (e) {
+    // Ignore error and default to false
+  }
+
+  if (!consentAccepted) {
+    return { stored: false, reason: 'consent_not_accepted' };
+  }
+
   if (!PRODUCT_ANALYTICS_EVENTS.has(eventName)) {
     return { stored: false, reason: 'invalid_event' };
   }
