@@ -8,6 +8,7 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { trackEvent } from '../lib/analytics';
+import { getAuthCallbackUrl } from '../lib/config';
 import {
   isEntryIntendedAction,
   isEntrySelectedPlan,
@@ -182,7 +183,7 @@ export default function AuthPage() {
         type: 'signup',
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`
+          emailRedirectTo: getAuthCallbackUrl(redirectTarget)
         }
       });
 
@@ -260,7 +261,7 @@ export default function AuthPage() {
     const { error } = await client.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+        emailRedirectTo: getAuthCallbackUrl(redirectTarget),
       },
     });
 
@@ -287,7 +288,7 @@ export default function AuthPage() {
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`,
+          redirectTo: getAuthCallbackUrl(redirectTarget),
         },
       });
 

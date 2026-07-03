@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge, Button, Logo } from '../components/UIComponents';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
+import { getAuthCallbackUrl } from '../lib/config';
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ export default function ResetPasswordPage() {
 
     try {
       const { error } = await client.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
+        redirectTo: getAuthCallbackUrl('/update-password'),
       });
 
       if (error) {

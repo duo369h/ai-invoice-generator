@@ -7,6 +7,7 @@ import { Badge, Button, Logo } from '../components/UIComponents';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { trackEvent } from '../lib/analytics';
+import { getAuthCallbackUrl } from '../lib/config';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function SignupPage() {
         email: email.trim(),
         password: password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard')}`,
+          emailRedirectTo: getAuthCallbackUrl('/dashboard'),
         },
       });
 
@@ -93,7 +94,7 @@ export default function SignupPage() {
         type: 'signup',
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard')}`,
+          emailRedirectTo: getAuthCallbackUrl('/dashboard'),
         },
       });
 
@@ -121,7 +122,7 @@ export default function SignupPage() {
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard')}`,
+          redirectTo: getAuthCallbackUrl('/dashboard'),
         },
       });
 
