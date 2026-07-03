@@ -775,6 +775,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
+  const getAuthHeaders = useCallback((token) => {
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
 
 
   const restoreUserIntent = useCallback((userId = null, entryState = 'AUTHENTICATED') => {
