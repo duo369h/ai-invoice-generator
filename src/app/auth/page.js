@@ -223,6 +223,11 @@ export default function AuthPage() {
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
         setStatus('Logged in successfully! Redirecting...');
+        const { data: sessionCheck } = await client.auth.getSession();
+        if (!sessionCheck?.session && !data?.session) {
+          setStatus('Login succeeded, but the browser session was not ready yet. Please try again. / 登录成功，但浏览器会话尚未准备好，请再试一次。');
+          return;
+        }
         router.replace(readAuthRedirectTarget());
       }
     } catch (err) {
