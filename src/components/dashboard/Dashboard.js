@@ -336,6 +336,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [showAdvanced, setShowAdvanced] = useState(() => isAdvancedDashboardTool(initialTool));
   
   const [session, setSession] = useState(null);
+  const sessionRef = useRef(null);
   const [supabaseClient, setSupabaseClient] = useState(undefined);
   const [authChecked, setAuthChecked] = useState(previewMode);
   
@@ -365,6 +366,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     deleteClient,
     saveLead
   } = useDashboardData(mode, session);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const [entitlements, setEntitlements] = useState(() => {
     return { invoice: true, ...getUserEntitlements(user?.plan) };
@@ -1144,7 +1149,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     let cancelled = false;
 
     const hydrateSession = async () => {
-      setAuthChecked(false);
+      if (!sessionRef.current) {
+        setAuthChecked(false);
+      }
       const { data } = await supabaseClient.auth.getSession();
       if (cancelled) return;
 
@@ -1192,7 +1199,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     hydrateSession();
 
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
-      setAuthChecked(false);
+      if (!nextSession && !sessionRef.current) {
+        setAuthChecked(false);
+      }
       setSession(nextSession);
 
       if (nextSession) {

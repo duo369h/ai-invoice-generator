@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
@@ -164,6 +164,7 @@ export function useDashboardData(mode, session = null) {
   const [isLoading, setIsLoading] = useState(isLive);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(isLive);
+  const isInitialLoadRef = useRef(isLive);
 
   const getAuthHeaders = useCallback((token) => {
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -180,7 +181,7 @@ export function useDashboardData(mode, session = null) {
       return { user: null, error: 'no_session' };
     }
 
-    if (isInitialLoad) {
+    if (isInitialLoadRef.current) {
       setIsLoading(true);
     } else {
       setIsRefreshing(true);
@@ -264,8 +265,9 @@ export function useDashboardData(mode, session = null) {
       setIsLoading(false);
       setIsRefreshing(false);
       setIsInitialLoad(false);
+      isInitialLoadRef.current = false;
     }
-  }, [isLive, isInitialLoad, getAuthHeaders]);
+  }, [isLive, getAuthHeaders]);
 
   // Reset demo back to baseline mock data
   const resetDemoData = useCallback(() => {
