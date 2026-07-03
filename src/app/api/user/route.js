@@ -4,6 +4,30 @@ import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validatePlanPayload, validationResponse } from '../../lib/validation';
 
+async function hasBusinessActivation(supabase, userId) {
+  const countRows = async (table) => {
+    const { count, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.warn(`[api/user] Activation count skipped for ${table}:`, error.message);
+      return 0;
+    }
+
+    return count || 0;
+  };
+
+  const [quoteCount, invoiceCount, clientCount] = await Promise.all([
+    countRows('quotes'),
+    countRows('invoices'),
+    countRows('clients'),
+  ]);
+
+  return quoteCount + invoiceCount + clientCount > 0;
+}
+
 export async function GET(request) {
   try {
     const context = await getRequestUser(request);
@@ -25,7 +49,7 @@ export async function GET(request) {
         .eq('user_id', context.user.id)
         .eq('event', 'FIRST_VALUE_CREATED');
 
-      const hasActivated = (activationEventCount || 0) > 0;
+      const hasActivated = (activationEventCount || 0) > 0 || await hasBusinessActivation(context.supabase, context.user.id);
 
       return NextResponse.json({
         id: profile.id,
