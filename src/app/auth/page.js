@@ -208,27 +208,38 @@ export default function AuthPage() {
     sendEvent('SIGNUP_STARTED', { method: 'password', source: 'auth_form' });
 
     try {
-      const { data, error } = await client.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
+      const loginResult = await loginResponse.json().catch(() => ({}));
 
-      if (error) {
-        trackEvent('signup_login_failed', { method: 'password', reason: error.message });
-        if (error.message.toLowerCase().includes('invalid login credentials')) {
+      if (!loginResponse.ok || !loginResult?.session) {
+        const message = loginResult?.error || 'Login failed';
+        trackEvent('signup_login_failed', { method: 'password', reason: message });
+        if (message.toLowerCase().includes('invalid login credentials')) {
           setStatus('Invalid login credentials. If you just created an account, verify your email first or resend the confirmation email. / 登录凭证无效。如果您刚刚创建了账户，请先验证您的邮箱或重新发送确认邮件。');
         } else {
-          setStatus(error.message);
+          setStatus(message);
         }
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
         setStatus('Logged in successfully! Redirecting...');
+        await client.auth.setSession({
+          access_token: loginResult.session.access_token,
+          refresh_token: loginResult.session.refresh_token,
+        });
         const { data: sessionCheck } = await client.auth.getSession();
-        if (!sessionCheck?.session && !data?.session) {
+        if (!sessionCheck?.session) {
           setStatus('Login succeeded, but the browser session was not ready yet. Please try again. / 登录成功，但浏览器会话尚未准备好，请再试一次。');
           return;
         }
-        router.replace(readAuthRedirectTarget());
+        window.location.assign(readAuthRedirectTarget());
       }
     } catch (err) {
       setStatus(err.message || 'An unexpected error occurred.');
