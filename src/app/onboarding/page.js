@@ -40,8 +40,8 @@ export default function OnboardingPage() {
               headers: { Authorization: `Bearer ${data.session.access_token}` }
             });
             if (res.ok) {
-              const isActivated = userData['has' + 'Activated'];
-              if (isActivated) {
+              const userData = await res.json();
+              if (userData?.['has' + 'Activated']) {
                 // If they are already activated, bypass onboarding
                 router.replace('/dashboard');
                 return;
@@ -151,6 +151,24 @@ export default function OnboardingPage() {
       if (res && res.ok) {
         // Send FIRST_VALUE_CREATED activation event
         const timeToActivation = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const activationPayload = {
+          event: 'FIRST_VALUE_CREATED',
+          userId: session.user?.id || null,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            type: selectedAction,
+            time_to_activation: timeToActivation,
+            source: 'onboarding',
+          },
+        };
+
+        await fetch('/api/events/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(activationPayload),
+        }).catch((activationErr) => {
+          console.error('Failed to persist activation event:', activationErr);
+        });
         
         if (typeof window !== 'undefined' && window.localStorage.getItem('corvioz_analytics_consent') === 'accepted') {
           await fetch('/api/product/analytics', {
