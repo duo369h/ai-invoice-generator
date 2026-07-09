@@ -11,6 +11,7 @@ export interface HeaderControlLink {
   href: string;
   active?: boolean;
   onClick?: () => void;
+  children?: HeaderControlLink[];
 }
 
 export interface HeaderControlAction {
@@ -88,6 +89,53 @@ export function GlobalHeaderControlCluster({
         .global-control-menu-trigger {
           display: none;
         }
+        .nav-link-group {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+        }
+        .nav-link-dropdown {
+          position: absolute;
+          top: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%);
+          min-width: 190px;
+          padding: 8px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          background: var(--bg-card);
+          box-shadow: var(--shadow-lg);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 160ms ease, transform 160ms ease;
+          z-index: 50;
+        }
+        .nav-link-group:hover .nav-link-dropdown,
+        .nav-link-group:focus-within .nav-link-dropdown {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateX(-50%) translateY(2px);
+        }
+        .nav-dropdown-link {
+          display: block;
+          padding: 9px 10px;
+          border-radius: 6px;
+          color: var(--text-muted);
+          font-size: 0.84rem;
+          font-weight: 650;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .nav-dropdown-link:hover,
+        .nav-dropdown-link:focus {
+          color: var(--text-main);
+          background: var(--btn-secondary-bg);
+        }
+        .mobile-nav-sublink {
+          padding-left: 18px;
+          font-size: 0.86rem;
+          color: var(--text-muted);
+        }
         @media (max-width: 768px) {
           .global-control-menu-trigger {
             display: inline-flex;
@@ -96,15 +144,30 @@ export function GlobalHeaderControlCluster({
       `}</style>
       <div className="nav-links desktop-only">
         {navLinks.map((link) => (
-          <Link
-            key={`${link.href}-${link.label}`}
-            href={link.href}
-            className="nav-link"
-            style={link.active ? { fontWeight: 700 } : undefined}
-            onClick={link.onClick}
-          >
-            {link.label}
-          </Link>
+          <div className="nav-link-group" key={`${link.href}-${link.label}`}>
+            <Link
+              href={link.href}
+              className="nav-link"
+              style={link.active ? { fontWeight: 700 } : undefined}
+              onClick={link.onClick}
+            >
+              {link.label}
+            </Link>
+            {link.children && link.children.length > 0 && (
+              <div className="nav-link-dropdown" aria-label={`${link.label} links`}>
+                {link.children.map((child) => (
+                  <Link
+                    key={`${child.href}-${child.label}`}
+                    href={child.href}
+                    className="nav-dropdown-link"
+                    onClick={child.onClick}
+                  >
+                    {child.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
         {accountAction && renderAction(accountAction, 'secondary')}
         {primaryAction && renderAction(primaryAction, 'primary')}
@@ -130,17 +193,31 @@ export function GlobalHeaderControlCluster({
       {menuOpen && (
         <div className="mobile-menu-drawer animate-fade-in">
           {navLinks.map((link) => (
-            <Link
-              key={`mobile-${link.href}-${link.label}`}
-              href={link.href}
-              className="mobile-nav-link"
-              onClick={() => {
-                closeMenu();
-                link.onClick?.();
-              }}
-            >
-              {link.label}
-            </Link>
+            <React.Fragment key={`mobile-${link.href}-${link.label}`}>
+              <Link
+                href={link.href}
+                className="mobile-nav-link"
+                onClick={() => {
+                  closeMenu();
+                  link.onClick?.();
+                }}
+              >
+                {link.label}
+              </Link>
+              {link.children?.map((child) => (
+                <Link
+                  key={`mobile-${child.href}-${child.label}`}
+                  href={child.href}
+                  className="mobile-nav-link mobile-nav-sublink"
+                  onClick={() => {
+                    closeMenu();
+                    child.onClick?.();
+                  }}
+                >
+                  {child.label}
+                </Link>
+              ))}
+            </React.Fragment>
           ))}
           {(accountAction || primaryAction) && <div className="mobile-menu-divider" />}
           {accountAction && renderAction(accountAction, 'secondary')}

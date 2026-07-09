@@ -91,12 +91,14 @@ export default function AuthPage() {
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
   const [googleAvailable, setGoogleAvailable] = useState(true);
   const [cooldown, setCooldown] = useState(0);
+  const [authRedirectTarget, setAuthRedirectTarget] = useState('/dashboard');
 
   const [pendingDraft, setPendingDraft] = useState(null);
   const [identity, setIdentity] = useState(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      setAuthRedirectTarget(readAuthRedirectTarget());
       const stored = window.localStorage.getItem('corvioz_identity');
       if (stored && ['starter', 'pro', 'studio'].includes(stored)) {
         setIdentity(stored);
@@ -312,7 +314,7 @@ export default function AuthPage() {
         <Logo size={22} />
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
-          <Button href="/signup" variant="secondary" size="sm">Create Account</Button>
+          <Button href={`/signup?redirect=${encodeURIComponent(authRedirectTarget)}`} variant="secondary" size="sm">Create Account</Button>
         </div>
       </header>
 
@@ -523,7 +525,7 @@ export default function AuthPage() {
 
           <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Don't have an account?{' '}
-            <Link href="/signup" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href={`/signup?redirect=${encodeURIComponent(authRedirectTarget)}`} style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
               Create Account
             </Link>
           </div>

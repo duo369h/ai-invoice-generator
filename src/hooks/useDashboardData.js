@@ -161,7 +161,7 @@ export function useDashboardData(mode, session = null) {
   const [clients, setClients] = useState(() => (isLive ? [] : MOCK_CLIENTS));
   const [cardProfile, setCardProfile] = useState(() => (isLive ? null : MOCK_PROFILE));
 
-  const [isLoading, setIsLoading] = useState(isLive);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(isLive);
   const isInitialLoadRef = useRef(isLive);
@@ -181,17 +181,27 @@ export function useDashboardData(mode, session = null) {
       return { user: null, error: 'no_session' };
     }
 
-    if (isInitialLoadRef.current) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
+    setIsRefreshing(true);
 
     try {
       const authHeaders = getAuthHeaders(token);
 
-      // User details
-      const userRes = await fetch('/api/user', { headers: authHeaders });
+      const [
+        userRes,
+        invRes,
+        cliRes,
+        leadsRes,
+        quotesRes,
+        cpRes
+      ] = await Promise.all([
+        fetch('/api/user', { headers: authHeaders }),
+        fetch('/api/invoices', { headers: authHeaders }),
+        fetch('/api/clients', { headers: authHeaders }),
+        fetch('/api/leads', { headers: authHeaders }),
+        fetch('/api/quotes', { headers: authHeaders }),
+        fetch('/api/card-profile', { headers: authHeaders })
+      ]);
+
       let userData = null;
       if (userRes.ok) {
         userData = await userRes.json();
@@ -204,8 +214,6 @@ export function useDashboardData(mode, session = null) {
         }
       }
 
-      // Invoices
-      const invRes = await fetch('/api/invoices', { headers: authHeaders });
       if (invRes.ok) {
         const invData = await invRes.json();
         const data = invData.data || [];
@@ -215,8 +223,6 @@ export function useDashboardData(mode, session = null) {
         setInvoices([]);
       }
 
-      // Clients
-      const cliRes = await fetch('/api/clients', { headers: authHeaders });
       if (cliRes.ok) {
         const cliData = await cliRes.json();
         const data = cliData.data || [];
@@ -226,8 +232,6 @@ export function useDashboardData(mode, session = null) {
         setClients([]);
       }
 
-      // Leads
-      const leadsRes = await fetch('/api/leads', { headers: authHeaders });
       if (leadsRes.ok) {
         const leadsData = await leadsRes.json();
         const data = leadsData.data || [];
@@ -237,8 +241,6 @@ export function useDashboardData(mode, session = null) {
         setLeads([]);
       }
 
-      // Quotes
-      const quotesRes = await fetch('/api/quotes', { headers: authHeaders });
       if (quotesRes.ok) {
         const quotesData = await quotesRes.json();
         const data = quotesData.data || [];
@@ -248,8 +250,6 @@ export function useDashboardData(mode, session = null) {
         setQuotes([]);
       }
 
-      // Card profile
-      const cpRes = await fetch('/api/card-profile', { headers: authHeaders });
       if (cpRes.ok) {
         const cpData = await cpRes.json();
         setCardProfile(cpData || null);

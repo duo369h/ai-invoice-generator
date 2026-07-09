@@ -8,6 +8,19 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { trackEvent } from '../lib/analytics';
 import { getAuthCallbackUrl } from '../lib/config';
+import { saveIntendedRoute } from '../lib/intent-store';
+
+function safeSignupRedirect(value) {
+  if (!value || typeof value !== 'string') return '/dashboard?tool=quote&mode=create&flow=first-quote';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/dashboard?tool=quote&mode=create&flow=first-quote';
+  return value;
+}
+
+function readSignupRedirectTarget() {
+  if (typeof window === 'undefined') return '/dashboard?tool=quote&mode=create&flow=first-quote';
+  const params = new URLSearchParams(window.location.search);
+  return safeSignupRedirect(params.get('redirect') || params.get('next'));
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -21,11 +34,16 @@ export default function SignupPage() {
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
   const [isSignupSuccess, setIsSignupSuccess] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [signupRedirectTarget, setSignupRedirectTarget] = useState('/dashboard?tool=quote&mode=create&flow=first-quote');
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
     setClient(supabase);
     setHasCheckedConfig(true);
+    const redirectTarget = readSignupRedirectTarget();
+    setSignupRedirectTarget(redirectTarget);
+    saveIntendedRoute(redirectTarget, 'signup_page');
+    window.sessionStorage.setItem('corvioz_signup_started_at', new Date().toISOString());
   }, []);
 
   useEffect(() => {
@@ -59,7 +77,7 @@ export default function SignupPage() {
         email: email.trim(),
         password: password,
         options: {
-          emailRedirectTo: getAuthCallbackUrl('/dashboard'),
+          emailRedirectTo: getAuthCallbackUrl(readSignupRedirectTarget()),
         },
       });
 
@@ -72,7 +90,7 @@ export default function SignupPage() {
         // If Supabase is configured to auto-confirm, we might have an active session right away.
         if (data?.session) {
           setStatus('Account created! Redirecting... / 账户已创建！正在跳转...');
-          router.replace('/dashboard');
+          router.replace(readSignupRedirectTarget());
         } else {
           setIsSignupSuccess(true);
         }
@@ -94,7 +112,7 @@ export default function SignupPage() {
         type: 'signup',
         email: email.trim(),
         options: {
-          emailRedirectTo: getAuthCallbackUrl('/dashboard'),
+          emailRedirectTo: getAuthCallbackUrl(readSignupRedirectTarget()),
         },
       });
 
@@ -122,7 +140,7 @@ export default function SignupPage() {
       const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: getAuthCallbackUrl('/dashboard'),
+          redirectTo: getAuthCallbackUrl(readSignupRedirectTarget()),
         },
       });
 
@@ -144,7 +162,7 @@ export default function SignupPage() {
         <Logo size={22} />
         <div className="nav-links">
           <Link href="/" className="nav-link">Home</Link>
-          <Button href="/auth" variant="secondary" size="sm">Sign In</Button>
+          <Button href={`/auth?redirect=${encodeURIComponent(signupRedirectTarget)}`} variant="secondary" size="sm">Sign In</Button>
         </div>
       </header>
 
@@ -199,7 +217,7 @@ export default function SignupPage() {
                 </Button>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <Button href="/auth" variant="secondary" style={{ flex: 1, fontSize: '0.8rem' }}>
+                  <Button href={`/auth?redirect=${encodeURIComponent(signupRedirectTarget)}`} variant="secondary" style={{ flex: 1, fontSize: '0.8rem' }}>
                     Sign in instead / 直接登录
                   </Button>
                   {isGoogleAuthEnabled && (
@@ -304,7 +322,7 @@ export default function SignupPage() {
           {!isSignupSuccess && (
             <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               Already have an account?{' '}
-              <Link href="/auth" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+              <Link href={`/auth?redirect=${encodeURIComponent(signupRedirectTarget)}`} style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
                 Sign In
               </Link>
             </div>

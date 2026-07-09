@@ -60,6 +60,7 @@ import {
   readEntryRevenueContext,
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
+import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -152,6 +153,27 @@ const getDashboardTabForTool = (tool) => {
   if (tool === 'profile') return 'profile';
   if (['studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool)) return tool;
   return 'quotes';
+};
+
+const shouldOpenQuoteCreateFromRoute = (tool) => {
+  if (tool !== 'quote' || typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'create' || params.get('action') === 'create-quote' || params.get('flow') === 'first-quote';
+};
+
+const isFirstQuoteFlowRoute = () => {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('flow') === 'first-quote';
+};
+
+const readFirstQuoteStartedAt = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const storedIntent = JSON.parse(window.sessionStorage.getItem('corvioz_conversion_intent') || '{}');
+    return storedIntent.created_at || window.sessionStorage.getItem('corvioz_signup_started_at') || null;
+  } catch (_) {
+    return window.sessionStorage.getItem('corvioz_signup_started_at') || null;
+  }
 };
 
 const isAdvancedDashboardTool = (tool) => {
@@ -305,6 +327,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const { isLive, isDemo, isPreview, isReadOnly, isInteractive, isResettable } = useDashboardMode(mode);
   const previewMode = isPreview;
   const initialTool = previewMode ? 'overview' : getInitialDashboardTool(routeInitialTool);
+  const initialQuoteCreateMode = !previewMode && shouldOpenQuoteCreateFromRoute(initialTool);
+  const initialFirstQuoteFlow = !previewMode && isFirstQuoteFlowRoute();
   const hasTrackedDashboardViewRef = useRef(false);
 
   const [kernelUi, setKernelUi] = useState(() => CorviozKernel.compute('dashboard', { activePlan: tierPlan }));
@@ -579,10 +603,66 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [toast, setToast] = useState(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackCategory, setFeedbackCategory] = useState('Dashboard');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
 
   const triggerToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
   }, []);
+
+  const openFeedbackModal = useCallback(() => {
+    sendEvent('beta_feedback_clicked', {
+      source: 'dashboard_sidebar',
+      signed_in: Boolean(sessionRef.current?.user?.email)
+    });
+    setFeedbackError('');
+    setFeedbackModalOpen(true);
+  }, []);
+
+  const submitBetaFeedback = useCallback(async (e) => {
+    e.preventDefault();
+    const message = feedbackMessage.trim();
+    if (!message) {
+      setFeedbackError('Please add a short note before sending.');
+      return;
+    }
+
+    setFeedbackSubmitting(true);
+    setFeedbackError('');
+
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: feedbackCategory,
+          message,
+          priority: 'medium',
+          email: sessionRef.current?.user?.email || '',
+          page_url: typeof window !== 'undefined' ? window.location.href : '/dashboard',
+          source: 'dashboard_sidebar_beta_feedback',
+          plan: user?.plan || 'free'
+        })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || 'Feedback could not be sent.');
+      }
+
+      setFeedbackMessage('');
+      setFeedbackModalOpen(false);
+      triggerToast('Beta feedback sent. Thank you.', 'success');
+    } catch (err) {
+      setFeedbackError(err.message || 'Feedback could not be sent.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }, [feedbackCategory, feedbackMessage, triggerToast, user?.plan]);
 
   const trackDashboardViewOnce = useCallback((props) => {
     if (hasTrackedDashboardViewRef.current) return;
@@ -602,7 +682,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // Visits and local rules removed to maintain pure dumb renderer
 
   // Interactive View Toggles
-  const [quoteView, setQuoteView] = useState(() => initialTool === 'quote' ? 'create' : 'list'); // list, create, edit
+  const [quoteView, setQuoteView] = useState(() => initialQuoteCreateMode ? 'create' : 'list'); // list, create, edit
   const [invoiceView, setInvoiceView] = useState(() => initialTool === 'invoice' ? 'create' : 'list'); // list, create, edit
   const [invoiceFlowStage, setInvoiceFlowStage] = useState(() => initialTool === 'invoice' ? 'create' : 'create');
   const [invoiceFlowLocked, setInvoiceFlowLocked] = useState(() => initialTool === 'invoice');
@@ -613,17 +693,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Quote Editor State
   const [qId, setQId] = useState('');
-  const [qNumber, setQNumber] = useState(() => initialTool === 'quote' ? generateRandomNumberString('QT') : '');
-  const [qClientName, setQClientName] = useState(() => initialTool === 'quote' ? 'Acme Corporation' : '');
-  const [qClientEmail, setQClientEmail] = useState(() => initialTool === 'quote' ? 'client@acme.com' : '');
-  const [qClientAddress, setQClientAddress] = useState(() => initialTool === 'quote' ? '123 Creative Way\nSan Francisco, CA 94107' : '');
-  const [qItems, setQItems] = useState(() => initialTool === 'quote' ? [{ description: 'Brand Design & Front-End Development Services', quantity: 1, unitPrice: 2500 }] : [{ description: '', quantity: 1, unitPrice: 0 }]);
+  const [qNumber, setQNumber] = useState(() => initialQuoteCreateMode ? generateRandomNumberString('QT') : '');
+  const [qClientName, setQClientName] = useState('');
+  const [qClientEmail, setQClientEmail] = useState('');
+  const [qClientAddress, setQClientAddress] = useState('');
+  const [qItems, setQItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
   const [qTaxRate, setQTaxRate] = useState(0);
   const [qDiscountRate, setQDiscountRate] = useState(0);
   const [qCurrency, setQCurrency] = useState('USD');
-  const [qNotes, setQNotes] = useState(() => initialTool === 'quote' ? 'This proposal is valid for 30 days.' : '');
-  const [qDate, setQDate] = useState(() => initialTool === 'quote' ? new Date().toISOString().substring(0, 10) : '');
+  const [qNotes, setQNotes] = useState('');
+  const [qDate, setQDate] = useState(() => initialQuoteCreateMode ? new Date().toISOString().substring(0, 10) : '');
   const [qStatus, setQStatus] = useState('draft');
+  const [selectedQuotePresetId, setSelectedQuotePresetId] = useState('');
+  const [isFirstQuoteFlow, setIsFirstQuoteFlow] = useState(initialFirstQuoteFlow);
 
   // Quote validation states
   const [qClientNameTouched, setQClientNameTouched] = useState(false);
@@ -1161,6 +1243,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (nextSession) {
         setAnalyticsUserId(nextSession.user?.id);
         trackDashboardViewOnce({ auth_state: 'authenticated', user_id: nextSession.user?.id });
+        setAuthChecked(true);
         if (consumeSignupStarted()) {
           setShowActivationGuide(true);
           trackEvent('signup_completed', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
@@ -1168,6 +1251,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
+        if (cancelled) return;
         if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
           router.replace('/onboarding');
           return;
@@ -1188,7 +1272,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         restoreUserIntent(nextSession.user?.id, decision.state);
       } else {
         clearAnalyticsUserId();
-        await fetchData();
+        clearDashboardData();
         redirectToAuth('dashboard_initial_auth_guard');
         return;
       }
@@ -1206,6 +1290,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       if (nextSession) {
         setAnalyticsUserId(nextSession.user?.id);
+        setAuthChecked(true);
         if (_event === 'SIGNED_IN') {
           trackDashboardViewOnce({ auth_state: 'authenticated', auth_event: _event, user_id: nextSession.user?.id });
           if (consumeSignupStarted()) {
@@ -1218,6 +1303,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         }
         const dashboardSnapshot = await fetchData(nextSession.access_token);
+        if (cancelled) return;
         if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
           router.replace('/onboarding');
           return;
@@ -1238,7 +1324,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         restoreUserIntent(nextSession.user?.id, decision.state);
       } else {
         clearAnalyticsUserId();
-        await fetchData();
+        clearDashboardData();
         redirectToAuth('dashboard_session_auth_guard');
         return;
       }
@@ -1249,7 +1335,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       cancelled = true;
       listener?.subscription?.unsubscribe();
     };
-  }, [fetchData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
+  }, [clearDashboardData, fetchData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
 
   useEffect(() => {
     if (previewMode) return;
@@ -1517,39 +1603,33 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setShowLeadModal(true);
   };
 
-  // Quote templates & AI helper definitions
-  const quoteTemplates = {
-    'Web Design': [
-      { description: 'Figma UI/UX Mockup & Interactive Prototypes (Desktop & Mobile)', quantity: 1, unitPrice: 1500 },
-      { description: 'Design tokens compilation & client revision sprints', quantity: 1, unitPrice: 800 }
-    ],
-    'Web Development': [
-      { description: 'Next.js Frontend Architecture & Clean React Setup', quantity: 1, unitPrice: 3200 },
-      { description: 'Database setup & secure API integration endpoints', quantity: 1, unitPrice: 1800 },
-      { description: 'Staging deployment, SEO audits & page speed tuning report', quantity: 1, unitPrice: 1000 }
-    ],
-    'Mobile App': [
-      { description: 'React Native Cross-Platform iOS & Android Core Engineering', quantity: 1, unitPrice: 6500 },
-      { description: 'Push notification services & apple/google store submission support', quantity: 1, unitPrice: 1500 }
-    ],
-    'Consulting': [
-      { description: 'System Architectural Audit & Tech Stack Recommendation Sprints', quantity: 10, unitPrice: 150 }
-    ],
-    'Marketing': [
-      { description: 'SaaS Growth SEO Expansion strategy & Competitor audit report', quantity: 1, unitPrice: 1200 },
-      { description: 'Email copywriting automation & lead capture campaigns setup', quantity: 1, unitPrice: 800 }
-    ],
-    'Design': [
-      { description: 'Corporate Brand Identity System & Logo design files handoff', quantity: 1, unitPrice: 1500 }
-    ]
+  // Quote presets are data records so future verticals can add config without branching UI logic.
+  const handleApplyQuotePreset = (presetId) => {
+    const preset = getPhotographyQuotePresetById(presetId);
+    if (preset) {
+      setSelectedQuotePresetId(preset.id);
+      setQCurrency(preset.defaultCurrency || qCurrency);
+      setQItems(preset.defaultLineItems.map(item => ({ ...item })));
+      setQNotes([
+        `${preset.name} terms`,
+        '',
+        ...preset.defaultContractClauses.map((clause) => `- ${clause}`),
+      ].join('\n'));
+      triggerToast(`Applied "${preset.name}" quote preset.`, 'success');
+      sendEvent('TEMPLATE_VIEWED', {
+        template_type: 'quote_preset',
+        preset_id: preset.id,
+        preset_name: preset.name,
+        source: isFirstQuoteFlow ? 'first_quote_onboarding' : 'quote_create',
+      });
+    }
   };
 
-  const handleApplyQuoteTemplate = (templateName) => {
-    const items = quoteTemplates[templateName];
-    if (items) {
-      setQItems(items.map(item => ({ ...item })));
-      triggerToast(`Applied "${templateName}" template presets!`, 'success');
-    }
+  const handleSkipQuotePreset = () => {
+    setSelectedQuotePresetId('');
+    setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
+    setQNotes('');
+    triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
   };
 
   const handleAiScopeExpansion = () => {
@@ -1558,11 +1638,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     setTimeout(() => {
       setQItems([
-        { description: `Milestone 1: Project Alignment & UI Wireframes for "${quotePrompt}"`, quantity: 1, unitPrice: 1350 },
-        { description: 'Milestone 2: Frontend Engineering & Staging integration', quantity: 1, unitPrice: 1800 },
-        { description: 'Milestone 3: Final handoff, Domain routing & 14-day support', quantity: 1, unitPrice: 1350 }
+        { description: `Shoot planning and client alignment for "${quotePrompt}"`, quantity: 1, unitPrice: 450 },
+        { description: 'Photography shoot coverage', quantity: 1, unitPrice: 1200 },
+        { description: 'Delivery, usage rights, and final image handoff', quantity: 1, unitPrice: 650 }
       ]);
-      setQNotes(`Project Scope details auto-expanded based on specifications: "${quotePrompt}". Term details: Standard 5% late fee policy applies. Active delivery over Net 30.`);
+      setQNotes(`Shoot scope prepared from: "${quotePrompt}". Include deposit terms, delivery timeline, usage rights, and final payment terms before sending.`);
       setIsExpandingQuote(false);
       setQuotePrompt('');
       triggerToast('Scope helper complete. Project milestones and document details have been loaded.', 'success');
@@ -1634,10 +1714,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           }
         }
 
+        const selectedQuotePreset = getPhotographyQuotePresetById(selectedQuotePresetId);
         const notesWithMeta = serializeInvoiceNotes(qNotes, {
           edit_count: currentEditCount,
           comments: existingComments,
-          files: existingFiles
+          files: existingFiles,
+          quote_preset_id: selectedQuotePreset?.id || null,
+          quote_preset_name: selectedQuotePreset?.name || null,
+          workflow_terms: selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []
         });
 
         const payloadWithMeta = {
@@ -1661,10 +1745,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               sandbox: isSandboxMode
             });
           } else {
-            trackEvent('quote_created', { quote_number: qNumber, currency: qCurrency, sandbox: isDemo });
+            trackEvent('quote_created', {
+              quote_number: qNumber,
+              currency: qCurrency,
+              quote_preset_id: selectedQuotePreset?.id || null,
+              quote_preset_name: selectedQuotePreset?.name || null,
+              sandbox: isDemo
+            });
             if (quotes.length === 0) {
               sendEvent('QUOTE_CREATED_INTENT', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
               sendEvent('FIRST_ACTION_TAKEN', { action: 'first_quote_created' });
+              const startedAt = readFirstQuoteStartedAt();
+              const completedAt = new Date().toISOString();
+              const deltaMs = startedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(startedAt)) : null;
+              sendEvent('signup_to_first_quote_completed', {
+                quote_number: qNumber,
+                quote_id: res.data?.id || qId || null,
+                preset_id: selectedQuotePreset?.id || null,
+                preset_name: selectedQuotePreset?.name || 'Blank Quote',
+                started_at: startedAt,
+                completed_at: completedAt,
+                delta_ms: Number.isFinite(deltaMs) ? deltaMs : null,
+                under_10_minutes: Number.isFinite(deltaMs) ? deltaMs <= 10 * 60 * 1000 : null,
+                source: isFirstQuoteFlow ? 'first_quote_onboarding' : 'first_quote_save',
+              });
             }
           }
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
@@ -2385,26 +2489,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const totalVolume = totalPaid + totalPending + totalOverdue;
 
   // Init blank Quote
-  const initCreateQuote = () => {
-    trackEvent('create_quote_click', { source: 'quick_action' });
-    trackEvent('quick_action_click', { action: 'create_quote' });
+  const initCreateQuote = (source = 'quick_action') => {
+    const quoteSource = typeof source === 'string' ? source : 'quick_action';
+    trackEvent('create_quote_click', { source: quoteSource });
+    trackEvent('quick_action_click', { action: 'create_quote', source: quoteSource });
     evaluateAction('create_quote', () => {
       setQId('');
       setQNumber(generateRandomNumberString('QT'));
-      setQClientName('Acme Corporation');
-      setQClientEmail('client@acme.com');
-      setQClientAddress('123 Creative Way\nSan Francisco, CA 94107');
-      setQItems([{ description: 'Brand Design & Front-End Development Services', quantity: 1, unitPrice: 2500 }]);
+      setQClientName('');
+      setQClientEmail('');
+      setQClientAddress('');
+      setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
       setQTaxRate(0);
       setQDiscountRate(0);
       setQCurrency('USD');
-      setQNotes('This proposal is valid for 30 days.');
+      setQNotes('');
       setQDate(getTodayString());
       setQStatus('draft');
+      setSelectedQuotePresetId('');
+      setIsFirstQuoteFlow(quoteSource === 'first_quote_onboarding');
       setQClientNameTouched(false);
       setQClientEmailTouched(false);
       setQSubmitAttempted(false);
-      handleDashboardTabChange('quotes', 'quick_action');
+      handleDashboardTabChange('quotes', quoteSource);
       setQuoteView('create');
     });
   };
@@ -2630,8 +2737,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         <Container className="dashboard-main-content" style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto' }}>
 
           <div>
-            <div className="skeleton animate-pulse" style={{ height: '32px', width: '240px', marginBottom: '8px' }}></div>
-            <div className="skeleton animate-pulse" style={{ height: '16px', width: '400px' }}></div>
+            <div style={{ color: 'var(--primary)', fontSize: '0.72rem', fontWeight: 850, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+              Loading dashboard
+            </div>
+            <div style={{ color: 'var(--text-main)', fontSize: '1.6rem', fontWeight: 900, marginBottom: '8px' }}>
+              Preparing your workspace...
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Checking your session and loading client workflow data.
+            </div>
           </div>
           
           {/* Metrics grid */}
@@ -2809,11 +2923,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Divider & Secondary client portal link */}
             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
             <Link
-              href="/dashboard?tool=client"
+              href="/client-portal"
               onClick={(e) => {
                 e.preventDefault();
                 evaluateAction('client_portal', () => {
-                  handleDashboardTabChange('clients', 'sidebar');
+                  router.push('/client-portal');
                 });
               }}
               style={{
@@ -2842,19 +2956,136 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {/* Footer info */}
         <div className="dashboard-sidebar-footer">
-          <div style={{ marginBottom: '16px' }}>
-            <GlobalHeaderControlCluster
-              compact
-              surfaceId="dashboard-sidebar-control-surface"
-              route="/dashboard"
-              navLinks={[]}
-              primaryAction={null}
-              accountAction={{
-                label: session?.user?.email ? 'Account' : 'Sign in',
-                href: session?.user?.email ? '/dashboard' : '/auth',
-                variant: 'secondary',
-              }}
-            />
+          <div style={{ marginBottom: '16px', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <GlobalHeaderControlCluster
+                compact
+                surfaceId="dashboard-sidebar-control-surface"
+                route="/dashboard"
+                navLinks={[]}
+                primaryAction={null}
+                accountAction={null}
+              />
+              {session?.user?.email ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setAccountMenuOpen((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountMenuOpen}
+                >
+                  Account
+                </button>
+              ) : (
+                <Link href="/auth" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+                  Sign in
+                </Link>
+              )}
+            </div>
+
+            {accountMenuOpen && session?.user?.email && (
+              <div
+                role="menu"
+                aria-label="Account menu"
+                className="card animate-fade-in"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: '42px',
+                  zIndex: 20,
+                  minWidth: '190px',
+                  padding: '8px',
+                  background: 'var(--background-card)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-lg)'
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    handleDashboardTabChange('profile', 'account_menu');
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '9px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    background: 'transparent',
+                    border: 'none',
+                    textAlign: 'left',
+                    fontSize: '0.82rem',
+                    fontWeight: 650,
+                    cursor: 'pointer'
+                  }}
+                >
+                  My Account
+                </button>
+                <Link
+                  href="/pricing"
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  style={{
+                    display: 'block',
+                    padding: '9px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    textDecoration: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: 650
+                  }}
+                >
+                  Billing / Plan
+                </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    handleDashboardTabChange('profile', 'account_menu_settings');
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '9px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    background: 'transparent',
+                    border: 'none',
+                    textAlign: 'left',
+                    fontSize: '0.82rem',
+                    fontWeight: 650,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    handleSignOut();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '9px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    background: 'transparent',
+                    border: 'none',
+                    textAlign: 'left',
+                    fontSize: '0.82rem',
+                    fontWeight: 650,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -2901,8 +3132,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 {kernelUi.cta('pricing_select')}
               </Link>
             )}
-            <a
-              href="mailto:support@corvioz.com?subject=Corvioz%20Beta%20Feedback"
+            <button
+              type="button"
+              onClick={openFeedbackModal}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -2925,7 +3157,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
             >
               Share Beta Feedback
-            </a>
+            </button>
             <p>Logged account:</p>
             <p style={{ color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 }}>
               {session ? session.user.email : 'Not signed in'}
@@ -3334,16 +3566,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {activeTab === 'quotes' && (
           !session && quoteView !== 'create' ? (
-            renderGuestLockState('Proposal Estimates', 'Prepare clear scope, milestones, and client decision paths that can connect to invoice documents.')
+            renderGuestLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.')
           ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Proposal Estimates', 'Prepare clear scope, milestones, and client decision paths that can connect to invoice documents.', 'pro')
+            renderPaidLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.', 'pro')
           ) : (
             <div className="animate-fade-in">
             {quoteView === 'list' && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Proposal Estimates</h1>
-                  <button onClick={initCreateQuote} className="btn btn-primary">Prepare proposal estimate</button>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Quotes</h1>
+                  <button onClick={() => initCreateQuote('quotes_header')} className="btn btn-primary">Create Quote</button>
                 </div>
 
                  {getActiveQuotes().length === 0 ? (
@@ -3351,15 +3583,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Interactive milestone estimates show clear scope breakdown for client review.</p>
+                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Create your first photography quote from a shoot preset.</p>
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Draft custom scope phases, configure options, and email private portal links to clients so they can review and approve them online in one click.
+                      Choose a shoot type, adjust deposit, delivery, usage rights, and final payment details, then save the quote to your client workflow.
                     </p>
-                    <button onClick={initCreateQuote} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      Prepare your first proposal
+                    <button onClick={() => initCreateQuote('first_quote_onboarding')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
+                      Create your first quote
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      Secure workspace. GDPR compliant. Proposals are shared through client-ready URLs.
+                      Start with Wedding Shoot, Portrait Session, Event Photography, Commercial Shoot, or Product Photography.
                     </p>
                   </div>
                 ) : (
@@ -3461,7 +3693,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                    {quoteView === 'create' ? 'Prepare proposal estimate' : `Edit Quote ${qNumber}`}
+                    {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
                   </h2>
                   <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
                 </div>
@@ -3480,25 +3712,35 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 {/* Quick Presets & Scope Helper */}
                 <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Scope Helper & Document Presets
+                    Choose a photography quote preset
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Quickly apply freelancer project templates, or type your project details to prepare milestones, deliverables, document totals, and notes.
+                    Start with a shoot type, or skip presets and build a blank quote. Presets add line items plus deposit, delivery, and usage rights notes.
                   </p>
 
                   {/* Presets Grid */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
-                    {Object.keys(quoteTemplates).map((templateName) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+                    {PHOTOGRAPHY_QUOTE_PRESETS.map((preset) => (
                       <button
-                        key={templateName}
+                        key={preset.id}
                         type="button"
-                        onClick={() => handleApplyQuoteTemplate(templateName)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
+                        onClick={() => handleApplyQuotePreset(preset.id)}
+                        className={selectedQuotePresetId === preset.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
                       >
-                        {templateName} Preset
+                        <strong>{preset.name}</strong>
+                        <span style={{ fontWeight: 500, opacity: 0.82 }}>{preset.description}</span>
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={handleSkipQuotePreset}
+                      className={!selectedQuotePresetId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                      style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
+                    >
+                      <strong>Blank Quote</strong>
+                      <span style={{ fontWeight: 500, opacity: 0.82 }}>Skip presets and enter your own shoot, deposit, delivery, and usage rights details.</span>
+                    </button>
                   </div>
 
                   {/* AI Prompt Input */}
@@ -3507,13 +3749,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Describe your project (e.g. 'SaaS dashboard with Figma UI + client portal + Next.js build')..."
+                        placeholder="Describe your shoot (e.g. 'portrait session with 10 retouched images and gallery delivery')..."
                         value={quotePrompt}
                         onChange={(e) => setQuotePrompt(e.target.value)}
                         style={{ paddingRight: '100px' }}
                       />
                       <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Scope Helper
+                        Shoot Helper
                       </span>
                     </div>
                     <button
@@ -3523,7 +3765,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       className="btn btn-primary btn-sm"
                       style={{ height: '42px', padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      {isExpandingQuote ? 'Preparing...' : 'Prepare Scope'}
+                      {isExpandingQuote ? 'Preparing...' : 'Prepare Shoot Scope'}
                     </button>
                   </div>
                 </div>
@@ -5981,6 +6223,124 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         )}
 
       </Container>
+
+      {feedbackModalOpen && (
+        <div
+          role="presentation"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(3, 7, 18, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="beta-feedback-title"
+            onSubmit={submitBetaFeedback}
+            className="card animate-fade-in"
+            style={{
+              width: 'min(100%, 520px)',
+              padding: '28px',
+              background: 'var(--background-card)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
+              <div>
+                <h3 id="beta-feedback-title" style={{ margin: '0 0 8px', fontSize: '1.15rem', fontWeight: 850 }}>
+                  Share Beta Feedback
+                </h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
+                  Tell us what broke, what felt unclear, or what should improve before the beta opens wider.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeedbackModalOpen(false)}
+                aria-label="Close feedback modal"
+                style={{
+                  border: '1px solid var(--border)',
+                  background: 'var(--btn-secondary-bg)',
+                  color: 'var(--text-main)',
+                  borderRadius: '6px',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', fontWeight: 750, color: 'var(--text-soft)' }}>
+              Category
+              <select
+                className="form-select"
+                value={feedbackCategory}
+                onChange={(e) => setFeedbackCategory(e.target.value)}
+              >
+                <option>Dashboard</option>
+                <option>Client Portal</option>
+                <option>Proposal</option>
+                <option>Invoice</option>
+                <option>Pricing</option>
+                <option>Feature Request</option>
+                <option>Bug</option>
+              </select>
+            </label>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', fontWeight: 750, color: 'var(--text-soft)' }}>
+              Feedback
+              <textarea
+                className="form-textarea"
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                placeholder="What happened? What did you expect instead?"
+                rows={5}
+                required
+              />
+            </label>
+
+            {feedbackError && (
+              <div style={{ color: 'var(--danger)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                {feedbackError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setFeedbackModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={feedbackSubmitting}
+              >
+                {feedbackSubmitting ? 'Sending...' : 'Send Feedback'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
 
       {/* Reminder Text Copy Modal */}

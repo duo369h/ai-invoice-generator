@@ -281,7 +281,13 @@ export default function Home() {
             { label: 'Why Corvioz', href: '#why-corvioz' },
             { label: 'How it Works', href: '#how-corvioz-works' },
             { label: 'Pricing', href: '#pricing' },
-            { label: 'Resources', href: '#resources' },
+            {
+              label: 'Resources',
+              href: '#resources',
+              children: [
+                { label: 'For Photographers', href: '/for-photographers' },
+              ],
+            },
             { label: 'Security', href: '/security' },
             { label: 'Help Center', href: '/help' },
           ]}
