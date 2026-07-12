@@ -9,7 +9,7 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState('welcome'); // welcome, form, success
-  const [selectedAction, setSelectedAction] = useState(''); // quote, invoice, client
+  const [selectedAction, setSelectedAction] = useState(''); // quote, client
   const [isLoading, setIsLoading] = useState(false);
   const [client, setClient] = useState(null);
   const [session, setSession] = useState(null);
@@ -36,9 +36,7 @@ export default function OnboardingPage() {
           
           // Verify if they are already activated
           try {
-            const res = await fetch('/api/user', {
-              headers: { Authorization: `Bearer ${data.session.access_token}` }
-            });
+            const res = await fetch('/api/user');
             if (res.ok) {
               const userData = await res.json();
               if (userData?.['has' + 'Activated']) {
@@ -100,10 +98,8 @@ export default function OnboardingPage() {
     setIsLoading(true);
     setStatus('');
 
-    const token = session.access_token;
     const authHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Content-Type': 'application/json'
     };
 
     try {
@@ -114,26 +110,12 @@ export default function OnboardingPage() {
           headers: authHeaders,
           body: JSON.stringify({
             client_name: clientName,
-            items: [{ description: itemDescription || 'Consulting Services', quantity: 1, unitPrice: Number(value || 100) }],
+            items: [{ description: itemDescription || 'Photography Services', quantity: 1, unitPrice: Number(value || 100) }],
             discount_rate: 0,
             tax_rate: 0,
             currency: 'USD',
             notes: 'Generated during onboarding',
             status: 'draft'
-          })
-        });
-      } else if (selectedAction === 'invoice') {
-        res = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({
-            client_name: clientName,
-            items: [{ description: itemDescription || 'Services Rendered', quantity: 1, unitPrice: Number(value || 100) }],
-            discount_rate: 0,
-            tax_rate: 0,
-            currency: 'USD',
-            notes: 'Generated during onboarding',
-            invoice_number: `INV-${Date.now().toString().slice(-6)}`
           })
         });
       } else if (selectedAction === 'client') {
@@ -227,7 +209,7 @@ export default function OnboardingPage() {
 
           {step === 'welcome' && (
             <div className="animate-fade-in">
-              <h1 className="auth-title">Let's set up your workspace</h1>
+              <h1 className="auth-title">Let's set up your account</h1>
               <p className="auth-description">
                 Choose your first milestone path to unlock your freelance dashboard.
               </p>
@@ -260,7 +242,7 @@ export default function OnboardingPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleSelectPath('invoice')}
+                  onClick={() => handleSelectPath('quote')}
                   className="card"
                   style={{
                     padding: '20px',
@@ -275,11 +257,11 @@ export default function OnboardingPage() {
                   onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Create your first Invoice</h3>
-                    <Badge style={{ background: 'var(--secondary)', color: 'var(--white)', border: 'none', fontSize: '0.65rem' }}>RECOMMENDED FOR STUDIOS</Badge>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Quote a shoot, then invoice</h3>
+                    <Badge style={{ background: 'var(--secondary)', color: 'var(--white)', border: 'none', fontSize: '0.65rem' }}>STUDIOS &amp; PHOTOGRAPHERS</Badge>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Generate a billing document to send directly to your clients.
+                    Send a project quote first — your invoice unlocks once the client approves.
                   </p>
                 </button>
 
@@ -312,11 +294,10 @@ export default function OnboardingPage() {
             <div className="animate-fade-in">
               <h1 className="auth-title">
                 {selectedAction === 'quote' && 'Guided Quote Builder'}
-                {selectedAction === 'invoice' && 'Guided Invoice Builder'}
                 {selectedAction === 'client' && 'Client Profile Creator'}
               </h1>
               <p className="auth-description">
-                Provide these minimal details to activate your workspace.
+                Provide these minimal details to activate your dashboard.
               </p>
 
               <form onSubmit={handleGuidedActionSubmit} style={{ marginTop: '24px' }}>
@@ -388,7 +369,7 @@ export default function OnboardingPage() {
                     style={{ flex: 2, textAlign: 'center' }}
                     disabled={isLoading}
                   >
-                    {isLoading ? 'Creating...' : 'Activate Workspace'}
+                    {isLoading ? 'Creating...' : 'Activate Dashboard'}
                   </Button>
                 </div>
               </form>
@@ -400,7 +381,9 @@ export default function OnboardingPage() {
               <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '16px' }}>🎉</span>
               <h1 className="auth-title">Milestone Unlocked!</h1>
               <p className="auth-description" style={{ marginBottom: '32px' }}>
-                Your first {selectedAction} has been successfully created. You are now ready to scale your freelance business.
+                {selectedAction === 'quote'
+                  ? 'Your first quote has been drafted and saved. Head to your dashboard to send it to your client and unlock your invoice.'
+                  : 'Your client profile has been created. You are now ready to manage projects and billing.'}
               </p>
 
               <Button
