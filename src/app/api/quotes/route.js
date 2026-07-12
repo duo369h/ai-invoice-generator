@@ -83,9 +83,16 @@ export async function POST(request) {
     const calculatedTotal = taxableAmount + calculatedTaxAmount;
 
     if (context.mode === 'supabase') {
+      const profileName =
+        context.user.user_metadata?.name ||
+        context.user.user_metadata?.full_name ||
+        context.user.email?.split('@')[0] ||
+        'User';
       const payload = {
         id: id || undefined,
         user_id: context.user.id,
+        _profile_email: context.user.email || '',
+        _profile_name: profileName,
         quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         client_name,
         client_email,

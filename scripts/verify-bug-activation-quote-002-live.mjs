@@ -57,7 +57,10 @@ try {
   const newUser = await createVerifiedUser('new');
   createdUserIds.push(newUser.id);
 
-  const newQuote = await claimQuote(newUser, payload('NEW'));
+  const newQuote = await claimQuote(newUser, payload('NEW', {
+    _profile_email: newUser.email,
+    _profile_name: 'New Activation QA',
+  }));
   assert.ok(newQuote?.id, 'brand-new verified Free user must receive a quote from the RPC');
 
   const { data: newProfile, error: newProfileError } = await supabase
@@ -87,6 +90,8 @@ try {
   if (existingProfileError) throw existingProfileError;
 
   const existingQuote = await claimQuote(existingUser, payload('EXISTING', {
+    _profile_email: existingUser.email,
+    _profile_name: 'Existing Activation QA',
     subtotal: 'not-a-number',
     discount_rate: 'bad-rate',
     discount_amount: '',
