@@ -544,6 +544,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     activeModal,
     setActiveModal,
     modalProps,
+    setModalProps,
     bannerMessage,
     setBannerMessage
   } = useRevenueAction(user, {

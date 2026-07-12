@@ -6,8 +6,9 @@
 
 import React, { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '../components/UIComponents';
+import { UpgradeModal } from '../../components/ui/UpgradeModal';
 import PublicHeader from '../components/PublicHeader';
 import SharedFooter from '../components/SharedFooter';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
@@ -19,7 +20,7 @@ import { validateUIDecisionIsolation } from 'lib/execution/strict';
 import { getPricingViewModel } from './viewModel';
 import { handleUpgradeCheckout } from './controller';
 import { validatePricingIsolation } from '../../core/pricing/pricingIsolationGuard';
-import { trackIntentAction, getIntentLevel } from 'lib/revenue/intentTracker';
+import { trackIntentAction } from 'lib/revenue/intentTracker';
 import { trackFunnelEvent } from 'lib/revenue/funnelTracker';
 import { getUIInjection } from 'lib/revenue/uiInjection';
 import { getPricingPressure } from 'lib/revenue/pressureEngine';
@@ -288,7 +289,6 @@ function IdentityGate({ onSelect, currentIdentity }) {
 
 function PricingContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const checkoutRestoredRef = useRef(false);
   const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' or 'yearly'
   const [session, setSession] = useState(null);
@@ -297,6 +297,7 @@ function PricingContent() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState(null);
   const { plan: userPlan, isLoading: subLoading, isAuthenticated } = useUserSubscription();
 
   const [identity, setIdentity] = useState(null);
@@ -1078,10 +1079,9 @@ function PricingContent() {
                           return;
                         }
                         if (!['starter', 'pro'].includes(vm.id)) return;
-                        const intentLevel = getIntentLevel();
                         sendEvent('PLAN_SELECTED', { position: 'pricing_page_card', plan: vm.id, planId: vm.id });
                         sendEvent('CHECKOUT_STARTED', { planId: vm.id });
-                        router.push(`/checkout?plan=${vm.id}&intent=${intentLevel.toLowerCase()}`);
+                        setSelectedUpgradePlan(vm.id);
                       }}
                       disabled={checkoutLoading || isCurrentPlan || isStudioUnavailable}
                       variant={isPro ? 'primary' : 'secondary'}
@@ -1125,6 +1125,13 @@ function PricingContent() {
             })}
           </div>
         )}
+
+        <UpgradeModal
+          isOpen={Boolean(selectedUpgradePlan)}
+          onClose={() => setSelectedUpgradePlan(null)}
+          source="pricing_page_card"
+          targetPlan={selectedUpgradePlan || 'pro'}
+        />
 
         {/* Why Corvioz is Safe Trust Module (TASK 2) */}
         {mounted && (
