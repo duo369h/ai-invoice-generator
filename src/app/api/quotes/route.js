@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createSupabasePortalToken, getRequestUser, writeAuditLog, recordServerGrowthEvent, trackProfileMetric } from '../../lib/supabase';
+import { createServiceSupabaseClient, createSupabasePortalToken, getRequestUser, writeAuditLog, recordServerGrowthEvent, trackProfileMetric } from '../../lib/supabase';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { enumValue, validateObject, validateQuotePayload, validationResponse } from '../../lib/validation';
 import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
+import { getFirstRevenueLoopContext } from '../../lib/first-revenue-loop';
+import { canTransitionFirstRevenueQuote } from '../../../core/revenue/firstRevenueLoop';
 
 export async function GET(request) {
   try {
@@ -41,34 +43,18 @@ export async function POST(request) {
     const contextFailure = requestContextResponse(context, 'quotes');
     if (contextFailure) return contextFailure;
 
-    const { ensureProfile } = await import('../../lib/supabase');
-    const profile = await ensureProfile(context.supabase, context.user);
-    const plan = profile?.plan || 'free';
-
-    if (plan === 'free') {
-      // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
-      const { count: activationEventCount } = await context.supabase
-        .from('analytics_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', context.user.id)
-        .eq('event', 'FIRST_VALUE_CREATED');
-
-      const hasActivated = (activationEventCount || 0) > 0;
-
-      if (hasActivated) {
-        const { count, error: countErr } = await context.supabase
-          .from('quotes')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', context.user.id);
-
-        if (!countErr && count !== null && count >= 1) {
-          return NextResponse.json({
-            error: "UPGRADE_REQUIRED",
-            requiredPlan: "starter"
-          }, { status: 403 });
-        }
-      }
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) {
+      return NextResponse.json({ error: 'First revenue loop service is unavailable' }, { status: 503 });
     }
+
+    const { data: profile, error: profileError } = await serviceSupabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', context.user.id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    const plan = profile?.plan || 'free';
 
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
@@ -122,21 +108,52 @@ export async function POST(request) {
         updated_at: new Date().toISOString()
       };
 
-      const result = id
-        ? await context.supabase
+      let firstRevenueLoop = null;
+      if (plan === 'free') {
+        firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
+
+        if (id) {
+          const transition = canTransitionFirstRevenueQuote({
+            plan,
+            loop: firstRevenueLoop.loop,
+            quote: firstRevenueLoop.quote,
+            requestedStatus: status,
+          });
+          if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
+            return NextResponse.json({ error: transition.reason }, { status: 403 });
+          }
+        } else if (!firstRevenueLoop.decision.canCreateQuote) {
+          return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
+        }
+      }
+
+      let data;
+      let error;
+      if (id) {
+        ({ data, error } = await serviceSupabase
           .from('quotes')
           .update(payload)
           .eq('id', id)
           .eq('user_id', context.user.id)
           .select('*')
-          .single()
-        : await context.supabase
+          .single());
+      } else if (plan === 'free') {
+        ({ data, error } = await serviceSupabase.rpc('create_first_revenue_quote', {
+          p_user_id: context.user.id,
+          p_quote: payload,
+        }));
+        if (Array.isArray(data)) data = data[0] || null;
+      } else {
+        ({ data, error } = await serviceSupabase
           .from('quotes')
           .insert(payload)
           .select('*')
-          .single();
+          .single());
+      }
 
-      const { data, error } = result;
+      if (error?.message?.includes('first_revenue_quote_already_claimed') || error?.message?.includes('first_revenue_loop_legacy_blocked')) {
+        return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
+      }
       if (error) throw error;
       let portalToken = '';
       try {
@@ -213,7 +230,26 @@ export async function PATCH(request) {
     }
 
     if (context.mode === 'supabase') {
-      const { data, error } = await context.supabase
+      const profile = await (await import('../../lib/supabase')).ensureProfile(context.supabase, context.user);
+      const plan = profile?.plan || 'free';
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Quote service is unavailable' }, { status: 503 });
+      }
+      if (plan === 'free') {
+        const firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
+        const transition = canTransitionFirstRevenueQuote({
+          plan,
+          loop: firstRevenueLoop.loop,
+          quote: firstRevenueLoop.quote,
+          requestedStatus: status,
+        });
+        if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
+          return NextResponse.json({ error: transition.reason || 'first_revenue_quote_unavailable' }, { status: 403 });
+        }
+      }
+
+      const { data, error } = await serviceSupabase
         .from('quotes')
         .update({ status })
         .eq('id', id)
@@ -274,7 +310,7 @@ export async function PATCH(request) {
 
           if (profile?.email) {
             const { sendQuoteApprovedEmail } = await import('../../lib/email');
-            await sendQuoteApprovedEmail(profile.email, data, profile.name || 'Freelancer');
+            await sendQuoteApprovedEmail(profile.email, data, profile.name || 'Photographer');
           }
         } catch (mailErr) {
           console.error('Failed to trigger Quote Approved email:', mailErr);
