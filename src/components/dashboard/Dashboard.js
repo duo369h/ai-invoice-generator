@@ -2838,76 +2838,49 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
 
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleDashboardTabChange(tab.id, 'sidebar')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    padding: '9px 14px',
-                    borderRadius: '10px',
-                    width: '100%',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    backgroundColor: isActive ? themeBg : 'transparent',
-                    color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                    border: isActive ? `1.5px solid ${themeAccent}` : '1.5px solid transparent',
-                    boxShadow: isActive ? `0 4px 14px ${themeBg}` : 'none',
-                    fontSize: '0.85rem',
-                    fontWeight: isActive ? 600 : 500,
-                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    position: 'relative'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {IconComponent && (
-                      <IconComponent 
-                        size={16} 
-                        strokeWidth={isActive ? 2.5 : 2} 
-                        style={{ 
-                          color: isActive ? themeAccent : 'currentColor',
-                          opacity: isActive ? 1 : 0.65,
-                          transition: 'color 0.25s' 
-                        }} 
-                      />
-                    )}
-                    <span style={{ transition: 'color 0.25s' }}>{tab.label}</span>
-                  </div>
-                </button>
+                <React.Fragment key={tab.id}>
+                  {tab.sectionBefore && <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />}
+                  <button
+                    onClick={() => handleDashboardTabChange(tab.id, 'sidebar')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      padding: '9px 14px',
+                      borderRadius: '10px',
+                      width: '100%',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      backgroundColor: isActive ? themeBg : 'transparent',
+                      color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
+                      border: isActive ? `1.5px solid ${themeAccent}` : '1.5px solid transparent',
+                      boxShadow: isActive ? `0 4px 14px ${themeBg}` : 'none',
+                      fontSize: '0.85rem',
+                      fontWeight: isActive ? 600 : 500,
+                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {IconComponent && (
+                        <IconComponent
+                          size={16}
+                          strokeWidth={isActive ? 2.5 : 2}
+                          style={{
+                            color: isActive ? themeAccent : 'currentColor',
+                            opacity: isActive ? 1 : 0.65,
+                            transition: 'color 0.25s'
+                          }}
+                        />
+                      )}
+                      <span style={{ transition: 'color 0.25s' }}>{tab.label}</span>
+                    </div>
+                  </button>
+                </React.Fragment>
               );
             })}
 
-            {/* Advanced Toggle */}
-            <button
-              onClick={() => {
-                setShowAdvanced(!showAdvanced);
-                trackEvent('dashboard_advanced_toggle', { open: !showAdvanced });
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                cursor: 'pointer',
-                backgroundColor: 'var(--btn-secondary-bg)',
-                color: 'var(--text-muted)',
-                border: '1px dashed var(--border)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                marginTop: '6px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Client Portal
-            </Link>
-
-            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
             <Link
               href="/client-portal"
               onClick={(e) => {
@@ -2916,6 +2889,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   router.push('/client-portal');
                 });
               }}
+              aria-label="Client Portal: external pages shared with clients"
+              title="External pages shared with clients"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -2931,6 +2906,54 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 textDecoration: 'none',
+                transition: 'var(--transition)'
+              }}
+            >
+              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              Client Portal
+            </Link>
+
+            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
+            <button
+              type="button"
+              onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8.5px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                transition: 'var(--transition)'
+              }}
+            >
+              <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDashboardTabChange('profile', 'sidebar_account')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8.5px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 500,
                 transition: 'var(--transition)'
               }}
             >
