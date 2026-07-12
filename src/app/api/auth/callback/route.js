@@ -40,6 +40,32 @@ function getCookieOptions(request) {
   return options;
 }
 
+function getExistingChunkNames(request, storageKey) {
+  return request.cookies
+    .getAll()
+    .map((cookie) => cookie.name)
+    .filter((name) => name.startsWith(`${storageKey}.`) && /^\d+$/.test(name.slice(`${storageKey}.`.length)));
+}
+
+function writeSessionCookies(response, request, storageKey, session, cookieOptions) {
+  const value = encodeURIComponent(JSON.stringify(session));
+  const chunkSize = 3800;
+  const chunkCount = Math.ceil(value.length / chunkSize);
+
+  response.cookies.set(storageKey, '', { ...cookieOptions, maxAge: 0 });
+  for (let index = 0; index < chunkCount; index += 1) {
+    response.cookies.set(
+      `${storageKey}.${index}`,
+      value.slice(index * chunkSize, (index + 1) * chunkSize),
+      cookieOptions
+    );
+  }
+
+  getExistingChunkNames(request, storageKey)
+    .filter((name) => Number(name.slice(`${storageKey}.`.length)) >= chunkCount)
+    .forEach((name) => response.cookies.set(name, '', { ...cookieOptions, maxAge: 0 }));
+}
+
 function serializeForScript(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
@@ -116,7 +142,7 @@ export async function GET(request) {
   }
 
   const response = createRedirectWithBrowserPersistence(next, storageKey, data.session);
-  response.cookies.set(storageKey, JSON.stringify(data.session), cookieOptions);
+  writeSessionCookies(response, request, storageKey, data.session, cookieOptions);
 
   return response;
 }

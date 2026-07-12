@@ -54,6 +54,39 @@ function getSupabaseAuthStorageKey() {
   return `sb-${projectRef}-auth-token`;
 }
 
+function parseCookieHeader(headerValue = '') {
+  return headerValue
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const separator = part.indexOf('=');
+      if (separator === -1) return cookies;
+      cookies.set(part.slice(0, separator), part.slice(separator + 1));
+      return cookies;
+    }, new Map());
+}
+
+function getRequestCookie(request, name) {
+  const nextCookie = request.cookies.get(name)?.value;
+  if (nextCookie) return nextCookie;
+  return parseCookieHeader(request.headers.get('cookie') || '').get(name) || null;
+}
+
+function getStoredAuthSession(request, storageKey) {
+  const directCookie = getRequestCookie(request, storageKey);
+  if (directCookie) return decodeURIComponent(directCookie);
+
+  const chunks = [];
+  for (let index = 0; ; index += 1) {
+    const chunk = getRequestCookie(request, `${storageKey}.${index}`);
+    if (!chunk) break;
+    chunks.push(chunk);
+  }
+
+  return chunks.length > 0 ? decodeURIComponent(chunks.join('')) : null;
+}
+
 function createMiddlewareSupabaseClient(request) {
   const storageKey = getSupabaseAuthStorageKey();
   if (!isSupabaseConfigured() || !storageKey) return null;
@@ -68,7 +101,7 @@ function createMiddlewareSupabaseClient(request) {
         detectSessionInUrl: false,
         storageKey,
         storage: {
-          getItem: (key) => request.cookies.get(key)?.value ?? null,
+          getItem: (key) => key === storageKey ? getStoredAuthSession(request, storageKey) : null,
           setItem: () => {},
           removeItem: () => {},
         },

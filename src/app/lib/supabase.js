@@ -8,26 +8,93 @@ export function isSupabaseConfigured() {
   );
 }
 
+function getSupabaseAuthStorageKey() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  const hostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
+  const projectRef = hostname.split('.')[0];
+  return `sb-${projectRef}-auth-token`;
+}
+
+function parseCookieHeader(headerValue = '') {
+  return headerValue
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const separator = part.indexOf('=');
+      if (separator === -1) return cookies;
+      const name = part.slice(0, separator);
+      const value = part.slice(separator + 1);
+      cookies.set(name, value);
+      return cookies;
+    }, new Map());
+}
+
+function getRequestCookie(request, name) {
+  const nextCookie = request.cookies?.get?.(name)?.value;
+  if (nextCookie) return nextCookie;
+
+  const headerCookies = parseCookieHeader(request.headers.get('cookie') || '');
+  return headerCookies.get(name) || null;
+}
+
+function getStoredAuthSession(request, storageKey) {
+  const directCookie = getRequestCookie(request, storageKey);
+  if (directCookie) return decodeURIComponent(directCookie);
+
+  const chunks = [];
+  for (let index = 0; ; index += 1) {
+    const chunk = getRequestCookie(request, `${storageKey}.${index}`);
+    if (!chunk) break;
+    chunks.push(chunk);
+  }
+
+  return chunks.length > 0 ? decodeURIComponent(chunks.join('')) : null;
+}
+
+function getStoredAccessToken(request, storageKey) {
+  const session = getStoredAuthSession(request, storageKey);
+  if (!session) return '';
+
+  try {
+    const parsed = JSON.parse(session);
+    return parsed?.access_token || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 export function createRequestSupabaseClient(request) {
-  if (!isSupabaseConfigured()) return null;
-
-  const authHeader = request.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-
-  if (!token) return null;
+  const storageKey = getSupabaseAuthStorageKey();
+  if (!isSupabaseConfigured() || !storageKey) return null;
+  const accessToken = getStoredAccessToken(request, storageKey);
 
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
+      ...(accessToken
+        ? {
+            global: {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            },
+          }
+        : {}),
       auth: {
-        persistSession: false,
+        persistSession: true,
         autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storageKey,
+        storage: {
+          getItem: (key) => {
+            if (key !== storageKey) return null;
+            return getStoredAuthSession(request, storageKey);
+          },
+          setItem: () => {},
+          removeItem: () => {},
+        },
       },
     }
   );
