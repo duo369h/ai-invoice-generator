@@ -4,17 +4,17 @@ import SharedFooter from '../components/SharedFooter';
 
 export const metadata = {
   title: 'Why Trust Corvioz | Corvioz',
-  description: 'Why freelancers can trust Corvioz with quotes, proposals, client documents, client data, secure checkout, privacy, and product transparency.',
+  description: 'Why freelancers can trust Corvioz with quotes, invoices, client documents, client data, subscription checkout, privacy, and product transparency.',
 };
 
 const trustSections = [
   {
     title: 'Product Philosophy',
-    body: 'Corvioz is built for freelancers who need a focused client workflow: quote the work, clarify the proposal, prepare client documents, and keep the client relationship organized.',
+    body: 'Corvioz is built for freelancers who need a focused client workflow: quote the work, prepare invoices and client documents, and keep the client relationship organized.',
   },
   {
     title: 'Data Ownership',
-    body: 'You own your quotes, proposals, client records, and exported documents. Corvioz exists to help you manage that work, not to take ownership of it.',
+    body: 'You own your quotes, invoices, client records, and exported documents. Corvioz exists to help you manage that work, not to take ownership of it.',
   },
   {
     title: 'Transparency',
@@ -26,7 +26,7 @@ const trustSections = [
   },
   {
     title: 'Security Summary',
-    body: 'Corvioz uses secure web transport, managed authentication, scoped access patterns, and Paddle as the secure checkout provider so freelancers can run client workflows with a clearer trust boundary.',
+    body: 'Corvioz uses secure web transport, managed authentication, and scoped access patterns. Subscriptions are securely handled through Paddle.',
   },
   {
     title: 'Founder Message',
@@ -34,7 +34,7 @@ const trustSections = [
   },
   {
     title: 'Building Corvioz in Public',
-    body: 'Corvioz evolves through real freelancer feedback. Product improvements are driven by customer experience, and transparency is a long-term commitment.',
+    body: 'Corvioz evolves through real photographer feedback. Product improvements are driven by customer experience, and transparency is a long-term commitment.',
   },
   {
     title: 'Our Principles',
@@ -42,7 +42,7 @@ const trustSections = [
   },
   {
     title: 'Help Shape Corvioz',
-    body: 'Send feedback to support@corvioz.com. We listen closely to freelancer questions, workflow friction, and trust concerns as Corvioz improves.',
+    body: 'Send feedback to support@corvioz.com. We listen closely to photographer questions, product friction, and trust concerns as Corvioz improves.',
   },
 ];
 
@@ -57,7 +57,7 @@ export default function TrustPage() {
           Built for freelancers who need clear, trustworthy client work
         </h1>
         <p className="section-lede" style={{ maxWidth: '760px' }}>
-          Corvioz is designed around a simple promise: help freelancers move from client request to quote, proposal, client document, and delivery record without hiding data ownership, plan terms, or privacy terms.
+          Corvioz is designed around a simple promise: help freelancers move from client request to quote, invoice, client document, and delivery record without hiding data ownership, plan terms, or privacy terms.
         </p>
       </section>
 

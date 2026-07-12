@@ -13,20 +13,19 @@ const siteUrl = getSiteUrl();
 
 export const metadata = {
   title: {
-    default: "Corvioz | Freelancer Workflow System",
+    default: "Corvioz | Photography Business Dashboard",
     template: "%s | Corvioz",
   },
   description:
-    "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
+    "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
   keywords: [
-    "corvioz business os",
-    "freelance operating system",
-    "freelance quote generator",
+    "photography business dashboard",
+    "photographer quote generator",
     "invoice creator",
     "invoice generator",
     "quote generator",
     "client portal",
-    "client workflow"
+    "photographer client management"
   ],
   authors: [{ name: "Corvioz Team" }],
   creator: "Corvioz",
@@ -46,9 +45,9 @@ export const metadata = {
   },
   manifest: '/manifest.webmanifest',
   openGraph: {
-    title: "Corvioz | Freelancer Workflow System",
+    title: "Corvioz | Photography Business Dashboard",
     description:
-      "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
+      "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
     url: siteUrl,
     siteName: "Corvioz",
     locale: "en_US",
@@ -64,9 +63,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Corvioz | Freelancer Workflow System",
+    title: "Corvioz | Photography Business Dashboard",
     description:
-      "Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.",
+      "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
     images: ['/twitter-image.png'],
   },
   robots: {

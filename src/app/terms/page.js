@@ -35,7 +35,7 @@ export default function TermsOfService() {
                 2. Description of Service
               </h2>
               <p>
-                Corvioz provides lightweight freelancer business tools. Users can host a public profile, create quotes, create invoices, export PDFs, share client portal links, and track payment status.
+                Corvioz provides lightweight photography business tools. Users can host a Public Profile, create quotes, create invoices, export PDFs, share Client Portal links, and track payment status.
               </p>
             </section>
 
@@ -77,7 +77,7 @@ export default function TermsOfService() {
                 6. Client Documents
               </h2>
               <p>
-                Corvioz helps you create quotes, proposals, client documents, and delivery records. When you choose a paid plan, Paddle securely handles checkout and receipts. Corvioz does not store card details.
+                Corvioz helps you create quotes, invoices, client documents, and delivery records. When you choose a paid plan, subscriptions are securely handled through Paddle. Corvioz does not store card details.
               </p>
             </section>
 

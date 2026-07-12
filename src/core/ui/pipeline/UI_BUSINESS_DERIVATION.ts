@@ -162,7 +162,7 @@ export function deriveBusinessData(data: NormalizedData): DerivedBusinessData {
     },
     {
       id: "profile",
-      title: "Set up your Public Bento Profile",
+      title: "Set up your Public Profile",
       description: "Customize services, availability, and testimonials to capture client inquiries.",
       done: hasProfile,
       actionLabel: "Get Started",

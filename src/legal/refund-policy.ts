@@ -7,7 +7,7 @@ export const refundPolicy = {
     {
       title: 'Refund eligibility',
       body:
-        'You may request a refund within 14 days of the initial paid upgrade if Corvioz does not meet your freelancer billing workflow needs or if a billing error occurred.',
+        'You may request a refund within 14 days of the initial paid upgrade if Corvioz does not meet your photography business needs or if a billing error occurred.',
       items: [
         'The refund window starts on the date the Paddle checkout or paid subscription is completed.',
         'Duplicate payments, accidental upgrades, failed activation, or clear billing errors are eligible for review.',

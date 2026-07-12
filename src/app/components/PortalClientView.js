@@ -163,7 +163,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           }
           return next;
         });
-        triggerToast('Quote approved! The freelancer will be notified shortly (Sandbox Mode).', 'success');
+        triggerToast('Quote approved! The photographer will be notified shortly (Sandbox Mode).', 'success');
         setApproving(false);
       }, 500);
       return;
@@ -182,7 +182,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           quote_id: doc.id,
           quote_number: doc.quote_number
         });
-        triggerToast('Quote approved! The freelancer will be notified shortly.', 'success');
+        triggerToast('Quote approved! The photographer will be notified shortly.', 'success');
       } else {
         const errData = await res.json();
         triggerToast(errData.error || 'Failed to approve quote.', 'error');
@@ -422,7 +422,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
         <div className="card glass-panel" style={{ maxWidth: '400px', textAlign: 'center', padding: '32px' }}>
           <h2 style={{ color: 'var(--danger)', marginBottom: '12px' }}>Access Denied</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-            {error || "We couldn't retrieve the requested document. Please confirm the portal link is correct or contact your freelancer."}
+            {error || "We couldn't retrieve the requested document. Please confirm the portal link is correct or contact your photographer."}
           </p>
           <Link href="/" className="btn btn-primary btn-sm">Return Home</Link>
         </div>
@@ -595,7 +595,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', marginBottom: '32px' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem', fontWeight: 700, padding: '4px 12px', borderRadius: '99px', background: 'var(--primary-glow)', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '8px', border: '1px solid var(--border)' }}>
-              Secure Client Workspace
+              Secure Client Portal
             </div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
               {docType === 'invoice' ? `Invoice #${doc.invoice_number}` : `Quote #${doc.quote_number}`}
@@ -644,8 +644,8 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '0.7rem', color: 'var(--text-soft)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Freelancer</label>
-                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{doc.business_name || 'Independent Freelancer'}</strong>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-soft)', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '2px' }}>Photographer</label>
+                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{doc.business_name || 'Independent Photographer'}</strong>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>{doc.business_email || doc.freelancer_email}</span>
                 </div>
                 
@@ -693,7 +693,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                       <div className="timeline-node completed" />
                       <div className="timeline-content">
                         <span className="timeline-title">Invoice Created</span>
-                        <span className="timeline-desc">Freelancer drafted invoice on {doc.invoice_date || doc.created_at?.substring(0, 10)}</span>
+                        <span className="timeline-desc">Photographer drafted invoice on {doc.invoice_date || doc.created_at?.substring(0, 10)}</span>
                       </div>
                     </div>
                     
@@ -776,7 +776,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     {doc.payment_link 
                       ? 'Review this document using the secure client link.' 
-                      : 'Please contact the freelancer for document instructions, then click the confirmation button to notify them.'}
+                      : 'Please contact the photographer for document instructions, then click the confirmation button to notify them.'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -838,7 +838,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--danger)' }}>Quote Declined</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    You have declined this quote. Please contact the freelancer if you&apos;d like to negotiate revisions.
+                    You have declined this quote. Please contact the photographer if you&apos;d like to negotiate revisions.
                   </p>
                 </div>
               </div>
@@ -858,7 +858,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 </div>
                 
                 <div style={{ textAlign: 'right' }}>
-                  <h4 style={{ margin: 0, color: 'var(--text-main)', fontWeight: 700 }}>{doc.business_name || 'Independent Freelancer'}</h4>
+                  <h4 style={{ margin: 0, color: 'var(--text-main)', fontWeight: 700 }}>{doc.business_name || 'Independent Photographer'}</h4>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{doc.business_email || doc.freelancer_email || ''}</p>
                   <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{doc.business_address || ''}</p>
                 </div>
@@ -921,7 +921,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
               {/* Pricing Adjustments */}
               <div className="printable-sheet-adjustments">
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Freelancer Policy Terms</h4>
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Photographer Policy Terms</h4>
                   <p style={{ margin: 0, lineHeight: 1.5 }}>
                     {doc.notes || 'Terms of delivery Net 30.'}
                   </p>
@@ -976,7 +976,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </svg>
                     <p style={{ margin: '0 0 4px 0', color: 'var(--text-main)', fontSize: '0.85rem', fontWeight: 600 }}>Collaborate directly on this document to clarify scope revisions, request edits, or ask questions inline.</p>
                     <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.45 }}>
-                      Post comments or approval notes below. The freelancer will be notified instantly to keep your project moving forward without email delays.
+                      Post comments or approval notes below. The photographer will be notified instantly to keep your project moving forward without email delays.
                     </p>
                   </div>
                 )}
@@ -1030,7 +1030,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
             color: 'var(--text-muted)'
           }}>
             <p style={{ margin: 0 }}>
-              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz</Link>. Share invoices, proposals, and client updates in one workspace.
+              Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz</Link>. Share invoices, quotes, and client updates in one Client Portal.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem' }}>
               Are you a freelancer? <Link href="/" target="_blank" style={{ color: 'var(--accent)', fontWeight: 650, textDecoration: 'underline' }}>Get your free account</Link>

@@ -126,11 +126,11 @@ export const coreMoneyPages = {
   '/invoice-generator': {
     slug: 'invoice-generator',
     productType: 'invoice',
-    title: 'Invoices for Freelancers',
-    seoTitle: 'Invoices for Freelancers in the US & Canada',
-    description: 'Create professional freelancer invoice documents with client details, line items, taxes, client document links, PDF export, and document status tracking in Corvioz.',
-    h1: 'Invoices for Freelancers',
-    intro: 'Create a clean, client-ready invoice document without a heavy document setup. Corvioz helps freelancers in the US and Canada turn completed work into professional invoice documents with clear line items, invoice terms, and PDF export.',
+    title: 'Invoices for Photographers',
+    seoTitle: 'Invoices for Photographers in the US & Canada',
+    description: 'Create professional photographer invoice documents with client details, line items, taxes, client document links, PDF export, and payment status tracking in Corvioz.',
+    h1: 'Invoices for Photographers',
+    intro: 'Create a clean, client-ready invoice document without a heavy document setup. Corvioz helps photographers in the US and Canada turn completed shoots into professional invoices with clear line items, payment terms, and PDF export.',
     primaryCta: 'Create Invoice',
     primaryHref: '/dashboard?tool=invoice',
     secondaryCta: 'Create Quote First',
@@ -138,12 +138,12 @@ export const coreMoneyPages = {
     useCases: ['Send invoice documents for project milestones', 'Track pending, completed, and overdue invoice documents', 'Attach client document links and export branded PDFs'],
     faq: [
       {
-        question: 'Can I create a freelancer invoice without signing up?',
+        question: 'Can I create a photographer invoice without signing up?',
         answer: 'You can review the invoice workflow, then create an account when you want saved history, profile data, and client-ready records.',
       },
       {
-        question: 'Does this invoice generator support US and Canadian freelancers?',
-        answer: 'Yes. Corvioz is designed around common US and Canadian freelance workflows, including client details, tax fields, PDF export, and invoice notes.',
+        question: 'Does this invoice generator support US and Canadian photographers?',
+        answer: 'Yes. Corvioz is designed around common US and Canadian photography businesses, including client details, tax fields, PDF export, and invoice notes.',
       },
       {
         question: 'Can I add my own client document link?',
@@ -154,11 +154,11 @@ export const coreMoneyPages = {
   '/quote-generator': {
     slug: 'quote-generator',
     productType: 'quote',
-    title: 'Quote Generator for Freelancers',
-    seoTitle: 'Quote Generator for Freelancers | Create Client Estimates',
-    description: 'Create professional freelance quotes and estimates with project scope, milestones, optional services, pricing, and client approval flow.',
-    h1: 'Quote Generator for Freelancers',
-    intro: 'Create a polished quote before the work begins. Corvioz helps freelancers define scope, milestones, pricing, optional add-ons, and terms so clients can understand the offer and approve with confidence.',
+    title: 'Quote Generator for Photographers',
+    seoTitle: 'Quote Generator for Photographers | Create Client Quotes',
+    description: 'Create professional photography quotes with shoot details, deposits, optional services, pricing, usage rights, and client approval.',
+    h1: 'Quote Generator for Photographers',
+    intro: 'Create a polished quote before the shoot begins. Corvioz helps photographers define shoot details, deposits, pricing, optional add-ons, and usage rights so clients can understand the offer and approve with confidence.',
     primaryCta: 'Create Quote',
     primaryHref: '/dashboard?tool=quote',
     secondaryCta: 'Create Invoice After Approval',
@@ -174,8 +174,8 @@ export const coreMoneyPages = {
         answer: 'Yes. Corvioz is built around a quote-to-invoice workflow so approved estimates can become billable invoices.',
       },
       {
-        question: 'Who should use a freelance quote generator?',
-        answer: 'Any freelancer who sells project-based work, retainers, packages, or milestone services can use a quote generator to reduce scope confusion.',
+        question: 'Who should use a photographer quote generator?',
+        answer: 'Any photographer who sells shoots, packages, add-ons, or staged services can use a quote generator to make pricing and usage rights clear.',
       },
     ],
   },
@@ -188,7 +188,7 @@ export function getCoreMoneyPage(pathname) {
 }
 
 const programmaticAudiences = [
-  ['freelancer', 'Freelancer', 'solo freelancers and independent service providers'],
+  ['freelancer', 'Photographer', 'independent photographers and photography businesses'],
   ['contractor', 'Contractor', 'independent contractors and field service providers'],
   ['designer', 'Designer', 'brand, graphic, product, and web designers'],
   ['developer', 'Developer', 'software developers and technical consultants'],
@@ -280,7 +280,7 @@ export const programmaticSeoPaths = coreMoneyPagePaths.flatMap((basePath) =>
 export const matrixSeoTypes = [
   {
     slug: 'freelancer',
-    label: 'Freelancer',
+    label: 'Photographer',
     audience: 'independent freelancers and solo service providers',
     client: 'a growing local business',
     project: 'multi-service client engagement',
@@ -944,11 +944,11 @@ export function buildTemplatePageData(type, industry) {
         href: isInvoice ? seoGrowthRoutes.templates.quote(industry.slug) : seoGrowthRoutes.templates.invoice(industry.slug),
       },
       {
-        title: 'See a freelancer profile example',
+        title: 'See a photographer Public Profile example',
         href: seoGrowthRoutes.profile(),
       },
       {
-        title: 'Read the freelance pricing guide',
+        title: 'Read the photography pricing guide',
         href: seoGrowthRoutes.blog('how-to-price-web-design-projects'),
       },
     ],
@@ -1026,8 +1026,8 @@ export function inferIndustryFromProfile(profile = {}) {
 
 export function buildProfileSeoData(profile = {}) {
   const industry = inferIndustryFromProfile(profile);
-  const name = profile.name || profile.username || 'Independent freelancer';
-  const title = profile.title || `${industry.label} freelancer`;
+  const name = profile.name || profile.username || 'Independent Photographer';
+  const title = profile.title || `${industry.label} photographer`;
   let services = [];
   if (Array.isArray(profile.services)) {
     services = profile.services;
@@ -1043,7 +1043,7 @@ export function buildProfileSeoData(profile = {}) {
 
   return {
     industry,
-    title: `${name} - ${title} | Hire ${industry.label} Freelancers`,
+    title: `${name} - ${title} | Corvioz Public Profile`,
     description,
     serviceNames,
   };
@@ -1085,13 +1085,13 @@ export function isPublicIndexableProfile(profile = {}) {
 
 export function buildProfileFaqItems(profile = {}) {
   const profileSeo = buildProfileSeoData(profile);
-  const name = profile.name || profile.username || 'this freelancer';
+  const name = profile.name || profile.username || 'this photographer';
   return [
     {
       question: `What services does ${name} offer?`,
       answer: profileSeo.serviceNames.length
         ? `${name} offers ${profileSeo.serviceNames.join(', ')} for clients looking for ${profileSeo.industry.singular} support.`
-        : `${name} offers freelance ${profileSeo.industry.singular} services through Corvioz.`,
+        : `${name} offers ${profileSeo.industry.singular} services through Corvioz.`,
     },
     {
       question: `How can I request a quote from ${name}?`,
@@ -1106,6 +1106,6 @@ export function buildProfileFaqItems(profile = {}) {
 
 export const v1SeoRoadmap = [
   'V1: invoice generator, quote generator, selected invoice templates, selected quote templates, public profile SEO basics',
-  'V2: proposal pages and deeper service landing pages',
+  'V2: quote pages and deeper service landing pages',
   'V3: contract, tax, and advanced compliance content',
 ];

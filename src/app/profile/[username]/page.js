@@ -10,7 +10,7 @@ const demoProfile = {
   username: 'demo',
   name: 'Alex Morgan',
   title: 'Independent Brand Designer',
-  bio: 'Alex helps early-stage companies turn unclear positioning into polished brand systems, landing pages, and launch assets. This demo Corvioz profile shows how a public freelancer page can present services, proof, pricing context, and quote requests in one client-ready place.',
+  bio: 'Alex helps clients turn shoot briefs into polished visual work, delivery plans, and clear usage rights. This demo Corvioz Public Profile shows how a photographer can present services, proof, pricing context, and quote requests in one client-ready place.',
   contact_email: 'demo@corvioz.com',
   is_public: true,
   tags: ['brand design', 'landing pages', 'startup launch', 'visual identity'],
@@ -59,8 +59,8 @@ function ensureKeywordRichBio(profile) {
   if (profile.bio && profile.bio.trim().length > 15) {
     return profile.bio;
   }
-  const name = profile.name || 'Freelancer';
-  const title = profile.title || 'Independent Digital Consultant';
+  const name = profile.name || 'Photographer';
+  const title = profile.title || 'Independent Photographer';
   const location = profile.location ? ` based in ${profile.location}` : '';
   
   let servicesText = '';
@@ -69,10 +69,10 @@ function ensureKeywordRichBio(profile) {
   } else if (profile.tags && Array.isArray(profile.tags) && profile.tags.length > 0) {
     servicesText = profile.tags.join(', ');
   } else {
-    servicesText = 'expert digital services';
+    servicesText = 'photography services';
   }
   
-  return `${name} is an experienced ${title}${location}, specializing in end-to-end service delivery including ${servicesText}. View my public portfolio, request pricing estimates, and draft secure project contracts directly.`;
+  return `${name} is an experienced ${title}${location}, specializing in shoots, delivery, and usage rights including ${servicesText}. View this Public Profile, request a quote, and review project details directly.`;
 }
 
 async function getPublicProfile(username, overridePlan) {
@@ -102,8 +102,8 @@ async function getPublicProfile(username, overridePlan) {
       ...demoProfile,
       username: safeUsername,
       name: displayName,
-      title: 'Independent Digital Consultant',
-      bio: `${displayName} is an experienced freelancer specialized in end-to-end service delivery and project scoping. This page demonstrates a premium public freelancer portfolio optimized for client conversion.`,
+      title: 'Independent Photographer',
+      bio: `${displayName} is an experienced photographer specializing in shoot planning, delivery, and clear usage rights. This page demonstrates a premium Public Profile optimized for client conversion.`,
       plan: 'free'
     };
   }
@@ -141,7 +141,7 @@ export async function generateMetadata({ params, searchParams }) {
   if (!profile) {
     return {
       title: 'Profile Not Found | Corvioz',
-      description: 'The requested freelancer profile was not found on Corvioz.',
+      description: 'The requested Public Profile was not found on Corvioz.',
       robots: { index: false, follow: false }
     };
   }
@@ -149,25 +149,23 @@ export async function generateMetadata({ params, searchParams }) {
   const isPaid = profile.plan && ['pro', 'growth', 'studio', 'agency'].includes(profile.plan.toLowerCase());
   const canIndex = isPaid && isPublicIndexableProfile(profile);
   
-  const title = `${profile.name || safeUsername} | Freelancer Profile`;
+  const title = `${profile.name || safeUsername} | Public Profile`;
   const description = profile.bio 
     ? `${profile.bio.slice(0, 150)}${profile.bio.length > 150 ? '...' : ''}`
-    : 'Professional freelancer profile on Corvioz.';
+    : 'Professional photographer Public Profile on Corvioz.';
 
   return {
     title,
     description,
     keywords: [
       `${safeUsername} profile`,
-      'freelancer profile',
-      'freelancer services',
-      'request freelancer quote',
-      'hire freelancer on Corvioz',
-      'expert freelancer services',
-      'hire freelance developer',
-      'hire freelance designer',
-      'contract templates',
-      'freelancer client portal'
+      'photographer profile',
+      'photography services',
+      'request photographer quote',
+      'hire photographer on Corvioz',
+      'professional photography services',
+      'photography agreement templates',
+      'photographer client portal'
     ],
     alternates: { canonical: `/profile/${safeUsername}` },
     openGraph: {

@@ -5,11 +5,11 @@ import SharedFooter from '../components/SharedFooter';
 import PublicHeader from '../components/PublicHeader';
 
 export const metadata = {
-  title: 'Corvioz Freelancer Directory | Find Premium Designers & Developers',
+  title: 'Corvioz Photographer Directory | Find Photography Services',
   description: 'Explore the Corvioz freelance directory. Find verified brand designers, Next.js developers, marketing specialists, fractional CMOs, and copywriters in the US & Canada.',
   alternates: { canonical: '/freelancers' },
   openGraph: {
-    title: 'Corvioz Freelancer Directory | Find Premium Designers & Developers',
+    title: 'Corvioz Photographer Directory | Find Photography Services',
     description: 'Explore the Corvioz freelance directory. Find verified brand designers, Next.js developers, and marketing specialists.',
     url: '/freelancers',
     type: 'website',
@@ -18,22 +18,22 @@ export const metadata = {
 
 const directoryFaq = [
   {
-    q: 'How does the Corvioz Freelancer Directory work?',
-    a: 'Freelancers create a public Bento-grid profile detailing their availability, timezone, portfolio, and fixed-price services. Clients can search the directory, request quotes, and collaborate directly via secure client portals.'
+    q: 'How does the Corvioz Photographer Directory work?',
+    a: 'Freelancers create a Public Profile detailing their availability, timezone, portfolio, and fixed-price services. Clients can search the directory, request quotes, and collaborate directly via secure client portals.'
   },
   {
     q: 'Can I request a custom quote from directory profiles?',
-    a: 'Yes. Every public freelancer profile card has an integrated inquiry form. Clients submit project details which populate directly in the freelancer Leads Inbox.'
+    a: 'Yes. Every Public Profile has an integrated inquiry form. Clients submit project details which populate directly in the photographer’s inquiry inbox.'
   },
   {
     q: 'Does Corvioz handle client payments?',
-    a: 'No. Corvioz is a client workflow workspace for freelancer profiles, quote requests, proposals, and client records. Paid plan checkout is handled securely by Paddle.'
+    a: 'No. Corvioz is a client management dashboard for Public Profiles, quote requests, invoices, and client records. Subscriptions are securely handled through Paddle.'
   }
 ];
 
 export default function FreelancersDirectory({ defaultRole = 'All' }) {
   const isAll = defaultRole === 'All';
-  const label = isAll ? 'Freelancer Directory' : `${defaultRole} Directory`;
+  const label = isAll ? 'Photographer Directory' : `${defaultRole} Directory`;
   const roleSlug = defaultRole.toLowerCase().trim();
 
   // Custom metadata description for specific roles
@@ -75,7 +75,7 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
           {label} is coming soon.
         </h1>
         <p className="section-lede" style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: 1.7 }}>
-          {descriptionText} Corvioz is currently optimizing secure private freelancer profiles, quote generation, client portals, and structured client delivery workflows. Public discovery categories will open next month.
+          {descriptionText} Corvioz is currently optimizing secure Public Profiles, quote generation, Client Portal links, and structured client delivery. Public discovery categories will open next month.
         </p>
         <div className="hero-actions center" style={{ marginTop: '32px' }}>
           <Button href="/dashboard?action=create-profile" variant="primary" size="lg">Build Your Public Profile</Button>
@@ -86,7 +86,7 @@ export default function FreelancersDirectory({ defaultRole = 'All' }) {
       {/* Reusable Category Sub-navigation (Internal Linking Circle) */}
       <section style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', padding: '40px 0' }}>
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '18px', fontWeight: 700 }}>Explore Freelancer Categories</h2>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '18px', fontWeight: 700 }}>Explore Photographer Categories</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
             {['Designers', 'Developers', 'Writers', 'Consultants', 'Marketers'].map((role) => {
               const slug = role.toLowerCase();

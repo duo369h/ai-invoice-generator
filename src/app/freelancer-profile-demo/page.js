@@ -4,9 +4,9 @@ const page = {
   path: '/freelancer-profile-demo',
   analyticsSlug: 'freelancer_profile_demo',
   schemaType: 'ProfilePage',
-  seoTitle: 'Freelancer Profile Demo',
-  description: 'See a freelancer profile demo with services, proof, pricing context, availability, and quote request flow built for the Corvioz freelancer workflow.',
-  h1: 'Freelancer Profile Demo',
+  seoTitle: 'Photographer Public Profile Demo',
+  description: 'See a photographer Public Profile demo with services, proof, pricing context, availability, and a quote request flow built for photography businesses.',
+  h1: 'Photographer Public Profile Demo',
   intro: 'See how a Corvioz public profile can present your services, proof, starting price, availability, and quote request path in one client-ready page before you create your own.',
   previewTitle: 'Profile demo highlights',
   previewItems: [
@@ -32,19 +32,19 @@ const page = {
   ],
   faq: [
     {
-      question: 'What is included in the Corvioz freelancer profile demo?',
-      answer: 'The demo shows a public profile with a freelancer bio, services, proof, portfolio context, starting price, availability, and a quote request path.',
+      question: 'What is included in the Corvioz photographer Public Profile demo?',
+      answer: 'The demo shows a Public Profile with a photographer bio, services, proof, portfolio context, starting price, availability, and a quote request path.',
     },
     {
-      question: 'Can I create my own freelancer profile in Corvioz?',
+      question: 'Can I create my own Public Profile in Corvioz?',
       answer: 'Yes. Start free to create a public profile and connect it to the quote, client document, and client portal workflow.',
     },
     {
       question: 'Is the profile demo the same as a marketplace listing?',
-      answer: 'No. The profile is a client-facing business page for your own workflow. Corvioz focuses on helping freelancers organize quotes, proposals, client documents, and client records.',
+      answer: 'No. The profile is a client-facing business page for your own workflow. Corvioz focuses on helping freelancers organize quotes, invoices, client documents, and client records.',
     },
   ],
-  finalCtaTitle: 'Create your freelancer profile in Corvioz',
+  finalCtaTitle: 'Create your Public Profile in Corvioz',
   finalCtaBody: 'Use the demo as a reference, then create a profile that connects new leads to quotes, client documents, and client records.',
 };
 

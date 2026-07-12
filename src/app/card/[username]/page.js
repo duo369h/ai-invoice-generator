@@ -10,7 +10,7 @@ const demoProfile = {
   username: 'demo',
   name: 'Alex Morgan',
   title: 'Independent Brand Designer',
-  bio: 'Alex helps early-stage companies turn unclear positioning into polished brand systems, landing pages, and launch assets. This demo Corvioz profile shows how a public freelancer page can present services, proof, pricing context, and quote requests in one client-ready place.',
+  bio: 'Alex helps clients turn shoot briefs into polished visual work, delivery plans, and clear usage rights. This demo Corvioz Public Profile shows how a photographer can present services, proof, pricing context, and quote requests in one client-ready place.',
   contact_email: 'demo@corvioz.com',
   is_public: true,
   tags: ['brand design', 'landing pages', 'startup launch', 'visual identity'],
@@ -99,21 +99,21 @@ export async function generateMetadata({ params }) {
   const profile = await getPublicProfile(safeUsername);
   const canIndex = isPublicIndexableProfile(profile);
   const title = canIndex
-    ? `${profile.name} | Corvioz Freelancer Profile`
-    : 'Freelancer Profile | Corvioz';
+    ? `${profile.name} | Corvioz Public Profile`
+    : 'Public Profile | Corvioz';
   const description = canIndex
     ? `${profile.bio.slice(0, 150)}${profile.bio.length > 150 ? '...' : ''}`
-    : 'This Corvioz freelancer profile is not publicly available.';
+    : 'This Corvioz Public Profile is not publicly available.';
 
   return {
     title,
     description,
     keywords: [
-      `${safeUsername || 'freelancer'} profile`,
-      'freelancer profile',
-      'freelancer services',
-      'request freelancer quote',
-      'hire freelancer on Corvioz',
+      `${safeUsername || 'photographer'} profile`,
+      'photographer profile',
+      'photography services',
+      'request photographer quote',
+      'hire photographer on Corvioz',
       'project quote request',
     ],
     alternates: { canonical: `/card/${safeUsername || username}` },

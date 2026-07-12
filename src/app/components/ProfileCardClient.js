@@ -128,7 +128,7 @@ const getAgencyMetrics = (industrySlug) => {
     return [
       { value: '99.2%', label: 'SLA Delivery', desc: 'On-time delivery across all verified milestones.' },
       { value: '85+', label: 'Portals Managed', desc: 'Private client portal hubs operating continuously.' },
-      { value: '24 hrs', label: 'SLA Response Guarantee', desc: 'Direct operations communication guarantee.' }
+      { value: '24 hrs', label: 'Response target', desc: 'Direct client communication target.' }
     ];
   }
 };
@@ -254,7 +254,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
   const handleShareProfile = () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({
-        title: `${profile?.name || profile?.username || 'Freelancer'}'s Public Profile | Corvioz`,
+        title: `${profile?.name || profile?.username || 'Photographer'}'s Public Profile | Corvioz`,
         text: profile?.bio || `Check out ${profile?.name}'s professional services.`,
         url: window.location.href
       }).catch(err => console.log('Share failed:', err));
@@ -357,7 +357,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)' }}>
         <div className="glass-card" style={{ maxWidth: '440px', textAlign: 'center', padding: '32px', border: '1px solid var(--border)' }}>
           <h2 style={{ color: 'var(--danger)', marginBottom: '12px', fontSize: '1.25rem', fontWeight: 700 }}>Profile Not Found</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.9rem', lineHeight: '1.5' }}>The freelancer profile you are looking for does not exist or has been removed.</p>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.9rem', lineHeight: '1.5' }}>The Public Profile you are looking for does not exist or has been removed.</p>
           <Link href="/" className="btn btn-primary" style={{ width: '100%' }}>Go to Homepage</Link>
         </div>
       </div>
@@ -987,7 +987,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
               )}
               <div>
                 <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.5px' }}>{profile.name || profile.username}</span>
-                <span style={{ fontSize: '0.7rem', color: themeStyles.textMuted, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Studio Workspace</span>
+                <span style={{ fontSize: '0.7rem', color: themeStyles.textMuted, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Studio Dashboard</span>
               </div>
             </div>
 
@@ -1038,7 +1038,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                 )}
                 {showFastResponse && (
                   <span style={{ fontSize: '0.62rem', fontWeight: 800, background: 'rgba(6, 182, 212, 0.08)', color: '#06b6d4', border: '1px solid rgba(6, 182, 212, 0.15)', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    ⚡ SLA Guaranteed
+                    ⚡ Response target
                   </span>
                 )}
               </div>
@@ -1114,7 +1114,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Service Groups</h2>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: themeStyles.textMuted }}>Explore our agency specializations and fixed flat-rate workspaces.</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: themeStyles.textMuted }}>Explore our agency specializations and fixed flat-rate client services.</p>
                 </div>
 
                 {/* Service Group filters */}
@@ -1295,7 +1295,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
               <div style={{ marginBottom: '28px' }}>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Our Specialists</h2>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: themeStyles.textMuted }}>
-                  The dedicated professionals driving execution and milestone reviews in your portal workspace.
+                  The dedicated professionals driving execution and milestone reviews in your Client Portal.
                 </p>
               </div>
 
@@ -1741,7 +1741,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
         }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.8rem', color: themeStyles.textSoft, margin: 0 }}>
-              © {new Date().getFullYear()} {profile.name || profile.username}. All rights reserved. Managed with secure Corvioz Workspaces.
+              © {new Date().getFullYear()} {profile.name || profile.username}. All rights reserved. Managed with Corvioz.
             </p>
             {profileConfig.showPoweredByBadge && (
               <div style={{ marginTop: '8px' }}>
@@ -2158,13 +2158,13 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
-                      <strong style={{ color: 'var(--text-soft)' }}>Verified Workspace</strong>
+                      <strong style={{ color: 'var(--text-soft)' }}>Verified Public Profile</strong>
                     </div>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
                       Client testimonials and verified case study references are available upon request.
                     </p>
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', lineHeight: '1.45', margin: '4px 0 0 0' }}>
-                      Submit a project inquiry using the form below to connect directly with the freelancer.
+                      Submit a project inquiry using the form below to connect directly with the photographer.
                     </p>
                   </div>
                 )}
@@ -2243,7 +2243,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
             </div>
             
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px', fontSize: '0.7rem', color: 'var(--text-soft)' }}>
-              🔒 Managed & processed via Corvioz Secure Freelancer Workspaces.
+              🔒 Managed and processed via Corvioz secure photographer tools.
             </div>
           </div>
 
@@ -2394,7 +2394,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                 </div>
                 <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Quote Request Submitted</h4>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.4', margin: 0 }}>
-                  Your quote request has been submitted. The freelancer will review the details and reply with a quote.
+                  Your quote request has been submitted. The photographer will review the details and reply with a quote.
                 </p>
               </div>
             ) : (
@@ -2549,7 +2549,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                 Want a page like this?
               </p>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.3 }}>
-                Build your own freelancer profile card & client portal in 5 minutes.
+                Build your own Public Profile and Client Portal in 5 minutes.
               </p>
               <Link 
                 href="/" 

@@ -5,7 +5,7 @@ import LegalPageMeta from '../components/LegalPageMeta';
 
 export const metadata = {
   title: 'Security Center | Corvioz',
-  description: 'How Corvioz protects freelancer client documents, client data, usage data, authentication, and secure checkout.',
+  description: 'How Corvioz protects photographer client documents, client data, usage data, authentication, and secure checkout.',
 };
 
 const sections = [
@@ -15,11 +15,11 @@ const sections = [
   },
   {
     title: 'Data Security',
-    body: 'Quotes, proposals, client documents, client records, and usage data are stored through managed application infrastructure and protected with access controls appropriate for a SaaS workspace. We treat client workflow data as private business records.',
+    body: 'Quotes, invoices, client documents, client records, and usage data are stored through managed application infrastructure and protected with account-level access controls. We treat client records as private business records.',
   },
   {
     title: 'Authentication',
-    body: 'Corvioz uses a secure login system with managed authentication and session handling. User access is scoped to the signed-in account and workspace context.',
+    body: 'Corvioz uses a secure login system with managed authentication and session handling. User access is scoped to the signed-in account.',
   },
   {
     title: 'Checkout Security',
@@ -44,7 +44,7 @@ export default function SecurityPage() {
         <LegalPageMeta
           badge="Security Center"
           title="How Corvioz protects your client workflow"
-          description="Corvioz is built for freelancers who depend on quotes, proposals, client documents, and client records. This page explains the security practices we use without claiming certifications we have not implemented."
+          description="Corvioz is built for freelancers who depend on quotes, invoices, client documents, and client records. This page explains the privacy practices we use without claiming certifications we have not implemented."
         />
       </section>
 

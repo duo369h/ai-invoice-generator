@@ -5,7 +5,7 @@ const page = {
   analyticsSlug: 'quote_template',
   schemaType: 'CollectionPage',
   seoTitle: 'Free Quote Template for Freelancers',
-  description: 'Use a freelancer quote template to present scope, pricing, timeline, deliverables, assumptions, and a fast path to create quotes in Corvioz.',
+  description: 'Use a photographer quote template to present a shoot, pricing, timeline, deliverables, usage rights, and a fast path to create quotes in Corvioz.',
   h1: 'Free Quote Template for Freelancers',
   intro: 'Turn a client request into a clear quote structure with scope, deliverables, pricing, timeline, assumptions, and next steps. Then create the final quote in Corvioz and keep it ready for invoice conversion.',
   previewTitle: 'Quote template fields',
@@ -32,7 +32,7 @@ const page = {
   ],
   faq: [
     {
-      question: 'What should a freelancer quote template include?',
+      question: 'What should a photographer quote template include?',
       answer: 'It should include client context, project scope, deliverables, pricing, timeline, assumptions, revision limits, validity period, and next steps for approval.',
     },
     {

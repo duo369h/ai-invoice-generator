@@ -303,7 +303,7 @@ const COPY_POOL = {
       cards: {
         free: {
           outcome: 'Spend less time on admin and start pitching projects.',
-          features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
+          features: ['Pitch custom estimates & quotes', 'Share your professional Public Profile', 'Export watermarked proposal documents']
         },
         starter: {
           outcome: 'Organize client delivery and present a polished brand.',
@@ -341,15 +341,15 @@ const COPY_POOL = {
         'Direct client approval workflow',
         'Instant 14-day full refund window'
       ],
-      loadingHeader: 'Setting up your Starter workspace...',
+      loadingHeader: 'Setting up your Starter dashboard...',
       loadingDesc: 'Safe way to organize client work. No setup risk.',
       spinnerSub: 'Opening Starter checkout...'
     },
     dashboard: {
       title: 'Corvioz Starter OS',
-      description: 'Organize client delivery. Create quotes, prepare client documents, and track review status in one simple workspace.',
+      description: 'Organize client delivery. Create quotes, prepare client documents, and track review status in one simple dashboard.',
       badgeLabel: 'Freelancer Mode',
-      nudgeTitle: 'Starter Workspace Ready',
+      nudgeTitle: 'Starter Dashboard Ready',
       nudgeText: 'Pitch estimates and organize your first client workflow without extra complexity.'
     }
   },
@@ -414,7 +414,7 @@ const COPY_POOL = {
       cards: {
         free: {
           outcome: 'Spend less time on admin and start pitching projects.',
-          features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
+          features: ['Pitch custom estimates & quotes', 'Share your professional Public Profile', 'Export watermarked proposal documents']
         },
         starter: {
           outcome: 'Organize client delivery and present a polished brand.',
@@ -469,8 +469,8 @@ const COPY_POOL = {
       headline: 'Run Your Freelance Studio',
       lede: 'A unified command center for client operations. White-label your client delivery portal, display team profiles, showcase outcome case studies, and qualify high-budget inquiries.',
       trustBadge: '🚀 Studio OS Active',
-      trustMicrocopy: 'Enterprise-grade studio infrastructure',
-      trustStripTitle: 'Enterprise-grade infrastructure for studio operations',
+      trustMicrocopy: 'Professional studio client workflow',
+      trustStripTitle: 'Professional infrastructure for studio operations',
       trustStripBullets: [
         'Custom domain white-labeling',
         'Specialist & collaborator rosters',
@@ -521,11 +521,11 @@ const COPY_POOL = {
     pricing: {
       headline: 'Run your freelance studio',
       lede: 'Built for multi-client operations at scale.',
-      kicker: 'ENTERPRISE-GRADE STUDIO INFRASTRUCTURE',
+      kicker: 'STUDIO CLIENT WORKFLOW',
       cards: {
         free: {
           outcome: 'Spend less time on admin and start pitching projects.',
-          features: ['Pitch custom estimates & quotes', 'Share your professional Bento card', 'Export watermarked proposal documents']
+          features: ['Pitch custom estimates & quotes', 'Share your professional Public Profile', 'Export watermarked proposal documents']
         },
         starter: {
           outcome: 'Organize client delivery and present a polished brand.',
@@ -540,7 +540,7 @@ const COPY_POOL = {
           features: ['Brand client workspaces under your custom domain', 'Qualify inbound inquiries with budget filters', 'Present specialist team members to secure larger contracts']
         }
       },
-      trustStripTitle: 'Enterprise-grade infrastructure for studio operations',
+      trustStripTitle: 'Professional infrastructure for studio operations',
       trustStripBullets: [
         'Custom domain white-labeling',
         'Specialist & collaborator rosters',
@@ -548,7 +548,7 @@ const COPY_POOL = {
         'Ledger export for professional accountants'
       ],
       trustBadges: [
-        'Enterprise-grade studio infrastructure',
+        'Professional studio client workflow',
         'Built for multi-client operations',
         'White-labeled client portals',
         'Multi-step budget screening'
@@ -564,15 +564,15 @@ const COPY_POOL = {
         'Inquiry budget threshold qualification'
       ],
       loadingHeader: 'Scaling to Studio infrastructure...',
-      loadingDesc: 'Enterprise-grade studio infrastructure. Built for multi-client operations at scale.',
+      loadingDesc: 'Professional studio client workflow. Built for multi-client operations.',
       spinnerSub: 'Opening Studio checkout...'
     },
     dashboard: {
       title: 'Corvioz Studio OS',
-      description: 'Win clients, generate milestone quotes, send professional invoices, and secure payments in one workspace.',
+      description: 'Win clients, generate milestone quotes, send professional invoices, and track payment status in one dashboard.',
       badgeLabel: 'Business Mode',
-      nudgeTitle: 'Studio Workspace Active',
-      nudgeText: 'Run white-labeled client workspaces, coordinate team lists, and manage multiple operations.'
+      nudgeTitle: 'Studio Dashboard Active',
+      nudgeText: 'Run white-labeled client portals, coordinate team lists, and manage multiple operations.'
     }
   }
 };

@@ -15,14 +15,21 @@ function hashToken(token) {
 }
 
 /**
- * Seeds comprehensive mock data for a newly registered freelancer
+ * Explicit server-only utility for isolated demo accounts.
+ * Never call this from signup or profile creation.
  */
-export async function seedDemoData(supabase, userId, email, name) {
+export async function seedDemoData({ userId, email, name }) {
   try {
+    if (!String(email || '').toLowerCase().endsWith('@example.invalid')) {
+      throw new Error('Demo seed only supports isolated test accounts');
+    }
+
     console.log(`[SEEDING] Initializing demo data seeding for user: ${userId} (${email})`);
-    
-    // Use service role client if available to ensure RLS bypass for seeding setup
-    const seederClient = createServiceSupabaseClient() || supabase;
+
+    const seederClient = createServiceSupabaseClient();
+    if (!seederClient) {
+      throw new Error('Demo seed requires SUPABASE_SERVICE_ROLE_KEY');
+    }
 
     // 1. Check if card profile already exists
     const { data: existingProfile } = await seederClient
@@ -228,7 +235,7 @@ export async function seedDemoData(supabase, userId, email, name) {
           freelancer_id: userId,
           name: 'Marcus Vance',
           email: 'marcus@cloudvent.io',
-          message: 'Hi Alex! I saw your bento portfolio. We are launching a newsletter dashboard next month and need a frontend UI consult. What is your availability like?',
+          message: 'Hi Alex! I saw your Public Profile. We are launching a newsletter dashboard next month and need a frontend UI consult. What is your availability like?',
           status: 'new',
           visitor_ip: '127.0.0.1',
           source_utm: { source: 'bento-profile' }
@@ -251,5 +258,6 @@ export async function seedDemoData(supabase, userId, email, name) {
     
   } catch (err) {
     console.error(`[SEEDING ERROR] Failed to seed demo data:`, err);
+    throw err;
   }
 }

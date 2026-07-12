@@ -40,7 +40,7 @@ function buildJsonLd(page) {
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     url: getSiteUrl(),
-    description: 'Create freelancer profiles, quotes, invoices, and client portals in one workflow.',
+    description: 'Create Public Profiles, quotes, invoices, and Client Portal links for your photography business.',
     offers: {
       '@type': 'Offer',
       price: '0',

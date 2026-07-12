@@ -107,6 +107,10 @@ export const metadata = {
     url: '/for-photographers',
     type: 'website',
   },
+  twitter: {
+    title: pageTitle,
+    description: pageDescription,
+  },
 };
 
 export default function ForPhotographersPage() {

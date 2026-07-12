@@ -1,7 +1,7 @@
 {
-  "name": "Corvioz Freelancer OS",
+  "name": "Corvioz Photography Business Dashboard",
   "short_name": "Corvioz",
-  "description": "Win clients, send invoices, and grow faster with Corvioz Freelancer OS.",
+  "description": "Manage photography quotes, invoices, deposits, delivery, and final payments with Corvioz.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -26,11 +26,11 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    description: 'For freelancers who need a simple, repeatable client delivery workspace.',
+    description: 'For freelancers who need a simple, repeatable client delivery dashboard.',
     price_monthly: 9,
     price_yearly: 7,
     features: [
-      'Client-ready proposals',
+      'Client-ready quotes',
       'Invoice and quote workflow',
       'Basic client delivery controls',
     ],
@@ -42,7 +42,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
     price_monthly: 19,
     price_yearly: 16,
     features: [
-      'Unlimited proposals and profiles',
+      'Unlimited quotes and Public Profiles',
       'Clean PDF export without watermark',
       'Client links and stronger delivery controls',
     ],
@@ -50,11 +50,11 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'studio',
     name: 'Studio',
-    description: 'For small studios that need broader client operations.',
+    description: 'For small studios that need broader client management.',
     price_monthly: 29,
     price_yearly: 24,
     features: [
-      'Studio client workspaces',
+      'Studio client areas',
       'Reusable brand and delivery controls',
       'Priority workflow support',
     ],
@@ -99,7 +99,7 @@ const resources = [
 const faqs = [
   {
     q: 'Why Corvioz instead of invoicing software?',
-    a: 'Corvioz starts before the final document. It helps freelancers create a quote, prepare a proposal, and keep the client workflow organized in one workspace.',
+    a: 'Corvioz starts before the final document. It helps freelancers create a quote, prepare an invoice, and keep client records organized in one dashboard.',
   },
   {
     q: 'Who is Corvioz built for?',
@@ -111,7 +111,7 @@ const faqs = [
   },
   {
     q: 'How are subscription plans handled?',
-    a: 'Secure checkout provider: Paddle. Corvioz does not store card details.',
+    a: 'Subscriptions are securely handled through Paddle. Corvioz does not store card details.',
   },
   {
     q: 'Can I switch plans later?',
@@ -127,7 +127,7 @@ const faqs = [
   },
   {
     q: 'Who owns my data?',
-    a: 'You own your invoices, quotes, proposals, client records, and exported documents. Corvioz does not sell personal data.',
+    a: 'You own your invoices, quotes, client records, and exported documents. Corvioz does not sell personal data.',
   },
   {
     q: 'Can I export my invoices?',
@@ -139,11 +139,11 @@ const faqs = [
   },
   {
     q: 'How is my data protected?',
-    a: 'Corvioz uses Supabase for authentication and database storage, Paddle as the secure checkout provider, and scoped access patterns for account data.',
+    a: 'Corvioz uses Supabase for authentication and database storage, and subscriptions are securely handled through Paddle with scoped account-data access patterns.',
   },
   {
     q: 'Do clients need an account?',
-    a: 'No. Clients can review shared quote, proposal, invoice, and portal links without creating a Corvioz account.',
+    a: 'No. Clients can review shared quote, invoice, and Client Portal links without creating a Corvioz account.',
   },
   {
     q: 'Can I customize invoices?',
@@ -155,14 +155,14 @@ const faqs = [
   },
   {
     q: 'Is Corvioz full accounting software?',
-    a: 'No. Corvioz is a client workflow workspace for quotes, proposals, invoices, and client records. It does not replace bookkeeping or tax software.',
+    a: 'No. Corvioz is a client management dashboard for quotes, invoices, and client records. It does not replace bookkeeping or tax software.',
   },
 ];
 
 const launchWorkflowSteps = [
   { title: 'Capture Request', icon: '01' },
   { title: 'Create Quote', icon: '02' },
-  { title: 'Prepare Proposal', icon: '03' },
+  { title: 'Prepare Quote', icon: '03' },
   { title: 'Manage Delivery', icon: '04' },
 ];
 
@@ -170,22 +170,22 @@ function ProductPreview() {
   const steps = [
     { icon: '01', label: 'Request', text: 'Project scope captured', badge: 'Logged' },
     { icon: '02', label: 'Quote', text: 'Milestone estimate prepared', badge: 'Drafted' },
-    { icon: '03', label: 'Proposal', text: 'Client document delivered', badge: 'Sent' },
+    { icon: '03', label: 'Quote', text: 'Client document delivered', badge: 'Sent' },
     { icon: '04', label: 'Approval', text: 'Client approval captured', badge: 'Approved' },
-    { icon: '05', label: 'Delivery', text: 'Workspace timeline updated', badge: 'Completed', isOutcome: true }
+    { icon: '05', label: 'Delivery', text: 'Client timeline updated', badge: 'Completed', isOutcome: true }
   ];
 
   return (
     <div className="hero-product-card" aria-label="Corvioz product preview">
       <div className="product-topbar">
         <div className="window-dots"><span /><span /><span /></div>
-        <span>workspace / client workflow</span>
+        <span>dashboard / client management</span>
         <span>Live workflow preview</span>
       </div>
       <div className="product-preview-header">
         <div>
           <span className="preview-label">Client delivery flow</span>
-          <h3>Quote to client approval, in one workspace.</h3>
+          <h3>Quote to client approval, in one dashboard.</h3>
         </div>
         <div className="preview-summary-pill">5 steps organized</div>
       </div>
@@ -312,14 +312,14 @@ export default function Home() {
       <header className="landing-hero animate-fade-in">
         <div className="hero-content-center">
           <div className="hero-badge">
-            Freelancer Workflow System
+            Photography Business Dashboard
           </div>
           <h1 className="hero-title">
             Run every client workflow<br />
             <span className="glow-gradient-text">with structure.</span>
           </h1>
           <p className="hero-lede">
-            Corvioz helps independent professionals organize quotes, proposals, client documents, and project records in one focused workspace.
+            Corvioz helps independent professionals organize quotes, invoices, client documents, and project records in one focused dashboard.
           </p>
 
           <div className="hero-actions">
@@ -348,7 +348,7 @@ export default function Home() {
           <div className="hero-social-proof">
             <span>Free to start</span>
             <span>Built for independent professionals</span>
-            <span>Secure checkout provider: Paddle</span>
+            <span>Subscriptions are securely handled through Paddle.</span>
           </div>
         </div>
       </header>
@@ -360,7 +360,7 @@ export default function Home() {
       <section id="how-corvioz-works" className="section section-how-it-works">
         <div className="landing-section-container landing-section-container--narrow u-text-center">
             <p className="section-kicker">How Corvioz Works</p>
-            <p className="section-lede">One workspace for turning client requests into organized documents, approvals, and delivery records.</p>
+            <p className="section-lede">One dashboard for turning client requests into organized documents, approvals, and delivery records.</p>
           <div className="workflow-steps-grid">
             {launchWorkflowSteps.map((step) => (
               <div key={step.title} className="workflow-step-card">
@@ -379,34 +379,34 @@ export default function Home() {
           <div className="section-header">
             <p className="section-kicker">Why Corvioz</p>
             <h2 className="section-title">Built for Independent Freelancers</h2>
-            <p className="section-lede">The simple, professional workspace to handle quotes, proposals, client records, and portfolio delivery without subscription creep.</p>
+            <p className="section-lede">The simple, professional dashboard to handle quotes, invoices, client records, and portfolio delivery without subscription creep.</p>
           </div>
 
           <div className="why-cards-grid">
             <div className="card why-card">
               <h3 className="card-heading">Work more professionally</h3>
               <p className="card-body">
-                Create consistent quotes, proposals, and client documents without rebuilding the same workflow every time.
+                Create consistent quotes, invoices, and client documents without rebuilding the same workflow every time.
               </p>
             </div>
             <div className="card why-card">
               <h3 className="card-heading">Keep client work clear</h3>
               <p className="card-body">
-                Track client records, document status, and project context from one organized workspace.
+                Track client records, document status, and project context from one organized dashboard.
               </p>
             </div>
             <div className="card why-card">
               <h3 className="card-heading">Own your client records</h3>
               <p className="card-body">
-                Your quotes, proposals, client notes, and exported documents remain part of your working archive.
+                Your quotes, invoices, client notes, and exported documents remain part of your working archive.
               </p>
             </div>
           </div>
 
           <div className="trust-badges-row">
-            <span>Secure checkout provider: Paddle</span>
+            <span>Subscriptions are securely handled through Paddle.</span>
             <span className="trust-divider">|</span>
-            <span>GDPR &amp; CCPA Compliant</span>
+            <span>Privacy-focused client data controls</span>
             <span className="trust-divider">|</span>
             <span>Free to try</span>
           </div>
@@ -423,15 +423,15 @@ export default function Home() {
           <div className="section-header u-text-center">
             <p className="section-kicker">Platform Integrity &amp; Previews</p>
             <h2 className="section-title">Verified Visual Previews</h2>
-            <p className="section-lede">Explore the visual structure and interface layouts of the Corvioz workspace. No fake testimonials, no mock logos, just real product outlines.</p>
+            <p className="section-lede">Explore the visual structure and interface layouts of the Corvioz dashboard. No fake testimonials, no mock logos, just real product outlines.</p>
           </div>
 
           <div className="trust-stats-grid">
             <Card className="trust-stat-card">
-              <span className="trust-stat-label trust-stat-label--primary">Freelancer Focus</span>
+              <span className="trust-stat-label trust-stat-label--primary">Photographer Focus</span>
               <h3 className="trust-stat-heading">Built for real freelancers</h3>
               <p className="trust-stat-body">
-                A focused, lightweight workspace built specifically for independent professionals, sole proprietors, and consultants.
+                A focused, lightweight dashboard built specifically for independent professionals, sole proprietors, and consultants.
               </p>
             </Card>
             <Card className="trust-stat-card">
@@ -454,9 +454,9 @@ export default function Home() {
             <div className="product-preview-card">
               <div>
                 <span className="preview-label">Layout 01</span>
-                <h4 className="preview-heading">Freelancer Dashboard</h4>
+                <h4 className="preview-heading">Photography Dashboard</h4>
                 <p className="preview-body">
-                  A focused workspace for project status, active clients, open documents, and delivery outcomes.
+                  A focused dashboard for project status, active clients, open documents, and delivery outcomes.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -481,9 +481,9 @@ export default function Home() {
             <div className="product-preview-card">
               <div>
                 <span className="preview-label">Layout 02</span>
-                <h4 className="preview-heading">Milestone Proposals</h4>
+                <h4 className="preview-heading">Milestone Quotes</h4>
                 <p className="preview-body">
-                  Turn project scope, milestone pricing, and client approval into a clean proposal flow.
+                  Turn project scope, milestone pricing, and client approval into a clear quote flow.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -493,7 +493,7 @@ export default function Home() {
                     <span className="wireframe-bar md w-60"></span>
                   </div>
                   <div className="wireframe-placeholder">
-                    Proposal builder
+                    Quote builder
                   </div>
                   <div className="wireframe-row--interactive">
                     <span className="wireframe-bar sm w-40"></span>
@@ -534,7 +534,7 @@ export default function Home() {
                 <span className="preview-label">Layout 04</span>
                 <h4 className="preview-heading">Client Portal</h4>
                 <p className="preview-body">
-                  Give clients a direct place to review proposals, documents, approvals, and project updates.
+                  Give clients a direct place to review quotes, documents, approvals, and project updates.
                 </p>
               </div>
               <div className="screenshot-window-mockup">
@@ -716,7 +716,7 @@ export default function Home() {
                 &quot;Hi, I&apos;m Duo, the creator of Corvioz. Like many of you, I struggled with bloated, expensive CRM software and accounting tools that assumed I had a finance team.
               </p>
               <p className="transparency-body">
-                We built Corvioz to give freelancers a focused, fast, and beautiful workspace to handle quotes, proposals, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
+                We built Corvioz to give freelancers a focused, fast, and beautiful dashboard to handle quotes, invoices, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
               </p>
               <strong className="transparency-sig">Duo, Founder of Corvioz</strong>
             </div>

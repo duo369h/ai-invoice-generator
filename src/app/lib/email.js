@@ -118,7 +118,7 @@ function emailLayout({ title, previewText, bodyHtml }) {
           <tr>
             <td class="divider" style="border-top: 1px solid #e5e7eb; margin-top: 32px; padding-top: 24px; text-align: center;">
               <p class="footer" style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;">
-                Sent securely by Corvioz &bull; Freelancer Business OS
+                Sent securely by Corvioz &bull; Photography Business Dashboard
               </p>
               <p class="footer" style="font-size: 11px; color: #9ca3af; margin: 0;">
                 If you have questions, please reach out to <a href="mailto:support@corvioz.com" style="color: #4F46E5; text-decoration: none;">support@corvioz.com</a>
@@ -138,7 +138,7 @@ function emailLayout({ title, previewText, bodyHtml }) {
  */
 export function getWelcomeEmailHtml(freelancerName) {
   const title = 'Welcome to Corvioz!';
-  const previewText = 'Your freelancer setup is ready. Let’s organize your client workflow.';
+  const previewText = 'Your photography business setup is ready. Let’s organize your clients, quotes, and invoices.';
   const bodyHtml = `
     <h2 style="font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">Welcome aboard, ${freelancerName}!</h2>
     <p style="margin-top: 0; margin-bottom: 16px;">
@@ -150,7 +150,7 @@ export function getWelcomeEmailHtml(freelancerName) {
     <table border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
       <tr>
         <td style="padding: 0 0 12px 0; font-size: 15px;">
-          <strong>1. Build your Bento Profile:</strong> Customize your services, rates, and timezone at your card page.
+          <strong>1. Build your Public Profile:</strong> Customize your services, rates, and timezone at your card page.
         </td>
       </tr>
       <tr>
@@ -184,7 +184,7 @@ export function getNewLeadEmailHtml(lead, freelancerName) {
   const bodyHtml = `
     <h2 style="font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">Hello ${freelancerName},</h2>
     <p style="margin-top: 0; margin-bottom: 16px;">
-      You have received a new project inquiry from your public Bento profile card:
+      You have received a new project inquiry from your Public Profile:
     </p>
     <div style="background-color: rgba(79, 70, 229, 0.05); border-left: 4px solid #4F46E5; padding: 16px; border-radius: 4px; margin-bottom: 24px;">
       <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>From:</strong> ${lead.name} (${lead.email})</p>
@@ -280,7 +280,7 @@ export function getInvoiceSentEmailHtml(invoice, portalUrl, freelancerName) {
     <p style="margin-bottom: 24px;"><strong>Payment Terms:</strong> ${invoice.payment_terms || 'Net 30'}</p>
 
     <p style="margin-bottom: 24px;">
-      You can view the full interactive portal sheet, print the PDF, and pay online through your secure client workspace link:
+      You can view the full interactive Client Portal, print the PDF, and review payment details through your secure client link:
     </p>
     <div style="text-align: center; margin-bottom: 0;">
       <a href="${portalUrl}" style="background-color: #4F46E5; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">View Invoice Portal</a>
@@ -307,7 +307,7 @@ export function getInvoicePaidEmailHtml(invoice, freelancerName) {
       <p style="margin: 0; font-size: 14px;"><strong>Status:</strong> Paid / Settled</p>
     </div>
     <p style="margin-bottom: 0;">
-      Thank you for your business. The transaction has been recorded in our freelancer accounting history.
+      Thank you for your business. The transaction has been recorded in the photographer’s payment history.
     </p>
   `;
   return emailLayout({ title, previewText, bodyHtml });

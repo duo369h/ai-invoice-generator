@@ -83,15 +83,15 @@ export default function SeoMoneyPage({ page }) {
       <section style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '58px 0' }}>
         <div className="container" style={{ maxWidth: '980px', margin: '0 auto', padding: '0 24px' }}>
           <h2 style={{ fontSize: '2rem', marginBottom: '18px' }}>
-            Built for the V1 freelancer document workflow
+            Built for the V1 photography business
           </h2>
           <p style={{ color: 'var(--text-muted)', lineHeight: 1.75, marginBottom: '22px' }}>
-            Corvioz focuses on the parts freelancers need first: quotes, invoice documents, public profiles, client portals, PDF export, and document status. Proposal, contract, and tax content stays out of this V1 SEO build until the product surface is ready to support it.
+            Corvioz focuses on the parts photographers need first: quotes, invoices, Public Profiles, Client Portals, PDF export, deposit tracking, delivery, and final payments. Contract and tax content stays out of this V1 SEO build until the product surface is ready to support it.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
             <Link href="/invoice-template/photographer" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Invoice template examples</Link>
             <Link href="/quote-template/consultant" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Quote template examples</Link>
-            <Link href="/freelancers" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Freelancer directory</Link>
+            <Link href="/freelancers" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Photographer directory</Link>
             <Link href="/blog/how-to-price-web-design-projects" className="card hover-card" style={{ padding: '18px', textDecoration: 'none' }}>Pricing guide</Link>
           </div>
         </div>

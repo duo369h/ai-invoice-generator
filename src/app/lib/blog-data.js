@@ -51,25 +51,25 @@ export const blogPosts = [
     internalLinks: [
       { title: 'Quote Generator', url: '/quote-generator', desc: 'Create tiered estimates for project-based freelance work.' },
       { title: 'Developer Invoice Template', url: '/invoice-template/developer', desc: 'Itemized milestone document fields for software freelancers.' },
-      { title: 'Freelancer Directory', url: '/freelancers', desc: 'Browse public profile and quote request entry points.' },
+      { title: 'Photographer Directory', url: '/freelancers', desc: 'Browse Public Profile and quote request entry points.' },
     ],
   },
   {
     slug: 'how-to-get-freelance-clients',
     category: 'Freelancing',
     title: 'Dynamic Client Acquisition: Building Inbound Discovery Loops',
-    description: 'Learn how public freelancer profiles, template pages, and quote requests can create a simple inbound discovery loop.',
+    description: 'Learn how photographer Public Profiles, template pages, and quote requests can create a simple inbound discovery loop.',
     date: 'May 28, 2026',
     readTime: '8 min read',
     author: 'Alex Rivera',
     authorRole: 'Full Stack Engineer & Tech Lead',
-    keywords: ['freelance clients', 'freelancer profile', 'inbound freelance leads'],
+    keywords: ['photography clients', 'photographer public profile', 'inbound photography leads'],
     sections: [
       {
         id: 'toc-1',
         heading: '1. The Google SEO Funnel',
         paragraphs: [
-          'Active outbound work can be hard to maintain. Many freelancers use public profiles and template pages so clients can understand their services at the moment they are researching options.',
+          'Active outreach can be hard to maintain. Many photographers use Public Profiles and template pages so clients can understand their services at the moment they are researching options.',
           'When businesses require a specialized contractor, they search for roles, templates, pricing examples, and proof. A focused public profile lets clients understand your services and request a quote without friction.',
         ],
       },
@@ -83,7 +83,7 @@ export const blogPosts = [
     ],
     faq: [
       {
-        question: 'Can a public freelancer profile rank in search?',
+        question: 'Can a photographer Public Profile rank in search?',
         answer: 'Yes, if it has a clear title, service keywords, industry context, useful internal links, and enough public information to satisfy search intent.',
       },
       {
@@ -92,7 +92,7 @@ export const blogPosts = [
       },
     ],
     internalLinks: [
-      { title: 'Freelancer Directory', url: '/freelancers', desc: 'View public profile discovery paths.' },
+      { title: 'Photographer Directory', url: '/freelancers', desc: 'View Public Profile discovery paths.' },
       { title: 'Quote Generator', url: '/quote-generator', desc: 'Create client-ready estimates before projects begin.' },
       { title: 'Web Designer Quote Template', url: '/quote-template/web-designer', desc: 'See a structured quote page for web design work.' },
     ],
@@ -148,7 +148,7 @@ export const blogPosts = [
     date: 'June 12, 2026',
     readTime: '5 min read',
     author: 'Corvioz Team',
-    authorRole: 'Freelancer Operations',
+    authorRole: 'Photography Operations',
     keywords: ['invoice vs quote', 'quote vs receipt', 'freelance invoice workflow'],
     sections: [
       {

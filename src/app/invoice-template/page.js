@@ -5,12 +5,12 @@ const page = {
   analyticsSlug: 'invoice_template',
   schemaType: 'CollectionPage',
   seoTitle: 'Free Invoice Template for Freelancers',
-  description: 'Use a freelancer invoice template with client details, itemized services, taxes, payment terms, and a fast path to create invoices in Corvioz.',
+  description: 'Use a photographer invoice template with client details, itemized services, taxes, payment terms, and a fast path to create invoices in Corvioz.',
   h1: 'Free Invoice Template for Freelancers',
   intro: 'Start with a practical invoice structure for freelance work, then create the final client-ready invoice in Corvioz with saved line items, payment terms, PDF export, and client portal context.',
   previewTitle: 'Invoice template fields',
   previewItems: [
-    'Client and freelancer business details',
+    'Client and photographer business details',
     'Itemized services, quantities, rates, and taxes',
     'Due date, payment terms, notes, and project context',
     'A connected path from quote approval to invoice sending',
@@ -32,7 +32,7 @@ const page = {
   ],
   faq: [
     {
-      question: 'What should a freelancer invoice template include?',
+      question: 'What should a photographer invoice template include?',
       answer: 'It should include your business details, client details, invoice number, itemized services, prices, taxes, due date, payment terms, notes, and the total amount due.',
     },
     {

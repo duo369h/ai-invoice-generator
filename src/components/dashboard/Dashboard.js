@@ -972,7 +972,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       { name: 'UI/UX Design & Prototyping', description: 'High-fidelity Figma mockups, user flows, and wireframes.', type: 'hourly', amount: 95 }
     ],
     portfolio: [
-      { title: 'Corvioz Freelancer OS', description: 'A conversion-first freelancer platform.', link: 'https://corvioz.com' }
+      { title: 'Corvioz Photography Business Dashboard', description: 'A conversion-first platform for photographers.', link: 'https://corvioz.com' }
     ],
     testimonials: [
       { quote: 'Alex delivered our MVP in record time. The quality of code and communication was outstanding.', client: 'Sarah Chen, CEO at Acme AI' }
@@ -991,7 +991,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)/g, '');
-        return slug || 'freelancer';
+        return slug || 'photographer';
       });
     }
     setCpName(parsed.name || '');
@@ -1054,18 +1054,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, [setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
 
   const getDashboardTabs = useCallback((state) => {
-    const tabs = [
-      { id: 'quotes', label: 'Quotes' }
+    return [
+      { id: 'quotes', label: 'Quotes' },
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'clients', label: 'Clients' },
+      { id: 'profile', label: 'Public Profile', sectionBefore: true }
     ];
-    if (showAdvanced) {
-      tabs.push(
-        { id: 'invoices', label: 'Invoices' },
-        { id: 'clients', label: 'Clients' },
-        { id: 'profile', label: 'Bento Profile' }
-      );
-    }
-    return tabs;
-  }, [showAdvanced]);
+  }, []);
 
   const handleDashboardTabChange = useCallback((tab, source = 'dashboard') => {
     if (invoiceFlowLocked && activeTab === 'invoices' && invoiceView !== 'list' && source !== 'invoice_flow_exit') {
@@ -1074,22 +1069,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       return;
     }
 
-    if (['invoices', 'clients', 'profile'].includes(tab) && !showAdvanced) {
-      setShowAdvanced(true);
-    }
-
     let resolvedTab = tab;
-    const hasAdvanced = showAdvanced || ['invoices', 'clients', 'profile'].includes(tab);
     const validTabs = [
-      { id: 'quotes', label: 'Quotes' }
+      { id: 'quotes', label: 'Quotes' },
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'clients', label: 'Clients' },
+      { id: 'profile', label: 'Public Profile' }
     ];
-    if (hasAdvanced) {
-      validTabs.push(
-        { id: 'invoices', label: 'Invoices' },
-        { id: 'clients', label: 'Clients' },
-        { id: 'profile', label: 'Bento Profile' }
-      );
-    }
     const validTabIds = validTabs.map(t => t.id);
 
     if (!validTabIds.includes(tab)) {
@@ -1205,7 +1191,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
     setSession(null);
     clearAnalyticsUserId();
-    setUser({ name: 'Freelancer', plan: 'free' });
+    setUser({ name: 'Photographer', plan: 'free' });
     clearDashboardData();
     router.replace('/auth');
   };
@@ -1247,7 +1233,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         if (consumeSignupStarted()) {
           setShowActivationGuide(true);
           trackEvent('signup_completed', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
-          triggerToast('Welcome to Corvioz! Your freelancer workspace is ready.', 'success');
+          triggerToast('Welcome to Corvioz! Your Corvioz account is ready.', 'success');
         }
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
@@ -1296,7 +1282,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           if (consumeSignupStarted()) {
             setShowActivationGuide(true);
             trackEvent('signup_completed', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
-            triggerToast('Welcome to Corvioz! Your freelancer workspace is ready.', 'success');
+            triggerToast('Welcome to Corvioz! Your Corvioz account is ready.', 'success');
           } else {
             triggerToast('Welcome back! Successfully signed in.', 'success');
           }
@@ -1998,9 +1984,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (attempts >= 1 && isFree) {
         setFormError('Daily limit reached. Upgrade when you need repeated client workflow support.');
         setModalProps({
-          title: "Upgrade Workspace",
-          description: "Unlock professional branding, indexable SEO profile, and unlimited proposals for repeated client delivery workflows.",
-          lockedFeatureValue: "SEO-boosted public profile and unlimited AI creations",
+          title: "Upgrade Plan",
+          description: "Unlock professional branding, an indexable Public Profile, and more quote drafts for repeated client delivery workflows.",
+          lockedFeatureValue: "SEO-boosted Public Profile and more AI creations",
           limit: "profile",
           source: "profile_generation_gate"
         });
@@ -2026,9 +2012,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (!response.ok) {
         if (data.code === 'REVENUE_LOCK_BLOCKED') {
           setModalProps({
-            title: "Upgrade Workspace",
-            description: "Unlock professional branding, indexable SEO profile, and unlimited proposals for repeated client delivery workflows.",
-            lockedFeatureValue: "SEO-boosted public profile and unlimited AI creations",
+            title: "Upgrade Plan",
+            description: "Unlock professional branding, an indexable Public Profile, and more quote drafts for repeated client delivery workflows.",
+            lockedFeatureValue: "SEO-boosted Public Profile and more AI creations",
             limit: "profile",
             source: "profile_generation_gate"
           });
@@ -2142,7 +2128,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     // Fallbacks
     if (lead.status === 'new') return 'New';
     if (lead.status === 'contacted') return 'Qualified';
-    if (lead.status === 'quote_generated') return 'Proposal Sent';
+    if (lead.status === 'quote_generated') return 'Quote Sent';
     if (lead.status === 'archived') return 'Won';
     return 'New';
   };
@@ -2212,8 +2198,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (userPlan === 'pro' && currentClientCount >= 1) {
         setModalProps({
           title: "Upgrade to Client Growth Pack",
-          description: "Scale your freelance business with multi-client workspaces, templates, and customized brand kits.",
-          lockedFeatureValue: "Multi-client workspaces (up to 3)",
+          description: "Scale your freelance business with client areas, templates, and customized brand kits.",
+          lockedFeatureValue: "Client areas (up to 3)",
           limit: "client_limit",
           source: "client_creation_gate",
           targetPlan: "studio"
@@ -2225,15 +2211,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       if (userPlan === 'studio' && currentClientCount >= 100) {
         setModalProps({
-          title: "Corporate Workspace Scale Limit",
-          description: "Your active client roster has reached the policy limit for this business workspace. Please coordinate with your Account Manager to provision additional workspace nodes.",
-          lockedFeatureValue: "Enterprise Roster Expansion",
+          title: "Client limit reached",
+          description: "Your active client list has reached the current plan limit. Contact support if you need room for more clients.",
+          lockedFeatureValue: "Additional client capacity",
           limit: "workspace_limit",
           source: "client_creation_gate",
           targetPlan: "support"
         });
         setActiveModal('upgrade');
-        setFormError('Workspace capacity reached. Please coordinate with your Account Manager to provision additional client nodes.');
+        setFormError('Client limit reached. Contact support if you need room for more clients.');
         return;
       }
 
@@ -2424,7 +2410,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     const invNo = inv.invoice_number;
     const amountStr = `${getCurrencySymbol(inv.currency)}${(inv.total / 100).toFixed(2)}`;
     const cliName = inv.client_name;
-    const bName = inv.business_name || user.name || 'Freelancer';
+    const bName = inv.business_name || user.name || 'Photographer';
     const due = inv.due_date || 'Receipt';
 
     if (activeReminderTemplate === '7') {
@@ -2713,7 +2699,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }) : false;
 
   const isStudioMode = activeClientsCount >= 3 || activeInvoicesCount >= 5 || hasOverdueInvoices;
-  const businessModeBadge = isStudioMode ? 'Business Mode' : 'Freelancer Mode';
+  const businessModeBadge = isStudioMode ? 'Business Mode' : 'Photographer Mode';
 
   if (!authChecked || isLoading) {
     return (
@@ -2917,10 +2903,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 transition: 'all 0.2s ease'
               }}
             >
-              <span>{showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}</span>
-            </button>
+              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              Client Portal
+            </Link>
 
-            {/* Divider & Secondary client portal link */}
             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
             <Link
               href="/client-portal"
@@ -2949,8 +2935,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               }}
             >
               <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Client Portal
-            </Link>
+              Account
+            </button>
           </nav>
         </div>
 
@@ -3341,7 +3327,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   Set Up & Share Public Profile
                 </button>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                  Secure workspace. GDPR compliant. Client inquiry data stays private and protected.
+                  Privacy-focused client data controls. Client inquiry data stays private and protected.
                 </p>
               </div>
             ) : (
@@ -3349,7 +3335,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 {[
                   { id: 'New', title: 'New', color: '#6366f1' },
                   { id: 'Qualified', title: 'Qualified', color: '#06b6d4' },
-                  { id: 'Proposal Sent', title: 'Proposal Sent', color: '#818cf8' },
+                  { id: 'Proposal Sent', title: 'Quote Sent', color: '#818cf8' },
                   { id: 'Negotiation', title: 'Negotiation', color: 'var(--warning)' },
                   { id: 'Won', title: 'Won', color: '#10b981' },
                   { id: 'Lost', title: 'Lost', color: '#f43f5e' }
@@ -3422,7 +3408,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                       style={{ fontSize: '0.65rem', padding: '2px 6px', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                                       title="AI Generate Quote Draft"
                                     >
-                                      <span>{isParsingLead === lead.id ? 'Generating...' : 'AI Proposal'}</span>
+                                      <span>{isParsingLead === lead.id ? 'Generating...' : 'AI Quote'}</span>
                                       {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
                                     </button>
                                   )}
@@ -3493,7 +3479,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <select className="form-select" value={leadPipelineStatus} onChange={e => setLeadPipelineStatus(e.target.value)}>
                           <option value="New">New</option>
                           <option value="Qualified">Qualified</option>
-                          <option value="Proposal Sent">Proposal Sent</option>
+                          <option value="Proposal Sent">Quote Sent</option>
                           <option value="Negotiation">Negotiation</option>
                           <option value="Won">Won</option>
                           <option value="Lost">Lost</option>
@@ -3988,7 +3974,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Freelancer'}</p>
+                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Photographer'}</p>
                               <p style={{ margin: 0 }}>{user.email}</p>
                             </div>
                           </div>
@@ -4150,8 +4136,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           triggerToast('Batch export generated successfully. Files compiled for document review.', 'success');
                         } else {
                           setModalProps({
-                            title: "Upgrade to Studio Workspace",
-                            description: "Generate and export invoices in batches, customize client workspaces, and set up your freelance brand kit.",
+                            title: "Upgrade to Studio",
+                            description: "Generate and export invoices in batches, customize client areas, and set up your freelance brand kit.",
                             lockedFeatureValue: "Batch Invoice PDF Export",
                             limit: "batch_export",
                             source: "batch_export_gate",
@@ -4165,7 +4151,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     >
                       Batch Export
                     </button>
-                    <button onClick={initCreateInvoice} className="btn btn-secondary">Start invoice execution</button>
+                    <button onClick={initCreateInvoice} className="btn btn-secondary">Create Invoice</button>
                   </div>
                 </div>
 
@@ -4678,7 +4664,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Freelancer'}</p>
+                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Photographer'}</p>
                               <p style={{ margin: 0 }}>{user.email}</p>
                             </div>
                           </div>
@@ -5007,7 +4993,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       👉 Enter client details in the form on the right to save your first contact.
                     </p>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '12px', marginBottom: 0 }}>
-                      Secure workspace. GDPR compliant. Client details are encrypted and stored in your private database.
+                      Privacy-focused client data controls. Client details are encrypted and stored in your private database.
                     </p>
                   </div>
                 ) : (
@@ -5104,7 +5090,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>AI Public Profile Generator</h3>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                    Describe your freelance services in a few words. Let AI instantly generate a complete, high-converting bento profile card.
+                    Describe your freelance services in a few words. Let AI instantly generate a complete Public Profile.
                   </p>
                 </div>
                 {isFree && (
@@ -5194,7 +5180,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     )}
                   </div>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.4' }}>
-                    Upload your custom logo, configure brand colors, and setup custom typography styles for client portals, proposals, and invoices.
+                    Upload your custom logo, configure brand colors, and set up custom typography styles for Client Portals, quotes, and invoices.
                   </p>
                   <button
                     type="button"
@@ -5203,8 +5189,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         triggerToast('Brand assets settings loaded. Ready to apply custom typography and logo.', 'success');
                       } else {
                         setModalProps({
-                          title: "Upgrade to Studio Workspace",
-                          description: "Scale your freelance business with customized brand kits (logos, colors, styles), multi-client workspaces, and batch operations.",
+                          title: "Upgrade to Studio",
+                          description: "Scale your freelance business with customized brand kits (logos, colors, styles), client areas, and batch operations.",
                           lockedFeatureValue: "Brand Kit & Logo Customization",
                           limit: "brand_kit",
                           source: "brand_kit_gate",
@@ -5587,7 +5573,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {/* TAB 7: STUDIO SPACE */}
         {activeTab === 'studio' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Studio Space', 'Centralized workspace for multi-client workflows, overdue management, and reminder communications.')
+            renderGuestLockState('Studio Space', 'Centralized client management for multiple client records, overdue management, and reminder communications.')
           ) : (
             <StudioSpace
               clients={getActiveClients()}
@@ -5864,7 +5850,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'sticky', top: '24px' }}>
                   <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Publish Details</h3>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: '1.4' }}>Save changes to update your live agency profile. This is instantly reflected on your custom workspace link.</p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: '1.4' }}>Save changes to update your live agency profile. This is instantly reflected on your custom Public Profile link.</p>
                     
                     <div className="input-group">
                       <label className="input-label" style={{ fontSize: '0.72rem' }}>Availability Status</label>
@@ -5872,7 +5858,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     </div>
                     
                     <div className="input-group">
-                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Response Guarantee SLA</label>
+                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Response target</label>
                       <input type="text" className="form-input" value={cpResponseTime} onChange={e => setCpResponseTime(e.target.value)} />
                     </div>
 
@@ -5892,7 +5878,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       className="btn btn-primary"
                       style={{ width: '100%', fontWeight: 700, padding: '12px' }}
                     >
-                      {isSaving ? 'Saving Changes...' : 'Save Workspace Profile'}
+                      {isSaving ? 'Saving Changes...' : 'Save Public Profile'}
                     </button>
                   </div>
                 </div>
@@ -5905,7 +5891,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {/* TAB 9: STUDIO BRAND KIT */}
         {activeTab === 'brand' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Brand Kit Settings', 'White-label client invoice gateways, proposal layouts, and custom theme presets.')
+            renderGuestLockState('Brand Kit Settings', 'White-label client invoice documents, quote layouts, and custom theme presets.')
           ) : (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
@@ -6013,7 +5999,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       )}
                       <div>
                         <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>{cpName || 'Alpha Agency'}</h4>
-                        <span style={{ fontSize: '0.72rem', color: cpThemePreference === 'light' ? '#64748b' : '#94a3b8' }}>{cpTitle || 'Studio Workspace'}</span>
+                        <span style={{ fontSize: '0.72rem', color: cpThemePreference === 'light' ? '#64748b' : '#94a3b8' }}>{cpTitle || 'Studio Dashboard'}</span>
                       </div>
                     </div>
 
@@ -6118,7 +6104,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
                       { stage: 'Inbound Inquiries', count: 120, percent: 100, color: 'var(--primary)' },
-                      { stage: 'Qualified Proposals', count: 72, percent: 60, color: 'var(--accent)' },
+                      { stage: 'Qualified Quotes', count: 72, percent: 60, color: 'var(--accent)' },
                       { stage: 'Accepted Estimates', count: 36, percent: 30, color: 'var(--success)' },
                       { stage: 'Settle Milestones', count: 32, percent: 26, color: '#3b82f6' },
                     ].map((row, idx) => (
@@ -6168,7 +6154,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <label style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', cursor: 'pointer' }}>
                       <input type="checkbox" defaultChecked style={{ marginTop: '3px' }} />
                       <div>
-                        <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--text-main)' }}>Proposal Autoreply Scoping</strong>
+                        <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--text-main)' }}>Quote Autoreply Scoping</strong>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Inbound inquiries will receive a confirmation message and direct booking link instantly.</span>
                       </div>
                     </label>
@@ -6296,7 +6282,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               >
                 <option>Dashboard</option>
                 <option>Client Portal</option>
-                <option>Proposal</option>
+                <option>Quote</option>
                 <option>Invoice</option>
                 <option>Pricing</option>
                 <option>Feature Request</option>
@@ -6577,7 +6563,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             </div>
             
             <p style={{ fontSize: '0.85rem', color: 'var(--text-soft, #d1d5db)', margin: '0 0 16px 0', lineHeight: 1.45, textAlign: 'center' }}>
-              Congratulations on creating your first client profile! You are transitioning from performing ad-hoc freelancer tasks to running organized business operations.
+              Congratulations on creating your first client profile! You are moving from ad-hoc tasks to an organized photography business.
             </p>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 20px 0', lineHeight: 1.4, textAlign: 'center' }}>
               To support this growth, the <strong>Pro Plan</strong> unlocks custom branding, signature approvals, and structured tracking to help you establish a premium client experience.
@@ -6601,7 +6587,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 className="btn btn-secondary"
                 style={{ width: '100%', padding: '10px 0', fontSize: '0.82rem', fontWeight: 600 }}
               >
-                Continue to Workspace
+                Continue to Dashboard
               </button>
             </div>
           </div>
@@ -6794,7 +6780,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 }}
               >
                 <span>📝</span>
-                <span>{suggestedActionDoc.type === 'invoice' ? 'Improve proposal follow-up' : 'Start invoice execution'}</span>
+                <span>{suggestedActionDoc.type === 'invoice' ? 'Improve quote follow-up' : 'Create Invoice'}</span>
               </button>
             </div>
 

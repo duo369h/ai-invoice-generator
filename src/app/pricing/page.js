@@ -50,11 +50,11 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    description: 'For freelancers who need a simple, repeatable client delivery workspace.',
+    description: 'For freelancers who need a simple, repeatable client delivery dashboard.',
     price_monthly: 9,
     price_yearly: 7,
     features: [
-      'Client-ready proposals',
+      'Client-ready quotes',
       'Invoice and quote workflow',
       'Basic client delivery controls',
     ],
@@ -68,7 +68,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
     price_monthly: 19,
     price_yearly: 16,
     features: [
-      'Unlimited proposals and profiles',
+      'Unlimited quotes and Public Profiles',
       'Clean PDF export without watermark',
       'Client links and stronger delivery controls',
     ],
@@ -78,11 +78,11 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'studio',
     name: 'Studio',
-    description: 'For small studios that need broader client operations.',
+    description: 'For small studios that need broader client management.',
     price_monthly: 29,
     price_yearly: 24,
     features: [
-      'Studio client workspaces',
+      'Studio client areas',
       'Reusable brand and delivery controls',
       'Priority workflow support',
     ],
@@ -162,7 +162,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'pro',
       title: 'Pro',
       tagline: 'Keep client follow-up organized',
-      desc: 'For working freelancers who manage multiple clients and need stronger proposals, branded delivery, and repeatable document workflows.',
+      desc: 'For working freelancers who manage multiple clients and need clearer quotes, branded delivery, and repeatable document workflows.',
       accent: 'var(--success)',
       bgGlow: 'rgba(34, 197, 94, 0.08)',
       icon: '📈'
@@ -170,8 +170,8 @@ function IdentityGate({ onSelect, currentIdentity }) {
     {
       id: 'studio',
       title: 'Studio',
-      tagline: 'Scale client operations',
-      desc: 'For small studios that need shared client operations, stronger brand control, and a clearer delivery structure.',
+      tagline: 'Scale client management',
+      desc: 'For small studios that need shared client records, stronger brand control, and a clearer delivery structure.',
       accent: 'var(--accent)',
       bgGlow: 'rgba(99, 102, 241, 0.08)',
       icon: '🚀'
@@ -475,7 +475,7 @@ function PricingContent() {
     },
     {
       q: 'Do subscription plans include a refund window?',
-      a: 'Yes. Subscription plans include a clear 14-day refund window. If the product does not fit your freelancer workflow, email support@corvioz.com with your account email and Paddle receipt.',
+      a: 'Yes. Subscription plans include a clear 14-day refund window. If the product does not fit your photography business, email support@corvioz.com with your account email and Paddle receipt.',
     },
     {
       q: 'Can I cancel or change plans later?',
@@ -483,11 +483,11 @@ function PricingContent() {
     },
     {
       q: 'How do client portals work?',
-      a: 'When you share a quote, proposal, or client document, your client gets a private link. They can review the work and respond without creating a Corvioz account, while your dashboard keeps the client record organized.',
+      a: 'When you share a quote, invoice, or client document, your client gets a private link. They can review the work and respond without creating a Corvioz account, while your dashboard keeps the client record organized.',
     },
     {
       q: 'Is Corvioz full accounting software?',
-      a: 'No. Corvioz is a focused client workflow workspace, not full bookkeeping or tax software. It helps you organize quotes, proposals, client documents, and delivery records.',
+      a: 'No. Corvioz is a focused client management dashboard, not full bookkeeping or tax software. It helps you organize quotes, invoices, client documents, and delivery records.',
     },
   ];
 
@@ -506,7 +506,7 @@ function PricingContent() {
           <header style={{ marginBottom: '56px' }}>
             <p className="section-kicker" style={{ color: 'var(--primary)', fontWeight: 800 }}>Pricing</p>
             <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', lineHeight: 1.15, marginBottom: '20px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-1.5px' }}>
-              Choose the workspace that fits your client operation.
+              Choose the account that fits your client management needs.
             </h1>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '32px', maxWidth: '580px', margin: '0 auto', lineHeight: 1.6 }}>
               Loading pricing...
@@ -699,7 +699,7 @@ function PricingContent() {
             Simple plans for client workflow maturity
           </p>
           <h1 className="section-title" style={{ marginBottom: '12px', fontWeight: 900 }}>
-            Choose the workspace that fits your client operation.
+            Choose the account that fits your client management needs.
           </h1>
           <p className="section-lede" style={{ marginBottom: '32px', maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
             Start with a focused client workflow, then upgrade when your documents, clients, and delivery process need more structure.
@@ -823,7 +823,7 @@ function PricingContent() {
             fontWeight: 600
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🔒</span> Secure checkout provider: Paddle
+              <span>🔒</span> Subscriptions are securely handled through Paddle.
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🛡️</span> Your data is encrypted
@@ -1155,7 +1155,7 @@ function PricingContent() {
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> You own your quotes, client records, and exported documents
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Secure checkout provider: Paddle
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Subscriptions are securely handled through Paddle.
               </li>
             </ul>
             <div style={{ marginTop: '18px' }}>
@@ -1171,7 +1171,7 @@ function PricingContent() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}>
             <div className="stat-box">
               <h4 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)', margin: '0 0 4px 0' }}>14 days</h4>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Refund Guarantee</p>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Refund Policy</p>
             </div>
             <div className="stat-box">
               <h4 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)', margin: '0 0 4px 0' }}>No card</h4>
@@ -1222,7 +1222,7 @@ function PricingContent() {
           </div>
         )}
 
-        {/* Risk Reversal & Safe Checkout Guarantee */}
+        {/* Refund policy and subscription checkout */}
         <div style={{
           maxWidth: '800px',
           margin: '0 auto 56px auto',
@@ -1237,15 +1237,15 @@ function PricingContent() {
           boxShadow: 'var(--shadow-sm)'
         }}>
           <div>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🛡️ 14-Day Money-Back Guarantee</h4>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🛡️ 14-day refund policy</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Try Corvioz subscription plans with a clear 14-day refund window. If it does not fit your freelancer workflow or there is a plan issue, email support@corvioz.com with your account email and Paddle receipt.
+              Try Corvioz subscription plans with a clear 14-day refund window. If it does not fit your photography business or there is a plan issue, email support@corvioz.com with your account email and Paddle receipt.
             </p>
           </div>
           <div className="checkout-trust-separator" style={{ borderLeft: '1px solid var(--border)', paddingLeft: '24px' }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🔒 Safe & Secure Checkout</h4>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>🔒 Secure subscription checkout</h4>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Secure checkout provider: Paddle. Corvioz does not store card details. Cancel future renewal or downgrade back to Free through account support anytime.
+              Subscriptions are securely handled through Paddle. Corvioz does not store card details. Cancel future renewal or downgrade back to Free through account support anytime.
             </p>
           </div>
         </div>

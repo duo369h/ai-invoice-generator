@@ -137,8 +137,8 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       })),
       empty: {
         title: "Inbound Client Leads",
-        description: "Receive client inquiries from your public Bento profile page.",
-        actionLabel: "Set Up Bento Profile",
+        description: "Receive client inquiries from your Public Profile page.",
+        actionLabel: "Set Up Public Profile",
         action: "configureProfile",
       },
     },
@@ -197,9 +197,9 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       ],
     },
     ACTIONS: {
-      title: "Workspace Actions",
+      title: "Dashboard Actions",
       followUpCount: derived.overdueInvoices.length + derived.pendingSentProposals.length,
-      primary: { label: "Start invoice execution", action: "createInvoice" },
+      primary: { label: "Create Invoice", action: "createInvoice" },
       secondary: rawData.activeProfile?.username
         ? { label: "View Profile", action: "viewProfile", href: `/profile/${rawData.activeProfile.username}` }
         : { label: "Configure Profile", action: "configureProfile" },

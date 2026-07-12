@@ -24,7 +24,7 @@ export const thirdPartyDisclosures: ThirdPartyProcessor[] = [
     purpose: 'Authentication, database storage, session handling, portal access, and server-side product records.',
     dataShared: ['account identifiers', 'email address', 'invoices', 'quotes', 'client records', 'portal tokens', 'usage records'],
     role: 'Database, authentication, and backend infrastructure provider.',
-    userControl: 'Users can manage workspace data in the product or request export/deletion through support.',
+    userControl: 'Users can manage account data in the product or request export/deletion through support.',
   },
   {
     key: 'analytics',
