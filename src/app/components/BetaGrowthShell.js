@@ -138,7 +138,7 @@ export default function BetaGrowthShell({ children }) {
                     required
                     style={{ width: '100%', outline: 'none' }}
                   >
-                    <option value="Proposal">Proposal</option>
+                    <option value="Proposal">Quote</option>
                     <option value="Invoice">Invoice</option>
                     <option value="Pricing">Pricing</option>
                     <option value="Client Portal">Client Portal</option>

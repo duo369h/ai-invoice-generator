@@ -43,7 +43,7 @@ const messages: Record<MonetizationMoment, ValueCaptureMessage> = {
     badge: 'Workflow limit reached',
     headline: 'Your client workflow is ready for more structure.',
     body: 'Upgrade when clean exports, client links, and organized delivery records become part of your regular workflow.',
-    primaryCta: 'Upgrade Workspace',
+    primaryCta: 'Upgrade Plan',
     secondaryCta: 'Continue Preview',
     roiAnchor: 'Upgrade when repeated delivery costs more time than the plan.',
   },

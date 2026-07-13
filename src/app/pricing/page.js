@@ -51,7 +51,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    description: 'For freelancers who need a simple, repeatable client delivery dashboard.',
+    description: 'For independent professionals who need a simple, repeatable client delivery dashboard.',
     price_monthly: 9,
     price_yearly: 7,
     features: [
@@ -65,7 +65,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    description: 'For working freelancers managing multiple client projects.',
+    description: 'For working professionals managing multiple client projects.',
     price_monthly: 19,
     price_yearly: 16,
     features: [
@@ -154,7 +154,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'starter',
       title: 'Starter',
       tagline: 'Organize client delivery',
-      desc: 'For freelancers who need their first repeatable workflow for quotes, documents, and client follow-up.',
+      desc: 'For independent professionals who need their first repeatable workflow for quotes, documents, and client follow-up.',
       accent: 'var(--primary)',
       bgGlow: 'var(--primary-glow)',
       icon: '⚡'
@@ -163,7 +163,7 @@ function IdentityGate({ onSelect, currentIdentity }) {
       id: 'pro',
       title: 'Pro',
       tagline: 'Keep client follow-up organized',
-      desc: 'For working freelancers who manage multiple clients and need clearer quotes, branded delivery, and repeatable document workflows.',
+      desc: 'For working professionals who manage multiple clients and need clearer quotes, branded delivery, and repeatable document workflows.',
       accent: 'var(--success)',
       bgGlow: 'rgba(34, 197, 94, 0.08)',
       icon: '📈'
@@ -1153,7 +1153,7 @@ function PricingContent() {
             </h3>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--text-soft)' }}>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Built for freelancers in US & Canada
+                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Built for independent professionals in US & Canada
               </li>
               <li style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Clear plan terms
@@ -1198,7 +1198,7 @@ function PricingContent() {
         {/* Testimonials */}
         <section style={{ marginBottom: '80px' }}>
           <h2 style={{ textAlign: 'center', fontSize: '1.75rem', fontWeight: 850, marginBottom: '40px' }}>
-            What freelancers say
+            What independent professionals say
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
             <div className="testimonial-card">
@@ -1210,7 +1210,7 @@ function PricingContent() {
             </div>
             <div className="testimonial-card">
               <p style={{ fontSize: '0.9rem', color: 'var(--text-soft)', lineHeight: 1.6, margin: '0 0 16px 0', fontStyle: 'italic' }}>
-                &ldquo;Moving from spreadsheets to Corvioz made client admin cleaner. It is simple, direct, and does exactly what freelancers actually need.&rdquo;
+                &ldquo;Moving from spreadsheets to Corvioz made client admin cleaner. It is simple, direct, and does exactly what independent professionals actually need.&rdquo;
               </p>
               <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-main)' }}>David K.</strong>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Full-Stack Developer</span>

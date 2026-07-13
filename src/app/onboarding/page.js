@@ -211,7 +211,7 @@ export default function OnboardingPage() {
             <div className="animate-fade-in">
               <h1 className="auth-title">Let's set up your account</h1>
               <p className="auth-description">
-                Choose your first milestone path to unlock your freelance dashboard.
+                Choose your first milestone path to unlock your dashboard.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
@@ -233,7 +233,7 @@ export default function OnboardingPage() {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Create your first Quote</h3>
-                    <Badge style={{ background: 'var(--primary)', color: 'var(--white)', border: 'none', fontSize: '0.65rem' }}>RECOMMENDED FOR FREELANCERS</Badge>
+                    <Badge style={{ background: 'var(--primary)', color: 'var(--white)', border: 'none', fontSize: '0.65rem' }}>RECOMMENDED FOR PROFESSIONALS</Badge>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                     Draft a professional project estimate with itemized pricing.

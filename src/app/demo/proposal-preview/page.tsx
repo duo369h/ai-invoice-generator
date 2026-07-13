@@ -33,10 +33,10 @@ export default function DemoProposalPreviewPage() {
     }}>
       <div style={{ maxWidth: "800px", width: "100%", textAlign: "center", marginBottom: "40px" }}>
         <h1 style={{ fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px", background: "linear-gradient(to right, #38bdf8, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          See how AI improves your proposal
+          See how AI improves your quote
         </h1>
         <p style={{ fontSize: "1.1rem", color: "#94a3b8", maxWidth: "600px", margin: "0 auto" }}>
-          This is what your client would receive. Standard proposals fail to highlight business value. Our AI transforms your pitch into a client-winning asset.
+          This is what your client would receive. A clear quote helps highlight business value and next steps.
         </p>
       </div>
 
@@ -55,10 +55,10 @@ export default function DemoProposalPreviewPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "16px" }}>
           <div>
             <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Live Proposal Demo
+              Live Quote Demo
             </span>
             <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "4px" }}>
-              {aiEnhanced ? "🚀 AI-Optimized Version" : "📄 Standard Proposal"}
+              {aiEnhanced ? "AI-Organized Version" : "Standard Quote"}
             </h2>
           </div>
           <button
@@ -112,7 +112,7 @@ export default function DemoProposalPreviewPage() {
           }}>
             <h4 style={{ fontWeight: 700, color: "#a5b4fc", marginBottom: "8px" }}>How this would win you clients:</h4>
             <ul style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "6px", color: "#cbd5e1" }}>
-              <li>Reframes the proposal from a simple redesign to a high-value <strong>revenue generator</strong>.</li>
+              <li>Reframes the quote from a simple redesign into a clear scope of work.</li>
               <li>Addresses the client's conversion rates, showing deep business understanding.</li>
               <li>Calculates and suggests a clear ROI strategy to justify premium pricing.</li>
             </ul>

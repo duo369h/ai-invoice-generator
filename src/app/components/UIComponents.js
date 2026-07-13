@@ -4,10 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 
 // Import standardized atomic components from design system core
-import { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner } from '../../components/ui/index.js';
+import { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner, PasswordInput } from '../../components/ui/index.js';
 
 // Re-export standardized components
-export { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner };
+export { Button, Card, Badge, Container, UpgradeModal, LockedState, PricingUpsellModal, ExportRestrictionModal, PricingRedirectOverlay, UpgradeBanner, PasswordInput };
 
 
 // 4. Section Component

@@ -59,7 +59,7 @@ export default function ProductFunnelPage() {
       <header style={styles.header}>
         <p style={styles.kicker}>Internal Metrics</p>
         <h1 style={styles.title}>Product Funnel</h1>
-        <p style={styles.copy}>Landing to signup to proposal to invoice to paid conversion.</p>
+        <p style={styles.copy}>Landing to signup to quote to invoice to paid conversion.</p>
       </header>
       {error && <div style={styles.error}>{error}</div>}
       {!data?.configured && !loading && <div style={styles.warning}>Product analytics storage is not configured in this environment.</div>}
@@ -81,7 +81,7 @@ export default function ProductFunnelPage() {
                 <th style={styles.th}>Date</th>
                 <th style={styles.th}>Landing</th>
                 <th style={styles.th}>Signup</th>
-                <th style={styles.th}>Proposal</th>
+                <th style={styles.th}>Quote</th>
                 <th style={styles.th}>Invoice</th>
                 <th style={styles.th}>Paid</th>
               </tr>

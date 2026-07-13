@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Badge, Button, Logo } from '../components/UIComponents';
+import { Badge, Button, Logo, PasswordInput } from '../components/UIComponents';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 
 export default function UpdatePasswordPage() {
@@ -112,24 +112,20 @@ export default function UpdatePasswordPage() {
             <form onSubmit={handleUpdate}>
               <div className="input-group">
                 <label className="input-label" htmlFor="update-password">New Password</label>
-                <input
+                <PasswordInput
                   id="update-password"
-                  type="password"
-                  className="form-input"
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  showRequirements={true}
+                  showStrength={true}
                 />
               </div>
 
               <div className="input-group">
                 <label className="input-label" htmlFor="update-confirm-password">Confirm Password</label>
-                <input
+                <PasswordInput
                   id="update-confirm-password"
-                  type="password"
-                  className="form-input"
-                  placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required

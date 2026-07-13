@@ -156,7 +156,7 @@ export default function StudioSpace({
   const handleSaveClientMeta = (updatedMeta) => {
     setClientMeta(updatedMeta);
     window.localStorage.setItem(`corvioz_client_metadata_${selectedClientId}`, JSON.stringify(updatedMeta));
-    triggerToast('Client workspace metadata updated successfully.', 'success');
+    triggerToast('Client area details updated successfully.', 'success');
   };
 
   // Helper date generators
@@ -238,7 +238,7 @@ export default function StudioSpace({
     } else if (clientInvoices.some(inv => ['pending', 'sent'].includes(inv.status))) {
       currentStatus = 'Active Project';
     } else if (clientQuotes.some(q => q.status === 'sent')) {
-      currentStatus = 'Proposal Pending';
+      currentStatus = 'Quote Pending';
     } else if (clientQuotes.some(q => q.status === 'approved')) {
       currentStatus = 'Ready to Bill';
     }
@@ -544,7 +544,7 @@ export default function StudioSpace({
             </button>
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: 'var(--text-main)' }}>
-                {client.name} Workspace
+                {client.name} Client Area
               </h2>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {client.id}</span>
             </div>
@@ -570,7 +570,7 @@ export default function StudioSpace({
         <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', overflowX: 'auto', paddingBottom: '1px' }}>
           {[
             { id: 'overview', label: 'Overview' },
-            { id: 'proposal', label: 'Proposals' },
+            { id: 'proposal', label: 'Quotes' },
             { id: 'invoice', label: 'Invoices' },
             { id: 'deliverables', label: 'Deliverables Scope' },
             { id: 'notes', label: 'Internal Notes' },
@@ -603,7 +603,7 @@ export default function StudioSpace({
           {activeWorkspaceTab === 'overview' && (
             <div className="dashboard-grid-2fr-1fr animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
               <div className="card" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Edit Workspace Settings</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Edit Dashboard Settings</h3>
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   // Trigger standard client update
@@ -711,7 +711,7 @@ export default function StudioSpace({
                     <strong style={{ color: 'var(--text-main)' }}>{clientInvoices.length}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
-                    <span>Proposals submitted:</span>
+                    <span>Quotes submitted:</span>
                     <strong style={{ color: 'var(--text-main)' }}>{clientQuotes.length}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
@@ -731,7 +731,7 @@ export default function StudioSpace({
           {activeWorkspaceTab === 'proposal' && (
             <div className="card animate-fade-in" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Proposals &amp; Estimates</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Quotes &amp; Estimates</h3>
                 <button
                   onClick={() => {
                     initCreateQuote();
@@ -742,13 +742,13 @@ export default function StudioSpace({
                   }}
                   className="btn btn-primary btn-sm"
                 >
-                  + Draft Proposal
+                  + Draft Quote
                 </button>
               </div>
 
               {clientQuotes.length === 0 ? (
                 <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  No proposals submitted for this client. Click the button above to generate a scoped estimate.
+                  No quotes submitted for this client. Click the button above to generate a scoped estimate.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -812,7 +812,7 @@ export default function StudioSpace({
 
               {clientInvoices.length === 0 ? (
                 <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  No invoices generated for this client workspace. Click the button above to issue a professional receipt.
+                  No invoices generated for this client area. Click the button above to issue a professional receipt.
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -1069,7 +1069,7 @@ export default function StudioSpace({
                 </span>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                Record client timezone details, business expectations, SLA agreements, or meeting takeaways. Notes are preserved locally in the client workspace.
+                Record client timezone details, business expectations, SLA agreements, or meeting takeaways. Notes are preserved locally in the client area.
               </p>
               <textarea
                 className="form-textarea"
@@ -1094,7 +1094,7 @@ export default function StudioSpace({
                 
                 {filesList.length === 0 ? (
                   <div style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                    No assets linked for this client workspace. Add shared file links in the right-side form.
+                    No assets linked for this client area. Add shared file links in the right-side form.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1231,7 +1231,7 @@ export default function StudioSpace({
                 Studio Command Center Preview Active
               </h4>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #9ca3af)', lineHeight: 1.4 }}>
-                As your client operations scale past a single relationship, the Studio Space unlocks to provide centralized status tracking, overdue intelligence, and automated reminder sequences.
+                As your client management needs grow beyond a single relationship, the Studio Space unlocks centralized status tracking, overdue intelligence, and automated reminder sequences.
               </p>
             </div>
           </div>
@@ -1259,7 +1259,7 @@ export default function StudioSpace({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.7rem', fontWeight: 800, padding: '4px 12px', borderRadius: '99px', background: 'linear-gradient(90deg, var(--accent-glow) 0%, var(--primary-glow) 100%)', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '8px', border: '1px solid var(--border)' }}>
-            🏢 Small Business Workspace
+            🏢 Small Business Dashboard
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span>Agency Operating System</span>
@@ -1279,7 +1279,7 @@ export default function StudioSpace({
               </span>
             )}
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Professional workspace for tracking active projects, client status boards, due dates, and client follow-up reminders.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Professional dashboard for tracking active projects, client status boards, due dates, and client follow-up reminders.</p>
         </div>
 
         {isSandbox && (
@@ -1523,7 +1523,7 @@ export default function StudioSpace({
             {/* Column 2: Proposal Pending */}
             <div style={{ background: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border)', paddingBottom: '8px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Proposals Sent</span>
+                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Quotes Sent</span>
                 <span style={{ background: 'var(--warning-glow)', color: 'var(--warning)', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>{pipelineStages.proposal.length}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1625,11 +1625,11 @@ export default function StudioSpace({
             <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '24px', alignItems: 'start' }}>
               {/* Directory List Card */}
               <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 16px 0', color: 'var(--text-main)' }}>Agency Roster &amp; Client Workspaces</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 16px 0', color: 'var(--text-main)' }}>Agency Roster &amp; Client Areas</h3>
                 
                 {clientProfiles.length === 0 ? (
                   <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                    No corporate workspaces configured. Register a client using the form on the right to initialize their secure dashboard portal.
+                    No client areas configured. Register a client using the form on the right to initialize their Client Portal.
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
@@ -1678,7 +1678,7 @@ export default function StudioSpace({
                                   className="btn btn-secondary btn-sm"
                                   style={{ padding: '4px 8px', fontSize: '0.75rem' }}
                                 >
-                                  Open Workspace
+                                  Open Client Area
                                 </button>
                                 <button
                                   onClick={() => handleDeleteClient(cli.id)}
@@ -1698,7 +1698,7 @@ export default function StudioSpace({
 
               {/* Add Client Workspace Profile */}
               <div className="card" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Register Client Workspace</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Register Client Area</h3>
                 {formError && (
                   <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
                     ⚠️ {formError}
@@ -2028,7 +2028,7 @@ export default function StudioSpace({
                         )}
                         <div>
                           <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>{cpName || 'Alpha Agency'}</h4>
-                          <span style={{ fontSize: '0.72rem', color: cpThemePreference === 'light' ? '#64748b' : '#94a3b8' }}>{cpTitle || 'Studio Workspace'}</span>
+                          <span style={{ fontSize: '0.72rem', color: cpThemePreference === 'light' ? '#64748b' : '#94a3b8' }}>{cpTitle || 'Studio Dashboard'}</span>
                         </div>
                       </div>
 

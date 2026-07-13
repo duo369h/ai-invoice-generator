@@ -68,11 +68,11 @@ function getUpgradeModalProps(actionName, decisionMessage, decision = null) {
     create_invoice: 'Organize client delivery with Starter',
     create_quote: 'Pitch projects with professional quotes',
     send_invoice: 'Keep client follow-up organized',
-    client_portal: 'Build client trust with professional workspaces',
+    client_portal: 'Build client trust with professional Client Portals',
   };
   const descMap = {
-    create_invoice: 'Present polished client documents from one workspace',
-    create_quote: 'Pitch proposals with clear project milestones',
+    create_invoice: 'Present polished client documents from one dashboard',
+    create_quote: 'Share quotes with clear project milestones',
     send_invoice: 'Keep client documents and follow-up organized',
     client_portal: 'Secure client approvals via professional portal links',
   };
@@ -80,7 +80,7 @@ function getUpgradeModalProps(actionName, decisionMessage, decision = null) {
   return {
     title: titleMap[actionName] ?? 'Premium Feature Gated',
     description: decisionMessage || 'This action is available on Pro.',
-    lockedFeatureValue: descMap[actionName] ?? 'Full professional freelancer workspace access',
+    lockedFeatureValue: descMap[actionName] ?? 'Full professional photography dashboard access',
     limit: actionName,
     source: `${actionName}_intercept`,
     explanation: decision?.showExplanation ? decision.explanation : null,

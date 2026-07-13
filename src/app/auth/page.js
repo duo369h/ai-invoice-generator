@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Badge, Button, Logo } from '../components/UIComponents';
+import { Badge, Button, Logo, PasswordInput } from '../components/UIComponents';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
@@ -344,12 +344,12 @@ export default function AuthPage() {
             </div>
           )}
           <Badge style={{ marginBottom: '16px' }}>
-            {identity === 'starter' ? 'Starter Workspace' : identity === 'pro' ? 'Pro Workspace' : identity === 'studio' ? 'Studio Workspace' : 'Freelancer Workspace'}
+            {identity === 'starter' ? 'Starter Dashboard' : identity === 'pro' ? 'Pro Dashboard' : identity === 'studio' ? 'Studio Dashboard' : 'Photography Dashboard'}
           </Badge>
           <h1 className="auth-title">
             {identity === 'starter' && "Safe way to organize client work"}
             {identity === 'pro' && "Secure client pipeline management"}
-            {identity === 'studio' && "Studio workspace for client operations"}
+            {identity === 'studio' && "Studio dashboard for client management"}
             {!identity && "Sign in to your account"}
           </h1>
           <p className="auth-description">
@@ -444,11 +444,8 @@ export default function AuthPage() {
                         Forgot password?
                       </Link>
                     </div>
-                    <input
+                    <PasswordInput
                       id="auth-password"
-                      type="password"
-                      className="form-input"
-                      placeholder="••••••••"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       required

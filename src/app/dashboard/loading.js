@@ -36,7 +36,7 @@ export default function DashboardLoading() {
             Loading dashboard
           </p>
           <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 900 }}>
-            Preparing your workspace...
+            Preparing your dashboard...
           </h1>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>

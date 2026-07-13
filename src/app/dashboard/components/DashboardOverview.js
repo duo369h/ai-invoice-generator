@@ -571,8 +571,8 @@ function DemoCard({ ui }) {
   return (
     <section style={{ padding: '20px', background: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Try a sample proposal</h3>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-soft)', marginTop: '4px' }}>See how AI optimizes proposal structure and win rates in real-time.</p>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Try a sample quote</h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-soft)', marginTop: '4px' }}>See how AI organizes quote structure and client-ready details in real time.</p>
       </div>
       <Link href="/demo/proposal-preview" style={{ padding: '8px 16px', background: 'var(--primary, #6366f1)', color: '#ffffff', borderRadius: '8px', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600 }}>
         View Demo →

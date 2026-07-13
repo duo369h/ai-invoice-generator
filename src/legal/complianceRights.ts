@@ -6,7 +6,7 @@ export const complianceRights = {
       'Correct inaccurate account, invoice, quote, or client data.',
       'Request deletion of account data where retention is not legally required.',
       'Object to or decline non-essential analytics tracking where available.',
-      'Request a structured export of account and workspace data.',
+      'Request a structured export of account data.',
     ],
   },
   ccpa: {

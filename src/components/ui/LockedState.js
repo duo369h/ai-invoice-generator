@@ -10,7 +10,7 @@ export function LockedState({
   title = 'This Section is Locked',
   description = 'Upgrade to Corvioz Pro to unlock this section and manage freelance work.',
   features = [],
-  ctaLabel = 'Unlock Workspace Now',
+  ctaLabel = 'Unlock Dashboard Now',
   ctaHref = '/pricing?checkout=pro',
   onCtaClick,
   className = '',

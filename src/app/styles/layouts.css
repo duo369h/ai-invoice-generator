@@ -32,6 +32,16 @@
   align-items: center;
 }
 
+/* Keeps the desktop nav link's hover boundary continuous with its offset dropdown. */
+.nav-link-group::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+
 /* Landing Page Header / Hero Section */
 .landing-hero {
   min-height: calc(92svh - 64px);

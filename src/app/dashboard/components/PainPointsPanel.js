@@ -24,7 +24,7 @@ export default function PainPointsPanel({ triggerRefresh }) {
   }, [triggerRefresh]);
 
   const categories = [
-    { key: 'Proposal', label: 'Proposal', color: '#3B82F6' },
+    { key: 'Proposal', label: 'Quote', color: '#3B82F6' },
     { key: 'Invoice', label: 'Invoice', color: '#10B981' },
     { key: 'Pricing', label: 'Pricing', color: '#EF4444' },
     { key: 'Client Portal', label: 'Client Portal', color: '#8B5CF6' },

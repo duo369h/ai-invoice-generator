@@ -32,7 +32,7 @@ const PERSONAS: Persona[] = [
   },
   {
     id: 'medium_intent',
-    label: 'Medium Intent Freelancer',
+    label: 'Medium Intent Photographer',
     emoji: '💼',
     desc: "Active user, creates invoices, hasn't upgraded yet.",
     color: '#60a5fa',

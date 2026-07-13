@@ -26,7 +26,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    description: 'For freelancers who need a simple, repeatable client delivery dashboard.',
+    description: 'For independent professionals who need a simple, repeatable client delivery dashboard.',
     price_monthly: 9,
     price_yearly: 7,
     features: [
@@ -38,7 +38,7 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    description: 'For working freelancers managing multiple client projects.',
+    description: 'For working professionals managing multiple client projects.',
     price_monthly: 19,
     price_yearly: 16,
     features: [
@@ -103,7 +103,7 @@ const faqs = [
   },
   {
     q: 'Who is Corvioz built for?',
-    a: 'Corvioz is built for freelancers, consultants, designers, developers, photographers, and small studios that need a clear quote-to-invoice workflow without a heavy accounting suite.',
+    a: 'Corvioz is built for photographers, consultants, designers, developers, and small studios that need a clear quote-to-invoice workflow without a heavy accounting suite.',
   },
   {
     q: 'Can I manage recurring clients?',
@@ -151,7 +151,7 @@ const faqs = [
   },
   {
     q: 'Can I use my own branding?',
-    a: 'Yes. Branding options depend on your plan, with subscription plans designed for freelancers who want more polished client delivery.',
+    a: 'Yes. Branding options depend on your plan, with subscription plans designed for independent professionals who want more polished client delivery.',
   },
   {
     q: 'Is Corvioz full accounting software?',
@@ -378,7 +378,7 @@ export default function Home() {
         <div className="landing-section-container landing-section-container--narrow u-text-center">
           <div className="section-header">
             <p className="section-kicker">Why Corvioz</p>
-            <h2 className="section-title">Built for Independent Freelancers</h2>
+            <h2 className="section-title">Built for Independent Professionals</h2>
             <p className="section-lede">The simple, professional dashboard to handle quotes, invoices, client records, and portfolio delivery without subscription creep.</p>
           </div>
 
@@ -429,7 +429,7 @@ export default function Home() {
           <div className="trust-stats-grid">
             <Card className="trust-stat-card">
               <span className="trust-stat-label trust-stat-label--primary">Photographer Focus</span>
-              <h3 className="trust-stat-heading">Built for real freelancers</h3>
+              <h3 className="trust-stat-heading">Built for independent professionals</h3>
               <p className="trust-stat-body">
                 A focused, lightweight dashboard built specifically for independent professionals, sole proprietors, and consultants.
               </p>
@@ -438,7 +438,7 @@ export default function Home() {
               <span className="trust-stat-label trust-stat-label--success">Global Trust</span>
               <h3 className="trust-stat-heading">Used worldwide</h3>
               <p className="trust-stat-body">
-                Freelancers use Corvioz to draft milestone quotes, prepare client-ready documents, and keep project records organized.
+                Independent professionals use Corvioz to draft milestone quotes, prepare client-ready documents, and keep project records organized.
               </p>
             </Card>
             <Card className="trust-stat-card">
@@ -612,7 +612,7 @@ export default function Home() {
                   <div key={plan.id} className={cardClassName}>
                     {isPro && (
                       <div className="pricing-badge-pill">
-                        Most freelancers choose this
+                        Most professionals choose this
                       </div>
                     )}
                     <div>
@@ -716,7 +716,7 @@ export default function Home() {
                 &quot;Hi, I&apos;m Duo, the creator of Corvioz. Like many of you, I struggled with bloated, expensive CRM software and accounting tools that assumed I had a finance team.
               </p>
               <p className="transparency-body">
-                We built Corvioz to give freelancers a focused, fast, and beautiful dashboard to handle quotes, invoices, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
+                We built Corvioz to give independent professionals a focused, fast, and beautiful dashboard to handle quotes, invoices, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
               </p>
               <strong className="transparency-sig">Duo, Founder of Corvioz</strong>
             </div>
@@ -738,7 +738,7 @@ export default function Home() {
       <section id="final-cta" className="section section-final-cta">
         <div className="landing-section-container landing-section-container--cta u-text-center">
           <p className="section-kicker">
-            Built for real freelancers
+            Built for independent professionals
           </p>
           <h2 className="section-title">
             Ready to create your first client quote?

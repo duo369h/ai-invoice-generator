@@ -46,7 +46,7 @@ const ACTIVATION_ACTIONS: ActivationAction[] = [
   {
     id:          'add-client',
     label:       'Add Client',
-    description: 'Save a client to your workspace.',
+    description: 'Save a client to your dashboard.',
     route:       '/dashboard?tool=client',
     primary:     false,
   },

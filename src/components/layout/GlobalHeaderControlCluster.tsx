@@ -107,14 +107,23 @@ export function GlobalHeaderControlCluster({
           box-shadow: var(--shadow-lg);
           opacity: 0;
           pointer-events: none;
-          transition: opacity 160ms ease, transform 160ms ease;
+          transition: opacity 160ms ease 150ms, transform 160ms ease 150ms;
           z-index: 50;
+        }
+        .nav-link-dropdown::before {
+          content: "";
+          position: absolute;
+          top: -15px;
+          left: 0;
+          right: 0;
+          height: 15px;
         }
         .nav-link-group:hover .nav-link-dropdown,
         .nav-link-group:focus-within .nav-link-dropdown {
           opacity: 1;
           pointer-events: auto;
           transform: translateX(-50%) translateY(2px);
+          transition-delay: 0ms;
         }
         .nav-dropdown-link {
           display: block;
@@ -149,7 +158,10 @@ export function GlobalHeaderControlCluster({
               href={link.href}
               className="nav-link"
               style={link.active ? { fontWeight: 700 } : undefined}
-              onClick={link.onClick}
+              onClick={(e) => {
+                if (link.href === '#') e.preventDefault();
+                if (link.onClick) link.onClick();
+              }}
             >
               {link.label}
             </Link>
@@ -197,9 +209,13 @@ export function GlobalHeaderControlCluster({
               <Link
                 href={link.href}
                 className="mobile-nav-link"
-                onClick={() => {
-                  closeMenu();
-                  link.onClick?.();
+                onClick={(e) => {
+                  if (link.href === '#') {
+                    e.preventDefault();
+                  } else {
+                    closeMenu();
+                  }
+                  if (link.onClick) link.onClick();
                 }}
               >
                 {link.label}

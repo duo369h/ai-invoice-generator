@@ -83,7 +83,7 @@ export function ProofCards({ examples, simulation, signals = [], compact = false
       {!compact && (
         <article className="proof-card proof-card--proposal">
           <div className="proof-card-header">
-            <span className="proof-label">Proposal Outcome</span>
+            <span className="proof-label">Quote Outcome</span>
             <span className="proof-status">preview</span>
           </div>
           <h3>{proposal.title}</h3>

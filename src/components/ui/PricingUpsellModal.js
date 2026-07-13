@@ -108,7 +108,7 @@ export function PricingUpsellModal({
               </p>
               
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Secure checkout provider: Paddle</li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Subscriptions are securely handled through Paddle</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Professional document templates</li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Client detail auto-fill presets</li>
               </ul>
@@ -152,14 +152,14 @@ export function PricingUpsellModal({
               className="btn btn-secondary"
               style={{ width: '100%', textAlign: 'center', textDecoration: 'none' }}
             >
-              Scale client operations
+              Scale client management
             </Link>
           </Card>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 650 }}>
-            Secure checkout provider: Paddle • 14-day refund window • cancel anytime
+            Subscriptions are securely handled through Paddle • 14-day refund policy • cancel anytime
           </span>
         </div>
       </div>

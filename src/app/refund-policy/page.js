@@ -52,7 +52,7 @@ export default function RefundPolicy() {
                 <li><strong style={{ color: "var(--text-main)" }}>Can I cancel anytime?</strong> Yes. You can cancel future renewal through account billing support or Paddle where enabled.</li>
                 <li><strong style={{ color: "var(--text-main)" }}>How long do refunds take?</strong> Approved refunds are coordinated through Paddle. Processing time can vary by payment method and bank.</li>
                 <li><strong style={{ color: "var(--text-main)" }}>Do I lose my invoices?</strong> No. Your invoices, quotes, client records, and exported documents remain your business records according to the Privacy Policy and Terms.</li>
-                <li><strong style={{ color: "var(--text-main)" }}>Can I export my data?</strong> Yes. You can request account and workspace data export through support, subject to identity verification.</li>
+                <li><strong style={{ color: "var(--text-main)" }}>Can I export my data?</strong> Yes. You can request account data export through support, subject to identity verification.</li>
               </ul>
             </section>
           </div>

@@ -7,7 +7,15 @@ import GlobalHeaderControlCluster from '../../components/layout/GlobalHeaderCont
 const DEFAULT_NAV_LINKS = [
   { label: 'How it Works', href: '/#how-corvioz-works' },
   { label: 'Pricing', href: '/pricing' },
-  { label: 'Resources', href: '/#resources' },
+  {
+    label: 'Resources',
+    href: '#',
+    children: [
+      { label: 'Blog', href: '/blog' },
+      { label: 'Invoice Templates', href: '/invoice-template' },
+      { label: 'Quote Templates', href: '/quote-template' }
+    ]
+  },
   { label: 'Security', href: '/security' },
   { label: 'Help Center', href: '/help' },
 ];

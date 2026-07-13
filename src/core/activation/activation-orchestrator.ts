@@ -34,7 +34,7 @@ export interface ActivationFlowResult {
 
 const PROMPTS: Record<ActivationPrompt, Omit<ActivationFlowResult, 'prompt'>> = {
   SHOW_DASHBOARD_GUIDE: {
-    message:      'Welcome to Corvioz. Let\'s set up your workspace.',
+    message:      'Welcome to Corvioz. Let\'s set up your dashboard.',
     action_route: '/dashboard',
   },
   PROMPT_FIRST_INVOICE: {
@@ -46,11 +46,11 @@ const PROMPTS: Record<ActivationPrompt, Omit<ActivationFlowResult, 'prompt'>> = 
     action_route: '/dashboard?tool=quote&mode=create',
   },
   PROMPT_FIRST_CLIENT: {
-    message:      'Add a client to start your workspace.',
+    message:      'Add a client to start your dashboard.',
     action_route: '/dashboard?action=create-client',
   },
   ACTIVATION_COMPLETE: {
-    message:      'You\'re set up. Your workspace is ready.',
+    message:      'You\'re set up. Your Corvioz account is ready.',
     action_route: '/dashboard',
   },
 };

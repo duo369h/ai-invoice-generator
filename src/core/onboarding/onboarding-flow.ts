@@ -46,7 +46,7 @@ const STEP_CONFIG: Record<OnboardingStep, Omit<OnboardingStepResult, 'step'>> = 
     progress:    0.0,
   },
   STEP_2_GUIDE_DASHBOARD: {
-    headline:    'Your workspace is ready',
+    headline:    'Your Corvioz account is ready',
     instruction: 'This is where you manage invoices, quotes, and clients.',
     cta:         'Create first invoice',
     cta_route:   '/dashboard?tool=invoice&mode=create',

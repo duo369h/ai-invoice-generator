@@ -6,7 +6,7 @@ import SharedFooter from '../components/SharedFooter';
 export const metadata = {
   title: 'Checkout Activation — Corvioz Pro',
   description:
-    'How Corvioz Pro checkout activation works with Paddle as the secure checkout provider.',
+    'How Corvioz Pro subscription activation works with subscriptions securely handled through Paddle.',
 };
 
 export default function PaymentInstructionsPage() {
@@ -24,7 +24,7 @@ export default function PaymentInstructionsPage() {
       body: (
         <>
           Continue from the Pricing page or contact support if secure checkout is not available for your account.
-          Paddle is the secure checkout provider for paid plan checkout where enabled.
+          Subscriptions are securely handled through Paddle where enabled.
           Please use the same email address you use for your Corvioz account so access can be matched correctly.
         </>
       ),
@@ -67,7 +67,7 @@ export default function PaymentInstructionsPage() {
           </Link>
 
           {/* Header */}
-          <span className="badge" style={{ marginBottom: '20px' }}>Secure Checkout Provider</span>
+          <span className="badge" style={{ marginBottom: '20px' }}>Secure Subscription Checkout</span>
           <h1 style={{
             fontSize: '2.6rem',
             fontWeight: 800,
@@ -79,7 +79,7 @@ export default function PaymentInstructionsPage() {
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '52px', maxWidth: '620px' }}>
             Corvioz paid plans use secure checkout where enabled.
-            <strong style={{ color: 'var(--text-main)' }}> Paddle is the secure checkout provider for paid plan checkout and receipts</strong>.
+            <strong style={{ color: 'var(--text-main)' }}> Subscriptions are securely handled through Paddle where enabled</strong>.
             You can also keep using the Free plan and start building your profile immediately.
           </p>
 
@@ -148,7 +148,7 @@ export default function PaymentInstructionsPage() {
               {[
                 ['Plan', 'Corvioz Pro'],
                 ['Amount', 'See current pricing at corvioz.com/pricing'],
-                ['Checkout provider', 'Paddle where enabled'],
+                ['Subscription billing', 'Paddle where enabled'],
                 ['Activation', 'Automatic where entitlement sync is active; support fallback available'],
                 ['Subscription renewal', 'Managed through account support where enabled'],
                 ['Refund policy', '14-day refund window for eligible paid upgrades'],

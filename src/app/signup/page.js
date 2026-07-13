@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge, Button, Logo } from '../components/UIComponents';
+import { Badge, Button, Logo, PasswordInput } from '../components/UIComponents';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { trackEvent } from '../lib/analytics';
@@ -169,7 +169,7 @@ export default function SignupPage() {
       <main className="container" style={{ flex: 1, padding: '70px 24px', maxWidth: '520px', margin: '0 auto', width: '100%' }}>
         <div className="card auth-card">
           <Badge style={{ marginBottom: '16px' }}>
-            Freelancer Workspace
+            Photography Dashboard
           </Badge>
 
           {isSignupSuccess ? (
@@ -268,24 +268,20 @@ export default function SignupPage() {
 
                   <div className="input-group">
                     <label className="input-label" htmlFor="signup-password">Password</label>
-                    <input
+                    <PasswordInput
                       id="signup-password"
-                      type="password"
-                      className="form-input"
-                      placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      showRequirements={true}
+                      showStrength={true}
                     />
                   </div>
 
                   <div className="input-group">
                     <label className="input-label" htmlFor="signup-confirm-password">Confirm Password</label>
-                    <input
+                    <PasswordInput
                       id="signup-confirm-password"
-                      type="password"
-                      className="form-input"
-                      placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required

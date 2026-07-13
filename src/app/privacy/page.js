@@ -84,7 +84,7 @@ export default function PrivacyPolicy() {
                 {privacyPolicy.sections.length + 4}. Retention after deletion
               </h2>
               <p>
-                When an account is deleted, Corvioz removes or de-identifies account workspace data where legally permitted. Some records may be retained for a limited period when required for billing, tax, fraud prevention, security, dispute handling, or legal compliance.
+                When an account is deleted, Corvioz removes or de-identifies account data where permitted. Some records may be retained for a limited period when required for billing, tax, fraud prevention, security, or dispute handling.
               </p>
               <ul style={{ paddingLeft: "24px", marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
                 <li>Billing and Paddle records may be retained according to payment, tax, and accounting requirements.</li>

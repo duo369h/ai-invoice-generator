@@ -28,13 +28,13 @@ const themeStyles = {
     icon: '⚡',
   },
   pro: {
-    badge: 'Pro Workspace Active',
+    badge: 'Pro Plan Active',
     accentColor: 'var(--success)',
     glowColor: 'rgba(34,197,94,0.08)',
     icon: '📈',
   },
   studio: {
-    badge: 'Studio Workspace Active',
+    badge: 'Studio Plan Active',
     accentColor: 'var(--accent)',
     glowColor: 'rgba(99,102,241,0.08)',
     icon: '🚀',
@@ -171,7 +171,7 @@ function CheckoutContent() {
   if (!mounted || !activeCopy) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)' }}>
-        <p style={{ color: 'var(--text-muted)' }}>Loading workspace details...</p>
+        <p style={{ color: 'var(--text-muted)' }}>Loading account details...</p>
       </div>
     );
   }

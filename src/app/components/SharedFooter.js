@@ -28,8 +28,8 @@ export default function SharedFooter({ lang = 'en' }) {
             <Logo size={22} style={{ fontSize: '1.2rem' }} textStyle={{ letterSpacing: '-0.03em' }} />
             <p style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
               {isZh 
-                ? 'Corvioz 帮助自由职业者组织报价、提案、客户文档和项目记录。'
-                : 'Corvioz helps freelancers organize quotes, proposals, client documents, and project records in one focused workspace.'}
+                ? 'Corvioz 帮助独立专业人士组织报价、提案、客户文档和项目记录。'
+                : 'Corvioz helps independent professionals organize quotes, invoices, client documents, and project records in one focused dashboard.'}
             </p>
           </div>
 
@@ -42,7 +42,7 @@ export default function SharedFooter({ lang = 'en' }) {
               <li><Link href="/#why-corvioz">{isZh ? '为什么选择 Corvioz' : 'Why Corvioz'}</Link></li>
               <li><Link href="/invoice-generator">{isZh ? '发票模板' : 'Invoice Templates'}</Link></li>
               <li><Link href="/quote-generator">{isZh ? '报价' : 'Quotes'}</Link></li>
-              <li><Link href="/proposal">{isZh ? '提案' : 'Proposals'}</Link></li>
+              <li><Link href="/proposal">{isZh ? '报价' : 'Quotes'}</Link></li>
               <li><Link href="/#how-corvioz-works">{isZh ? '客户工作流' : 'Client Workflow'}</Link></li>
               <li><Link href="/pricing">{isZh ? '价格' : 'Pricing'}</Link></li>
               <li><Link href="/dashboard">{isZh ? '登录' : 'Sign in'}</Link></li>
@@ -98,7 +98,7 @@ export default function SharedFooter({ lang = 'en' }) {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)', padding: '24px 0', margin: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ maxWidth: '480px' }}>
             <h5 style={{ color: 'var(--text-main)', fontSize: '0.85rem', fontWeight: 700, marginBottom: '4px' }}>
-              {isZh ? '订阅自由职业业务增长通讯' : 'Get Freelance Growth Playbooks'}
+              {isZh ? '订阅业务增长通讯' : 'Get Professional Growth Playbooks'}
             </h5>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {isZh ? '订阅获取最新高转化提案模板、定价策略和产品功能更新邮件。' : 'Subscribe to get high-converting quote templates, pricing guides, and product updates.'}
@@ -144,7 +144,7 @@ export default function SharedFooter({ lang = 'en' }) {
             fontWeight: 550,
             marginBottom: '10px'
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>💳 {isZh ? '安全结账服务提供方：Paddle' : 'Secure checkout provider: Paddle'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>💳 {isZh ? '订阅由 Paddle 安全处理' : 'Subscriptions are securely handled through Paddle.'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🧾 {isZh ? '报价和客户记录归您所有' : 'Your quotes and client records remain yours'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🔒 {isZh ? '我们不会出售个人数据' : 'We never sell personal data'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>🛡️ {isZh ? '采用行业标准安全实践保护' : 'Protected with industry-standard security practices'}</span>
@@ -152,7 +152,7 @@ export default function SharedFooter({ lang = 'en' }) {
           <p style={{ margin: 0, maxWidth: '720px', fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
             {isZh
               ? '您的报价、提案、客户记录和导出文档归您所有。Corvioz 仅使用必要数据来运行工作区，并使用产品分析改进体验。我们不会出售个人数据。'
-              : 'You own your quotes, proposals, client records, and exported documents. Corvioz uses necessary data to run the workspace and product analytics to improve the experience. We do not sell personal data.'}
+              : 'You own your quotes, invoices, client records, and exported documents. Corvioz uses necessary data to run your account and product analytics to improve the experience. We do not sell personal data.'}
           </p>
           <p style={{ margin: 0, maxWidth: '720px', fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
             {isZh
@@ -163,7 +163,7 @@ export default function SharedFooter({ lang = 'en' }) {
 
         {/* Copyright */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', textAlign: 'center', fontSize: '0.8rem' }}>
-          <p>© 2026 Corvioz. {isZh ? '保留所有权利。' : 'All rights reserved.'} <span style={{ marginLeft: '12px', color: 'var(--text-muted)', borderLeft: '1px solid var(--border)', paddingLeft: '12px' }}>{isZh ? '为自由职业者打造' : 'Built for freelancers'}</span></p>
+          <p>© 2026 Corvioz. {isZh ? '保留所有权利。' : 'All rights reserved.'} <span style={{ marginLeft: '12px', color: 'var(--text-muted)', borderLeft: '1px solid var(--border)', paddingLeft: '12px' }}>{isZh ? '为独立专业人士打造' : 'Built for independent professionals'}</span></p>
         </div>
       </div>
     </footer>

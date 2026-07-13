@@ -22,12 +22,12 @@ const PROPOSAL_TEMPLATES = {
     clientContext: "Acme AI Corporation, raising a seed round.",
     proposal: {
       title: "Premium Web Design Redesign for Acme AI Corporation",
-      overview: "Acme AI Corporation requires a high-performance marketing website redesign to support their upcoming seed round. This proposal outlines the exact strategy to restructure the layout, implement conversion-focused UI tokens, build clean typography hierarchies, and hand off Webflow workspace ownership.",
+      overview: "Acme AI Corporation requires a high-performance marketing website redesign to support their upcoming seed round. This quote outlines the exact strategy to restructure the layout, implement conversion-focused UI tokens, build clean typography hierarchies, and hand off Webflow account ownership.",
       scope: "- Figma UI mockups for Desktop, Tablet, and Mobile\n- Brand style guides and custom icon sets\n- Conversion optimization review on CTA hierarchy\n- Responsive Webflow deployment and domain integration",
       timeline: "- **Milestone 1**: Wireframing & user flow map (Week 1)\n- **Milestone 2**: Final design mockups & prototype approval (Week 2)\n- **Milestone 3**: Webflow code implementation & domain setup (Week 3)",
       deliverables: "- Figma project source files\n- Custom brand typography stylesheet\n- Responsive Webflow live deployment\n- 14 days post-handover Slack support",
       pricing: "$3,200 USD flat-rate (50% deposit, 50% upon live launch)",
-      cta: "Reply to this proposal or click 'Schedule Call' to secure your slot for next week."
+      cta: "Reply to this quote or click 'Schedule Call' to secure your slot for next week."
     }
   },
   seo: {
@@ -116,7 +116,7 @@ export default function ProposalCreationFlow() {
       setProposal({
         ...chosen.proposal,
         workflow_signal: {
-          message: "This proposal keeps scope, milestones, and next steps easy to review.",
+          message: "This quote keeps scope, milestones, and next steps easy to review.",
           confidence: "medium",
           context: "based on template structure"
         }
@@ -135,7 +135,7 @@ export default function ProposalCreationFlow() {
       setProposal({
         ...chosen.proposal,
         workflow_signal: {
-          message: "This proposal keeps scope, milestones, and next steps easy to review.",
+          message: "This quote keeps scope, milestones, and next steps easy to review.",
           confidence: "medium",
           context: "based on template structure"
         }
@@ -191,10 +191,10 @@ export default function ProposalCreationFlow() {
         setTargetPlanForModal(isStarter ? 'pro' : 'starter');
         setModalTitle(isStarter ? 'Present client work professionally' : 'Organize client delivery');
         setModalDescription(isStarter
-          ? 'You have reached the Starter plan limit (1 proposal/day). Upgrade to Pro for unlimited proposal generation.'
+          ? 'You have reached the Starter plan limit (1 quote/day). Upgrade to Pro for more quote drafts.'
           : 'You have reached the Free plan limit (1 proposal/day). Upgrade to Starter to keep generating.');
         setErrorMessage(isStarter
-          ? 'Starter plan limit reached (1/day). Upgrade to Pro to unlock unlimited proposals.'
+          ? 'Starter plan limit reached (1/day). Upgrade to Pro for more quote drafts.'
           : 'Free plan limit reached (1/day). Upgrade to Starter to unlock more generation.');
         setShowUpgradeModal(true);
         return;
@@ -224,14 +224,14 @@ export default function ProposalCreationFlow() {
           setTargetPlanForModal(isStarter ? 'pro' : 'starter');
           setModalTitle(isStarter ? 'Present client work professionally' : 'Organize client delivery');
           setModalDescription(isStarter
-            ? 'Daily proposal limit reached. Upgrade to Pro for unlimited proposal generation.'
+            ? 'Daily quote limit reached. Upgrade to Pro for more quote drafts.'
             : 'Daily proposal limit reached. Upgrade to Starter to keep generating.');
           setShowUpgradeModal(true);
           setErrorMessage(isStarter
-            ? 'Starter plan limit reached (1/day). Upgrade to Pro to unlock unlimited proposals.'
+            ? 'Starter plan limit reached (1/day). Upgrade to Pro for more quote drafts.'
             : 'Free plan limit reached (1/day). Upgrade to Starter to unlock more generation.');
         } else {
-          setErrorMessage(data.error || 'Failed to generate proposal. Please try again.');
+          setErrorMessage(data.error || 'Failed to generate quote. Please try again.');
         }
         setCreationStage('input');
         return;
@@ -239,7 +239,7 @@ export default function ProposalCreationFlow() {
 
       setProposal(data.parsed_data);
       setCreationStage('preview');
-      setSuccessMessage('Proposal generated successfully! Edit below.');
+      setSuccessMessage('Quote generated successfully! Edit below.');
 
       // v10: Fire success moment nudge (non-blocking) after generation
       const planForNudge = plan || 'free';
@@ -262,7 +262,7 @@ export default function ProposalCreationFlow() {
 
   const getFullMarkdown = () => {
     if (!proposal) return '';
-    return `# ${proposal.title || 'Project Proposal'}
+    return `# ${proposal.title || 'Project Quote'}
 
 ## Overview
 ${proposal.overview || ''}
@@ -288,7 +288,7 @@ ${proposal.cta || ''}`;
     const text = getFullMarkdown();
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      setSuccessMessage('Proposal copied to clipboard! ✓');
+      setSuccessMessage('Quote copied to clipboard! ✓');
       setTimeout(() => setSuccessMessage(''), 3000);
     }
   };
@@ -302,7 +302,7 @@ ${proposal.cta || ''}`;
       setErrorMessage('Sharing clean, professional links requires the Pro plan.');
       setTargetPlanForModal('pro');
       setModalTitle('Present client work professionally');
-      setModalDescription('Upgrade to Pro to share clean, un-watermarked proposal links and export secure PDFs.');
+      setModalDescription('Upgrade to Pro to share clean, un-watermarked quote links and export PDFs.');
       setShowUpgradeModal(true);
       return;
     }
@@ -385,10 +385,10 @@ ${proposal.cta || ''}`;
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid var(--border)', paddingBottom: '20px' }}>
           <div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-              ✨ Prepare Professional Client Proposals
+              ✨ Prepare Professional Client Quotes
             </h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Fill out the fields below and generate a structured, client-ready proposal.
+              Fill out the fields below and generate a structured, client-ready quote.
             </p>
           </div>
         </header>
@@ -497,7 +497,7 @@ ${proposal.cta || ''}`;
                 <span>Estimated client conversion impact: <strong>High (+42%)</strong></span>
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600 }}>
-                Use this proposal structure to make scope, milestones, and next steps easier for clients to review.
+                Use this quote structure to make scope, milestones, and next steps easier for clients to review.
               </div>
             </div>
 
@@ -505,7 +505,7 @@ ${proposal.cta || ''}`;
               <div>
                 <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>Review and Refine Your Pitch</h2>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Position your rates with total service clarity. Edit any section below to customize your proposal.
+                  Position your rates with total service clarity. Edit any section below to customize your quote.
                 </p>
               </div>
               
@@ -539,7 +539,7 @@ ${proposal.cta || ''}`;
                 className="btn btn-primary"
                 style={{ flex: 1, padding: '14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.95rem' }}
               >
-                Generate new proposal ✨
+                Generate new quote ✨
               </button>
               <button 
                 onClick={() => {
@@ -549,14 +549,14 @@ ${proposal.cta || ''}`;
                 className="btn btn-secondary"
                 style={{ flex: 1, padding: '14px', borderRadius: '8px', fontWeight: 800, fontSize: '0.95rem' }}
               >
-                Edit this proposal ✏️
+                Edit this quote ✏️
               </button>
             </div>
 
             {/* Editable Fields */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>Proposal Title</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '6px' }}>Quote Title</label>
                 <input 
                   type="text"
                   value={proposal.title}
@@ -637,7 +637,7 @@ ${proposal.cta || ''}`;
             }}>
               <p style={{ margin: '0 0 6px 0', fontSize: '0.88rem', fontWeight: 800, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>▣</span>
-                <span>This proposal is designed for clearer client review</span>
+                <span>This quote is designed for clearer client review</span>
               </p>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
                 Used by freelancers to present client work clearly. {proposal.workflow_signal?.message || "Keep scope, milestones, and next steps easy to review."}
@@ -650,11 +650,11 @@ ${proposal.cta || ''}`;
                 <div style={{ textAlign: 'left' }}>
                   <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', fontWeight: 800 }}>🔓 Unlock Clean Client Delivery</h4>
                   <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Deliver clean, watermark-free proposals. Upgrade to Pro to unlock PDF exports.
+                    Deliver clean, watermark-free quotes. Upgrade to Pro to unlock PDF exports.
                   </p>
                 </div>
                 <button onClick={() => setShowUpgradeModal(true)} className="btn btn-primary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
-                  Upgrade Workspace
+                  Upgrade Plan
                 </button>
               </div>
             )}
@@ -785,7 +785,7 @@ ${proposal.cta || ''}`;
         onClose={() => setShowUpgradeModal(false)}
         title={modalTitle}
         description={modalDescription}
-        lockedFeatureValue={targetPlanForModal === 'growth' ? "Watermark-free PDF exports" : "Unlimited proposal generations and PDF downloads"}
+        lockedFeatureValue={targetPlanForModal === 'growth' ? "Watermark-free PDF exports" : "More quote drafts and PDF downloads"}
         source="proposal_pdf_gate"
         targetPlan={targetPlanForModal}
       />

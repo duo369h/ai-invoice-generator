@@ -12,3 +12,4 @@ export { ExportRestrictionModal } from './ExportRestrictionModal';
 export { PricingRedirectOverlay } from './PricingRedirectOverlay';
 export { UpgradeBanner } from './UpgradeBanner';
 export { DecisionExplanationPanel } from './DecisionExplanationPanel';
+export { PasswordInput } from './PasswordInput';

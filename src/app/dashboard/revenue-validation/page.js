@@ -95,14 +95,14 @@ export default function RevenueValidationPage() {
       <header style={styles.header}>
         <p style={styles.kicker}>Internal Validation</p>
         <h1 style={styles.title}>Workflow Validation</h1>
-        <p style={styles.copy}>Product validation metrics for proposal acceptance, invoice document completion, and workflow mix.</p>
+        <p style={styles.copy}>Product validation metrics for quote acceptance, invoice document completion, and workflow mix.</p>
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
       {!data?.configured && !loading && <div style={styles.warning}>Workflow validation data is not configured in this environment.</div>}
 
       <section style={styles.grid}>
-        <Metric label="Proposal Acceptance Rate" value={loading ? '...' : pct(data?.metrics?.proposal_acceptance_rate)} detail={`${data?.counts?.accepted_quotes || 0} accepted`} />
+        <Metric label="Quote Acceptance Rate" value={loading ? '...' : pct(data?.metrics?.proposal_acceptance_rate)} detail={`${data?.counts?.accepted_quotes || 0} accepted`} />
         <Metric label="Invoice Document Completion Rate" value={loading ? '...' : pct(data?.metrics?.invoice_payment_rate)} detail={`${data?.counts?.paid_invoices || 0} completed`} />
         <Metric label="Average Document Total" value={loading ? '...' : currency(data?.metrics?.average_revenue)} detail="completed invoice documents" />
       </section>

@@ -16,7 +16,7 @@ export function UpgradeModal({
   onClose,
   title = '',
   description = '',
-  lockedFeatureValue = 'Unlimited clients, quotes, and invoices',
+  lockedFeatureValue = 'More clients, quotes, and invoices',
   limit = '',
   source = 'dashboard_upgrade_modal',
   explanation = null,
@@ -94,7 +94,7 @@ export function UpgradeModal({
               : targetPlan === 'pro' 
               ? valueMessage.primaryCta 
               : targetPlan === 'studio'
-              ? 'Scale client operations' 
+              ? 'Scale client management'
               : 'Upgrade now'}
           </Link>
           <button 
@@ -108,7 +108,7 @@ export function UpgradeModal({
         
         <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
           <span>{valueMessage.roiAnchor} Plans start at ${getPlanVal('starter', 'price_monthly', 9)}/mo.</span>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>Secure checkout provider: Paddle • Cancel anytime</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-soft)', fontWeight: 650 }}>Subscriptions are securely handled through Paddle • Cancel anytime</span>
         </p>
       </div>
     </div>

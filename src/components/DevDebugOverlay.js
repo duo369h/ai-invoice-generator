@@ -197,7 +197,7 @@ function DevDebugOverlayActual() {
                 }}
               >
                 <option value="null">Reset (default)</option>
-                <option value="freelancer">Freelancer</option>
+                <option value="freelancer">Photographer</option>
                 <option value="business">Business (Studio OS override)</option>
               </select>
             </div>
