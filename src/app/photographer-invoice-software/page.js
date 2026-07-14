@@ -4,7 +4,7 @@ const page = {
   path: '/photographer-invoice-software',
   analyticsSlug: 'photographer_invoice_software',
   schemaType: 'SoftwareApplication',
-  seoTitle: 'Photographer Invoice Software | Corvioz',
+  seoTitle: 'Photographer Invoice Software',
   description:
     'Photographer invoice software for quotes, deposits, invoices, and payment tracking — one workflow, not a stack of separate tools.',
   h1: 'Invoice Software Built Around How Photographers Actually Get Paid',
@@ -13,7 +13,7 @@ const page = {
   previewTitle: 'Corvioz vs. Invoice Template',
   previewItems: [
     'Quote and invoice numbers carried over automatically',
-    'Deposit recorded against the job, applied automatically',
+    'Deposit recorded against the job, reflected on the final invoice',
     'Client history kept in one client record',
     'Multiple active jobs visible together, by status',
     'International clients built into the same workflow',
@@ -26,7 +26,7 @@ const page = {
   featureCards: [
     {
       title: 'Deposit & Balance Tracking',
-      body: "Deposits are recorded against the job the moment they're collected, and automatically applied when the final invoice is created — so the balance due is always accurate, and clients are never shown a number that doesn't match what they've already paid.",
+      body: "Deposits are recorded against the job the moment they're collected, and clearly reflected when the final invoice is created — so the balance due is always accurate, and clients are never shown a number that doesn't match what they've already paid.",
     },
     {
       title: 'Quote to Invoice Workflow',
@@ -57,7 +57,7 @@ const page = {
     },
     {
       title: 'Final Payment',
-      body: 'The final invoice reflects the deposit already paid, and the balance is tracked to close. Nothing has to be rebuilt or reconciled by hand as the job moves forward.',
+      body: 'The final invoice reflects the deposit already paid, and the balance is tracked to close. Nothing has to be rebuilt from scratch as the job moves forward.',
     },
   ],
   faq: [
@@ -69,7 +69,7 @@ const page = {
     {
       question: 'Can Corvioz track deposits separately from the final payment?',
       answer:
-        'Yes. Deposits are recorded against the job and applied to the final invoice automatically, so the remaining balance is always accurate.',
+        'Yes. Deposits are recorded against the job and reflected on the final invoice, so the remaining balance is always accurate.',
     },
     {
       question: 'Does an approved quote automatically become an invoice?',
