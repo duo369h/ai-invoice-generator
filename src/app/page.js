@@ -285,7 +285,9 @@ export default function Home() {
               label: 'Resources',
               href: '#resources',
               children: [
-                { label: 'For Photographers', href: '/for-photographers' },
+                { label: 'Blog', href: '/blog' },
+                { label: 'Invoice Templates', href: '/invoice-template' },
+                { label: 'Quote Templates', href: '/quote-template' },
               ],
             },
             { label: 'Security', href: '/security' },
