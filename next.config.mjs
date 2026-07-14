@@ -77,6 +77,16 @@ const nextConfig = {
         destination: '/invoice-generator',
         permanent: true,
       },
+      {
+        source: '/quote-template/photographer',
+        destination: '/photographer-quote-template',
+        permanent: true,
+      },
+      {
+        source: '/invoice-template/photographer',
+        destination: '/photographer-invoice-template',
+        permanent: true,
+      },
     ];
   },
 };

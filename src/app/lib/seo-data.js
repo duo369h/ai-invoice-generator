@@ -1,15 +1,5 @@
 const industries = [
   {
-    slug: 'photographer',
-    singular: 'photographer',
-    plural: 'photographers',
-    label: 'Photographer',
-    audience: 'wedding, portrait, event, product, and commercial photographers',
-    deliverables: ['shoot date and location', 'editing or retouching package', 'image licensing terms', 'print or gallery delivery', 'deposit and final balance'],
-    invoiceExampleFields: ['Session or project name', 'Shoot date', 'Editing package', 'Licensing usage', 'Deposit noted', 'Final amount due'],
-    quoteExampleFields: ['Creative brief', 'Location and duration', 'Deliverable count', 'Usage rights', 'Rush fee', 'Estimated total'],
-  },
-  {
     slug: 'consultant',
     singular: 'consultant',
     plural: 'consultants',
