@@ -4,7 +4,7 @@ const page = {
   path: '/photographer-invoice-template',
   analyticsSlug: 'photographer_invoice_template',
   schemaType: 'CollectionPage',
-  seoTitle: 'Photographer Invoice Template | Corvioz',
+  seoTitle: 'Photographer Invoice Template',
   description:
     'A professional photography invoice template covering deliverables, deposits & balances — plus a way to track payment status after the quote is approved.',
   h1: 'The Photographer Invoice Template That Tracks What\'s Been Paid',
