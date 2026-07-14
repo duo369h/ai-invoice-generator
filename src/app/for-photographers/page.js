@@ -474,7 +474,13 @@ export default function ForPhotographersPage() {
               Corvioz helps independent photographers quote, invoice, and track deposits and final payments in their own currency — built around how a shoot actually gets booked and paid, not around one market's assumptions.
             </p>
             <ForPhotographersCta position="hero" />
-            <p className="photo-microcopy">No credit card required. Set up your first quote in under 10 minutes.</p>
+            <p className="photo-microcopy">
+              No credit card required. Set up your first quote in under 10 minutes.
+              <br />
+              <span style={{ display: 'inline-block', marginTop: '6px' }}>
+                Need to bill for completed work? Use our <Link href="/photographer-invoice-template" style={{ textDecoration: 'underline', color: 'inherit' }}>Photographer Invoice Template</Link>.
+              </span>
+            </p>
           </div>
 
           <div className="photo-mockup" aria-label="Quote workflow preview">
