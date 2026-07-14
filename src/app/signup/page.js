@@ -11,13 +11,13 @@ import { getAuthCallbackUrl } from '../lib/config';
 import { saveIntendedRoute } from '../lib/intent-store';
 
 function safeSignupRedirect(value) {
-  if (!value || typeof value !== 'string') return '/dashboard?tool=quote&mode=create&flow=first-quote';
-  if (!value.startsWith('/') || value.startsWith('//')) return '/dashboard?tool=quote&mode=create&flow=first-quote';
+  if (!value || typeof value !== 'string') return '/onboarding';
+  if (!value.startsWith('/') || value.startsWith('//')) return '/onboarding';
   return value;
 }
 
 function readSignupRedirectTarget() {
-  if (typeof window === 'undefined') return '/dashboard?tool=quote&mode=create&flow=first-quote';
+  if (typeof window === 'undefined') return '/onboarding';
   const params = new URLSearchParams(window.location.search);
   return safeSignupRedirect(params.get('redirect') || params.get('next'));
 }
@@ -34,7 +34,7 @@ export default function SignupPage() {
   const [hasCheckedConfig, setHasCheckedConfig] = useState(false);
   const [isSignupSuccess, setIsSignupSuccess] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [signupRedirectTarget, setSignupRedirectTarget] = useState('/dashboard?tool=quote&mode=create&flow=first-quote');
+  const [signupRedirectTarget, setSignupRedirectTarget] = useState('/onboarding');
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -90,6 +90,17 @@ export default function SignupPage() {
         // If Supabase is configured to auto-confirm, we might have an active session right away.
         if (data?.session) {
           setStatus('Account created! Redirecting... / 账户已创建！正在跳转...');
+          const sessionResponse = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ session: data.session }),
+          });
+          if (!sessionResponse.ok) {
+            const sessionResult = await sessionResponse.json().catch(() => ({}));
+            setStatus(sessionResult?.error || 'Account created, but sign-in could not be completed. Please sign in again.');
+            return;
+          }
           router.replace(readSignupRedirectTarget());
         } else {
           setIsSignupSuccess(true);

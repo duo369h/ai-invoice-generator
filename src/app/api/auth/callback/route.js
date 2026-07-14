@@ -138,7 +138,9 @@ export async function GET(request) {
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data?.session) {
-    return NextResponse.redirect(new URL('/auth', request.url));
+    const fallbackUrl = new URL('/auth', request.url);
+    if (next) fallbackUrl.searchParams.set('next', next);
+    return NextResponse.redirect(fallbackUrl);
   }
 
   const response = createRedirectWithBrowserPersistence(next, storageKey, data.session);

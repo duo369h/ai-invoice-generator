@@ -156,12 +156,14 @@ export default function AuthPage() {
             bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
             const redirectTarget = readAuthRedirectTarget();
             try {
-              const res = await fetch('/api/user', {
-                headers: { Authorization: `Bearer ${data.session.access_token}` }
-              });
+              const res = await fetch('/api/user');
               if (res.ok) {
-                await res.json();
-                router.replace(redirectTarget);
+                const userData = await res.json();
+                if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
+                  router.replace('/onboarding');
+                } else {
+                  router.replace(redirectTarget);
+                }
               }
             } catch (e) {
               console.error('Error resolving entry post-session:', e);
@@ -242,7 +244,20 @@ export default function AuthPage() {
           setStatus('Login succeeded, but the browser session was not ready yet. Please try again. / 登录成功，但浏览器会话尚未准备好，请再试一次。');
           return;
         }
-        window.location.assign(readAuthRedirectTarget());
+        const redirectTarget = readAuthRedirectTarget();
+        try {
+          const res = await fetch('/api/user');
+          if (res.ok) {
+            const userData = await res.json();
+            if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
+              router.replace('/onboarding');
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Error resolving entry post-session:', e);
+        }
+        router.replace(redirectTarget);
       }
     } catch (err) {
       setStatus(err.message || 'An unexpected error occurred.');
