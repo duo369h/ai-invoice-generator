@@ -12,8 +12,8 @@ const page = {
     'Stop Managing Quotes, Deposits, and Invoices in Different Places. Most photographers piece together their billing from a quote template, a separate invoice tool, a spreadsheet for deposits, and an inbox full of "did they pay yet?" Corvioz replaces that patchwork with one workflow: quote, deposit, invoice, and final payment, tied to the same client record from inquiry to delivery.',
   previewTitle: 'Corvioz vs. Invoice Template',
   previewItems: [
-    'Quote and invoice numbers carried over automatically',
-    'Deposit recorded against the job, reflected on the final invoice',
+    'Details carried over when converting a quote to an invoice',
+    'Payment status tracking for deposits and final balances',
     'Client history kept in one client record',
     'Multiple active jobs visible together, by status',
     'International clients built into the same workflow',
@@ -25,8 +25,8 @@ const page = {
     "A quote gets approved in one place, and the invoice gets built somewhere else. Deposits get tracked in a spreadsheet, invoices don't reflect them, and clients get confused about what they still owe. Client history is split across email threads, and it becomes harder to see who's paid and who's overdue. None of this is a pricing problem. It's a workflow problem — and it gets worse as the business grows.",
   featureCards: [
     {
-      title: 'Deposit & Balance Tracking',
-      body: "Deposits are recorded against the job the moment they're collected, and clearly reflected when the final invoice is created — so the balance due is always accurate, and clients are never shown a number that doesn't match what they've already paid.",
+      title: 'Payment Status Tracking',
+      body: 'Corvioz replaces scattered spreadsheets with clear payment status tracking and invoice status organization. When you record a deposit, you can easily reflect it on the final invoice so clients always see an accurate remaining balance.',
     },
     {
       title: 'Quote to Invoice Workflow',
@@ -49,7 +49,7 @@ const page = {
     },
     {
       title: 'Deposit',
-      body: 'Collected and recorded against the job.',
+      body: 'Payment status tracking for deposits collected against the job.',
     },
     {
       title: 'Shoot & Delivery',
@@ -57,7 +57,7 @@ const page = {
     },
     {
       title: 'Final Payment',
-      body: 'The final invoice reflects the deposit already paid, and the balance is tracked to close. Nothing has to be rebuilt from scratch as the job moves forward.',
+      body: 'The final invoice can reflect the deposit already paid, providing clear invoice status organization as the balance is tracked to close.',
     },
   ],
   faq: [
@@ -69,12 +69,12 @@ const page = {
     {
       question: 'Can Corvioz track deposits separately from the final payment?',
       answer:
-        'Yes. Deposits are recorded against the job and reflected on the final invoice, so the remaining balance is always accurate.',
+        'Yes. Corvioz provides payment status tracking so you can record deposits against the job. This provides client workflow visibility and ensures the remaining balance on the final invoice is always accurate.',
     },
     {
-      question: 'Does an approved quote automatically become an invoice?',
+      question: 'Can I create an invoice from an approved quote?',
       answer:
-        'Yes — the invoice is generated from the approved quote, carrying over deliverables and pricing so nothing needs to be re-entered.',
+        'Yes. When converting an approved quote into an invoice, Corvioz carries over details like scope, deliverables, and pricing. You trigger the conversion manually, so nothing needs to be re-entered by hand.',
     },
     {
       question: 'Will Corvioz collect payments automatically on my behalf?',
