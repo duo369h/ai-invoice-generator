@@ -1,6 +1,6 @@
+import Link from 'next/link';
 import ForPhotographersCta from './ForPhotographersCta';
 import ForPhotographersHeader from './ForPhotographersHeader';
-
 const pageTitle = 'Corvioz for Independent Photographers';
 const pageDescription = "Quote, invoice, and track deposits and final payments in your own currency, built around how a shoot actually gets booked and paid.";
 
@@ -26,7 +26,11 @@ const assumptions = [
 const workflowSteps = [
   {
     title: 'Inquiry to Quote',
-    body: 'A client asks about availability and pricing. Turn it into a professional quote in minutes — packages, add-ons, your pricing, without rebuilding a document from scratch each time.',
+    body: (
+      <>
+        A client asks about availability and pricing. Turn it into a <Link href="/photographer-quote-template" style={{ textDecoration: 'underline', color: 'inherit' }}>professional quote template</Link> in minutes — packages, add-ons, your pricing, without rebuilding a document from scratch each time.
+      </>
+    ),
   },
   {
     title: 'Quote to Deposit & Agreement',
