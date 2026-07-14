@@ -278,8 +278,8 @@ export default function Home() {
           surfaceId="home-global-control-surface"
           route="/"
           navLinks={[
-            { label: 'Why Corvioz', href: '#why-corvioz' },
-            { label: 'How it Works', href: '#how-corvioz-works' },
+            { label: 'How It Works', href: '#how-corvioz-works' },
+            { label: 'For Photographers', href: '/for-photographers' },
             { label: 'Pricing', href: '#pricing' },
             {
               label: 'Resources',

@@ -1033,7 +1033,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
               Securely powered by <Link href="/" target="_blank" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>Corvioz</Link>. Share invoices, quotes, and client updates in one Client Portal.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem' }}>
-              Are you a photographer? <Link href="/" target="_blank" style={{ color: 'var(--accent)', fontWeight: 650, textDecoration: 'underline' }}>Get your free account</Link>
+              Are you a photographer? <Link href="/for-photographers" target="_blank" style={{ color: 'var(--accent)', fontWeight: 650, textDecoration: 'underline' }}>Get your free account</Link>
             </p>
           </footer>
         )}

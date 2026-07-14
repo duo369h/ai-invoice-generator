@@ -5,7 +5,8 @@ import { Logo } from './UIComponents';
 import GlobalHeaderControlCluster from '../../components/layout/GlobalHeaderControlCluster';
 
 const DEFAULT_NAV_LINKS = [
-  { label: 'How it Works', href: '/#how-corvioz-works' },
+  { label: 'How It Works', href: '/#how-corvioz-works' },
+  { label: 'For Photographers', href: '/for-photographers' },
   { label: 'Pricing', href: '/pricing' },
   {
     label: 'Resources',
@@ -17,7 +18,7 @@ const DEFAULT_NAV_LINKS = [
     ]
   },
   { label: 'Security', href: '/security' },
-  { label: 'Help Center', href: '/help' },
+  { label: 'Help Center', href: '/help' }
 ];
 
 export default function PublicHeader({
