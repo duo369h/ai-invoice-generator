@@ -42,7 +42,11 @@ const workflowSteps = [
   },
   {
     title: 'Final Payment & Record',
-    body: 'Trigger the final invoice, log the payment however it comes in — card, transfer, or cash — and keep a clean record for every job.',
+    body: (
+      <>
+        Trigger the final invoice using a <Link href="/photographer-invoice-template" style={{ textDecoration: 'underline', color: 'inherit' }}>photographer invoice template</Link>, log the payment however it comes in — card, transfer, or cash — and keep a clean record for every job.
+      </>
+    ),
   },
 ];
 
