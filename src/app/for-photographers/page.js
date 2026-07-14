@@ -34,7 +34,11 @@ const workflowSteps = [
   },
   {
     title: 'Quote to Deposit & Agreement',
-    body: 'Once they confirm, the quote becomes an agreement with deposit terms, delivery timeline, and usage rights attached — no copying details between separate documents.',
+    body: (
+      <>
+        Once they confirm, the quote becomes an agreement with deposit terms, delivery timeline, and usage rights attached — no copying details between separate documents when using dedicated <Link href="/photographer-invoice-software" style={{ textDecoration: 'underline', color: 'inherit' }}>photographer invoice software</Link>.
+      </>
+    ),
   },
   {
     title: 'Shoot to Delivery',
