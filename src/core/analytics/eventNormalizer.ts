@@ -16,6 +16,9 @@ const EVENT_NAME_MAPPING: Record<string, EventName> = {
   
   'Hero CTA Click': EVENTS.CTA_CLICK,
   'cta_click': EVENTS.CTA_CLICK,
+
+  'photographer_cta_click': EVENTS.PHOTOGRAPHER_CTA_CLICK,
+  'PHOTOGRAPHER_CTA_CLICK': EVENTS.PHOTOGRAPHER_CTA_CLICK,
   
   'Pricing Click': EVENTS.PRICING_VIEW,
   'pricing_view': EVENTS.PRICING_VIEW,
@@ -25,6 +28,8 @@ const EVENT_NAME_MAPPING: Record<string, EventName> = {
   
   'Signup Completed': EVENTS.SIGNUP_COMPLETED,
   'signup_complete': EVENTS.SIGNUP_COMPLETED,
+  'signup_completed': EVENTS.SIGNUP_COMPLETED,
+  'SIGNUP_COMPLETED': EVENTS.SIGNUP_COMPLETED,
   
   'onboarding_start': EVENTS.DASHBOARD_ENTERED,
   'dashboard_enter': EVENTS.DASHBOARD_ENTERED,
@@ -49,11 +54,15 @@ const EVENT_NAME_MAPPING: Record<string, EventName> = {
   
   'create_quote_click': EVENTS.QUOTE_CREATED_INTENT,
   'QUOTE_CREATED_INTENT': EVENTS.QUOTE_CREATED_INTENT,
+  'first_quote_created': EVENTS.FIRST_QUOTE_CREATED,
+  'FIRST_QUOTE_CREATED': EVENTS.FIRST_QUOTE_CREATED,
   'signup_to_first_quote_completed': EVENTS.SIGNUP_TO_FIRST_QUOTE_COMPLETED,
   'SIGNUP_TO_FIRST_QUOTE_COMPLETED': EVENTS.SIGNUP_TO_FIRST_QUOTE_COMPLETED,
   
   'create_invoice_click': EVENTS.INVOICE_CREATED_INTENT,
   'INVOICE_CREATED_INTENT': EVENTS.INVOICE_CREATED_INTENT,
+  'first_invoice_created': EVENTS.FIRST_INVOICE_CREATED,
+  'FIRST_INVOICE_CREATED': EVENTS.FIRST_INVOICE_CREATED,
 };
 
 // Funnel stages mapping for Phase 6 Pipeline

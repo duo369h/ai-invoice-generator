@@ -26,7 +26,7 @@ export default function ForPhotographersCta({
           intended_route: INTENDED_ROUTE,
         });
         saveIntendedRoute(INTENDED_ROUTE, 'for_photographers', CTA_LABEL);
-        sendEvent('CTA_CLICK', {
+        sendEvent('photographer_cta_click', {
           cta_name: CTA_LABEL,
           label: CTA_LABEL,
           position,

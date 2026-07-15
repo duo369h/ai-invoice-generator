@@ -24,6 +24,12 @@ function getUserId(): string | undefined {
   }
 }
 
+export function isAnalyticsDebugEnabled(
+  search = typeof window === 'undefined' ? '' : window.location.search
+): boolean {
+  return new URLSearchParams(search).get('debug_analytics') === '1';
+}
+
 function dispatchTransports(eventName: string, payload: any): void {
   if (typeof window === 'undefined') return;
 
@@ -35,12 +41,16 @@ function dispatchTransports(eventName: string, payload: any): void {
   // 2. Google Analytics 4 (gtag.js)
   if (typeof (window as any).gtag === 'function') {
     try {
-      (window as any).gtag('event', eventName, {
+      const gaPayload: Record<string, unknown> = {
         transport_type: 'beacon',
         ...payload.metadata,
         session_id: payload.sessionId,
         user_id: payload.userId,
-      });
+      };
+      if (isAnalyticsDebugEnabled()) {
+        gaPayload.debug_mode = true;
+      }
+      (window as any).gtag('event', eventName, gaPayload);
     } catch (err) {
       console.error('[EVENT_ROUTER GA4 ERROR]', err);
     }

@@ -17,6 +17,8 @@ export const EVENT_REVENUE_WEIGHTS: Record<EventName, number> = {
   [EVENTS.SCROLL_DEPTH_50]: 5,
   [EVENTS.SCROLL_DEPTH_90]: 8,
   [EVENTS.TEMPLATE_VIEWED]: 12,
+  // Analytics-only activation events must not change revenue scoring.
+  [EVENTS.PHOTOGRAPHER_CTA_CLICK]: 0,
 
   // Consideration / Engagement
   [EVENTS.CTA_CLICK]: 15,
@@ -29,8 +31,10 @@ export const EVENT_REVENUE_WEIGHTS: Record<EventName, number> = {
   [EVENTS.BETA_FEEDBACK_CLICKED]: 5,
   [EVENTS.FIRST_ACTION_TAKEN]: 45,
   [EVENTS.QUOTE_CREATED_INTENT]: 50,
+  [EVENTS.FIRST_QUOTE_CREATED]: 0,
   [EVENTS.SIGNUP_TO_FIRST_QUOTE_COMPLETED]: 70,
   [EVENTS.INVOICE_CREATED_INTENT]: 55,
+  [EVENTS.FIRST_INVOICE_CREATED]: 0,
 
   // High Intent / Decision
   [EVENTS.SIGNUP_COMPLETED]: 60,
