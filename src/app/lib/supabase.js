@@ -64,10 +64,21 @@ function getStoredAccessToken(request, storageKey) {
   }
 }
 
+function getRequestBearerToken(request) {
+  const authorization = request.headers.get('authorization') || '';
+  if (!authorization) return { hasBearer: false, accessToken: '' };
+
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) return { hasBearer: /^Bearer\b/i.test(authorization.trim()), accessToken: '' };
+
+  return { hasBearer: true, accessToken: match[1].trim() };
+}
+
 export function createRequestSupabaseClient(request) {
   const storageKey = getSupabaseAuthStorageKey();
   if (!isSupabaseConfigured() || !storageKey) return null;
-  const accessToken = getStoredAccessToken(request, storageKey);
+  const bearer = getRequestBearerToken(request);
+  const accessToken = bearer.hasBearer ? bearer.accessToken : getStoredAccessToken(request, storageKey);
 
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -90,6 +101,7 @@ export function createRequestSupabaseClient(request) {
         storage: {
           getItem: (key) => {
             if (key !== storageKey) return null;
+            if (bearer.hasBearer) return null;
             return getStoredAuthSession(request, storageKey);
           },
           setItem: () => {},
@@ -142,7 +154,8 @@ export async function getRequestUser(request) {
     return { mode: 'unauthenticated', supabase: null, user: null };
   }
 
-  const { data, error } = await supabase.auth.getUser();
+  const bearer = getRequestBearerToken(request);
+  const { data, error } = await supabase.auth.getUser(bearer.hasBearer ? bearer.accessToken : undefined);
   if (error || !data?.user) {
     if (process.env.NODE_ENV === 'production') {
       return { mode: 'unauthenticated', supabase: null, user: null };

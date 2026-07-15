@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { configureRouteRuntime, getRouteRuntimeCalls } from './test-support/route-runtime-mocks.mjs';
 import { POST } from '../src/app/api/events/activation/claim/route.js';
 
 const user = { id: 'user-1' };
 const request = (event_name) => new Request('http://localhost/api/events/activation/claim', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event_name }) });
 const context = (mode = 'supabase') => ({ mode, user });
+const source = await readFile(new URL('../src/app/api/events/activation/claim/route.js', import.meta.url), 'utf8');
+
+assert.match(source, /\.eq\('user_id', context\.user\.id\)/, 'activation claims only query documents owned by the authenticated user');
 
 configureRouteRuntime({ context: context('unauthenticated') });
 let response = await POST(request('first_quote_created'));

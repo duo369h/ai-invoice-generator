@@ -1728,7 +1728,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               quote_preset_name: selectedQuotePreset?.name || null,
               sandbox: isDemo
             });
-            if (await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, isDemo, isPreview: previewMode, sendEvent })) {
+            if (await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent })) {
               sendEvent('QUOTE_CREATED_INTENT', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
               sendEvent('FIRST_ACTION_TAKEN', { action: 'first_quote_created' });
               const startedAt = readFirstQuoteStartedAt();
@@ -1893,7 +1893,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             if (typeof window !== 'undefined') {
               window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
             }
-            if (await claimAndEmitFirstActivation({ documentType: 'invoice', documentNumber: invNumber, isDemo, isPreview: previewMode, sendEvent })) {
+            if (await claimAndEmitFirstActivation({ documentType: 'invoice', documentNumber: invNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent })) {
               if (typeof window !== 'undefined') {
                 window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
                 sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
