@@ -211,7 +211,6 @@ export async function POST(request) {
         .single();
 
       if (error) throw error;
-
       // V3_REVENUE_HOOK_POINT
       // DO NOT IMPLEMENT YET
       await trackProfileMetric(context.supabase, context.user.id, 'first_invoice_created_at');

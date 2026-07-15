@@ -19,7 +19,13 @@
     "verify:pricing-contract": "node scripts/verify-pricing-contract.mjs",
     "verify:production-loop": "node scripts/verify-production-loop.mjs",
     "lint:ui": "node scripts/ui-guard.js",
-    "ui:guard": "node scripts/ui-guard.js"
+    "ui:guard": "node scripts/ui-guard.js",
+    "test:ga4:contract": "node scripts/test-ga4-activation-events.mjs",
+    "test:ga4:claim-helper": "node --experimental-loader ./scripts/test-support/route-runtime-loader.mjs scripts/test-ga4-activation-claim-helper-runtime.mjs",
+    "test:ga4:claim-endpoint": "node --experimental-loader ./scripts/test-support/route-runtime-loader.mjs scripts/test-ga4-activation-claim-endpoint-runtime.mjs",
+    "test:ga4:routes": "node --experimental-loader ./scripts/test-support/route-runtime-loader.mjs scripts/test-ga4-activation-route-runtime.mjs",
+    "test:ga4:dashboard": "node scripts/test-dashboard-document-save-runtime.mjs",
+    "test:ga4:release": "npm run test:ga4:contract && npm run test:ga4:claim-helper && npm run test:ga4:claim-endpoint && npm run test:ga4:routes && npm run test:ga4:dashboard"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",

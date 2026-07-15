@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { saveDashboardDocument } from './dashboard-document-save';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
@@ -283,90 +284,18 @@ export function useDashboardData(mode, session = null) {
 
   // Save Quote Action
   const saveQuote = useCallback(async (payload, token = null) => {
-    if (isPreview) return { success: true };
-
-    if (isDemo) {
-      const quoteId = payload.id || 'mock-' + Date.now();
-      const total = (payload.items || []).reduce((sum, item) => sum + (Number(item.quantity || 1) * Number(item.unitPrice || item.unit_price || 0) * 100), 0);
-      const newQuote = {
-        id: quoteId,
-        ...payload,
-        total,
-        created_at: new Date().toISOString()
-      };
-      
-      setQuotes(prev => {
-        const idx = prev.findIndex(q => q.id === quoteId);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = newQuote;
-          return next;
-        }
-        return [...prev, newQuote];
-      });
-      return { success: true, data: newQuote };
-    }
-
-    // Live mode API request
-    try {
-      const res = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders(token) },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        await fetchData(token);
-        return { success: true };
-      }
-      const err = await res.json().catch(() => ({}));
-      return { success: false, error: err.error || 'Failed to save quote' };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    return saveDashboardDocument({
+      documentType: 'quote', endpoint: '/api/quotes', payload, token, isDemo, isPreview,
+      setDocuments: setQuotes, fetchData, getAuthHeaders,
+    });
   }, [isDemo, isPreview, fetchData, getAuthHeaders]);
 
   // Save Invoice Action
   const saveInvoice = useCallback(async (payload, token = null) => {
-    if (isPreview) return { success: true };
-
-    if (isDemo) {
-      const invoiceId = payload.id || 'mock-' + Date.now();
-      const total = (payload.items || []).reduce((sum, item) => sum + (Number(item.quantity || 1) * Number(item.unitPrice || item.unit_price || 0) * 100), 0);
-      const newInvoice = {
-        id: invoiceId,
-        ...payload,
-        total,
-        created_at: new Date().toISOString()
-      };
-      
-      setInvoices(prev => {
-        const idx = prev.findIndex(i => i.id === invoiceId);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = newInvoice;
-          return next;
-        }
-        return [...prev, newInvoice];
-      });
-      return { success: true, data: newInvoice };
-    }
-
-    // Live Mode API request
-    try {
-      const res = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders(token) },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        await fetchData(token);
-        return { success: true };
-      }
-      const err = await res.json().catch(() => ({}));
-      return { success: false, error: err.error || 'Failed to save invoice' };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    return saveDashboardDocument({
+      documentType: 'invoice', endpoint: '/api/invoices', payload, token, isDemo, isPreview,
+      setDocuments: setInvoices, fetchData, getAuthHeaders,
+    });
   }, [isDemo, isPreview, fetchData, getAuthHeaders]);
 
   // Save Card Profile Action

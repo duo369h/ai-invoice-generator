@@ -86,6 +86,9 @@ export default function SignupPage() {
         setStatus(error.message);
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
+        if (data?.user?.identities?.length) {
+          sendEvent('signup_completed', { method: 'password', source: 'signup_form', user_id: data.user.id });
+        }
         
         // If Supabase is configured to auto-confirm, we might have an active session right away.
         if (data?.session) {

@@ -12,16 +12,37 @@ export const PRODUCT_ANALYTICS_EVENTS = new Set([
   'PLAN_SELECTED',
   'CHECKOUT_STARTED',
   'SIGNUP_STARTED',
-  'SIGNUP_COMPLETED',
+  'photographer_cta_click',
+  'signup_completed',
   'DASHBOARD_ENTERED',
   'FIRST_ACTION_TAKEN',
   'TEMPLATE_VIEWED',
   'QUOTE_CREATED_INTENT',
+  'first_quote_created',
   'signup_to_first_quote_completed',
   'INVOICE_CREATED_INTENT',
+  'first_invoice_created',
   'FIRST_VALUE_CREATED',
   'ONBOARDING_DROPOFF'
 ]);
+
+const FIRST_ACTIVATION_EVENTS = new Set(['first_quote_created', 'first_invoice_created']);
+
+export async function claimFirstActivationEvent({ eventName, userId }) {
+  if (!FIRST_ACTIVATION_EVENTS.has(eventName) || !userId) return { claimed: false };
+  const writer = createServiceSupabaseClient();
+  if (!writer) return { claimed: false };
+  try {
+    const { error } = await writer.from('analytics_activation_claims').insert({ user_id: userId, event: eventName });
+    if (!error) return { claimed: true };
+    if (error.code === '23505') return { claimed: false };
+    console.warn('[ServerAnalytics] First activation claim failed:', error.message);
+    return { claimed: false };
+  } catch (error) {
+    console.warn('[ServerAnalytics] First activation claim threw:', error);
+    return { claimed: false };
+  }
+}
 
 function cleanString(value, max = 500) {
   if (typeof value !== 'string') return '';

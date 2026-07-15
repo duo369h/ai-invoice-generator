@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { trackSignupCompleted } from '../../lib/product-analytics';
 
 function safeNextPath(value) {
   if (!value || typeof value !== 'string') return '/dashboard';
@@ -46,19 +45,6 @@ function AuthCallbackContent() {
         setMessage('Sign in failed. Please try again.');
         router.replace('/auth');
         return;
-      }
-
-      try {
-        trackSignupCompleted({
-          user_id: data.user?.id || null,
-          source: 'auth_callback',
-          identity: data.user?.id || data.user?.email || 'anonymous',
-          plan: 'free',
-          country: '',
-          timestamp: new Date().toISOString(),
-        });
-      } catch (analyticsError) {
-        console.error('Failed to record signup completion:', analyticsError);
       }
 
       router.replace(next);

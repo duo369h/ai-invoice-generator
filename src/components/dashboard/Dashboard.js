@@ -39,7 +39,6 @@ import StudioSpace from '@/app/dashboard/components/StudioSpace';
 const trackEvent = () => {};
 const setAnalyticsUserId = () => {};
 const clearAnalyticsUserId = () => {};
-const consumeSignupStarted = () => false;
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
 import { canAccess, getUserEntitlements } from 'lib/entitlements';
 import { sendEvent } from '../../core/analytics/eventRouter';
@@ -47,6 +46,7 @@ import { sendEvent } from '../../core/analytics/eventRouter';
 
 // Import design system hooks, tokens, and icons
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { claimAndEmitFirstActivation } from '@/hooks/dashboard-document-save';
 import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
@@ -1231,11 +1231,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         setAnalyticsUserId(nextSession.user?.id);
         trackDashboardViewOnce({ auth_state: 'authenticated', user_id: nextSession.user?.id });
         setAuthChecked(true);
-        if (consumeSignupStarted()) {
-          setShowActivationGuide(true);
-          trackEvent('signup_completed', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
-          triggerToast('Welcome to Corvioz! Your Corvioz account is ready.', 'success');
-        }
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
         if (cancelled) return;
@@ -1280,13 +1275,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         setAuthChecked(true);
         if (_event === 'SIGNED_IN') {
           trackDashboardViewOnce({ auth_state: 'authenticated', auth_event: _event, user_id: nextSession.user?.id });
-          if (consumeSignupStarted()) {
-            setShowActivationGuide(true);
-            trackEvent('signup_completed', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
-            triggerToast('Welcome to Corvioz! Your Corvioz account is ready.', 'success');
-          } else {
-            triggerToast('Welcome back! Successfully signed in.', 'success');
-          }
+          triggerToast('Welcome back! Successfully signed in.', 'success');
           trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         }
         const dashboardSnapshot = await fetchData(nextSession.access_token);
@@ -1739,7 +1728,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               quote_preset_name: selectedQuotePreset?.name || null,
               sandbox: isDemo
             });
-            if (quotes.length === 0) {
+            if (await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, isDemo, isPreview: previewMode, sendEvent })) {
               sendEvent('QUOTE_CREATED_INTENT', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
               sendEvent('FIRST_ACTION_TAKEN', { action: 'first_quote_created' });
               const startedAt = readFirstQuoteStartedAt();
@@ -1904,7 +1893,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             if (typeof window !== 'undefined') {
               window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
             }
-            if (invoices.length === 0) {
+            if (await claimAndEmitFirstActivation({ documentType: 'invoice', documentNumber: invNumber, isDemo, isPreview: previewMode, sendEvent })) {
               if (typeof window !== 'undefined') {
                 window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
                 sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
