@@ -4,6 +4,7 @@ const ACTIVATION_EVENTS = { quote: 'first_quote_created', invoice: 'first_invoic
 export async function claimAndEmitFirstActivation({
   documentType,
   documentNumber = '',
+  token = null,
   isDemo = false,
   isPreview = false,
   consent = typeof window === 'undefined' ? null : window.localStorage.getItem('corvioz_analytics_consent'),
@@ -15,7 +16,11 @@ export async function claimAndEmitFirstActivation({
   try {
     const response = await fetchImpl('/api/events/activation/claim', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'same-origin',
       body: JSON.stringify({ event_name: eventName }),
     });
     const result = await response.json();
