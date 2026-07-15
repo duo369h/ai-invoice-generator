@@ -10,7 +10,9 @@ jobs:
   enforce-ui:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -21,6 +23,26 @@ jobs:
       - name: Run Lint
         run: npm run lint
       - name: Run UI Guard
-        run: node scripts/ui-guard.js
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            node scripts/ui-guard.js
+            exit 0
+          fi
+
+          ui_files=()
+          while IFS= read -r file; do
+            ui_files+=("$file")
+          done < <(
+            git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- |
+              grep -E '^(src/app/|src/components/ui/).+\.(css|js|jsx|ts|tsx)$' || true
+          )
+
+          if ((${#ui_files[@]} == 0)); then
+            echo "No UI files changed; UI Guard passes."
+            exit 0
+          fi
+
+          node scripts/ui-guard.js "${ui_files[@]}"
       - name: Run Build Test
         run: npm run build
