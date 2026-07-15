@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
 
 let hasViolations = false;
 
@@ -10,10 +10,16 @@ function logViolation(file, lineNum, content, message) {
 }
 
 const stylesDir = path.resolve('src/app/styles');
+const specifiedFiles = process.argv.slice(2).filter(Boolean).map(file => path.resolve(file));
+const hasSpecifiedFiles = specifiedFiles.length > 0;
+const specifiedFileSet = new Set(specifiedFiles);
 
 // 1. Check direct section block selector declaration (section) in all CSS files
 const cssFiles = ['tokens.css', 'base.css', 'utilities.css', 'components.css', 'layouts.css'];
-cssFiles.forEach(file => {
+const cssFilesToScan = hasSpecifiedFiles
+  ? cssFiles.filter(file => specifiedFileSet.has(path.join(stylesDir, file)))
+  : cssFiles;
+cssFilesToScan.forEach(file => {
   const filePath = path.join(stylesDir, file);
   if (!fs.existsSync(filePath)) return;
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -184,10 +190,12 @@ function checkHexUsage(file, content) {
 }
 
 // Recursively scan directories
-const pathsToScan = [
-  path.resolve('src/app'),
-  path.resolve('src/components/ui')
-];
+const pathsToScan = hasSpecifiedFiles
+  ? specifiedFiles
+  : [
+      path.resolve('src/app'),
+      path.resolve('src/components/ui')
+    ];
 
 function scanFiles(dirOrFile) {
   if (!fs.existsSync(dirOrFile)) return;
