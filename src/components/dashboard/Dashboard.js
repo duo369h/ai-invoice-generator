@@ -1357,10 +1357,53 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   }, [previewMode]);
 
-  const handleRestorePendingInvoiceDraft = useCallback(() => {
+  const resetQuoteCreateState = () => {
+    setQId('');
+    setQNumber(generateRandomNumberString('QT'));
+    setQClientName('');
+    setQClientEmail('');
+    setQClientAddress('');
+    setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
+    setQTaxRate(0);
+    setQDiscountRate(0);
+    setQCurrency('USD');
+    setQNotes('');
+    setQDate(getTodayString());
+    setQStatus('draft');
+    setSelectedQuotePresetId('');
+    setIsFirstQuoteFlow(false);
+    setQClientNameTouched(false);
+    setQClientEmailTouched(false);
+    setQSubmitAttempted(false);
+  };
+
+  const resetInvoiceCreateState = () => {
+    setInvId('');
+    setInvNumber(generateRandomNumberString('INV'));
+    setInvClientName('Acme Corporation');
+    setInvClientEmail('client@acme.com');
+    setInvClientAddress('123 Creative Way\nSan Francisco, CA 94107');
+    setInvItems([{ description: 'Software Development & Consulting Services', quantity: 1, unitPrice: 1500 }]);
+    setInvTaxRate(0);
+    setInvDiscountRate(0);
+    setInvCurrency('USD');
+    setInvNotes('Thank you. Please review the invoice document details.');
+    setInvDate(getTodayString());
+    setInvDueDate(getFutureDateString(30));
+    setInvPaymentTerms('Net 30');
+    setInvStatus('pending');
+    setInvPaymentLink('');
+    setInvQuoteId(null);
+    setInvBillingType('standard');
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(true);
+    setShowPaymentWaitingBanner(false);
+  };
+
+  const handleRestorePendingInvoiceDraft = () => {
     if (!pendingInvoiceDraft) return;
 
-    setInvId('');
+    resetInvoiceCreateState();
     setInvNumber(pendingInvoiceDraft.invoice_number || generateRandomNumberString('INV'));
     setInvClientName(pendingInvoiceDraft.client_name || '');
     setInvClientEmail(pendingInvoiceDraft.client_email || '');
@@ -1382,7 +1425,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceView('create');
     setShowDraftRestorePrompt(false);
     triggerToast('Draft restored locally. Review it before saving.', 'success');
-  }, [pendingInvoiceDraft, triggerToast]);
+  };
 
   // AI Generate Quote From Lead
   const handleAiQuoteGeneration = async (lead) => {
@@ -1392,8 +1435,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         setIsParsingLead(lead.id);
         setTimeout(() => {
           setIsParsingLead(null);
-          setQuoteView('create');
-          setQId('');
+          resetQuoteCreateState();
           setQClientName(lead.client_name || lead.name || 'Mock Client');
           setQClientEmail(lead.client_email || lead.email || 'client@example.com');
           setQClientAddress(lead.client_address || '123 Enterprise Way');
@@ -1408,6 +1450,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           ]);
           setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'quote_generated', pipeline_status: 'Proposal Sent' } : l));
           handleDashboardTabChange('quotes', 'lead_ai_quote');
+          setQuoteView('create');
           triggerToast('AI generated quote draft from visitor inquiry (Sandbox)!', 'success');
         }, 1000);
         return;
@@ -1424,7 +1467,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           const { parsed_data } = await res.json();
           if (parsed_data) {
             // Pre-populate Quote Editor states
-            setQId('');
+            resetQuoteCreateState();
             setQNumber(generateRandomNumberString('QT'));
             setQClientName(parsed_data.client_name || lead.name || '');
             setQClientEmail(parsed_data.client_email || lead.email || '');
@@ -1469,7 +1512,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     trackEvent('create_invoice_click', { source: 'quote_convert' });
     evaluateAction('create_invoice', () => {
       // Fill Invoice state
-      setInvId('');
+      resetInvoiceCreateState();
       setInvNumber(generateRandomNumberString('INV'));
       setInvClientName(quote.client_name);
       setInvClientEmail(quote.client_email || '');
@@ -2470,51 +2513,17 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     trackEvent('create_quote_click', { source: quoteSource });
     trackEvent('quick_action_click', { action: 'create_quote', source: quoteSource });
     evaluateAction('create_quote', () => {
-      setQId('');
-      setQNumber(generateRandomNumberString('QT'));
-      setQClientName('');
-      setQClientEmail('');
-      setQClientAddress('');
-      setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
-      setQTaxRate(0);
-      setQDiscountRate(0);
-      setQCurrency('USD');
-      setQNotes('');
-      setQDate(getTodayString());
-      setQStatus('draft');
-      setSelectedQuotePresetId('');
+      resetQuoteCreateState();
       setIsFirstQuoteFlow(quoteSource === 'first_quote_onboarding');
-      setQClientNameTouched(false);
-      setQClientEmailTouched(false);
-      setQSubmitAttempted(false);
       handleDashboardTabChange('quotes', quoteSource);
       setQuoteView('create');
     });
   };
 
   // Init blank Invoice
-  const openInvoiceBuilder = () => {
-    setInvId('');
-    setInvNumber(generateRandomNumberString('INV'));
-    setInvClientName('Acme Corporation');
-    setInvClientEmail('client@acme.com');
-    setInvClientAddress('123 Creative Way\nSan Francisco, CA 94107');
-    setInvItems([{ description: 'Software Development & Consulting Services', quantity: 1, unitPrice: 1500 }]);
-    setInvTaxRate(0);
-    setInvDiscountRate(0);
-    setInvCurrency('USD');
-    setInvNotes('Thank you. Please review the invoice document details.');
-    setInvDate(getTodayString());
-    setInvDueDate(getFutureDateString(30));
-    setInvPaymentTerms('Net 30');
-    setInvStatus('pending');
-    setInvPaymentLink('');
-    setInvQuoteId(null);
-    setInvBillingType('standard');
-    setInvoiceFlowStage('create');
-    setInvoiceFlowLocked(true);
-    setShowPaymentWaitingBanner(false);
-    handleDashboardTabChange('invoices', 'quick_action');
+  const openInvoiceBuilder = (source = 'quick_action') => {
+    resetInvoiceCreateState();
+    handleDashboardTabChange('invoices', source);
     setInvoiceView('create');
   };
 
@@ -6772,11 +6781,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 onClick={() => {
                   setSuggestedActionDoc(null);
                   if (suggestedActionDoc.type === 'invoice') {
-                    handleDashboardTabChange('quotes', 'suggested_action');
-                    setQuoteView('create');
+                    initCreateQuote('suggested_action');
                   } else {
-                    handleDashboardTabChange('invoices', 'suggested_action');
-                    setInvoiceView('create');
+                    openInvoiceBuilder('suggested_action');
                   }
                 }}
                 className="btn btn-secondary"
