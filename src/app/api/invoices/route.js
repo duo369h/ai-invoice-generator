@@ -408,3 +408,57 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const ip = getIp(request);
+    const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'invoices');
+    if (contextFailure) return contextFailure;
+
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
+    }
+
+    if (context.mode === 'supabase') {
+      const { data: deletedInvoice, error } = await context.supabase
+        .from('invoices')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', context.user.id)
+        .select('id')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!deletedInvoice) {
+        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      }
+
+      try {
+        await writeAuditLog(context.supabase, {
+          userId: context.user.id,
+          action: 'invoice_deleted',
+          resourceType: 'invoice',
+          resourceId: deletedInvoice.id,
+          ip,
+        });
+      } catch (auditError) {
+        console.error('Failed to write invoice deletion audit log:', auditError);
+      }
+
+      return NextResponse.json({ success: true, id: deletedInvoice.id });
+    }
+
+    return authRequiredResponse('invoices');
+  } catch (error) {
+    console.error('Error deleting invoice:', error);
+    return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
+  }
+}

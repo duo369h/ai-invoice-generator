@@ -1,15 +1,22 @@
 const runtime = globalThis.__corviozRouteRuntime__ ||= {
   calls: [],
+  auditLogs: [],
   config: {},
 };
+runtime.auditLogs ||= [];
 
 export function configureRouteRuntime(config) {
   runtime.calls.length = 0;
+  runtime.auditLogs.length = 0;
   runtime.config = config;
 }
 
 export function getRouteRuntimeCalls() {
   return [...runtime.calls];
+}
+
+export function getRouteRuntimeAuditLogs() {
+  return runtime.auditLogs.map((entry) => ({ ...entry }));
 }
 
 function call(name) {
@@ -46,8 +53,13 @@ export function authRequiredResponse() {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
-export function getIp() { return '127.0.0.1'; }
-export async function rateLimitAuthenticated() { return { success: true }; }
+export function getIp(request) {
+  return request?.headers?.get('x-forwarded-for') || '127.0.0.1';
+}
+export async function rateLimitAuthenticated(scope, userId) {
+  if (runtime.config.operation === 'delete') call(`rate-limit:${scope}:${userId}`);
+  return runtime.config.rateLimitResult || { success: true };
+}
 export function validateQuotePayload(body) { return body; }
 export function validateInvoicePayload(body) { return body; }
 export function validationResponse() { return null; }
@@ -65,7 +77,13 @@ export async function getSupabaseQuota() { return { invoicesAllowed: true }; }
 export function mapSupabaseInvoice(data) { return { ...data, mapped: true }; }
 export async function incrementSupabaseInvoiceUsage() {}
 export async function createSupabasePortalToken() { return ''; }
-export async function writeAuditLog() {}
+export async function writeAuditLog(_client, entry) {
+  if (runtime.config.operation === 'delete') {
+    runtime.auditLogs.push({ ...entry });
+    call(`audit:${entry.action}`);
+    if (runtime.config.auditLogThrows) throw new Error('audit log unavailable');
+  }
+}
 export async function recordServerGrowthEvent() {}
 export async function trackProfileMetric() {}
 export async function recordProductAnalyticsEvent() {}
@@ -97,27 +115,59 @@ function createClient(kind) {
 }
 
 function createQuery(kind, table) {
-  const state = { kind, table };
+  const state = { kind, table, operation: null, filters: {} };
   const chain = {
-    select() { return chain; },
-    eq() { return chain; },
+    select(columns = '*') {
+      if (state.operation === 'delete') call(`select:${table}:${columns}`);
+      return chain;
+    },
+    eq(column, value) {
+      if (state.operation === 'delete') {
+        state.filters[column] = value;
+        call(`eq:${table}:${column}:${value}`);
+      }
+      return chain;
+    },
     order() { return chain; },
     limit() { return chain; },
     update() { return chain; },
+    delete() {
+      state.operation = 'delete';
+      call(`delete:${kind}:${table}`);
+      return chain;
+    },
     insert() {
       if (table === 'quotes' || table === 'invoices') call(`persist:${table}`);
       if (table === 'analytics_activation_claims') call('helper_claim_insert');
       if (table === 'analytics_activation_claims' && runtime.config.helperClaimThrows) throw new Error('claim insert threw');
       return chain;
     },
-    single() { return queryResult(state); },
-    maybeSingle() { return queryResult(state); },
+    single() {
+      if (state.operation === 'delete') call(`single:${table}`);
+      return queryResult(state);
+    },
+    maybeSingle() {
+      if (state.operation === 'delete') call(`maybeSingle:${table}`);
+      return queryResult(state);
+    },
     then(resolve, reject) { return queryResult(state).then(resolve, reject); },
   };
   return chain;
 }
 
-function queryResult({ kind, table }) {
+function queryResult({ kind, table, operation, filters }) {
+  if (table === 'invoices' && operation === 'delete') {
+    if (runtime.config.deleteError) return result(null, runtime.config.deleteError);
+    if (Array.isArray(runtime.config.invoiceRecords)) {
+      const record = runtime.config.invoiceRecords.find((invoice) => invoice.id === filters.id);
+      if (!record) return result(null);
+      if (filters.user_id === undefined || filters.user_id === record.user_id) {
+        return result({ id: record.id });
+      }
+      return result(null);
+    }
+    return result(runtime.config.deletedInvoice, null);
+  }
   if (kind === 'service' && table === 'profiles') return result({ plan: runtime.config.plan || 'pro' });
   if (table === 'analytics_events') return result(null, null, { count: 0 });
   if (table === 'quotes' && runtime.config.operation === 'get') return result(runtime.config.list || []);
