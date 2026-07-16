@@ -334,7 +334,7 @@ export function useDashboardData(mode, session = null) {
     }
 
     try {
-      const res = await fetch(`/api/quotes?id=${id}`, {
+      const res = await fetch(`/api/quotes?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token)
       });
@@ -342,7 +342,8 @@ export function useDashboardData(mode, session = null) {
         await fetchData(token);
         return { success: true };
       }
-      return { success: false, error: 'Failed to delete quote' };
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.error || 'Failed to delete quote' };
     } catch (e) {
       return { success: false, error: e.message };
     }
