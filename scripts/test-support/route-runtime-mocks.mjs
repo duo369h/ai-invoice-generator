@@ -156,6 +156,18 @@ function createQuery(kind, table) {
 }
 
 function queryResult({ kind, table, operation, filters }) {
+  if (table === 'quotes' && operation === 'delete') {
+    if (runtime.config.quoteDeleteError) return result(null, runtime.config.quoteDeleteError);
+    if (Array.isArray(runtime.config.quoteRecords)) {
+      const record = runtime.config.quoteRecords.find((quote) => quote.id === filters.id);
+      if (!record) return result(null);
+      if (filters.user_id === undefined || filters.user_id === record.user_id) {
+        return result({ id: record.id });
+      }
+      return result(null);
+    }
+    return result(runtime.config.deletedQuote, null);
+  }
   if (table === 'invoices' && operation === 'delete') {
     if (runtime.config.deleteError) return result(null, runtime.config.deleteError);
     if (Array.isArray(runtime.config.invoiceRecords)) {

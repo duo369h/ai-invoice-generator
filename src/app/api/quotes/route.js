@@ -338,3 +338,63 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Failed to update quote status' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const ip = getIp(request);
+    const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, 'quotes');
+    if (contextFailure) return contextFailure;
+
+    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Quote ID is required' }, { status: 400 });
+    }
+
+    if (context.mode === 'supabase') {
+      const { data: deletedQuote, error } = await context.supabase
+        .from('quotes')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', context.user.id)
+        .select('id')
+        .maybeSingle();
+
+      if (error?.code === '23503') {
+        return NextResponse.json(
+          { error: 'This quote is linked to a revenue workflow and cannot be deleted.' },
+          { status: 409 }
+        );
+      }
+      if (error) throw error;
+      if (!deletedQuote) {
+        return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+      }
+
+      try {
+        await writeAuditLog(context.supabase, {
+          userId: context.user.id,
+          action: 'quote_deleted',
+          resourceType: 'quote',
+          resourceId: deletedQuote.id,
+          ip,
+        });
+      } catch (auditError) {
+        console.error('Failed to write quote deletion audit log:', auditError);
+      }
+
+      return NextResponse.json({ success: true, id: deletedQuote.id });
+    }
+
+    return authRequiredResponse('quotes');
+  } catch (error) {
+    console.error('Error deleting quote:', error);
+    return NextResponse.json({ error: 'Failed to delete quote' }, { status: 500 });
+  }
+}
