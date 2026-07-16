@@ -1,13 +1,22 @@
 const runtime = globalThis.__corviozRouteRuntime__ ||= {
   calls: [],
   auditLogs: [],
+  inserts: [],
+  rpcCalls: [],
+  updates: [],
   config: {},
 };
 runtime.auditLogs ||= [];
+runtime.inserts ||= [];
+runtime.rpcCalls ||= [];
+runtime.updates ||= [];
 
 export function configureRouteRuntime(config) {
   runtime.calls.length = 0;
   runtime.auditLogs.length = 0;
+  runtime.inserts.length = 0;
+  runtime.rpcCalls.length = 0;
+  runtime.updates.length = 0;
   runtime.config = config;
 }
 
@@ -17,6 +26,18 @@ export function getRouteRuntimeCalls() {
 
 export function getRouteRuntimeAuditLogs() {
   return runtime.auditLogs.map((entry) => ({ ...entry }));
+}
+
+export function getRouteRuntimeInserts() {
+  return runtime.inserts.map((entry) => ({ ...entry, values: { ...entry.values } }));
+}
+
+export function getRouteRuntimeRpcCalls() {
+  return runtime.rpcCalls.map((entry) => ({ ...entry, args: { ...entry.args } }));
+}
+
+export function getRouteRuntimeUpdates() {
+  return runtime.updates.map((entry) => ({ ...entry, values: { ...entry.values } }));
 }
 
 function call(name) {
@@ -87,7 +108,10 @@ export async function writeAuditLog(_client, entry) {
 export async function recordServerGrowthEvent() {}
 export async function trackProfileMetric() {}
 export async function recordProductAnalyticsEvent() {}
-export async function getFirstRevenueLoopContext() { return { decision: { canCreateQuote: true }, loop: {}, quote: null }; }
+export async function getFirstRevenueLoopContext() {
+  if (runtime.config.firstRevenueLoopContextError) throw runtime.config.firstRevenueLoopContextError;
+  return runtime.config.firstRevenueLoopContext || { decision: { canCreateQuote: true }, loop: {}, quote: null };
+}
 export function canTransitionFirstRevenueQuote() { return { allowed: true }; }
 export function injectInvoiceEnhancement() {}
 export function getDecision() { return { output: { decision: 'mock' } }; }
@@ -107,8 +131,9 @@ function createClient(kind) {
     from(table) {
       return createQuery(kind, table);
     },
-    rpc(name) {
+    rpc(name, args) {
       call(`persist:${name}`);
+      runtime.rpcCalls.push({ kind, name, args });
       return result(runtime.config.persisted, runtime.config.persistenceError);
     },
   };
@@ -130,14 +155,20 @@ function createQuery(kind, table) {
     },
     order() { return chain; },
     limit() { return chain; },
-    update() { return chain; },
+    update(values) {
+      state.operation = 'update';
+      runtime.updates.push({ kind, table, values });
+      return chain;
+    },
     delete() {
       state.operation = 'delete';
       call(`delete:${kind}:${table}`);
       return chain;
     },
-    insert() {
+    insert(values) {
+      state.operation = 'insert';
       if (table === 'quotes' || table === 'invoices') call(`persist:${table}`);
+      if (table === 'quotes' || table === 'invoices') runtime.inserts.push({ kind, table, values });
       if (table === 'analytics_activation_claims') call('helper_claim_insert');
       if (table === 'analytics_activation_claims' && runtime.config.helperClaimThrows) throw new Error('claim insert threw');
       return chain;
