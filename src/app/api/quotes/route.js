@@ -83,16 +83,8 @@ export async function POST(request) {
     const calculatedTotal = taxableAmount + calculatedTaxAmount;
 
     if (context.mode === 'supabase') {
-      const profileName =
-        context.user.user_metadata?.name ||
-        context.user.user_metadata?.full_name ||
-        context.user.email?.split('@')[0] ||
-        'User';
-      const payload = {
-        id: id || undefined,
+      const quotesTablePayload = {
         user_id: context.user.id,
-        _profile_email: context.user.email || '',
-        _profile_name: profileName,
         quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         client_name,
         client_email,
@@ -139,21 +131,31 @@ export async function POST(request) {
       if (id) {
         ({ data, error } = await serviceSupabase
           .from('quotes')
-          .update(payload)
+          .update(quotesTablePayload)
           .eq('id', id)
           .eq('user_id', context.user.id)
           .select('*')
           .single());
       } else if (plan === 'free') {
+        const profileName =
+          context.user.user_metadata?.name ||
+          context.user.user_metadata?.full_name ||
+          context.user.email?.split('@')[0] ||
+          'User';
+        const firstRevenueRpcPayload = {
+          ...quotesTablePayload,
+          _profile_email: context.user.email || '',
+          _profile_name: profileName,
+        };
         ({ data, error } = await serviceSupabase.rpc('create_first_revenue_quote', {
           p_user_id: context.user.id,
-          p_quote: payload,
+          p_quote: firstRevenueRpcPayload,
         }));
         if (Array.isArray(data)) data = data[0] || null;
       } else {
         ({ data, error } = await serviceSupabase
           .from('quotes')
-          .insert(payload)
+          .insert(quotesTablePayload)
           .select('*')
           .single());
       }
