@@ -7,6 +7,45 @@ import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server'
 import { getFirstRevenueLoopContext } from '../../lib/first-revenue-loop';
 import { canTransitionFirstRevenueQuote } from '../../../core/revenue/firstRevenueLoop';
 
+function isCleanUnclaimedFirstRevenueContext(firstRevenueLoop) {
+  const { decision, loop, quote, invoice } = firstRevenueLoop || {};
+  const hasNoClaimedLoop = loop === null || (
+    loop?.quote_id === null
+    && loop.invoice_id === null
+    && loop.legacy_blocked_at === null
+  );
+
+  return Boolean(
+    hasNoClaimedLoop
+    && quote === null
+    && invoice === null
+    && decision?.mode === 'allowance'
+    && decision?.canCreateQuote === true
+  );
+}
+
+function isValidClaimedFirstRevenueAnchor(firstRevenueLoop) {
+  const { decision, loop, quote, invoice } = firstRevenueLoop || {};
+  const hasConsistentInvoice = loop?.invoice_id === null
+    ? invoice === null
+    : typeof loop?.invoice_id === 'string'
+      && loop.invoice_id.length > 0
+      && typeof invoice?.id === 'string'
+      && invoice.id === loop.invoice_id;
+
+  return Boolean(
+    typeof loop?.quote_id === 'string'
+    && loop.quote_id.length > 0
+    && typeof quote?.id === 'string'
+    && quote.id.length > 0
+    && quote.id === loop.quote_id
+    && loop.legacy_blocked_at === null
+    && hasConsistentInvoice
+    && decision?.mode === 'allowance'
+    && decision?.canCreateQuote === false
+  );
+}
+
 export async function GET(request) {
   try {
     const context = await getRequestUser(request);
@@ -107,9 +146,9 @@ export async function POST(request) {
         updated_at: new Date().toISOString()
       };
 
-      let firstRevenueLoop = null;
+      let shouldClaimFirstRevenueQuote = false;
       if (plan === 'free') {
-        firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
+        const firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
 
         if (id) {
           const transition = canTransitionFirstRevenueQuote({
@@ -121,8 +160,11 @@ export async function POST(request) {
           if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
             return NextResponse.json({ error: transition.reason }, { status: 403 });
           }
-        } else if (!firstRevenueLoop.decision.canCreateQuote) {
-          return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
+        } else {
+          shouldClaimFirstRevenueQuote = isCleanUnclaimedFirstRevenueContext(firstRevenueLoop);
+          if (!shouldClaimFirstRevenueQuote && !isValidClaimedFirstRevenueAnchor(firstRevenueLoop)) {
+            return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
+          }
         }
       }
 
@@ -136,7 +178,7 @@ export async function POST(request) {
           .eq('user_id', context.user.id)
           .select('*')
           .single());
-      } else if (plan === 'free') {
+      } else if (shouldClaimFirstRevenueQuote) {
         const profileName =
           context.user.user_metadata?.name ||
           context.user.user_metadata?.full_name ||
