@@ -358,7 +358,7 @@ export function useDashboardData(mode, session = null) {
     }
 
     try {
-      const res = await fetch(`/api/invoices?id=${id}`, {
+      const res = await fetch(`/api/invoices?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token)
       });
@@ -366,7 +366,8 @@ export function useDashboardData(mode, session = null) {
         await fetchData(token);
         return { success: true };
       }
-      return { success: false, error: 'Failed to delete invoice' };
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err.error || 'Failed to delete invoice' };
     } catch (e) {
       return { success: false, error: e.message };
     }
