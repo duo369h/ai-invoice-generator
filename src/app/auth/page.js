@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Button, Logo, PasswordInput } from '../components/UIComponents';
-import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { saveSelectedPlan, saveIntendedRoute } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
@@ -14,6 +13,7 @@ import {
   isEntrySelectedPlan,
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
+import { safeAuthRedirect, startDocumentNavigation } from './auth-redirect';
 
 function inferRevenueActionFromRoute(route) {
   if (!route || typeof route !== 'string') return null;
@@ -30,12 +30,6 @@ function inferRevenueActionFromRoute(route) {
   if (route.includes('/quotes') || route.includes('create-quote')) return 'quote';
   if (route.includes('create-profile') || route.includes('/profile')) return 'profile';
   return null;
-}
-
-function safeAuthRedirect(value) {
-  if (!value || typeof value !== 'string') return '/dashboard';
-  if (!value.startsWith('/') || value.startsWith('//')) return '/dashboard';
-  return value;
 }
 
 function readAuthRedirectTarget() {
@@ -80,7 +74,6 @@ function bindAuthRevenueContext(plan) {
 }
 
 export default function AuthPage() {
-  const router = useRouter();
   const isGoogleAuthEnabled = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,6 +88,21 @@ export default function AuthPage() {
 
   const [pendingDraft, setPendingDraft] = useState(null);
   const [identity, setIdentity] = useState(null);
+  const hasStartedNavigationRef = useRef(false);
+  const passwordSignInInFlightRef = useRef(false);
+
+  const navigateWithFullPageLoad = useCallback((target) => {
+    if (typeof window === 'undefined') return false;
+    if (hasStartedNavigationRef.current) return true;
+    hasStartedNavigationRef.current = true;
+    try {
+      startDocumentNavigation(target);
+      return true;
+    } catch (error) {
+      hasStartedNavigationRef.current = false;
+      throw error;
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -151,30 +159,37 @@ export default function AuthPage() {
       setHasCheckedConfig(true);
 
       if (supabase) {
-        supabase.auth.getSession().then(async ({ data }) => {
-          if (data.session) {
-            bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
-            const redirectTarget = readAuthRedirectTarget();
-            try {
-              const res = await fetch('/api/user');
-              if (res.ok) {
-                const userData = await res.json();
-                if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
-                  router.replace('/onboarding');
-                } else {
-                  router.replace(redirectTarget);
+        const redirectExistingSession = async () => {
+          try {
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
+              const redirectTarget = readAuthRedirectTarget();
+              let destination = redirectTarget;
+              try {
+                const res = await fetch('/api/user');
+                if (res.ok) {
+                  const userData = await res.json();
+                  if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
+                    destination = '/onboarding';
+                  }
                 }
+              } catch (e) {
+                console.error('Error resolving entry post-session:', e);
               }
-            } catch (e) {
-              console.error('Error resolving entry post-session:', e);
+              navigateWithFullPageLoad(destination);
             }
+          } catch (error) {
+            console.error('Error resolving existing browser session:', error);
+            setStatus('Unable to continue the existing sign-in session. Please try again. / 无法继续现有登录会话，请重试。');
           }
-        });
+        };
+        void redirectExistingSession();
       }
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [navigateWithFullPageLoad]);
 
   const handleResendConfirmation = async () => {
     if (!client || !email.trim() || cooldown > 0) return;
@@ -205,9 +220,15 @@ export default function AuthPage() {
   };
 
   const handlePasswordSignIn = async (event) => {
+    let navigationStarted = false;
     event.preventDefault();
-    if (!client || !email.trim() || !password) return;
+    if (!client) {
+      setStatus('Preparing secure sign-in. Please wait a moment. / 正在准备安全登录，请稍候。');
+      return;
+    }
+    if (!email.trim() || !password || passwordSignInInFlightRef.current) return;
 
+    passwordSignInInFlightRef.current = true;
     setIsLoading(true);
     setStatus('');
     sendEvent('SIGNUP_STARTED', { method: 'password', source: 'auth_form' });
@@ -245,24 +266,27 @@ export default function AuthPage() {
           return;
         }
         const redirectTarget = readAuthRedirectTarget();
+        let destination = redirectTarget;
         try {
           const res = await fetch('/api/user');
           if (res.ok) {
             const userData = await res.json();
             if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
-              router.replace('/onboarding');
-              return;
+              destination = '/onboarding';
             }
           }
         } catch (e) {
           console.error('Error resolving entry post-session:', e);
         }
-        router.replace(redirectTarget);
+        navigationStarted = navigateWithFullPageLoad(destination);
       }
     } catch (err) {
       setStatus(err.message || 'An unexpected error occurred.');
     } finally {
-      setIsLoading(false);
+      if (!navigationStarted) {
+        passwordSignInInFlightRef.current = false;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -466,7 +490,7 @@ export default function AuthPage() {
                       required
                     />
                   </div>
-                  <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
+                  <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading || !client}>
                     {isLoading ? 'Signing In...' : 'Sign In'}
                   </Button>
                 </form>
