@@ -149,6 +149,140 @@ const MOCK_PROFILE = {
   is_public: true
 };
 
+export async function loadDashboardResources({
+  token,
+  fetchImpl,
+  getAuthHeaders,
+  setUser,
+  setInvoices,
+  setClients,
+  setLeads,
+  setQuotes,
+  setCardProfile,
+  onQuotesSettled = () => {},
+  consoleImpl = console,
+}) {
+  const authHeaders = getAuthHeaders(token);
+  const createNormalizedResourceTask = ({ url, label, selectData }) => {
+    return (async () => {
+      let response;
+      try {
+        response = await fetchImpl(url, { headers: authHeaders });
+      } catch (error) {
+        consoleImpl.error(`Failed to fetch ${label}:`, error);
+        return { status: 'network_error', error };
+      }
+
+      if (!response.ok) {
+        consoleImpl.error(`Failed to fetch ${label}:`, response.status);
+        return { status: 'http_error', httpStatus: response.status };
+      }
+
+      try {
+        const body = await response.json();
+        return { status: 'success', data: selectData(body) };
+      } catch (error) {
+        consoleImpl.error(`Failed to fetch ${label}:`, error);
+        return { status: 'parse_error', error };
+      }
+    })();
+  };
+
+  const resourceTasks = {
+    user: createNormalizedResourceTask({
+      url: '/api/user',
+      label: 'user',
+      selectData: (body) => body,
+    }),
+    invoices: createNormalizedResourceTask({
+      url: '/api/invoices',
+      label: 'invoices',
+      selectData: (body) => body.data || [],
+    }),
+    clients: createNormalizedResourceTask({
+      url: '/api/clients',
+      label: 'clients',
+      selectData: (body) => body.data || [],
+    }),
+    leads: createNormalizedResourceTask({
+      url: '/api/leads',
+      label: 'leads',
+      selectData: (body) => body.data || [],
+    }),
+    quotes: createNormalizedResourceTask({
+      url: '/api/quotes',
+      label: 'quotes',
+      selectData: (body) => body.data || [],
+    }),
+    cardProfile: createNormalizedResourceTask({
+      url: '/api/card-profile',
+      label: 'card profile',
+      selectData: (body) => body,
+    }),
+  };
+
+  const userDecisionTask = resourceTasks.user.then((result) => {
+    if (result.status !== 'success') {
+      return { status: 'error', user: null, error: result.error || result };
+    }
+
+    const userData = result.data;
+    setUser(userData);
+    if (!userData?.hasActivated) {
+      return { status: 'unactivated', user: userData };
+    }
+
+    return { status: 'activated', user: userData };
+  });
+
+  const consumeListResource = async ({ resultTask, setData }) => {
+    const [userDecision, result] = await Promise.all([userDecisionTask, resultTask]);
+    if (userDecision.status !== 'activated') return result;
+    if (result.status === 'success') setData(result.data);
+    else if (result.status === 'http_error') setData([]);
+    return result;
+  };
+
+  const invoicesTask = consumeListResource({
+    resultTask: resourceTasks.invoices,
+    setData: setInvoices,
+  });
+  const clientsTask = consumeListResource({
+    resultTask: resourceTasks.clients,
+    setData: setClients,
+  });
+  const leadsTask = consumeListResource({
+    resultTask: resourceTasks.leads,
+    setData: setLeads,
+  });
+  const quotesTask = consumeListResource({
+    resultTask: resourceTasks.quotes,
+    setData: setQuotes,
+  }).finally(() => {
+    onQuotesSettled();
+  });
+  const cardProfileTask = (async () => {
+    const [userDecision, result] = await Promise.all([userDecisionTask, resourceTasks.cardProfile]);
+    if (userDecision.status !== 'activated') return result;
+    if (result.status === 'success') setCardProfile(result.data);
+    else if (result.status === 'http_error') setCardProfile(null);
+    return result;
+  })();
+
+  const [userDecision] = await Promise.all([
+    userDecisionTask,
+    invoicesTask,
+    clientsTask,
+    leadsTask,
+    quotesTask,
+    cardProfileTask,
+  ]);
+  if (userDecision.status === 'error') {
+    return { user: null, error: userDecision.error };
+  }
+  return { user: userDecision.user };
+}
+
 export function useDashboardData(mode, session = null) {
   const isLive = mode === 'live';
   const isDemo = mode === 'demo';
@@ -165,7 +299,9 @@ export function useDashboardData(mode, session = null) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(isLive);
+  const [isQuotesLoading, setIsQuotesLoading] = useState(isLive);
   const isInitialLoadRef = useRef(isLive);
+  const dashboardLoadVersionRef = useRef(0);
 
   const getAuthHeaders = useCallback((token) => {
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -173,102 +309,68 @@ export function useDashboardData(mode, session = null) {
 
   const fetchData = useCallback(async (token) => {
     if (!isLive) return;
+    const loadVersion = dashboardLoadVersionRef.current + 1;
+    dashboardLoadVersionRef.current = loadVersion;
+    const setIfCurrent = (setter) => (value) => {
+      if (dashboardLoadVersionRef.current === loadVersion) setter(value);
+    };
     
     // Dashboard API Guard: Prevent calls if no session and no explicit token
     if (!token && !session) {
       setIsLoading(false);
       setIsRefreshing(false);
       setIsInitialLoad(false);
+      setIsQuotesLoading(false);
       return { user: null, error: 'no_session' };
     }
 
     setIsRefreshing(true);
+    if (isInitialLoadRef.current) setIsQuotesLoading(true);
+    const finishQuotesInitialLoad = () => {
+      if (dashboardLoadVersionRef.current !== loadVersion) return;
+      isInitialLoadRef.current = false;
+      setIsQuotesLoading(false);
+    };
 
     try {
-      const authHeaders = getAuthHeaders(token);
-
-      const [
-        userRes,
-        invRes,
-        cliRes,
-        leadsRes,
-        quotesRes,
-        cpRes
-      ] = await Promise.all([
-        fetch('/api/user', { headers: authHeaders }),
-        fetch('/api/invoices', { headers: authHeaders }),
-        fetch('/api/clients', { headers: authHeaders }),
-        fetch('/api/leads', { headers: authHeaders }),
-        fetch('/api/quotes', { headers: authHeaders }),
-        fetch('/api/card-profile', { headers: authHeaders })
-      ]);
-
-      let userData = null;
-      if (userRes.ok) {
-        userData = await userRes.json();
-        setUser(userData);
-        if (userData && !userData.hasActivated) {
-          setIsLoading(false);
-          setIsRefreshing(false);
-          setIsInitialLoad(false);
-          return { user: userData };
-        }
-      }
-
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        const data = invData.data || [];
-        setInvoices(data);
-      } else {
-        console.error('Failed to fetch invoices:', invRes.status);
-        setInvoices([]);
-      }
-
-      if (cliRes.ok) {
-        const cliData = await cliRes.json();
-        const data = cliData.data || [];
-        setClients(data);
-      } else {
-        console.error('Failed to fetch clients:', cliRes.status);
-        setClients([]);
-      }
-
-      if (leadsRes.ok) {
-        const leadsData = await leadsRes.json();
-        const data = leadsData.data || [];
-        setLeads(data);
-      } else {
-        console.error('Failed to fetch leads:', leadsRes.status);
-        setLeads([]);
-      }
-
-      if (quotesRes.ok) {
-        const quotesData = await quotesRes.json();
-        const data = quotesData.data || [];
-        setQuotes(data);
-      } else {
-        console.error('Failed to fetch quotes:', quotesRes.status);
-        setQuotes([]);
-      }
-
-      if (cpRes.ok) {
-        const cpData = await cpRes.json();
-        setCardProfile(cpData || null);
-      } else {
-        console.error('Failed to fetch card profile:', cpRes.status);
-        setCardProfile(null);
-      }
-      return { user: userData };
+      return await loadDashboardResources({
+        token,
+        fetchImpl: fetch,
+        getAuthHeaders,
+        setUser: setIfCurrent(setUser),
+        setInvoices: setIfCurrent(setInvoices),
+        setClients: setIfCurrent(setClients),
+        setLeads: setIfCurrent(setLeads),
+        setQuotes: setIfCurrent(setQuotes),
+        setCardProfile: setIfCurrent(setCardProfile),
+        onQuotesSettled: finishQuotesInitialLoad,
+        consoleImpl: console,
+      });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      finishQuotesInitialLoad();
       return { user: null, error };
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-      setIsInitialLoad(false);
-      isInitialLoadRef.current = false;
+      if (dashboardLoadVersionRef.current === loadVersion) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsInitialLoad(false);
+      }
     }
   }, [isLive, getAuthHeaders]);
+
+  const invalidateDashboardData = useCallback(({
+    updateState = true,
+    resetQuotesInitialLoad = true,
+  } = {}) => {
+    dashboardLoadVersionRef.current += 1;
+    isInitialLoadRef.current = resetQuotesInitialLoad;
+    if (!updateState) return;
+    setIsLoading(false);
+    setIsRefreshing(false);
+    setIsInitialLoad(false);
+    setIsQuotesLoading(false);
+  }, []);
 
   // Reset demo back to baseline mock data
   const resetDemoData = useCallback(() => {
@@ -481,6 +583,8 @@ export function useDashboardData(mode, session = null) {
     setCardProfile,
     isLoading,
     isRefreshing,
+    isQuotesLoading,
+    invalidateDashboardData,
     fetchData,
     resetDemoData,
     saveQuote,
