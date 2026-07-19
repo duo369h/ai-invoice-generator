@@ -309,6 +309,17 @@ const renderInvoiceTimeline = (status) => {
   );
 };
 
+export function getDashboardAuthEventAction(event, nextSession) {
+  if (event === 'INITIAL_SESSION') return 'ignore';
+  if (event === 'SIGNED_OUT') return 'clear';
+  return nextSession ? 'refresh' : 'clear';
+}
+
+export function getQuotesContentState(isQuotesLoading, quoteCount) {
+  if (isQuotesLoading) return 'loading';
+  return quoteCount > 0 ? 'ready' : 'empty';
+}
+
 export default function Dashboard({ mode = 'live', initialTool: routeInitialTool = null, tierPlan = null, onSuccessMoment = null }) {
 
 
@@ -379,6 +390,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setCardProfile,
     isLoading,
     isRefreshing,
+    isQuotesLoading,
+    invalidateDashboardData,
     fetchData,
     resetDemoData,
     saveQuote,
@@ -1047,12 +1060,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, [cardProfile, initProfileStates]);
 
   const clearDashboardData = useCallback(() => {
+    invalidateDashboardData();
+    setUser({});
     setLeads([]);
     setQuotes([]);
     setInvoices([]);
     setClients([]);
     setCardProfile(null);
-  }, [setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
+  }, [invalidateDashboardData, setUser, setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -1265,12 +1280,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     hydrateSession();
 
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
+      const authEventAction = getDashboardAuthEventAction(_event, nextSession);
+      if (authEventAction === 'ignore') return;
+
       if (!nextSession && !sessionRef.current) {
         setAuthChecked(false);
       }
-      setSession(nextSession);
+      setSession(authEventAction === 'clear' ? null : nextSession);
 
-      if (nextSession) {
+      if (authEventAction === 'refresh') {
         setAnalyticsUserId(nextSession.user?.id);
         setAuthChecked(true);
         if (_event === 'SIGNED_IN') {
@@ -1310,8 +1328,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     return () => {
       cancelled = true;
       listener?.subscription?.unsubscribe();
+      invalidateDashboardData({ updateState: false, resetQuotesInitialLoad: true });
     };
-  }, [clearDashboardData, fetchData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
+  }, [clearDashboardData, fetchData, invalidateDashboardData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
 
   useEffect(() => {
     if (previewMode) return;
@@ -3586,7 +3605,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <button onClick={() => initCreateQuote('quotes_header')} className="btn btn-primary">Create Quote</button>
                 </div>
 
-                 {getActiveQuotes().length === 0 ? (
+                 {getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'loading' ? (
+                  <div className="card" data-testid="quotes-loading" style={{ padding: '24px', border: '1px solid var(--border)' }}>
+                    <div className="skeleton animate-pulse" style={{ height: '18px', width: '34%', marginBottom: '16px' }}></div>
+                    <div className="skeleton animate-pulse" style={{ height: '48px', width: '100%', marginBottom: '10px' }}></div>
+                    <div className="skeleton animate-pulse" style={{ height: '48px', width: '100%' }}></div>
+                  </div>
+                ) : getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'empty' ? (
                   <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
                     <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
