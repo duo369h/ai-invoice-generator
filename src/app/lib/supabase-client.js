@@ -9,6 +9,7 @@ export function isSupabaseConfigured() {
 
 let supabaseInstance = null;
 let authCookieSyncAttached = false;
+let authCookieSyncGeneration = 0;
 
 function getSupabaseAuthStorageKey() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
@@ -70,11 +71,14 @@ function attachAuthCookieSync(client) {
   if (authCookieSyncAttached || !client || typeof window === 'undefined') return;
   authCookieSyncAttached = true;
 
+  const initialGeneration = authCookieSyncGeneration;
   client.auth.getSession().then(({ data }) => {
+    if (initialGeneration !== authCookieSyncGeneration) return;
     if (data?.session) writeSupabaseAuthCookie(data.session);
   }).catch(() => {});
 
   client.auth.onAuthStateChange((event, session) => {
+    authCookieSyncGeneration += 1;
     if (event === 'SIGNED_OUT') {
       writeSupabaseAuthCookie(null);
       return;

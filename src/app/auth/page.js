@@ -90,6 +90,7 @@ export default function AuthPage() {
   const [identity, setIdentity] = useState(null);
   const hasStartedNavigationRef = useRef(false);
   const passwordSignInInFlightRef = useRef(false);
+  const passwordLoginAttemptedRef = useRef(false);
 
   const navigateWithFullPageLoad = useCallback((target) => {
     if (typeof window === 'undefined') return false;
@@ -162,6 +163,7 @@ export default function AuthPage() {
         const redirectExistingSession = async () => {
           try {
             const { data } = await supabase.auth.getSession();
+            if (passwordLoginAttemptedRef.current) return;
             if (data.session) {
               bindAuthRevenueContext(new URLSearchParams(window.location.search).get('plan'));
               const redirectTarget = readAuthRedirectTarget();
@@ -177,6 +179,7 @@ export default function AuthPage() {
               } catch (e) {
                 console.error('Error resolving entry post-session:', e);
               }
+              if (passwordLoginAttemptedRef.current) return;
               navigateWithFullPageLoad(destination);
             }
           } catch (error) {
@@ -229,6 +232,7 @@ export default function AuthPage() {
     if (!email.trim() || !password || passwordSignInInFlightRef.current) return;
 
     passwordSignInInFlightRef.current = true;
+    passwordLoginAttemptedRef.current = true;
     setIsLoading(true);
     setStatus('');
     sendEvent('SIGNUP_STARTED', { method: 'password', source: 'auth_form' });
@@ -256,19 +260,32 @@ export default function AuthPage() {
       } else {
         trackEvent('signup_login_requested', { method: 'password' });
         setStatus('Logged in successfully! Redirecting...');
-        await client.auth.setSession({
+        const expectedUserId = loginResult.session.user?.id;
+        const { data: setSessionData, error: setSessionError } = await client.auth.setSession({
           access_token: loginResult.session.access_token,
           refresh_token: loginResult.session.refresh_token,
         });
+        const sessionMatchesExpectedUser = (session) => Boolean(
+          expectedUserId
+          && session?.user?.id === expectedUserId
+        );
+        if (setSessionError || !sessionMatchesExpectedUser(setSessionData?.session)) {
+          await client.auth.signOut().catch(() => {});
+          setStatus('Unable to establish the requested account session. Please sign in again. / 无法建立请求的账户会话，请重新登录。');
+          return;
+        }
         const { data: sessionCheck } = await client.auth.getSession();
-        if (!sessionCheck?.session) {
-          setStatus('Login succeeded, but the browser session was not ready yet. Please try again. / 登录成功，但浏览器会话尚未准备好，请再试一次。');
+        if (!sessionMatchesExpectedUser(sessionCheck?.session)) {
+          await client.auth.signOut().catch(() => {});
+          setStatus('Unable to establish the requested account session. Please sign in again. / 无法建立请求的账户会话，请重新登录。');
           return;
         }
         const redirectTarget = readAuthRedirectTarget();
         let destination = redirectTarget;
         try {
-          const res = await fetch('/api/user');
+          const res = await fetch('/api/user', {
+            headers: { Authorization: `Bearer ${sessionCheck.session.access_token}` },
+          });
           if (res.ok) {
             const userData = await res.json();
             if (userData && !userData.hasActivated && !redirectTarget.startsWith('/onboarding')) {
