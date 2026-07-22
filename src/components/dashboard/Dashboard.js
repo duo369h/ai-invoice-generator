@@ -51,6 +51,7 @@ import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
 import { Icons } from '@/styles/icons';
+import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
 import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
 import { reconcileEntryState } from '../../core/entry/ENTRY_STATE_RECONCILER';
 import { resolveRevenueEntry } from '../../core/entry/ENTRY_REVENUE_RESOLVER';
@@ -2850,7 +2851,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               // Upgrade nudges fire AFTER value moments, not at tab access.
               const IconComponent = Icons[tab.id];
               const isActive = activeTab === tab.id;
-              
+              // B+ icon set (Quote/Invoice/Clients) uses its own stroke-width
+              // convention (1.7 default / 1.8 active) per the approved design
+              // handoff. Other tabs (e.g. profile) keep their existing values.
+              const isBPlusIcon = tab.id === 'quotes' || tab.id === 'invoices' || tab.id === 'clients';
+              const iconStrokeWidth = isBPlusIcon ? (isActive ? 1.8 : 1.7) : (isActive ? 2.5 : 2);
+
               // Identity theme accent colors
               const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
               const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
@@ -2884,7 +2890,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       {IconComponent && (
                         <IconComponent
                           size={16}
-                          strokeWidth={isActive ? 2.5 : 2}
+                          strokeWidth={iconStrokeWidth}
                           style={{
                             color: isActive ? themeAccent : 'currentColor',
                             opacity: isActive ? 1 : 0.65,
@@ -2927,7 +2933,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 transition: 'var(--transition)'
               }}
             >
-              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
               Client Portal
             </Link>
 
