@@ -6126,8 +6126,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '20px',
-            backdropFilter: 'blur(8px)'
+            padding: '20px'
           }}
         >
           <form
