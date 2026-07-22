@@ -25,7 +25,6 @@ import { createBrowserSupabaseClient } from '@/app/lib/supabase-client';
 
 import { getSupportEmail } from '@/app/lib/config';
 import { Logo, Button, Container } from '@/app/components/UIComponents';
-import GlobalHeaderControlCluster from '@/components/layout/GlobalHeaderControlCluster';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 import { UpgradeModal } from '../ui/UpgradeModal';
 import { ExportRestrictionModal } from '../ui/ExportRestrictionModal';
@@ -51,7 +50,6 @@ import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
 import { Icons } from '@/styles/icons';
-import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
 import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
 import { reconcileEntryState } from '../../core/entry/ENTRY_STATE_RECONCILER';
 import { resolveRevenueEntry } from '../../core/entry/ENTRY_REVENUE_RESOLVER';
@@ -2891,86 +2889,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </React.Fragment>
               );
             })}
-
-            <Link
-              href="/client-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                evaluateAction('client_portal', () => {
-                  router.push('/client-portal');
-                });
-              }}
-              aria-label="Client Portal: external pages shared with clients"
-              title="External pages shared with clients"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                textDecoration: 'none',
-                transition: 'var(--transition)'
-              }}
-            >
-              <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
-              Client Portal
-            </Link>
-
-            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
-            <button
-              type="button"
-              onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'var(--transition)'
-              }}
-            >
-              <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDashboardTabChange('profile', 'sidebar_account')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'var(--transition)'
-              }}
-            >
-              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Account
-            </button>
           </nav>
         </div>
 
@@ -2978,14 +2896,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         <div className="dashboard-sidebar-footer">
           <div style={{ marginBottom: '16px', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <GlobalHeaderControlCluster
-                compact
-                surfaceId="dashboard-sidebar-control-surface"
-                route="/dashboard"
-                navLinks={[]}
-                primaryAction={null}
-                accountAction={null}
-              />
               {session?.user?.email ? (
                 <button
                   type="button"
@@ -2993,11 +2903,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   onClick={() => setAccountMenuOpen((open) => !open)}
                   aria-haspopup="menu"
                   aria-expanded={accountMenuOpen}
+                  style={{ width: '100%' }}
                 >
                   Account
                 </button>
               ) : (
-                <Link href="/auth" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+                <Link href="/auth" className="btn btn-secondary btn-sm" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
                   Sign in
                 </Link>
               )}
@@ -3020,68 +2931,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   boxShadow: 'var(--shadow-lg)'
                 }}
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setAccountMenuOpen(false);
-                    handleDashboardTabChange('profile', 'account_menu');
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '9px 10px',
-                    borderRadius: '6px',
-                    color: 'var(--text-main)',
-                    background: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    fontSize: '0.82rem',
-                    fontWeight: 650,
-                    cursor: 'pointer'
-                  }}
-                >
-                  My Account
-                </button>
-                <Link
-                  href="/pricing"
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  style={{
-                    display: 'block',
-                    padding: '9px 10px',
-                    borderRadius: '6px',
-                    color: 'var(--text-main)',
-                    textDecoration: 'none',
-                    fontSize: '0.82rem',
-                    fontWeight: 650
-                  }}
-                >
-                  Billing / Plan
-                </Link>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setAccountMenuOpen(false);
-                    handleDashboardTabChange('profile', 'account_menu_settings');
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '9px 10px',
-                    borderRadius: '6px',
-                    color: 'var(--text-main)',
-                    background: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    fontSize: '0.82rem',
-                    fontWeight: 650,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Settings
-                </button>
+                <div style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    {session.user.email}
+                  </div>
+                </div>
                 <button
                   type="button"
                   role="menuitem"
@@ -3178,20 +3032,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             >
               Share Beta Feedback
             </button>
-            <p>Logged account:</p>
-            <p style={{ color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 }}>
-              {session ? session.user.email : 'Not signed in'}
-            </p>
-            {session && (
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="btn btn-secondary btn-sm"
-                style={{ width: '100%', marginTop: '12px' }}
-              >
-                Sign out
-              </button>
-            )}
           </div>
         </div>
       </aside>
