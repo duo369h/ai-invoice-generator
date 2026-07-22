@@ -622,6 +622,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [feedbackCategory, setFeedbackCategory] = useState('Dashboard');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackError, setFeedbackError] = useState('');
+  const feedbackBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (!feedbackModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setFeedbackModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+      if (feedbackBtnRef.current) {
+        feedbackBtnRef.current.focus();
+      }
+    };
+  }, [feedbackModalOpen]);
 
   const triggerToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -3007,6 +3031,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               </Link>
             )}
             <button
+              ref={feedbackBtnRef}
               type="button"
               onClick={openFeedbackModal}
               style={{
@@ -6085,6 +6110,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       {feedbackModalOpen && (
         <div
           role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setFeedbackModalOpen(false);
+            }
+          }}
           style={{
             position: 'fixed',
             top: 0,
