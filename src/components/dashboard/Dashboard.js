@@ -1104,19 +1104,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setFormSuccess('');
   }, [kernelUi, invoiceFlowLocked, activeTab, invoiceView, triggerToast, showAdvanced]);
 
-  // v10: renderPaidLockState is REMOVED.
-  // Tabs are now freely accessible — upgrade nudges fire AFTER value moments, not before access.
-  // This stub is kept for compatibility only; it renders nothing and fires the nudge hook.
-  const renderPaidLockState = (title, description, targetPlan = 'pro') => {
-    // Signal the tier wrapper to fire a success nudge (non-blocking)
-    if (typeof window !== 'undefined' && window.__corvioz_fire_success_nudge) {
-      // We don't know the exact moment here, so we fire a generic upgrade nudge via window
-      window.__corvioz_fire_success_nudge('INVOICE_CREATED');
-    }
-    // Return null — the calling tab section will render its real content
-    return null;
-  };
-
   const renderGuestLockState = (title, description) => {
     return (
       <div className="animate-fade-in" style={{ 
@@ -3346,8 +3333,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'leads' && (
           !session ? (
             renderGuestLockState('Leads CRM', 'Track client inquiry cycles and project valuations. When prospects submit forms on your public profile, inquiries appear here in your sales pipeline.')
-          ) : !entitlements.crm ? (
-            renderPaidLockState('Leads Pipeline CRM', 'Track client inquiry cycles and project valuations. When prospects submit forms on your public profile, inquiries appear here in your sales pipeline.', 'pro')
           ) : (
             <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -3600,8 +3585,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'quotes' && (
           !session && quoteView !== 'create' ? (
             renderGuestLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.')
-          ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.', 'pro')
           ) : (
             <div className="animate-fade-in">
             {quoteView === 'list' && (
@@ -4174,8 +4157,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'invoices' && (
           !session && invoiceView !== 'create' ? (
             renderGuestLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.')
-          ) : session && !entitlements.invoice ? (
-            renderPaidLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.', 'pro')
           ) : (
             <div className="animate-fade-in">
               {invoiceView === 'list' && (
@@ -4975,8 +4956,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'clients' && (
           !session && !isSandboxMode ? (
             renderGuestLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.')
-          ) : !entitlements.crm && !isSandboxMode ? (
-            renderPaidLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.', 'pro')
           ) : (activeTheme === 'studio') ? (
             <StudioSpace
               clients={getActiveClients()}
