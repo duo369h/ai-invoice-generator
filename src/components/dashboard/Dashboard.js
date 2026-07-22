@@ -6143,7 +6143,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               border: '1px solid var(--border)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px'
+              gap: '16px',
+              transform: 'none'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
@@ -6168,7 +6169,17 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   height: '32px',
                   cursor: 'pointer',
                   fontSize: '1.1rem',
-                  lineHeight: 1
+                  lineHeight: 1,
+                  transform: 'none',
+                  transition: 'background-color 0.15s, border-color 0.15s, color 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-hover)';
+                  e.currentTarget.style.background = 'var(--btn-secondary-hover-bg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.background = 'var(--btn-secondary-bg)';
                 }}
               >
                 &times;
@@ -6215,6 +6226,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setFeedbackModalOpen(false)}
+                style={{ transform: 'none' }}
               >
                 Cancel
               </button>
@@ -6222,6 +6234,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 type="submit"
                 className="btn btn-primary"
                 disabled={feedbackSubmitting}
+                style={{ transform: 'none' }}
               >
                 {feedbackSubmitting ? 'Sending...' : 'Send Feedback'}
               </button>
