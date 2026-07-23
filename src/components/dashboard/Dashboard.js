@@ -617,6 +617,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [formSuccess, setFormSuccess] = useState('');
   const [toast, setToast] = useState(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState('Dashboard');
@@ -1209,17 +1210,26 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleSignOut = async () => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.removeItem('corvioz_sandbox_mode');
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    setAccountMenuOpen(false);
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('corvioz_sandbox_mode');
+      }
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      clearAnalyticsUserId();
+      setUser({ name: 'Photographer', plan: 'free' });
+      clearDashboardData();
+      router.replace('/auth');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setIsSigningOut(false);
+      triggerToast('Sign out failed. Please try again.', 'error');
     }
-    if (supabaseClient) {
-      await supabaseClient.auth.signOut();
-    }
-    setSession(null);
-    clearAnalyticsUserId();
-    setUser({ name: 'Photographer', plan: 'free' });
-    clearDashboardData();
-    router.replace('/auth');
   };
 
   // Auth initialization
@@ -2963,8 +2973,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <button
                   type="button"
                   role="menuitem"
+                  disabled={isSigningOut}
                   onClick={() => {
-                    setAccountMenuOpen(false);
                     handleSignOut();
                   }}
                   style={{
@@ -2977,10 +2987,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     textAlign: 'left',
                     fontSize: '0.82rem',
                     fontWeight: 650,
-                    cursor: 'pointer'
+                    cursor: isSigningOut ? 'not-allowed' : 'pointer',
+                    opacity: isSigningOut ? 0.7 : 1
                   }}
                 >
-                  Sign out
+                  {isSigningOut ? 'Signing out…' : 'Sign out'}
                 </button>
               </div>
             )}
@@ -3063,7 +3074,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       {/* Main dashboard content */}
       <Container className="dashboard-main-content" style={{ overflowY: 'auto' }}>
-        {!session && (
+        {!session && !isSigningOut && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1))',
             border: '1px solid rgba(245, 158, 11, 0.25)',
@@ -6239,6 +6250,52 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {isSigningOut && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(3, 7, 18, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              padding: '20px 32px',
+              background: 'var(--background-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              transform: 'none'
+            }}
+          >
+            <div
+              className="animate-pulse"
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: 'var(--primary)'
+              }}
+            />
+            <span style={{ fontSize: '0.9rem', fontWeight: 650, color: 'var(--text-main)' }}>
+              Signing out…
+            </span>
+          </div>
         </div>
       )}
 
