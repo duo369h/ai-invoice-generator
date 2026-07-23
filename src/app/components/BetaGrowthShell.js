@@ -14,7 +14,7 @@ export function openBetaFeedbackWidget(source = 'unknown') {
 
 export default function BetaGrowthShell({ children }) {
   const pathname = usePathname();
-  const isDashboard = pathname?.startsWith('/dashboard');
+  const isDashboardOrAuth = pathname?.startsWith('/dashboard') || pathname?.startsWith('/auth');
 
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -73,7 +73,7 @@ export default function BetaGrowthShell({ children }) {
     }
   };
 
-  if (isDashboard) {
+  if (isDashboardOrAuth) {
     return <>{children}</>;
   }
 
