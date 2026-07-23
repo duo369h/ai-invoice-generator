@@ -1,7 +1,11 @@
 import {
+  FilePenLine,
+  ReceiptText,
+  UsersRound,
+  IdCard,
+  CircleUserRound,
   Home,
   UserCircle,
-  IdCard,
   Settings,
   BarChart,
   Search,
@@ -34,23 +38,17 @@ import {
   Loader2,
   Lock,
 } from 'lucide-react';
-import { QuoteIcon, InvoiceIcon, ClientsIcon } from '@/components/icons/SidebarIconsBPlus';
 
 export const Icons = {
-  // Navigation mapping requested by USER
+  // Navigation mapping
   overview: Home,
   dashboard: Home,
-  // B+ icon set (design/icon-direction-exploration) -- approved for production
-  // integration test. See src/components/icons/SidebarIconsBPlus.js.
-  quotes: QuoteIcon,
-  invoices: InvoiceIcon,
-  clients: ClientsIcon,
-  // NOTE: `portal` (UserCircle) is intentionally left as-is here -- it is
-  // reused for the unrelated sidebar "Account" button, not just the Client
-  // Portal link. The Client Portal link uses ClientPortalIcon directly in
-  // Dashboard.js instead of going through this shared key.
+  quotes: FilePenLine,
+  invoices: ReceiptText,
+  clients: UsersRound,
   portal: UserCircle,
   profile: IdCard,
+  account: CircleUserRound,
   settings: Settings,
   analytics: BarChart,
   seo: Search,
