@@ -6134,7 +6134,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             aria-modal="true"
             aria-labelledby="beta-feedback-title"
             onSubmit={submitBetaFeedback}
-            className="card animate-fade-in"
+            className="card"
             style={{
               width: 'min(100%, 520px)',
               padding: '28px',
