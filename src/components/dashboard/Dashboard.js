@@ -2879,11 +2879,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           {/* Navigation Links */}
           <nav className="dashboard-sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             {getDashboardTabs(kernelUi).map(tab => {
-              // v10: No tab locking. All tabs are freely navigable.
-              // Upgrade nudges fire AFTER value moments, not at tab access.
               const IconComponent = Icons[tab.id];
               const isActive = activeTab === tab.id;
-              
+              const iconColor = isActive ? '#4F46E5' : '#59677c';
+
               // Identity theme accent colors
               const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
               const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
@@ -2915,15 +2914,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {IconComponent && (
-                        <IconComponent
-                          size={16}
-                          strokeWidth={isActive ? 2.5 : 2}
+                        <span
+                          aria-hidden="true"
                           style={{
-                            color: isActive ? themeAccent : 'currentColor',
-                            opacity: isActive ? 1 : 0.65,
+                            width: 18,
+                            height: 18,
+                            flex: '0 0 18px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: iconColor,
                             transition: 'color 0.25s'
                           }}
-                        />
+                        >
+                          <IconComponent size={18} strokeWidth={2} />
+                        </span>
                       )}
                       <span style={{ transition: 'color 0.25s' }}>{tab.label}</span>
                     </div>
@@ -2945,9 +2950,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   onClick={() => setAccountMenuOpen((open) => !open)}
                   aria-haspopup="menu"
                   aria-expanded={accountMenuOpen}
-                  style={{ width: '100%' }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
                 >
-                  Account
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 18,
+                      height: 18,
+                      flex: '0 0 18px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#59677c'
+                    }}
+                  >
+                    {Icons.account && <Icons.account size={18} strokeWidth={2} />}
+                  </span>
+                  <span>Account</span>
                 </button>
               ) : (
                 <Link href="/auth" className="btn btn-secondary btn-sm" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>

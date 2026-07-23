@@ -1,10 +1,11 @@
 import {
-  Home,
-  FileText,
-  Receipt,
-  Users,
-  UserCircle,
+  FilePenLine,
+  ReceiptText,
+  UsersRound,
   IdCard,
+  CircleUserRound,
+  Home,
+  UserCircle,
   Settings,
   BarChart,
   Search,
@@ -39,14 +40,15 @@ import {
 } from 'lucide-react';
 
 export const Icons = {
-  // Navigation mapping requested by USER
+  // Navigation mapping
   overview: Home,
   dashboard: Home,
-  quotes: FileText,
-  invoices: Receipt,
-  clients: Users,
+  quotes: FilePenLine,
+  invoices: ReceiptText,
+  clients: UsersRound,
   portal: UserCircle,
   profile: IdCard,
+  account: CircleUserRound,
   settings: Settings,
   analytics: BarChart,
   seo: Search,
