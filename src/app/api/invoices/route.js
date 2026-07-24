@@ -71,31 +71,11 @@ export async function POST(request) {
     const contextFailure = requestContextResponse(context, 'invoices');
     if (contextFailure) return contextFailure;
 
-    const profile = await ensureProfile(context.supabase, context.user);
-    const plan = profile?.plan || 'free';
-    const { getUserEntitlements } = await import('../../../../lib/entitlements');
-    const entitlements = getUserEntitlements(plan);
-    
-    // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
-    const { count: activationEventCount } = await context.supabase
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', context.user.id)
-      .eq('event', 'FIRST_VALUE_CREATED');
-
-    const hasActivated = (activationEventCount || 0) > 0;
-
-    if (!entitlements.invoice && hasActivated) {
-      return NextResponse.json({
-        error: "UPGRADE_REQUIRED",
-        requiredPlan: "pro"
-      }, { status: 403 });
-    }
-
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
+
     const body = validateInvoicePayload(await request.json());
 
     const {
@@ -120,6 +100,34 @@ export async function POST(request) {
       quote_id,
       payment_link
     } = body;
+
+    if (doc_type === 'receipt') {
+      return NextResponse.json({
+        error: 'RECEIPT_CREATION_NOT_SUPPORTED',
+        message: 'Receipts can only be generated from a recorded payment.'
+      }, { status: 400 });
+    }
+
+    const profile = await ensureProfile(context.supabase, context.user);
+    const plan = profile?.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
+
+    // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
+    const { count: activationEventCount } = await context.supabase
+      .from('analytics_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', context.user.id)
+      .eq('event', 'FIRST_VALUE_CREATED');
+
+    const hasActivated = (activationEventCount || 0) > 0;
+
+    if (!entitlements.invoice && hasActivated) {
+      return NextResponse.json({
+        error: "UPGRADE_REQUIRED",
+        requiredPlan: "pro"
+      }, { status: 403 });
+    }
 
     // Calculate subtotal and total in cents
     const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
@@ -299,6 +307,13 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Missing required fields: id and status' }, { status: 400 });
     }
 
+    if (status === 'paid') {
+      return NextResponse.json({
+        error: 'PAID_STATUS_REQUIRES_PAYMENT_RECORD',
+        message: 'Paid status can only be set by recording a payment.'
+      }, { status: 400 });
+    }
+
     if (context.mode === 'supabase') {
       const { data, error } = await context.supabase
         .from('invoices')
@@ -355,45 +370,6 @@ export async function PATCH(request) {
           await sendInvoiceSentEmail(data.client_email, data, portalUrl, profile?.name || 'Freelancer');
         } catch (mailErr) {
           console.error('Failed to trigger Invoice Sent email:', mailErr);
-        }
-      }
-
-      if (status === 'paid') {
-        // V3_REVENUE_HOOK_POINT
-        // DO NOT IMPLEMENT YET
-        try {
-          const { data: profile } = await context.supabase
-            .from('profiles')
-            .select('name, email, plan')
-            .eq('id', context.user.id)
-            .maybeSingle();
-
-          const { sendInvoicePaidEmail } = await import('../../lib/email');
-          if (profile?.email) {
-            await sendInvoicePaidEmail(profile.email, data, profile.name || 'Freelancer');
-          }
-          if (data.client_email) {
-            await sendInvoicePaidEmail(data.client_email, data, profile?.name || 'Freelancer');
-          }
-          await recordProductAnalyticsEvent({
-            eventName: 'Invoice Paid',
-            userId: context.user.id,
-            source: 'invoices_api',
-            properties: {
-              identity: context.user.id,
-              user_id: context.user.id,
-              plan: profile?.plan || 'free',
-              country: '',
-              invoice_id: data.id,
-              invoice_number: data.invoice_number,
-              total: data.total,
-              currency: data.currency,
-              source: 'invoices_api',
-              timestamp: new Date().toISOString(),
-            },
-          });
-        } catch (mailErr) {
-          console.error('Failed to trigger Invoice Paid follow-up:', mailErr);
         }
       }
 

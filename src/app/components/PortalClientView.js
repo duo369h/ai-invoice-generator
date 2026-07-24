@@ -19,9 +19,8 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   const [commentText, setCommentText] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   
-  // Approval and Payment states
+  // Approval states
   const [approving, setApproving] = useState(false);
-  const [paying, setPaying] = useState(false);
   const [ownerPlan, setOwnerPlan] = useState('free');
   const [ownerId, setOwnerId] = useState('');
 
@@ -249,50 +248,6 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
     }
   };
 
-  const handleMarkPaid = async () => {
-    if (!confirm('Are you sure you want to confirm this invoice as paid?')) return;
-    setPaying(true);
-
-    // Sandbox mode check
-    if (identifier && identifier.startsWith('sandbox-')) {
-      setTimeout(() => {
-        setDoc(prev => {
-          const next = { ...prev, status: 'paid' };
-          const parts = identifier.split('-');
-          const type = parts[1] || 'invoice';
-          const id = parts.slice(2).join('-');
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem(`sandbox-${type}-${id}`, JSON.stringify(next));
-          }
-          return next;
-        });
-        triggerToast('Payment confirmed! The freelancer has been notified (Sandbox Mode).', 'success');
-        setPaying(false);
-      }, 500);
-      return;
-    }
-
-    try {
-      const res = await fetch(fetchUrl, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pay' })
-      });
-      if (res.ok) {
-        setDoc(prev => ({ ...prev, status: 'paid' }));
-        triggerToast('Payment confirmed! The freelancer has been notified.', 'success');
-      } else {
-        const errData = await res.json();
-        triggerToast(errData.error || 'Failed to confirm payment.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      triggerToast('Error confirming payment.', 'error');
-    } finally {
-      setPaying(false);
-    }
-  };
-
   const handleSubmitComment = async (event) => {
     event.preventDefault();
     if (!postCommentUrl || !commentAuthor.trim() || !commentText.trim()) return;
@@ -438,6 +393,9 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   // Status checks for timeline
   const isInvoice = docType === 'invoice';
   const status = doc.status || 'draft';
+  const paymentStatus =
+    doc.payment_status ||
+    (doc.status === 'paid' ? 'paid' : 'unpaid');
 
   return (
     <div className="portal-root">
@@ -714,10 +672,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </div>
 
                     <div className="timeline-item">
-                      <div className={`timeline-node ${status === 'paid' ? 'completed' : (['opened', 'overdue'].includes(status) ? 'current' : '')}`} />
+                      <div className={`timeline-node ${paymentStatus === 'paid' ? 'completed' : (['opened', 'overdue'].includes(status) ? 'current' : '')}`} />
                       <div className="timeline-content">
                         <span className="timeline-title">Settled / Paid</span>
-                        <span className="timeline-desc">{status === 'paid' ? 'Paid in full' : 'Awaiting final payment'}</span>
+                        <span className="timeline-desc">{paymentStatus === 'paid' ? 'Paid in full' : (paymentStatus === 'partial' ? 'Partially paid' : 'Awaiting final payment')}</span>
                       </div>
                     </div>
                   </>
@@ -758,7 +716,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           <main className="portal-main">
             
             {/* Quick Checkout / Approval Banners */}
-            {isInvoice && status !== 'paid' && (
+            {isInvoice && paymentStatus !== 'paid' && (
               <div className="card" style={{
                 padding: '24px',
                 display: 'flex',
@@ -774,21 +732,20 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>Review Client Document</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {doc.payment_link 
-                      ? 'Review this document using the secure client link.' 
-                      : 'Please contact the photographer for document instructions, then click the confirmation button to notify them.'}
+                    {paymentStatus === 'partial'
+                      ? 'Partially paid. Please contact the photographer for remaining balance instructions.'
+                      : (doc.payment_link
+                        ? 'Review this document using the secure client link.'
+                        : 'Please contact the photographer for payment instructions.')}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {doc.payment_link && (
+                {doc.payment_link && (
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <a href={doc.payment_link} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', fontWeight: 700 }}>
                       💳 Pay {currencySymbol}{totalAmount.toFixed(2)} Now
                     </a>
-                  )}
-                  <button onClick={handleMarkPaid} disabled={paying} className="btn btn-secondary" style={{ padding: '12px 24px', fontWeight: 700, borderRadius: 'var(--radius-md)' }}>
-                    {paying ? 'Processing...' : 'Confirm Paid'}
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             )}
 

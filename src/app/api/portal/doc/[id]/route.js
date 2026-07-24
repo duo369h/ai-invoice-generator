@@ -337,33 +337,10 @@ export async function PATCH(request, { params }) {
 
     if (resolved.type === 'invoice') {
       if (action === 'pay') {
-        const { error } = await serviceSupabase
-          .from('invoices')
-          .update({ status: 'paid', updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .eq('user_id', resolved.data.user_id);
-
-        if (error) throw error;
-
-        await writeAuditLog(serviceSupabase, {
-          userId: resolved.data.user_id,
-          action: 'portal_invoice_paid',
-          resourceType: 'invoice',
-          resourceId: id,
-          ip,
-        });
-
-        // Trigger Invoice Paid email
-        if (freelancerEmail) {
-          try {
-            const { sendInvoicePaidEmail } = await import('../../../../lib/email');
-            await sendInvoicePaidEmail(freelancerEmail, resolved.data, freelancerName);
-          } catch (mailErr) {
-            console.error('Failed to send Invoice Paid email:', mailErr);
-          }
-        }
-
-        return NextResponse.json({ success: true, status: 'paid' });
+        return NextResponse.json({
+          error: 'PAYMENT_CONFIRMATION_NOT_SUPPORTED',
+          message: 'Payment must be recorded by the photographer or payment provider.'
+        }, { status: 409 });
       }
     }
 
