@@ -1,3 +1,5 @@
+import { PAYMENT_STATUSES, paymentStatusForInvoice } from './invoicePaymentState.js';
+
 const FREE_PLAN = 'free';
 
 const noActions = {
@@ -41,11 +43,19 @@ export function resolveFirstRevenueLoop({ plan = FREE_PLAN, loop = null, quote =
       return result('unavailable', 'blocked', loop);
     }
 
-    if (String(invoice.payment_link || '').trim()) {
+    // SAFE-03B2A: the closing stage is driven by settled payment state only.
+    // A checkout link is not evidence of settlement.
+    const paymentStatus = paymentStatusForInvoice(invoice);
+
+    if (paymentStatus === PAYMENT_STATUSES.PAID) {
       return result('complete', 'allowance', loop);
     }
 
-    return result('invoice_draft', 'allowance', loop, { canPreparePayment: true });
+    if (paymentStatus === PAYMENT_STATUSES.PARTIAL) {
+      return result('first_payment_received', 'allowance', loop, { canPreparePayment: true });
+    }
+
+    return result('invoice_created', 'allowance', loop, { canPreparePayment: true });
   }
 
   switch (quote.status) {

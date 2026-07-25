@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security';
+import { resolveInvoicePaymentReadModel } from '../../core/revenue/invoicePaymentState.js';
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -214,6 +215,11 @@ export async function ensureProfile(supabase, user) {
 }
 
 export function mapSupabaseInvoice(row) {
+  // SAFE-03B2A-R1: all payment amount normalization and payment_status
+  // derivation is centralized in resolveInvoicePaymentReadModel. This
+  // function must not re-implement its own cents normalization.
+  const readModel = resolveInvoicePaymentReadModel(row);
+
   return {
     ...row,
     object: 'invoice',
@@ -222,6 +228,10 @@ export function mapSupabaseInvoice(row) {
     discount_rate: Number(row.discount_rate || 0),
     tax_rate: Number(row.tax_rate || 0),
     payment_link: row.payment_link || '',
+    invoice_kind: readModel.invoice_kind,
+    payment_status: readModel.payment_status,
+    amount_paid_cents: readModel.amount_paid_cents,
+    amount_due_cents: readModel.amount_due_cents,
   };
 }
 
