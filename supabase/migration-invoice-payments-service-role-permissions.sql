@@ -1,0 +1,52 @@
+-- =====================================================================
+-- HISTORICAL SOURCE ARCHIVE
+-- ALREADY APPLIED TO PRODUCTION
+-- DO NOT RUN MANUALLY
+-- DO NOT ALTER OR SYNTHESIZE MIGRATION HISTORY
+-- =====================================================================
+--
+-- Production migration record
+--   version : 20260711183628
+--   name    : invoice_payments_service_role_permissions
+--   registered in supabase_migrations.schema_migrations : YES
+--   statements : 1  (entire file stored verbatim as a single statement)
+--
+-- Original body SHA-256 (this file minus this header):
+--   3586012c91d22c67058d0374911533072a24a5692a20187305555aa558368959
+--
+-- Candidate source (3 byte-identical independent copies):
+--   1. dirty workspace  supabase/migration-invoice-payments-service-role-permissions.sql
+--   2. Desktop Corvioz-SAFE-03B0-20260725-045031/source-snapshot/supabase/
+--   3. Git object store, on 7 refs/codex/turn-diffs/checkpoints/* refs
+--      (never committed on any branch or tag)
+--
+-- Statement comparison conclusion: EXACT MATCH.
+--   The SHA-256 of supabase_migrations.schema_migrations.statements[1] for
+--   version 20260711183628, computed server-side, is byte-for-byte identical
+--   to the SHA-256 of this file's body.
+--
+-- Superseded by later migrations: NONE.
+--   This migration changes no function body and creates no object. It is a
+--   pure table-privilege migration. Its effect is still fully present in
+--   production: invoice_payments grants are exactly
+--     service_role = INSERT + SELECT, authenticated = SELECT only,
+--     anon = no privileges at all.
+--
+-- Re-run assessment:
+--   Structurally this file IS idempotent — it contains only REVOKE and GRANT,
+--   no DDL, no DML, no CREATE OR REPLACE FUNCTION. Unlike the other two
+--   migrations in this set, re-running it would not corrupt data or regress a
+--   function. It is nonetheless archived as HISTORICAL ONLY and should not be
+--   run: production already matches its intent exactly, so execution would be
+--   a no-op that only adds risk of being run out of order or against the wrong
+--   environment.
+--
+-- Archived for provenance only. To change production privileges, author a new
+-- forward migration against the CURRENT state.
+-- =====================================================================
+
+-- Pass 4 payment settlement: preserve invoker RPC while granting its server role
+-- the minimum ledger privileges required for insert and aggregate reads.
+
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.invoice_payments FROM anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.invoice_payments TO service_role;
