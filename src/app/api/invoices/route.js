@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
+  createServiceSupabaseClient,
   createSupabasePortalToken,
   ensureProfile,
   getRequestUser,
@@ -212,7 +213,16 @@ export async function POST(request) {
         notes: notes || ''
       };
 
-      const { data, error } = await context.supabase
+      // SAFE-03SEC-B1: the document write runs as service_role so that the
+      // `authenticated` role no longer needs table-level DML on public.invoices.
+      // Ownership is not inherited from the connection: `payload.user_id` is set
+      // from the verified `context.user.id` above and never from the request body.
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+      }
+
+      const { data, error } = await serviceSupabase
         .from('invoices')
         .insert(payload)
         .select('*')
@@ -315,7 +325,16 @@ export async function PATCH(request) {
     }
 
     if (context.mode === 'supabase') {
-      const { data, error } = await context.supabase
+      // SAFE-03SEC-B1: runs as service_role, which bypasses RLS. The
+      // `.eq('user_id', context.user.id)` filter below is therefore the sole
+      // ownership control and must not be removed. `context.user.id` comes from
+      // the verified session; `user_id` is never read from the request body.
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+      }
+
+      const { data, error } = await serviceSupabase
         .from('invoices')
         .update({ status })
         .eq('id', id)
@@ -323,6 +342,9 @@ export async function PATCH(request) {
         .select('*')
         .single();
 
+      // A row belonging to another user, or a row that does not exist, matches
+      // zero rows and lands here. Both return the same 404 as before, so the
+      // response never reveals whether the id exists under a different owner.
       if (error || !data) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
       }
@@ -404,7 +426,16 @@ export async function DELETE(request) {
     }
 
     if (context.mode === 'supabase') {
-      const { data: deletedInvoice, error } = await context.supabase
+      // SAFE-03SEC-B1: runs as service_role, which bypasses RLS. The
+      // `.eq('user_id', context.user.id)` filter below is therefore the sole
+      // ownership control and must not be removed. `context.user.id` comes from
+      // the verified session; `user_id` is never read from the request body.
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+      }
+
+      const { data: deletedInvoice, error } = await serviceSupabase
         .from('invoices')
         .delete()
         .eq('id', id)
@@ -413,6 +444,9 @@ export async function DELETE(request) {
         .maybeSingle();
 
       if (error) throw error;
+      // Another user's invoice, or a non-existent id, deletes zero rows and
+      // yields null here. Both return the same 404 as before, so the response
+      // never reveals whether the id exists under a different owner.
       if (!deletedInvoice) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
       }

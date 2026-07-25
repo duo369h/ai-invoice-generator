@@ -400,7 +400,16 @@ export async function DELETE(request) {
     }
 
     if (context.mode === 'supabase') {
-      const { data: deletedQuote, error } = await context.supabase
+      // SAFE-03SEC-B1: runs as service_role, which bypasses RLS. The
+      // `.eq('user_id', context.user.id)` filter below is therefore the sole
+      // ownership control and must not be removed. `context.user.id` comes from
+      // the verified session; `user_id` is never read from the request body.
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Quote service is unavailable' }, { status: 503 });
+      }
+
+      const { data: deletedQuote, error } = await serviceSupabase
         .from('quotes')
         .delete()
         .eq('id', id)
@@ -415,6 +424,9 @@ export async function DELETE(request) {
         );
       }
       if (error) throw error;
+      // Another user's quote, or a non-existent id, deletes zero rows and yields
+      // null here. Both return the same 404 as before, so the response never
+      // reveals whether the id exists under a different owner.
       if (!deletedQuote) {
         return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
       }
