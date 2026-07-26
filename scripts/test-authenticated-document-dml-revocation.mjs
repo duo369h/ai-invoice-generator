@@ -74,8 +74,11 @@ function inspect(source) {
     noTriggerChange: !normalizedStatements.some((statement) => /^(create|alter|drop)\s+trigger\b/i.test(statement)),
     noDataDml: !normalizedStatements.some((statement) => /^(insert\s+into|update\s+|delete\s+from)\b/i.test(statement)),
     noMigrationHistoryWrite: !normalizedStatements.some((statement) => /\bschema_migrations\b/i.test(statement)),
-    b1First: /requires safe-03sec-b1 application code to be deployed(?: and smoke-tested)? first/i.test(source)
-      && /do not apply before the four document writes use service_role/i.test(source),
+    b2bPreflightAudit: /safe-03sec-b2-b independent preflight audit must pass before deployment or application\./i.test(source),
+    b1DeploymentAndSmokeBeforeApplication: /safe-03sec-b1 application code must be deployed and smoke-tested before application\./i.test(source),
+    b2dPostApplicationVerification: /safe-03sec-b2-d production permission verification is required after application\./i.test(source),
+    noB2bAfterApplication: !/^.*safe-03sec-b2-b.*after application.*$/im.test(source),
+    noLegacyB2bAfterApplication: !/independent production permission audit remains the next step after application/i.test(source),
     selectRetained: /select remains/i.test(source),
     b2bLater: /safe-03b2b[\s\S]{0,100}(separate|follow-up|later)[\s\S]{0,100}blocked/i.test(source),
     exactlyTwoRevokes: statements.length === 2 && revokeStatements.length === 2,
@@ -104,10 +107,14 @@ check('14. no RLS change exists', results.noRlsChange);
 check('15. no trigger change exists', results.noTriggerChange);
 check('16. no data INSERT/UPDATE/DELETE statement exists', results.noDataDml);
 check('17. no schema_migrations write exists', results.noMigrationHistoryWrite);
-check('18. comments require B1 deployment before application', results.b1First);
-check('19. comments state SELECT remains', results.selectRetained);
-check('20. comments state SAFE-03B2B remains a blocked later stage', results.b2bLater);
-check('21. migration contains exactly two executable REVOKE statements', results.exactlyTwoRevokes);
+check('18. comments require B2-B independent preflight audit before deployment or application', results.b2bPreflightAudit);
+check('19. comments require B1 deployment and smoke-testing before application', results.b1DeploymentAndSmokeBeforeApplication);
+check('20. comments require B2-D production permission verification after application', results.b2dPostApplicationVerification);
+check('21. comments do not place B2-B after application', results.noB2bAfterApplication);
+check('22. comments do not contain the legacy B2-B-after-application phrase', results.noLegacyB2bAfterApplication);
+check('23. comments state SELECT remains', results.selectRetained);
+check('24. comments state SAFE-03B2B remains a blocked later stage', results.b2bLater);
+check('25. migration contains exactly two executable REVOKE statements', results.exactlyTwoRevokes);
 
 const withoutInvoices = migration.replace(
   /revoke\s+insert\s*,\s*update\s*,\s*delete\s+on\s+table\s+public\.invoices\s+from\s+authenticated\s*;/i,
@@ -117,15 +124,36 @@ const withoutQuotes = migration.replace(
   /revoke\s+insert\s*,\s*update\s*,\s*delete\s+on\s+table\s+public\.quotes\s+from\s+authenticated\s*;/i,
   ''
 );
-check('22a. negative control: removing invoices REVOKE fails validation', !isValid(withoutInvoices));
-check('22b. negative control: removing quotes REVOKE fails validation', !isValid(withoutQuotes));
+check('26a. negative control: removing invoices REVOKE fails validation', !isValid(withoutInvoices));
+check('26b. negative control: removing quotes REVOKE fails validation', !isValid(withoutQuotes));
 check(
-  '23. negative control: changing authenticated to service_role fails validation',
+  '27. negative control: changing authenticated to service_role fails validation',
   !isValid(migration.replace(/\bauthenticated\b/gi, 'service_role'))
 );
 check(
-  '24. negative control: adding REVOKE SELECT fails validation',
+  '28. negative control: adding REVOKE SELECT fails validation',
   !isValid(`${migration}\nREVOKE SELECT ON TABLE public.invoices FROM authenticated;\n`)
+);
+check(
+  '29. negative control: changing B2-B before application to after application fails validation',
+  !isValid(migration.replace(
+    /safe-03sec-b2-b independent preflight audit must pass before deployment or application\./i,
+    'SAFE-03SEC-B2-B independent preflight audit must pass after application.'
+  ))
+);
+check(
+  '30. negative control: removing B2-D post-application verification fails validation',
+  !isValid(migration.replace(
+    /-- SAFE-03SEC-B2-D production permission verification is required after application\.\n/i,
+    ''
+  ))
+);
+check(
+  '31. negative control: removing B1 deployment-and-smoke precondition fails validation',
+  !isValid(migration.replace(
+    /-- SAFE-03SEC-B1 application code must be deployed and smoke-tested before application\.\n/i,
+    ''
+  ))
 );
 
 const selfSource = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
