@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, resolveSupabasePortalToken, writeAuditLog, recordServerGrowthEvent } from '../../../../lib/supabase';
+import { resolveSupabasePortalToken } from '../../../../lib/supabase';
+import {
+  createServiceSupabaseClient,
+  writeAuditLog,
+  recordServerGrowthEvent,
+  trackProfileMetric
+} from '../../../../lib/supabase-service';
 import { rateLimit } from '../../../../lib/rate-limit';
 import {
   failClosedResponse,
@@ -293,7 +299,6 @@ export async function POST(request, { params }) {
     });
 
     try {
-      const { trackProfileMetric } = await import('../../../../lib/supabase');
       await trackProfileMetric(serviceSupabase, resolved.portalToken.owner_id, 'time_to_first_client_response');
     } catch (trackErr) {
       console.error('Failed to track client response metric:', trackErr);
@@ -374,7 +379,6 @@ export async function PATCH(request, { params }) {
         });
 
         try {
-          const { trackProfileMetric } = await import('../../../../lib/supabase');
           await trackProfileMetric(serviceSupabase, resolved.portalToken.owner_id, 'time_to_first_client_response');
         } catch (trackErr) {
           console.error('Failed to track quote approved client response:', trackErr);
@@ -425,7 +429,6 @@ export async function PATCH(request, { params }) {
         });
 
         try {
-          const { trackProfileMetric } = await import('../../../../lib/supabase');
           await trackProfileMetric(serviceSupabase, resolved.portalToken.owner_id, 'time_to_first_client_response');
         } catch (trackErr) {
           console.error('Failed to track quote rejected client response:', trackErr);

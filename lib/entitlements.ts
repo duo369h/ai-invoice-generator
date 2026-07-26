@@ -159,36 +159,7 @@ export async function canAccess(userId: string, feature: string): Promise<boolea
     return false;
   }
 
-  // 2. Server-side Check (Node.js API routes)
-  try {
-    const { createServiceSupabaseClient } = require('../src/app/lib/supabase');
-    const supabase = createServiceSupabaseClient();
-    if (supabase) {
-      const { data } = await supabase
-        .from('entitlements')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (data && feature in data) {
-        return !!data[feature];
-      }
-
-      // If no entitlements row exists, fallback to reading user plan from profiles table
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('plan')
-        .eq('id', userId)
-        .maybeSingle();
-      if (profile) {
-        const plan = String(profile.plan || 'free').toLowerCase();
-        const mapped = getUserEntitlements(plan);
-        return !!mapped[feature as keyof Entitlements];
-      }
-    }
-  } catch (err) {
-    console.error('Server-side canAccess check error:', err);
-  }
-
+  // Server-side callers must use a server-only route or helper so the
+  // service-role credential cannot enter a browser bundle.
   return false;
 }

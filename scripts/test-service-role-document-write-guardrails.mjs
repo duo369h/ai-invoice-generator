@@ -21,9 +21,13 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'u
 
 const INVOICES_ROUTE = 'src/app/api/invoices/route.js';
 const QUOTES_ROUTE = 'src/app/api/quotes/route.js';
+const SUPABASE_LIB = 'src/app/lib/supabase.js';
+const SUPABASE_SERVICE_LIB = 'src/app/lib/supabase-service.js';
 
 const invoicesRoute = read(INVOICES_ROUTE);
 const quotesRoute = read(QUOTES_ROUTE);
+const supabaseLib = read(SUPABASE_LIB);
+const supabaseServiceLib = read(SUPABASE_SERVICE_LIB);
 
 let passed = 0;
 let failed = 0;
@@ -139,7 +143,7 @@ check(
 );
 check(
   '1g. invoices route imports createServiceSupabaseClient from the server helper',
-  /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase'/s.test(invoicesRoute)
+  /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase-service'/s.test(invoicesRoute)
 );
 
 // ---------------------------------------------------------------------------
@@ -155,7 +159,7 @@ check(
 );
 check(
   '2c. quotes route imports createServiceSupabaseClient from the server helper',
-  /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase'/s.test(quotesRoute)
+  /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase-service'/s.test(quotesRoute)
 );
 
 // ---------------------------------------------------------------------------
@@ -233,11 +237,11 @@ check(
 // ---------------------------------------------------------------------------
 check(
   '9a. invoice UPDATE returns 404 when no row matched (not a false success)',
-  /if \(error \|\| !data\) \{[\s\S]{0,160}?Invoice not found[\s\S]{0,80}?status: 404/.test(invoicesPatch)
+  /if \(!existingInvoice\) \{[\s\S]{0,160}?Invoice not found[\s\S]{0,80}?status: 404/.test(invoicesPatch)
 );
 check(
-  '9b. invoice DELETE checks the deleted row before reporting success',
-  /if \(!deletedInvoice\) \{[\s\S]{0,160}?Invoice not found[\s\S]{0,80}?status: 404/.test(invoicesDelete)
+  '9b. invoice DELETE checks the deleted row before reporting success and treats a concurrent guard miss as conflict',
+  /if \(!deletedInvoice\) \{[\s\S]{0,120}?settledInvoiceConflictResponse\(\)/.test(invoicesDelete)
 );
 check(
   '9c. quote DELETE checks the deleted row before reporting success',
@@ -284,8 +288,8 @@ check(
 
 for (const column of ['payment_status', 'amount_paid_cents', 'amount_due_cents']) {
   check(
-    `11a. invoices PATCH never references ${column}`,
-    !invoicesPatch.includes(column)
+    `11a. invoices PATCH never assigns ${column}`,
+    !new RegExp(`${column}\\s*:`).test(invoiceUpdateChain)
   );
   check(
     `11b. invoices POST never assigns ${column} anywhere in the insert payload`,
@@ -360,6 +364,16 @@ check(
 check(
   '14d. neither migrated route references the service-role key directly (it goes through the helper)',
   !invoicesRoute.includes('SUPABASE_SERVICE_ROLE_KEY') && !quotesRoute.includes('SUPABASE_SERVICE_ROLE_KEY')
+);
+check(
+  '14e. the Supabase server helper has an explicit server-only module boundary',
+  /^\s*import\s+['"]server-only['"];?/m.test(supabaseServiceLib)
+);
+check(
+  '14f. SUPABASE_SERVICE_ROLE_KEY is never exposed through a NEXT_PUBLIC name',
+  supabaseServiceLib.includes(['process', 'env', 'SUPABASE_SERVICE_ROLE_KEY'].join('.'))
+    && !supabaseServiceLib.includes('NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY')
+    && !supabaseLib.includes('SUPABASE_SERVICE_ROLE_KEY')
 );
 
 // ---------------------------------------------------------------------------

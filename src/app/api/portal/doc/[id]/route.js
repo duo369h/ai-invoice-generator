@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, writeAuditLog } from '../../../../lib/supabase';
+import { createServiceSupabaseClient, writeAuditLog } from '../../../../lib/supabase-service';
 import { rateLimit } from '../../../../lib/rate-limit';
 import {
   failClosedResponse,

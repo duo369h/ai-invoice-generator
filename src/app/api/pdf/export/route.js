@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRequestUser, ensureProfile } from '../../../lib/supabase';
+import { getRequestUser } from '../../../lib/supabase';
+import { ensureProfile } from '../../../lib/supabase-service';
 import { getUserEntitlements } from '../../../../../lib/entitlements';
 
 export const runtime = 'nodejs';

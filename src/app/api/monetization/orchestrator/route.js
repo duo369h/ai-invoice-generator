@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRequestUser, ensureProfile } from '../../../lib/supabase';
+import { getRequestUser } from '../../../lib/supabase';
+import { ensureProfile } from '../../../lib/supabase-service';
 import { evaluateAutonomousMonetization } from '../../../lib/monetization/orchestrator';
 
 const ACTION_MAP = {

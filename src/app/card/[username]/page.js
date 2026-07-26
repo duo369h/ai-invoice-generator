@@ -76,7 +76,7 @@ async function getPublicProfile(username) {
   }
   if (!data) return null;
 
-  const { createServiceSupabaseClient } = await import('../../lib/supabase');
+  const { createServiceSupabaseClient } = await import('../../lib/supabase-service');
   const adminSupabase = createServiceSupabaseClient();
   let plan = 'free';
   if (adminSupabase) {

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getRequestUser } from '../../../lib/supabase';
 import {
   createSupabasePortalToken,
   ensureProfile,
-  getRequestUser,
   writeAuditLog
-} from '../../../lib/supabase';
+} from '../../../lib/supabase-service';
 import { sendPaymentReminderEmail } from '../../../lib/email';
 import { getSiteUrl } from '../../../lib/config';
 import { getIp, requestContextResponse } from '../../../lib/security';

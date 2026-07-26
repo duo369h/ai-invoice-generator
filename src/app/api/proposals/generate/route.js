@@ -4,7 +4,8 @@
 // No feature is allowed to be neutral.
 
 import { NextResponse } from 'next/server';
-import { getRequestUser, writeAuditLog } from '../../../lib/supabase';
+import { getRequestUser } from '../../../lib/supabase';
+import { writeAuditLog } from '../../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../../lib/rate-limit';
 import { requestContextResponse, getIp } from '../../../lib/security';
 import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';

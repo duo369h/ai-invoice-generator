@@ -3,7 +3,7 @@
 // Each tier is an independent product experience.
 // No cross-tier dependency is allowed.
 
-import { createServiceSupabaseClient } from '../../src/app/lib/supabase';
+import { createServiceSupabaseClient } from '../../src/app/lib/supabase-service';
 
 export interface RevenueLockResult {
   allowed: boolean;

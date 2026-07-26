@@ -1,4 +1,4 @@
-import { createServiceSupabaseClient } from './supabase';
+import { createServiceSupabaseClient } from './supabase-service';
 import { cookies } from 'next/headers';
 
 export const PRODUCT_ANALYTICS_EVENTS = new Set([

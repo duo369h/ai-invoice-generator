@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireInternalAdmin } from '../../../lib/internal-admin';
-import { createServiceSupabaseClient, isSupabaseConfigured } from '../../../lib/supabase';
+import { isSupabaseConfigured } from '../../../lib/supabase';
+import { createServiceSupabaseClient } from '../../../lib/supabase-service';
 
 const FUNNEL = [
   { key: 'landing', event: 'landing_viewed', label: 'Landing' },

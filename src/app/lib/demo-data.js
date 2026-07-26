@@ -1,4 +1,4 @@
-import { createServiceSupabaseClient } from './supabase';
+import { createServiceSupabaseClient } from './supabase-service';
 import { crypto } from './supabase'; // we can generate random hashes
 import md5 from 'crypto';
 

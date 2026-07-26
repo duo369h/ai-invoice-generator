@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceSupabaseClient } from '../../../lib/supabase-service';
 
 const VALID_EVENTS = new Set([
   'LANDING_VIEW',
@@ -36,15 +36,6 @@ const VALID_EVENTS = new Set([
   'ONBOARDING_DROPOFF',
 ]);
 
-function getServiceSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // Prefer service role key; fall back to anon key for dev environments
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -55,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invalid_event' }, { status: 400 });
     }
 
-    const supabase = getServiceSupabase();
+    const supabase = createServiceSupabaseClient();
     if (!supabase) {
       // Supabase not configured — accept the request but skip DB write
       return NextResponse.json({ ok: true, stored: false }, { status: 202 });

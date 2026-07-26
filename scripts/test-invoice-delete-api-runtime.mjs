@@ -21,21 +21,37 @@ assert.equal(typeof invoiceRoute.DELETE, 'function', 'Invoice route exports a DE
 
 configureRouteRuntime({
   operation: 'delete',
+  logRequestFlow: true,
   context: context(),
-  invoiceRecords: [{ id: 'invoice-1', user_id: user.id }],
+  invoiceRecords: [{
+    id: 'invoice-1',
+    user_id: user.id,
+    status: 'pending',
+    payment_status: 'unpaid',
+    total: 100000,
+    amount_paid_cents: 0,
+    amount_due_cents: 100000,
+  }],
 });
 let response = await invoiceRoute.DELETE(request('invoice-1'));
 assert.equal(response.status, 200, 'an authenticated owner can delete an Invoice');
 assert.deepEqual(await response.json(), { success: true, id: 'invoice-1' }, 'success returns the deleted Invoice id');
 assert.deepEqual(getRouteRuntimeCalls(), [
+  'auth:session',
   'rate-limit:invoiceApi:user-1',
-  'delete:request:invoices',
+  'delete:service:invoices',
   'eq:invoices:id:invoice-1',
   'eq:invoices:user_id:user-1',
-  'select:invoices:id',
+  'eq:invoices:payment_status:unpaid',
+  'eq:invoices:amount_paid_cents:0',
+  'select:service:invoices:id',
   'maybeSingle:invoices',
   'audit:invoice_deleted',
-], 'deletion uses the exact request-client query chain before auditing');
+], 'deletion authenticates first and uses the exact service-role owner-scoped query chain before auditing');
+assert.ok(
+  getRouteRuntimeCalls().indexOf('auth:session') < getRouteRuntimeCalls().indexOf('delete:service:invoices'),
+  'the verified user session is established before the service-role delete',
+);
 assert.equal(hasCall('single:'), false, 'successful deletion never uses single()');
 assert.deepEqual(getRouteRuntimeAuditLogs(), [{
   userId: user.id,
@@ -71,6 +87,7 @@ assert.deepEqual(getRouteRuntimeAuditLogs(), [], 'a missing Invoice is not audit
 
 configureRouteRuntime({
   operation: 'delete',
+  logDatabaseCalls: true,
   context: context(),
   invoiceRecords: [{ id: 'invoice-other-owner', user_id: 'user-2' }],
 });
@@ -88,8 +105,25 @@ configureRouteRuntime({
 });
 response = await invoiceRoute.DELETE(request('invoice-1'));
 assert.equal(response.status, 500, 'database deletion errors return 500');
-assert.deepEqual(await response.json(), { error: 'Failed to delete invoice' });
+const databaseErrorBody = await response.json();
+assert.deepEqual(databaseErrorBody, { error: 'Failed to delete invoice' });
+assert.equal(JSON.stringify(databaseErrorBody).includes('database unavailable'), false, 'database internals are never returned');
 assert.deepEqual(getRouteRuntimeAuditLogs(), [], 'database deletion errors are not audited as successful');
+
+configureRouteRuntime({
+  operation: 'delete',
+  logRequestFlow: true,
+  context: context(),
+  invoiceRecords: [{ id: 'invoice-1', user_id: user.id }],
+  serviceClientMissing: true,
+});
+response = await invoiceRoute.DELETE(request('invoice-1'));
+assert.equal(response.status, 503, 'missing service-role configuration fails closed with 503');
+assert.deepEqual(await response.json(), { error: 'Invoice service is unavailable' });
+assert.deepEqual(getRouteRuntimeCalls(), [
+  'auth:session',
+  'rate-limit:invoiceApi:user-1',
+], 'missing service-role configuration performs no delete');
 
 configureRouteRuntime({
   operation: 'delete',
@@ -119,7 +153,7 @@ try {
 }
 assert.equal(response.status, 200, 'audit exceptions do not change a completed deletion into a failure');
 assert.deepEqual(await response.json(), { success: true, id: 'invoice-audit-failure' });
-assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:request:invoices').length, 1, 'audit failure never retries deletion');
+assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:service:invoices').length, 1, 'audit failure never retries deletion');
 assert.equal(expectedErrors.length, 1, 'the expected audit exception is logged once');
 assert.equal(expectedErrors[0][0], 'Failed to write invoice deletion audit log:');
 

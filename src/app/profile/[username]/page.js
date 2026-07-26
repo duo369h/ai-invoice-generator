@@ -108,7 +108,7 @@ async function getPublicProfile(username, overridePlan) {
     };
   }
 
-  const { createServiceSupabaseClient } = await import('../../lib/supabase');
+  const { createServiceSupabaseClient } = await import('../../lib/supabase-service');
   const adminSupabase = createServiceSupabaseClient();
   let plan = 'free';
   if (adminSupabase) {

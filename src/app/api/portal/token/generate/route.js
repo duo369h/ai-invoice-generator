@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, createSupabasePortalToken, getRequestUser, writeAuditLog } from '../../../../lib/supabase';
+import { getRequestUser } from '../../../../lib/supabase';
+import {
+  createServiceSupabaseClient,
+  createSupabasePortalToken,
+  ensureProfile,
+  writeAuditLog
+} from '../../../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../../../lib/rate-limit';
 import { authRequiredResponse, failClosedResponse, getIp, requestContextResponse } from '../../../../lib/security';
 import { validateObject, validationResponse } from '../../../../lib/validation';
@@ -11,7 +17,6 @@ export async function POST(request) {
     const contextFailure = requestContextResponse(context, 'portal token');
     if (contextFailure) return contextFailure;
 
-    const { ensureProfile } = await import('../../../../lib/supabase');
     const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
     const profile = await ensureProfile(context.supabase, context.user);
     const plan = profile?.plan || 'free';

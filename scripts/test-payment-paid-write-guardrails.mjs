@@ -419,8 +419,13 @@ check(
 }
 
 check(
-  'invoices/route.js: no new payment_status POST field introduced',
-  !/payment_status/.test(source.invoicesRoute)
+  'invoices/route.js: no payment_status POST assignment introduced',
+  !/\bpayment_status\s*:/.test(
+    source.invoicesRoute.slice(
+      source.invoicesRoute.indexOf('export async function POST'),
+      source.invoicesRoute.indexOf('export async function PATCH')
+    )
+  )
 );
 
 check(
@@ -432,6 +437,45 @@ check(
   'invoices/route.js: no claim_first_revenue_invoice_draft call introduced',
   !/claim_first_revenue_invoice_draft/.test(source.invoicesRoute)
 );
+
+// ---------------------------------------------------------------------------
+// 6. Ordinary Invoice PATCH uses an explicit non-financial legacy allowlist
+//    and blocks writes to invoices that already carry recorded payment state.
+// ---------------------------------------------------------------------------
+
+{
+  const patchStart = source.invoicesRoute.indexOf('export async function PATCH');
+  const patchEnd = source.invoicesRoute.indexOf('export async function DELETE');
+  const patchBody = source.invoicesRoute.slice(patchStart, patchEnd);
+  const deleteBody = source.invoicesRoute.slice(patchEnd);
+
+  check(
+    'invoices/route.js: PATCH defines the exact legacy status allowlist draft/pending/sent/approved',
+    /LEGACY_INVOICE_STATUS_ALLOWLIST\s*=\s*new Set\(\s*\[\s*'draft',\s*'pending',\s*'sent',\s*'approved',?\s*\]\s*\)/s.test(source.invoicesRoute)
+  );
+  check(
+    'invoices/route.js: PATCH rejects non-string and non-allowlisted status values with INVALID_INVOICE_STATUS',
+    /typeof status !== 'string'/.test(patchBody)
+      && /LEGACY_INVOICE_STATUS_ALLOWLIST\.has\(status\)/.test(patchBody)
+      && /INVALID_INVOICE_STATUS/.test(patchBody)
+  );
+  check(
+    'invoices/route.js: PATCH uses the canonical recorded-payment helper before UPDATE',
+    patchBody.includes('hasRecordedInvoicePayment(')
+      && patchBody.indexOf('hasRecordedInvoicePayment(') < patchBody.indexOf('.update({ status })')
+  );
+  check(
+    'invoices/route.js: DELETE uses the canonical recorded-payment helper before DELETE',
+    deleteBody.includes('hasRecordedInvoicePayment(')
+      && deleteBody.indexOf('hasRecordedInvoicePayment(') < deleteBody.indexOf('.delete()')
+  );
+  check(
+    'invoices/route.js: settled PATCH and DELETE return a stable 409 conflict code',
+    /function settledInvoiceConflictResponse\(\)[\s\S]{0,240}?SETTLED_INVOICE_WRITE_CONFLICT[\s\S]{0,160}?status:\s*409/.test(source.invoicesRoute)
+      && patchBody.includes('settledInvoiceConflictResponse()')
+      && deleteBody.includes('settledInvoiceConflictResponse()')
+  );
+}
 
 // ---------------------------------------------------------------------------
 // 7. Repo-wide (src/app/api) recursive scan for direct paid-status writes

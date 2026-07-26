@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createServiceSupabaseClient } from '../../../lib/supabase';
+import { createServiceSupabaseClient } from '../../../lib/supabase-service';
 import { getUserEntitlements } from '../../../../../lib/entitlements';
 
 function verifyPaddleSignature(signatureHeader, rawBody, webhookSecret) {

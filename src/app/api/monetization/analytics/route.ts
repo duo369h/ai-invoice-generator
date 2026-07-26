@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, isSupabaseConfigured } from '../../../lib/supabase';
+import { isSupabaseConfigured } from '../../../lib/supabase';
+import { createServiceSupabaseClient } from '../../../lib/supabase-service';
 import { requireInternalAdmin } from '../../../lib/internal-admin';
 
 export async function GET(request: Request) {

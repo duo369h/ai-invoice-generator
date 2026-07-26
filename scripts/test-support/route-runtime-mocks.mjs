@@ -58,6 +58,7 @@ export class NextResponse {
 }
 
 export async function getRequestUser() {
+  if (runtime.config.logRequestFlow) call('auth:session');
   const context = runtime.config.context;
   if (context?.mode === 'supabase' && !context.supabase) {
     return { ...context, supabase: createClient('request') };
@@ -78,7 +79,9 @@ export function getIp(request) {
   return request?.headers?.get('x-forwarded-for') || '127.0.0.1';
 }
 export async function rateLimitAuthenticated(scope, userId) {
-  if (runtime.config.operation === 'delete') call(`rate-limit:${scope}:${userId}`);
+  if (runtime.config.operation === 'delete' || runtime.config.logRequestFlow) {
+    call(`rate-limit:${scope}:${userId}`);
+  }
   return runtime.config.rateLimitResult || { success: true };
 }
 export function validateQuotePayload(body) { return body; }
@@ -140,15 +143,18 @@ function createClient(kind) {
 }
 
 function createQuery(kind, table) {
-  const state = { kind, table, operation: null, filters: {} };
+  const state = { kind, table, operation: null, filters: {}, values: null };
   const chain = {
     select(columns = '*') {
-      if (state.operation === 'delete') call(`select:${table}:${columns}`);
+      if (state.operation === null) state.operation = 'select';
+      if (state.operation === 'delete' || runtime.config.logDatabaseCalls) {
+        call(`select:${kind}:${table}:${columns}`);
+      }
       return chain;
     },
     eq(column, value) {
-      if (state.operation === 'delete') {
-        state.filters[column] = value;
+      state.filters[column] = value;
+      if (state.operation === 'delete' || runtime.config.logDatabaseCalls) {
         call(`eq:${table}:${column}:${value}`);
       }
       return chain;
@@ -157,6 +163,8 @@ function createQuery(kind, table) {
     limit() { return chain; },
     update(values) {
       state.operation = 'update';
+      state.values = values;
+      if (runtime.config.logDatabaseCalls) call(`update:${kind}:${table}`);
       runtime.updates.push({ kind, table, values });
       return chain;
     },
@@ -174,11 +182,11 @@ function createQuery(kind, table) {
       return chain;
     },
     single() {
-      if (state.operation === 'delete') call(`single:${table}`);
+      if (state.operation === 'delete' || runtime.config.logDatabaseCalls) call(`single:${table}`);
       return queryResult(state);
     },
     maybeSingle() {
-      if (state.operation === 'delete') call(`maybeSingle:${table}`);
+      if (state.operation === 'delete' || runtime.config.logDatabaseCalls) call(`maybeSingle:${table}`);
       return queryResult(state);
     },
     then(resolve, reject) { return queryResult(state).then(resolve, reject); },
@@ -186,7 +194,25 @@ function createQuery(kind, table) {
   return chain;
 }
 
-function queryResult({ kind, table, operation, filters }) {
+function matchingRecord(records, filters) {
+  if (!Array.isArray(records)) return null;
+  return records.find((record) => Object.entries(filters).every(
+    ([column, value]) => record[column] === value
+  )) || null;
+}
+
+function queryResult({ kind, table, operation, filters, values }) {
+  if (table === 'invoices' && operation === 'select') {
+    if (runtime.config.operation === 'get') return result(runtime.config.list || []);
+    if (runtime.config.invoiceLookupError) return result(null, runtime.config.invoiceLookupError);
+    return result(matchingRecord(runtime.config.invoiceRecords, filters));
+  }
+  if (table === 'invoices' && operation === 'update') {
+    if (runtime.config.invoiceUpdateError) return result(null, runtime.config.invoiceUpdateError);
+    const records = runtime.config.invoiceWriteRecords || runtime.config.invoiceRecords;
+    const record = matchingRecord(records, filters);
+    return result(record ? { ...record, ...values } : null);
+  }
   if (table === 'quotes' && operation === 'delete') {
     if (runtime.config.quoteDeleteError) return result(null, runtime.config.quoteDeleteError);
     if (Array.isArray(runtime.config.quoteRecords)) {
@@ -201,13 +227,10 @@ function queryResult({ kind, table, operation, filters }) {
   }
   if (table === 'invoices' && operation === 'delete') {
     if (runtime.config.deleteError) return result(null, runtime.config.deleteError);
-    if (Array.isArray(runtime.config.invoiceRecords)) {
-      const record = runtime.config.invoiceRecords.find((invoice) => invoice.id === filters.id);
-      if (!record) return result(null);
-      if (filters.user_id === undefined || filters.user_id === record.user_id) {
-        return result({ id: record.id });
-      }
-      return result(null);
+    const records = runtime.config.invoiceWriteRecords || runtime.config.invoiceRecords;
+    if (Array.isArray(records)) {
+      const record = matchingRecord(records, filters);
+      return result(record ? { id: record.id } : null);
     }
     return result(runtime.config.deletedInvoice, null);
   }

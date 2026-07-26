@@ -4,7 +4,7 @@
 // No cross-tier dependency is allowed.
 
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient } from '../../lib/supabase';
+import { createServiceSupabaseClient } from '../../lib/supabase-service';
 
 // Static fallback plans if the database table pricing_plans is not yet initialized
 const FALLBACK_PLANS = [

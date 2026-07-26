@@ -293,3 +293,21 @@ export function resolveInvoicePaymentReadModel(invoice = {}, now = new Date(), o
     amount_due_cents: amountDueCents,
   };
 }
+
+/**
+ * Returns true when an invoice carries evidence that a payment has already
+ * been recorded. This is the write-safety counterpart to the canonical read
+ * model and deliberately reuses its normalization and precedence rules.
+ *
+ * `amount_paid` is accepted only as a legacy compatibility signal. The
+ * canonical schema and route query use `amount_paid_cents`.
+ */
+export function hasRecordedInvoicePayment(invoice = {}) {
+  const readModel = resolveInvoicePaymentReadModel(invoice);
+  const legacyAmountPaid = toNonNegativeCents(invoice.amount_paid);
+
+  return legacyAmountPaid > 0
+    || readModel.amount_paid_cents > 0
+    || readModel.payment_status === PAYMENT_STATUSES.PARTIAL
+    || readModel.payment_status === PAYMENT_STATUSES.PAID;
+}

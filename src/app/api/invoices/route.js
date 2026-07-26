@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import {
-  createServiceSupabaseClient,
-  createSupabasePortalToken,
-  ensureProfile,
   getRequestUser,
   getSupabaseQuota,
   mapSupabaseInvoice,
-  incrementSupabaseInvoiceUsage,
+  incrementSupabaseInvoiceUsage
+} from '../../lib/supabase';
+import {
+  createServiceSupabaseClient,
+  createSupabasePortalToken,
+  ensureProfile,
   writeAuditLog,
   recordServerGrowthEvent,
   trackProfileMetric
-} from '../../lib/supabase';
+} from '../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { validateInvoicePayload, validateObject, validationResponse } from '../../lib/validation';
@@ -19,6 +21,33 @@ import { getDecision } from '../../../core/ai/AI_DECISION_CORE';
 import { assertCoreDecisionSource } from '../../../core/ai/AI_DECISION_GUARD';
 import { getSiteUrl } from '../../lib/config';
 import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
+import { hasRecordedInvoicePayment } from '../../../core/revenue/invoicePaymentState.js';
+
+const LEGACY_INVOICE_STATUS_ALLOWLIST = new Set([
+  'draft',
+  'pending',
+  'sent',
+  'approved',
+]);
+
+const INVOICE_PAYMENT_GUARD_FIELDS =
+  'id,status,payment_status,total,amount_paid_cents,amount_due_cents,due_date';
+
+async function findOwnedInvoiceForWrite(serviceSupabase, id, userId) {
+  return serviceSupabase
+    .from('invoices')
+    .select(INVOICE_PAYMENT_GUARD_FIELDS)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+}
+
+function settledInvoiceConflictResponse() {
+  return NextResponse.json({
+    error: 'SETTLED_INVOICE_WRITE_CONFLICT',
+    message: 'Invoices with recorded payments cannot be changed or deleted.',
+  }, { status: 409 });
+}
 
 export async function GET(request) {
   try {
@@ -313,8 +342,8 @@ export async function PATCH(request) {
     const body = validateObject(await request.json());
     const { id, status } = body;
 
-    if (!id || !status) {
-      return NextResponse.json({ error: 'Missing required fields: id and status' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: 'Missing required field: id' }, { status: 400 });
     }
 
     if (status === 'paid') {
@@ -322,6 +351,10 @@ export async function PATCH(request) {
         error: 'PAID_STATUS_REQUIRES_PAYMENT_RECORD',
         message: 'Paid status can only be set by recording a payment.'
       }, { status: 400 });
+    }
+
+    if (typeof status !== 'string' || !LEGACY_INVOICE_STATUS_ALLOWLIST.has(status)) {
+      return NextResponse.json({ error: 'INVALID_INVOICE_STATUS' }, { status: 400 });
     }
 
     if (context.mode === 'supabase') {
@@ -334,19 +367,36 @@ export async function PATCH(request) {
         return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
       }
 
+      const { data: existingInvoice, error: lookupError } = await findOwnedInvoiceForWrite(
+        serviceSupabase,
+        id,
+        context.user.id
+      );
+      if (lookupError) {
+        return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 });
+      }
+      if (!existingInvoice) {
+        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      }
+      if (hasRecordedInvoicePayment(existingInvoice)) {
+        return settledInvoiceConflictResponse();
+      }
+
       const { data, error } = await serviceSupabase
         .from('invoices')
         .update({ status })
         .eq('id', id)
         .eq('user_id', context.user.id)
+        .eq('payment_status', existingInvoice.payment_status)
+        .eq('amount_paid_cents', existingInvoice.amount_paid_cents)
         .select('*')
-        .single();
+        .maybeSingle();
 
-      // A row belonging to another user, or a row that does not exist, matches
-      // zero rows and lands here. Both return the same 404 as before, so the
-      // response never reveals whether the id exists under a different owner.
-      if (error || !data) {
-        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      if (error) {
+        return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 });
+      }
+      if (!data) {
+        return settledInvoiceConflictResponse();
       }
 
       await writeAuditLog(context.supabase, {
@@ -374,7 +424,6 @@ export async function PATCH(request) {
       // Trigger email notifications
       if (status === 'sent' && data.client_email) {
         try {
-          const { createSupabasePortalToken } = await import('../../lib/supabase');
           const portalToken = await createSupabasePortalToken(context.supabase, {
             ownerId: context.user.id,
             resourceType: 'invoice',
@@ -435,20 +484,36 @@ export async function DELETE(request) {
         return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
       }
 
+      const { data: existingInvoice, error: lookupError } = await findOwnedInvoiceForWrite(
+        serviceSupabase,
+        id,
+        context.user.id
+      );
+      if (lookupError) {
+        return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
+      }
+      if (!existingInvoice) {
+        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      }
+      if (hasRecordedInvoicePayment(existingInvoice)) {
+        return settledInvoiceConflictResponse();
+      }
+
       const { data: deletedInvoice, error } = await serviceSupabase
         .from('invoices')
         .delete()
         .eq('id', id)
         .eq('user_id', context.user.id)
+        .eq('payment_status', existingInvoice.payment_status)
+        .eq('amount_paid_cents', existingInvoice.amount_paid_cents)
         .select('id')
         .maybeSingle();
 
-      if (error) throw error;
-      // Another user's invoice, or a non-existent id, deletes zero rows and
-      // yields null here. Both return the same 404 as before, so the response
-      // never reveals whether the id exists under a different owner.
+      if (error) {
+        return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
+      }
       if (!deletedInvoice) {
-        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+        return settledInvoiceConflictResponse();
       }
 
       try {

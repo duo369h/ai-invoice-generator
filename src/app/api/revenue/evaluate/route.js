@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestUser } from '../../../lib/supabase';
+import { ensureProfile } from '../../../lib/supabase-service';
 import { shadowValidatePlanRead } from '../../../../core/state/planStateAdapter';
 
 export async function POST(request) {
@@ -12,7 +13,6 @@ export async function POST(request) {
     const context = await getRequestUser(request).catch(() => null);
     if (context && context.user) {
       if (context.mode === 'supabase') {
-        const { ensureProfile } = await import('../../../lib/supabase');
         const profile = await ensureProfile(context.supabase, context.user).catch(() => null);
         if (profile && profile.plan) {
           userPlan = profile.plan;

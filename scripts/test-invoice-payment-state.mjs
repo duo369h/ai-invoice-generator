@@ -15,12 +15,15 @@
  * All four runs must produce identical PASS/FAIL output.
  */
 
-import {
+import * as invoicePaymentState from '../src/core/revenue/invoicePaymentState.js';
+
+const {
   PAYMENT_STATUSES,
   deriveInvoicePaymentState,
+  hasRecordedInvoicePayment,
   paymentStatusForInvoice,
   resolveInvoicePaymentReadModel,
-} from '../src/core/revenue/invoicePaymentState.js';
+} = invoicePaymentState;
 
 let passed = 0;
 let failed = 0;
@@ -558,6 +561,35 @@ const FUTURE = '2026-12-31';
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
+
+check('exports: hasRecordedInvoicePayment is a function', typeof hasRecordedInvoicePayment === 'function');
+if (typeof hasRecordedInvoicePayment === 'function') {
+  check(
+    'recorded payment: partial state is protected',
+    hasRecordedInvoicePayment({ total: 100000, payment_status: 'partial', amount_paid_cents: 40000 })
+  );
+  check(
+    'recorded payment: paid state is protected',
+    hasRecordedInvoicePayment({ total: 100000, payment_status: 'paid', amount_paid_cents: 100000 })
+  );
+  check(
+    'recorded payment: positive canonical amount is protected even with stale unpaid state',
+    hasRecordedInvoicePayment({ total: 100000, payment_status: 'unpaid', amount_paid_cents: 1 })
+  );
+  check(
+    'recorded payment: positive legacy amount is protected',
+    hasRecordedInvoicePayment({ total: 100000, payment_status: 'unpaid', amount_paid_cents: 0, amount_paid: 1 })
+  );
+  check(
+    'recorded payment: legacy paid status is protected',
+    hasRecordedInvoicePayment({ total: 100000, status: 'paid' })
+  );
+  check(
+    'recorded payment: unpaid and overdue-with-zero-payment remain writable',
+    !hasRecordedInvoicePayment({ total: 100000, payment_status: 'unpaid', amount_paid_cents: 0 })
+      && !hasRecordedInvoicePayment({ total: 100000, payment_status: 'overdue', amount_paid_cents: 0 })
+  );
+}
 
 console.log('');
 console.log(`Invoice payment state tests: ${passed} passed, ${failed} failed.`);

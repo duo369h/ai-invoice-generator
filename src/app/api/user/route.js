@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ensureProfile, getRequestUser, getSupabaseQuota } from '../../lib/supabase';
+import { getRequestUser, getSupabaseQuota } from '../../lib/supabase';
+import { ensureProfile } from '../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validatePlanPayload, validationResponse } from '../../lib/validation';

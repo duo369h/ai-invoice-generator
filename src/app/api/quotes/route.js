@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, createSupabasePortalToken, getRequestUser, writeAuditLog, recordServerGrowthEvent, trackProfileMetric } from '../../lib/supabase';
+import { getRequestUser } from '../../lib/supabase';
+import {
+  createServiceSupabaseClient,
+  createSupabasePortalToken,
+  ensureProfile,
+  writeAuditLog,
+  recordServerGrowthEvent,
+  trackProfileMetric
+} from '../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
 import { enumValue, validateObject, validateQuotePayload, validationResponse } from '../../lib/validation';
@@ -281,7 +289,7 @@ export async function PATCH(request) {
     }
 
     if (context.mode === 'supabase') {
-      const profile = await (await import('../../lib/supabase')).ensureProfile(context.supabase, context.user);
+      const profile = await ensureProfile(context.supabase, context.user);
       const plan = profile?.plan || 'free';
       const serviceSupabase = createServiceSupabaseClient();
       if (!serviceSupabase) {

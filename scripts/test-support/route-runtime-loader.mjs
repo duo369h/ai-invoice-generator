@@ -5,6 +5,7 @@ const mocks = pathToFileURL(new URL('./route-runtime-mocks.mjs', import.meta.url
 const mockedSpecifiers = new Set([
   'next/server',
   '../../lib/supabase',
+  '../../lib/supabase-service',
   '../../lib/rate-limit',
   '../../lib/security',
   '../../lib/validation',
@@ -17,6 +18,7 @@ const mockedSpecifiers = new Set([
   '../../lib/config',
   '../../../../lib/entitlements',
   '../../../../lib/supabase',
+  '../../../../lib/supabase-service',
   '../../../../lib/security',
 ]);
 
@@ -24,7 +26,7 @@ export async function resolve(specifier, context, nextResolve) {
   if (specifier === '../../../../lib/product-analytics-server') {
     return { url: new URL('../../src/app/lib/product-analytics-server.js', import.meta.url).href, shortCircuit: true };
   }
-  if (specifier === './supabase' && context.parentURL?.endsWith('/product-analytics-server.js')) {
+  if (specifier === './supabase-service' && context.parentURL?.endsWith('/product-analytics-server.js')) {
     return { url: `${mocks}?specifier=product-analytics-supabase`, shortCircuit: true };
   }
   if (specifier === 'next/headers') {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createPublicSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
+import { createPublicSupabaseClient, getRequestUser } from '../../lib/supabase';
+import { createServiceSupabaseClient, writeAuditLog } from '../../lib/supabase-service';
 import { rateLimit, rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, failClosedResponse, getIp, requestContextResponse } from '../../lib/security';
 import { validateCardProfilePayload, validationResponse } from '../../lib/validation';
@@ -37,7 +38,6 @@ export async function GET(request) {
           return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        const { createServiceSupabaseClient } = await import('../../lib/supabase');
         const adminSupabase = createServiceSupabaseClient();
         let plan = 'free';
         if (adminSupabase) {

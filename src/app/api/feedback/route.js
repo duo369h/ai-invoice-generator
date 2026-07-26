@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, getRequestUser, isSupabaseConfigured } from '../../lib/supabase';
+import { getRequestUser, isSupabaseConfigured } from '../../lib/supabase';
+import { createServiceSupabaseClient } from '../../lib/supabase-service';
 import { sendFeedbackEmail } from '../../lib/email';
 import { requireInternalAdmin } from '../../lib/internal-admin';
 import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, getRequestUser, writeAuditLog } from '../../lib/supabase';
+import { getRequestUser } from '../../lib/supabase';
+import { createServiceSupabaseClient, writeAuditLog } from '../../lib/supabase-service';
 import { rateLimit, rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, failClosedResponse, getIp, hasSpamSignals, requestContextResponse } from '../../lib/security';
 import { enumValue, validateLeadPayload, validateObject, validationResponse } from '../../lib/validation';

@@ -21,6 +21,7 @@ assert.equal(typeof quoteRoute.DELETE, 'function', 'Quote route exports a DELETE
 
 configureRouteRuntime({
   operation: 'delete',
+  logRequestFlow: true,
   context: context(),
   quoteRecords: [{ id: 'quote-1', user_id: user.id }],
 });
@@ -28,14 +29,19 @@ let response = await quoteRoute.DELETE(request('quote-1'));
 assert.equal(response.status, 200, 'an authenticated owner can delete a Quote');
 assert.deepEqual(await response.json(), { success: true, id: 'quote-1' }, 'success returns the deleted Quote id');
 assert.deepEqual(getRouteRuntimeCalls(), [
+  'auth:session',
   'rate-limit:invoiceApi:user-1',
-  'delete:request:quotes',
+  'delete:service:quotes',
   'eq:quotes:id:quote-1',
   'eq:quotes:user_id:user-1',
-  'select:quotes:id',
+  'select:service:quotes:id',
   'maybeSingle:quotes',
   'audit:quote_deleted',
-], 'deletion uses the request-client owner-scoped query chain before auditing');
+], 'deletion authenticates first and uses the service-role owner-scoped query chain before auditing');
+assert.ok(
+  getRouteRuntimeCalls().indexOf('auth:session') < getRouteRuntimeCalls().indexOf('delete:service:quotes'),
+  'the verified user session is established before the service-role delete',
+);
 assert.equal(hasCall('single:'), false, 'successful deletion never uses single()');
 assert.deepEqual(getRouteRuntimeAuditLogs(), [{
   userId: user.id,
@@ -88,8 +94,25 @@ configureRouteRuntime({
 });
 response = await quoteRoute.DELETE(request('quote-1'));
 assert.equal(response.status, 500, 'ordinary database deletion errors return 500');
-assert.deepEqual(await response.json(), { error: 'Failed to delete quote' });
+const databaseErrorBody = await response.json();
+assert.deepEqual(databaseErrorBody, { error: 'Failed to delete quote' });
+assert.equal(JSON.stringify(databaseErrorBody).includes('database unavailable'), false, 'database internals are never returned');
 assert.deepEqual(getRouteRuntimeAuditLogs(), [], 'database deletion errors are not audited as successful');
+
+configureRouteRuntime({
+  operation: 'delete',
+  logRequestFlow: true,
+  context: context(),
+  quoteRecords: [{ id: 'quote-1', user_id: user.id }],
+  serviceClientMissing: true,
+});
+response = await quoteRoute.DELETE(request('quote-1'));
+assert.equal(response.status, 503, 'missing service-role configuration fails closed with 503');
+assert.deepEqual(await response.json(), { error: 'Quote service is unavailable' });
+assert.deepEqual(getRouteRuntimeCalls(), [
+  'auth:session',
+  'rate-limit:invoiceApi:user-1',
+], 'missing service-role configuration performs no delete');
 
 configureRouteRuntime({
   operation: 'delete',
@@ -106,7 +129,7 @@ assert.deepEqual(await response.json(), {
   error: 'This quote is linked to a revenue workflow and cannot be deleted.',
 });
 assert.deepEqual(getRouteRuntimeAuditLogs(), [], 'a restricted Quote is not audited');
-assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:request:quotes').length, 1, 'a restricted deletion is never retried');
+assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:service:quotes').length, 1, 'a restricted deletion is never retried');
 
 configureRouteRuntime({
   operation: 'delete',
@@ -136,7 +159,7 @@ try {
 }
 assert.equal(response.status, 200, 'audit exceptions do not change a completed deletion into a failure');
 assert.deepEqual(await response.json(), { success: true, id: 'quote-audit-failure' });
-assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:request:quotes').length, 1, 'audit failure never retries deletion');
+assert.equal(getRouteRuntimeCalls().filter((entry) => entry === 'delete:service:quotes').length, 1, 'audit failure never retries deletion');
 assert.equal(expectedErrors.length, 1, 'the expected audit exception is logged once');
 assert.equal(expectedErrors[0][0], 'Failed to write quote deletion audit log:');
 
