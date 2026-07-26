@@ -202,7 +202,7 @@ function matchingRecord(records, filters) {
 }
 
 function queryResult({ kind, table, operation, filters, values }) {
-  if (table === 'invoices' && operation === 'select') {
+  if (table === 'invoices' && operation === 'select' && Array.isArray(runtime.config.invoiceRecords)) {
     if (runtime.config.operation === 'get') return result(runtime.config.list || []);
     if (runtime.config.invoiceLookupError) return result(null, runtime.config.invoiceLookupError);
     return result(matchingRecord(runtime.config.invoiceRecords, filters));
