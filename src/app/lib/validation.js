@@ -120,6 +120,7 @@ export function validateInvoicePayload(body) {
   const items = lineItems(obj.items);
   const paymentLink = safeUrl(obj.payment_link || '', { payment: true });
   return {
+    id: obj.id ? id(obj.id, 'id') : '',
     client_name: text(obj.client_name, 'client_name', { required: true, max: 180 }),
     client_email: email(obj.client_email, 'client_email'),
     client_address: text(obj.client_address, 'client_address', { max: 600 }),

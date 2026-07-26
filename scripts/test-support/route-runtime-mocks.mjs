@@ -97,20 +97,32 @@ export function createServiceSupabaseClient() {
 export async function cookies() { return { get: () => undefined }; }
 
 export async function ensureProfile() { return { plan: runtime.config.plan || 'pro' }; }
-export async function getSupabaseQuota() { return { invoicesAllowed: true }; }
+export async function getSupabaseQuota() {
+  if (runtime.config.logSideEffects) call('quota:invoice');
+  return runtime.config.quota || { invoicesAllowed: true };
+}
 export function mapSupabaseInvoice(data) { return { ...data, mapped: true }; }
-export async function incrementSupabaseInvoiceUsage() {}
-export async function createSupabasePortalToken() { return ''; }
+export async function incrementSupabaseInvoiceUsage() {
+  if (runtime.config.logSideEffects) call('usage:invoice:increment');
+}
+export async function createSupabasePortalToken() {
+  if (runtime.config.logSideEffects) call('portal-token:create');
+  return '';
+}
 export async function writeAuditLog(_client, entry) {
-  if (runtime.config.operation === 'delete') {
+  if (runtime.config.operation === 'delete' || runtime.config.logSideEffects) {
     runtime.auditLogs.push({ ...entry });
     call(`audit:${entry.action}`);
     if (runtime.config.auditLogThrows) throw new Error('audit log unavailable');
   }
 }
 export async function recordServerGrowthEvent() {}
-export async function trackProfileMetric() {}
-export async function recordProductAnalyticsEvent() {}
+export async function trackProfileMetric(_client, _userId, metric) {
+  if (runtime.config.logSideEffects) call(`metric:${metric}`);
+}
+export async function recordProductAnalyticsEvent({ eventName }) {
+  if (runtime.config.logSideEffects) call(`analytics:${eventName}`);
+}
 export async function getFirstRevenueLoopContext() {
   if (runtime.config.firstRevenueLoopContextError) throw runtime.config.firstRevenueLoopContextError;
   return runtime.config.firstRevenueLoopContext || { decision: { canCreateQuote: true }, loop: {}, quote: null };
@@ -120,7 +132,7 @@ export function injectInvoiceEnhancement() {}
 export function getDecision() { return { output: { decision: 'mock' } }; }
 export function assertCoreDecisionSource() {}
 export function getSiteUrl() { return 'http://localhost:3000'; }
-export function getUserEntitlements() { return { invoice: true }; }
+export function getUserEntitlements() { return runtime.config.entitlements || { invoice: true }; }
 
 export async function claimFirstActivationEvent({ eventName }) {
   call(`claim:${eventName}`);

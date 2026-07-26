@@ -109,6 +109,7 @@ export async function POST(request) {
     const body = validateInvoicePayload(await request.json());
 
     const {
+      id,
       client_name,
       client_email,
       client_address,
@@ -138,6 +139,98 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Calculate subtotal and total in cents
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
+    const discount_amount = Math.round(subtotal * (Number(discount_rate) / 100));
+    const taxable_amount = Math.max(0, subtotal - discount_amount);
+    const tax_amount = Math.round(taxable_amount * (Number(tax_rate) / 100));
+    const total = taxable_amount + tax_amount;
+
+    const editablePayload = {
+      invoice_number,
+      client_id: client_id || null,
+      quote_id: quote_id || null,
+      payment_link: payment_link || '',
+      client_name,
+      client_email: client_email || '',
+      client_address: client_address || '',
+      business_name: business_name || '',
+      business_email: business_email || '',
+      business_address: business_address || '',
+      logo_url: logo_url || '',
+      currency: currency.toUpperCase(),
+      items: items.map((item) => ({
+        description: item.description,
+        quantity: Number(item.quantity) || 1,
+        unit_price: Math.round(Number(item.unitPrice || 0) * 100),
+        amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
+      })),
+      subtotal,
+      discount_rate: Number(discount_rate),
+      discount_amount,
+      tax_rate: Number(tax_rate),
+      tax_amount,
+      total,
+      invoice_date: invoice_date || new Date().toISOString().substring(0, 10),
+      due_date: due_date || null,
+      payment_terms: payment_terms || 'Net 30',
+      notes: notes || ''
+    };
+
+    if (context.mode === 'supabase' && id) {
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+      }
+
+      const { data: existingInvoice, error: lookupError } = await findOwnedInvoiceForWrite(
+        serviceSupabase,
+        id,
+        context.user.id
+      );
+      if (lookupError) {
+        return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
+      }
+      if (!existingInvoice) {
+        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      }
+      if (hasRecordedInvoicePayment(existingInvoice)) {
+        return settledInvoiceConflictResponse();
+      }
+
+      const { data, error } = await serviceSupabase
+        .from('invoices')
+        .update(editablePayload)
+        .eq('id', id)
+        .eq('user_id', context.user.id)
+        .eq('payment_status', existingInvoice.payment_status)
+        .eq('amount_paid_cents', existingInvoice.amount_paid_cents)
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
+      }
+      if (!data) {
+        return settledInvoiceConflictResponse();
+      }
+
+      try {
+        await writeAuditLog(context.supabase, {
+          userId: context.user.id,
+          action: 'invoice_updated',
+          resourceType: 'invoice',
+          resourceId: data.id,
+          ip,
+        });
+      } catch (auditError) {
+        console.error('Failed to write invoice update audit log:', auditError);
+      }
+
+      const res = mapSupabaseInvoice(data);
+      return NextResponse.json({ ...res, data: res }, { status: 200 });
+    }
+
     const profile = await ensureProfile(context.supabase, context.user);
     const plan = profile?.plan || 'free';
     const { getUserEntitlements } = await import('../../../../lib/entitlements');
@@ -158,13 +251,6 @@ export async function POST(request) {
         requiredPlan: "pro"
       }, { status: 403 });
     }
-
-    // Calculate subtotal and total in cents
-    const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
-    const discount_amount = Math.round(subtotal * (Number(discount_rate) / 100));
-    const taxable_amount = Math.max(0, subtotal - discount_amount);
-    const tax_amount = Math.round(taxable_amount * (Number(tax_rate) / 100));
-    const total = taxable_amount + tax_amount;
 
     // Default status: quotes -> draft, invoices -> pending, receipts -> paid
     let defaultStatus = 'pending';
@@ -210,36 +296,14 @@ export async function POST(request) {
 
       const payload = {
         user_id: context.user.id,
+        ...editablePayload,
         invoice_number: invoice_number || `INV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         status: defaultStatus,
         doc_type: doc_type || 'invoice',
-        client_id: client_id || null,
-        quote_id: quote_id || null,
-        payment_link: payment_link || '',
-        client_name,
-        client_email: client_email || '',
-        client_address: client_address || '',
-        business_name: business_name || '',
-        business_email: business_email || '',
-        business_address: business_address || '',
-        logo_url: logo_url || '',
-        currency: currency.toUpperCase(),
-        items: items.map((item, idx) => ({
+        items: editablePayload.items.map((item, idx) => ({
+          ...item,
           description: idx === 0 ? invoice.description : item.description,
-          quantity: Number(item.quantity) || 1,
-          unit_price: Math.round(Number(item.unitPrice || 0) * 100),
-          amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
         })),
-        subtotal,
-        discount_rate: Number(discount_rate),
-        discount_amount,
-        tax_rate: Number(tax_rate),
-        tax_amount,
-        total,
-        invoice_date: invoice_date || new Date().toISOString().substring(0, 10),
-        due_date: due_date || null,
-        payment_terms: payment_terms || 'Net 30',
-        notes: notes || ''
       };
 
       // SAFE-03SEC-B1: the document write runs as service_role so that the
