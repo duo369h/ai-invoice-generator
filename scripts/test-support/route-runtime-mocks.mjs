@@ -37,7 +37,11 @@ export function getRouteRuntimeRpcCalls() {
 }
 
 export function getRouteRuntimeUpdates() {
-  return runtime.updates.map((entry) => ({ ...entry, values: { ...entry.values } }));
+  return runtime.updates.map((entry) => ({
+    ...entry,
+    values: { ...entry.values },
+    filters: { ...entry.filters },
+  }));
 }
 
 function call(name) {
@@ -107,7 +111,7 @@ export async function incrementSupabaseInvoiceUsage() {
 }
 export async function createSupabasePortalToken() {
   if (runtime.config.logSideEffects) call('portal-token:create');
-  return '';
+  return runtime.config.portalToken || '';
 }
 export async function writeAuditLog(_client, entry) {
   if (runtime.config.operation === 'delete' || runtime.config.logSideEffects) {
@@ -124,10 +128,14 @@ export async function recordProductAnalyticsEvent({ eventName }) {
   if (runtime.config.logSideEffects) call(`analytics:${eventName}`);
 }
 export async function getFirstRevenueLoopContext() {
+  if (runtime.config.logSideEffects) call('first-revenue:context');
   if (runtime.config.firstRevenueLoopContextError) throw runtime.config.firstRevenueLoopContextError;
   return runtime.config.firstRevenueLoopContext || { decision: { canCreateQuote: true }, loop: {}, quote: null };
 }
-export function canTransitionFirstRevenueQuote() { return { allowed: true }; }
+export function canTransitionFirstRevenueQuote() {
+  if (runtime.config.logSideEffects) call('first-revenue:transition');
+  return runtime.config.firstRevenueTransition || { allowed: true };
+}
 export function injectInvoiceEnhancement() {}
 export function getDecision() { return { output: { decision: 'mock' } }; }
 export function assertCoreDecisionSource() {}
@@ -177,7 +185,7 @@ function createQuery(kind, table) {
       state.operation = 'update';
       state.values = values;
       if (runtime.config.logDatabaseCalls) call(`update:${kind}:${table}`);
-      runtime.updates.push({ kind, table, values });
+      runtime.updates.push({ kind, table, values, filters: state.filters });
       return chain;
     },
     delete() {
@@ -214,6 +222,16 @@ function matchingRecord(records, filters) {
 }
 
 function queryResult({ kind, table, operation, filters, values }) {
+  if (table === 'quotes' && operation === 'select' && Array.isArray(runtime.config.quoteRecords)) {
+    if (runtime.config.quoteLookupError) return result(null, runtime.config.quoteLookupError);
+    return result(matchingRecord(runtime.config.quoteRecords, filters));
+  }
+  if (table === 'quotes' && operation === 'update') {
+    if (runtime.config.quoteUpdateError) return result(null, runtime.config.quoteUpdateError);
+    const records = runtime.config.quoteWriteRecords || runtime.config.quoteRecords;
+    const record = matchingRecord(records, filters);
+    return result(record ? { ...record, ...values } : null);
+  }
   if (table === 'invoices' && operation === 'select' && Array.isArray(runtime.config.invoiceRecords)) {
     if (runtime.config.operation === 'get') return result(runtime.config.list || []);
     if (runtime.config.invoiceLookupError) return result(null, runtime.config.invoiceLookupError);

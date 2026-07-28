@@ -95,14 +95,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'First revenue loop service is unavailable' }, { status: 503 });
     }
 
-    const { data: profile, error: profileError } = await serviceSupabase
-      .from('profiles')
-      .select('plan')
-      .eq('id', context.user.id)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    const plan = profile?.plan || 'free';
-
     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
@@ -130,8 +122,7 @@ export async function POST(request) {
     const calculatedTotal = taxableAmount + calculatedTaxAmount;
 
     if (context.mode === 'supabase') {
-      const quotesTablePayload = {
-        user_id: context.user.id,
+      const editableQuotePayload = {
         quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         client_name,
         client_email,
@@ -150,43 +141,76 @@ export async function POST(request) {
         total: calculatedTotal,
         currency,
         notes,
-        status,
         updated_at: new Date().toISOString()
+      };
+
+      if (id) {
+        const { data: existingQuote, error: lookupError } = await serviceSupabase
+          .from('quotes')
+          .select('id,user_id,status')
+          .eq('id', id)
+          .eq('user_id', context.user.id)
+          .maybeSingle();
+
+        if (lookupError) {
+          return NextResponse.json({ error: 'Failed to update quote' }, { status: 500 });
+        }
+        if (!existingQuote) {
+          return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+        }
+
+        const { data, error } = await serviceSupabase
+          .from('quotes')
+          .update({
+            ...editableQuotePayload,
+            status: existingQuote.status,
+          })
+          .eq('id', id)
+          .eq('user_id', context.user.id)
+          .select('*')
+          .maybeSingle();
+
+        if (error || !data) {
+          return NextResponse.json({ error: 'Failed to update quote' }, { status: 500 });
+        }
+
+        await writeAuditLog(context.supabase, {
+          userId: context.user.id,
+          action: 'quote_updated',
+          resourceType: 'quote',
+          resourceId: data.id,
+          ip,
+        });
+
+        return NextResponse.json(data, { status: 200 });
+      }
+
+      const { data: profile, error: profileError } = await serviceSupabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', context.user.id)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      const plan = profile?.plan || 'free';
+      const quotesTablePayload = {
+        user_id: context.user.id,
+        ...editableQuotePayload,
+        status,
       };
 
       let shouldClaimFirstRevenueQuote = false;
       if (plan === 'free') {
         const firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
 
-        if (id) {
-          const transition = canTransitionFirstRevenueQuote({
-            plan,
-            loop: firstRevenueLoop.loop,
-            quote: firstRevenueLoop.quote,
-            requestedStatus: status,
-          });
-          if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
-            return NextResponse.json({ error: transition.reason }, { status: 403 });
-          }
-        } else {
-          shouldClaimFirstRevenueQuote = isCleanUnclaimedFirstRevenueContext(firstRevenueLoop);
-          if (!shouldClaimFirstRevenueQuote && !isValidClaimedFirstRevenueAnchor(firstRevenueLoop)) {
-            return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
-          }
+        shouldClaimFirstRevenueQuote = isCleanUnclaimedFirstRevenueContext(firstRevenueLoop);
+        if (!shouldClaimFirstRevenueQuote && !isValidClaimedFirstRevenueAnchor(firstRevenueLoop)) {
+          return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
         }
       }
 
       let data;
       let error;
-      if (id) {
-        ({ data, error } = await serviceSupabase
-          .from('quotes')
-          .update(quotesTablePayload)
-          .eq('id', id)
-          .eq('user_id', context.user.id)
-          .select('*')
-          .single());
-      } else if (shouldClaimFirstRevenueQuote) {
+      if (shouldClaimFirstRevenueQuote) {
         const profileName =
           context.user.user_metadata?.name ||
           context.user.user_metadata?.full_name ||
@@ -227,34 +251,32 @@ export async function POST(request) {
 
       await writeAuditLog(context.supabase, {
         userId: context.user.id,
-        action: id ? 'quote_updated' : 'quote_created',
+        action: 'quote_created',
         resourceType: 'quote',
         resourceId: data.id,
         ip,
       });
 
-      if (!id) {
-        try {
-          await recordProductAnalyticsEvent({
-            eventName: 'Proposal Created',
-            userId: context.user.id,
+      try {
+        await recordProductAnalyticsEvent({
+          eventName: 'Proposal Created',
+          userId: context.user.id,
+          source: 'quotes_api',
+          properties: {
+            identity: context.user.id,
+            user_id: context.user.id,
+            plan: 'free',
+            country: '',
+            quote_id: data.id,
+            quote_number: data.quote_number,
+            total: data.total,
+            currency: data.currency,
             source: 'quotes_api',
-            properties: {
-              identity: context.user.id,
-              user_id: context.user.id,
-              plan: 'free',
-              country: '',
-              quote_id: data.id,
-              quote_number: data.quote_number,
-              total: data.total,
-              currency: data.currency,
-              source: 'quotes_api',
-              timestamp: new Date().toISOString(),
-            },
-          });
-        } catch (analyticsError) {
-          console.error('Failed to record proposal creation:', analyticsError);
-        }
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (analyticsError) {
+        console.error('Failed to record proposal creation:', analyticsError);
       }
 
       return NextResponse.json({ ...data, portal_token: portalToken }, { status: 201 });
