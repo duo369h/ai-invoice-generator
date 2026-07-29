@@ -628,6 +628,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   useEffect(() => {
     if (!feedbackModalOpen) return;
 
+    const feedbackTrigger = feedbackBtnRef.current;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
@@ -642,9 +643,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      if (feedbackBtnRef.current) {
-        feedbackBtnRef.current.focus();
-      }
+      feedbackTrigger?.focus();
     };
   }, [feedbackModalOpen]);
 

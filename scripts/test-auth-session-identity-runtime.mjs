@@ -246,6 +246,20 @@ async function runAccountSwitchScenario(baseUrl, browser, { failureMode = null, 
   }, { shouldProbeQuote: probeQuote });
   let state;
   try { state = await readState(); } catch { await wait(500); state = await readState(); }
+  if (state.url === '/dashboard') {
+    const accountButton = page.locator('button[aria-haspopup="menu"]', { hasText: 'Account' });
+    await accountButton.evaluate((button) => button.click());
+    const accountMenu = page.getByRole('menu', { name: 'Account menu' });
+    await accountMenu.waitFor({ state: 'visible' });
+    state.accountMenu = {
+      closedText: state.text,
+      openText: await accountMenu.innerText(),
+      signOutCount: await accountMenu.getByRole('menuitem', { name: 'Sign out', exact: true }).count(),
+    };
+    await accountButton.evaluate((button) => button.click());
+    await accountMenu.waitFor({ state: 'detached' });
+    state.accountMenu.afterCloseText = await page.locator('body').innerText();
+  }
   const cookies = await context.cookies();
   await context.close();
   diagnostics.submits = state.submits;
@@ -281,7 +295,11 @@ async function run(app) {
     assert.equal(postLoginUsers[0].bearer, 'B', 'post-login /api/user must use Account B Bearer');
     assert.equal(postLoginUsers.some((call) => call.account !== accounts.B.id), false, 'post-login business identity must remain Account B');
     assert.equal(switched.state.storage.includes(accounts.B.id), true, 'localStorage must retain Account B rather than Account A');
-    assert.match(switched.state.text, /account-b@example\.com/, 'Dashboard must display Account B email');
+    assert.doesNotMatch(switched.state.accountMenu.closedText, /account-[ab]@example\.com/, 'closed Account menu must not expose an account email in Dashboard text');
+    assert.match(switched.state.accountMenu.openText, /account-b@example\.com/, 'open Account menu must display Account B email');
+    assert.doesNotMatch(switched.state.accountMenu.openText, /account-a@example\.com/, 'open Account menu must not leak Account A email');
+    assert.equal(switched.state.accountMenu.signOutCount, 1, 'open Account menu must contain exactly one Sign out entry');
+    assert.doesNotMatch(switched.state.accountMenu.afterCloseText, /account-[ab]@example\.com/, 'closing Account menu must remove account emails from visible Dashboard text');
     assert.equal(switched.state.quoteStatus, 200, 'Dashboard Quotes probe must complete');
     assert.ok(switched.calls.some((call) => call.pathname === '/api/quotes' && call.account === accounts.B.id && call.bearer === 'B'), 'subsequent /api/quotes must use Account B');
     assert.ok(switched.cookies.some((cookie) => cookie.name === 'sb-127-auth-token.0' && cookie.value.includes(accounts.B.id)), 'stale Account A cookie sync must not overwrite Account B');
