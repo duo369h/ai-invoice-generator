@@ -100,6 +100,7 @@ function sendJson(response, status, body) {
 
 async function startMockSupabase() {
   const sockets = new Set();
+  let crmEnabled = false;
   const server = http.createServer((request, response) => {
     const requestUrl = new URL(request.url, 'http://127.0.0.1');
     if (request.method === 'OPTIONS') {
@@ -113,6 +114,26 @@ async function startMockSupabase() {
     }
     if (request.method === 'GET' && requestUrl.pathname === '/auth/v1/user') {
       sendJson(response, 200, TEST_USER);
+      return;
+    }
+    if (request.method === 'POST' && requestUrl.pathname === '/auth/v1/logout') {
+      response.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-supabase-api-version',
+      });
+      response.end();
+      return;
+    }
+    if (request.method === 'GET' && requestUrl.pathname === '/rest/v1/entitlements') {
+      sendJson(response, 200, [{
+        user_id: TEST_USER.id,
+        invoice: true,
+        export_pdf: false,
+        client_portal: false,
+        crm: crmEnabled,
+        automation: false,
+        advanced_invoicing: false,
+      }]);
       return;
     }
     sendJson(response, 404, { message: `Unhandled mock Supabase request: ${request.method} ${requestUrl.pathname}` });
@@ -129,6 +150,9 @@ async function startMockSupabase() {
   return {
     port,
     url: `http://127.0.0.1:${port}`,
+    setCrmEnabled(value) {
+      crmEnabled = Boolean(value);
+    },
     async close() {
       server.closeIdleConnections?.();
       server.closeAllConnections?.();
@@ -248,6 +272,7 @@ async function createDashboardPage(browser, baseUrl) {
   const session = createSession();
   const context = await browser.newContext();
   await context.addInitScript((storedSession) => {
+    window.localStorage.setItem('corvioz_analytics_consent', 'accepted');
     if (!window.localStorage.getItem('__dashboard_e2e_disable_session')) {
       window.localStorage.setItem('sb-127-auth-token', JSON.stringify(storedSession));
     }
@@ -255,6 +280,10 @@ async function createDashboardPage(browser, baseUrl) {
   await context.addCookies([{
     name: 'sb-127-auth-token.0',
     value: encodeURIComponent(JSON.stringify(session)),
+    url: baseUrl,
+  }, {
+    name: 'corvioz_analytics_consent',
+    value: 'accepted',
     url: baseUrl,
   }]);
 
@@ -403,6 +432,203 @@ async function runSignedOutScenario(browser, baseUrl) {
   }
 }
 
+async function waitForDashboardData(dashboard) {
+  await waitForCounts(dashboard.counts, 1);
+  await dashboard.page.getByRole('button', { name: 'Account', exact: true }).waitFor({ state: 'visible' });
+}
+
+async function assertClientDirectory(page, label) {
+  await page.getByRole('heading', { name: 'Client Directory', exact: true }).waitFor({ state: 'visible' });
+  await page.getByText('Manage client records in one centralized directory to prepare quotes and documents quickly.').waitFor({ state: 'visible' });
+  await page.getByRole('heading', { name: 'Save Client Profile', exact: true }).waitFor({ state: 'visible' });
+  assert.equal(await page.getByRole('button', { name: 'Save Client', exact: true }).count(), 1, `${label}: the existing Client form must remain available`);
+}
+
+async function runClientsRenderingScenarios(browser, baseUrl, mockSupabase) {
+  mockSupabase.setCrmEnabled(false);
+  const freeDashboard = await createDashboardPage(browser, baseUrl);
+  try {
+    await freeDashboard.page.goto(`${baseUrl}/dashboard?tool=quotes`, { waitUntil: 'domcontentloaded' });
+    await waitForDashboardData(freeDashboard);
+
+    await freeDashboard.page.getByRole('button', { name: 'Clients', exact: true }).click();
+    await assertClientDirectory(freeDashboard.page, 'authenticated crm=false');
+
+    await freeDashboard.page.getByRole('button', { name: 'Quotes', exact: true }).click();
+    await freeDashboard.page.getByRole('heading', { name: 'Quotes', exact: true }).waitFor({ state: 'visible' });
+    await freeDashboard.page.getByRole('button', { name: 'Clients', exact: true }).click();
+    await assertClientDirectory(freeDashboard.page, 'Quotes -> Clients');
+    await freeDashboard.page.getByRole('button', { name: 'Invoices', exact: true }).click();
+    await freeDashboard.page.getByRole('heading', { name: 'Invoice Documents', exact: true }).waitFor({ state: 'visible' });
+  } finally {
+    await freeDashboard.context.close();
+  }
+
+  mockSupabase.setCrmEnabled(true);
+  const crmDashboard = await createDashboardPage(browser, baseUrl);
+  try {
+    await crmDashboard.page.goto(`${baseUrl}/dashboard?tool=clients`, { waitUntil: 'domcontentloaded' });
+    await waitForDashboardData(crmDashboard);
+    await assertClientDirectory(crmDashboard.page, 'authenticated crm=true');
+  } finally {
+    await crmDashboard.context.close();
+  }
+
+  mockSupabase.setCrmEnabled(false);
+  const guestDashboard = await createDashboardPage(browser, baseUrl);
+  const authNavigationGate = createDeferred();
+  try {
+    await guestDashboard.page.goto(`${baseUrl}/dashboard?tool=clients`, { waitUntil: 'domcontentloaded' });
+    await waitForDashboardData(guestDashboard);
+    await assertClientDirectory(guestDashboard.page, 'authenticated before guest transition');
+    await guestDashboard.page.route(`${baseUrl}/auth**`, async (route) => {
+      await authNavigationGate.promise;
+      await route.continue();
+    });
+    await guestDashboard.page.evaluate(() => {
+      window.localStorage.setItem('__dashboard_e2e_disable_session', '1');
+      window.localStorage.removeItem('sb-127-auth-token');
+      document.cookie = 'sb-127-auth-token.0=; Path=/; Max-Age=0; SameSite=Lax';
+    });
+    await broadcastAuthEvent(guestDashboard.page, 'SIGNED_OUT', null);
+    await guestDashboard.page.getByText('Available after account creation.').waitFor({ state: 'visible' });
+    assert.equal(
+      await guestDashboard.page.getByRole('button', { name: 'Save Client', exact: true }).count(),
+      0,
+      'unauthenticated Clients must keep the Guest lock instead of exposing the Client form',
+    );
+  } finally {
+    authNavigationGate.resolve();
+    await guestDashboard.context.close();
+  }
+}
+
+async function openAccountMenu(page) {
+  await page.getByRole('button', { name: 'Account', exact: true }).evaluate((button) => button.click());
+  const menu = page.getByRole('menu', { name: 'Account menu' });
+  await menu.waitFor({ state: 'visible' });
+  return menu;
+}
+
+async function runSignOutSuccessScenario(browser, baseUrl) {
+  const dashboard = await createDashboardPage(browser, baseUrl);
+  const authNavigationGate = createDeferred();
+  const authNavigations = [];
+  try {
+    dashboard.page.on('framenavigated', (frame) => {
+      if (frame === dashboard.page.mainFrame() && new URL(frame.url()).pathname === '/auth') {
+        authNavigations.push(frame.url());
+      }
+    });
+    await dashboard.page.goto(`${baseUrl}/dashboard?tool=clients`, { waitUntil: 'domcontentloaded' });
+    await waitForDashboardData(dashboard);
+    await assertClientDirectory(dashboard.page, 'before successful sign out');
+    await dashboard.page.route(`${baseUrl}/auth**`, async (route) => {
+      await authNavigationGate.promise;
+      await route.continue();
+    });
+    await dashboard.page.evaluate(() => {
+      const client = window.supabaseClientInstance;
+      const originalSignOut = client.auth.signOut.bind(client.auth);
+      window.__uiInt03SignOutCalls = 0;
+      client.auth.signOut = async () => {
+        window.__uiInt03SignOutCalls += 1;
+        await new Promise((resolve) => {
+          window.__releaseUiInt03SignOut = resolve;
+        });
+        return originalSignOut();
+      };
+    });
+
+    const menu = await openAccountMenu(dashboard.page);
+    await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).evaluate((button) => button.click());
+    const signingOutState = dashboard.page.getByRole('status');
+    await signingOutState.waitFor({ state: 'visible' });
+    assert.equal(
+      (await signingOutState.innerText()).trim(),
+      'Signing out…',
+      'isSigningOut=true must replace the Dashboard with a single stable sign-out state',
+    );
+    const signOutPresentation = await signingOutState.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      const alphaMatch = styles.backgroundColor.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([^)]+)\)/);
+      return {
+        backgroundColor: styles.backgroundColor,
+        backgroundAlpha: alphaMatch ? Number(alphaMatch[1]) : 1,
+        position: styles.position,
+        zIndex: Number(styles.zIndex),
+        width: bounds.width,
+        height: bounds.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        hitTargetIsStatus: element.contains(document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)),
+      };
+    });
+    assert.equal(signOutPresentation.position, 'fixed', 'the Sign out state must be fixed to the viewport');
+    assert.ok(signOutPresentation.zIndex >= 2147483647, 'the Sign out state must cover global interactive UI');
+    assert.equal(signOutPresentation.width, signOutPresentation.viewportWidth, 'the Sign out state must cover the viewport width');
+    assert.equal(signOutPresentation.height, signOutPresentation.viewportHeight, 'the Sign out state must cover the viewport height');
+    assert.equal(signOutPresentation.hitTargetIsStatus, true, 'the Sign out state must receive pointer hits above the Dashboard');
+    assert.equal(signOutPresentation.backgroundAlpha, 1, `the Sign out state background must be opaque, received ${signOutPresentation.backgroundColor}`);
+    assert.equal(
+      await dashboard.page.getByRole('heading', { name: /^(Quotes|Client Directory|Invoice Documents|Public Profile Setup)$/ }).count(),
+      0,
+      'Dashboard tab content must be unmounted while sign-out is pending',
+    );
+    assert.equal(
+      await dashboard.page.getByRole('button', { name: /^(Quotes|Clients|Invoices|Public Profile|Save Client)$/ }).count(),
+      0,
+      'Dashboard navigation and forms must not remain interactive while sign-out is pending',
+    );
+    assert.equal(await dashboard.page.evaluate(() => window.__uiInt03SignOutCalls), 1, 'the Sign out action must run once');
+
+    await dashboard.page.evaluate(() => window.__releaseUiInt03SignOut());
+    await delay(150);
+    assert.equal(
+      (await signingOutState.innerText()).trim(),
+      'Signing out…',
+      'session cleanup must not reveal Quotes, Clients, Invoices, Profile, Preview, or Guest content',
+    );
+    authNavigationGate.resolve();
+    await dashboard.page.waitForURL((url) => url.pathname === '/auth', { timeout: 8_000 });
+    assert.equal(authNavigations.length, 1, 'successful sign-out must navigate to /auth exactly once');
+    assert.equal(await dashboard.page.evaluate(() => window.__uiInt03SignOutCalls), 1, 'successful sign-out must not repeat Supabase signOut');
+  } finally {
+    authNavigationGate.resolve();
+    await dashboard.context.close();
+  }
+}
+
+async function runSignOutFailureScenario(browser, baseUrl) {
+  const dashboard = await createDashboardPage(browser, baseUrl);
+  try {
+    await dashboard.page.goto(`${baseUrl}/dashboard?tool=clients`, { waitUntil: 'domcontentloaded' });
+    await waitForDashboardData(dashboard);
+    await assertClientDirectory(dashboard.page, 'before failed sign out');
+    await dashboard.page.evaluate(() => {
+      const client = window.supabaseClientInstance;
+      window.__uiInt03SignOutCalls = 0;
+      client.auth.signOut = async () => {
+        window.__uiInt03SignOutCalls += 1;
+        return { error: new Error('Injected sign-out failure') };
+      };
+    });
+
+    const menu = await openAccountMenu(dashboard.page);
+    await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).evaluate((button) => button.click());
+    await dashboard.page.getByText('Sign out failed. Please try again.').waitFor({ state: 'visible' });
+    assert.equal(new URL(dashboard.page.url()).pathname, '/dashboard', 'failed sign-out must remain on Dashboard');
+    await assertClientDirectory(dashboard.page, 'after failed sign out');
+    const restoredMenu = await openAccountMenu(dashboard.page);
+    const restoredSignOut = restoredMenu.getByRole('menuitem', { name: 'Sign out', exact: true });
+    assert.equal(await restoredSignOut.isEnabled(), true, 'failed sign-out must restore isSigningOut=false');
+    assert.equal(await dashboard.page.evaluate(() => window.__uiInt03SignOutCalls), 1, 'failed sign-out must not retry automatically');
+  } finally {
+    await dashboard.context.close();
+  }
+}
+
 async function closeResources(resources) {
   const failures = [];
   for (const resource of [resources.browser, resources.next, resources.mockSupabase]) {
@@ -433,8 +659,22 @@ async function run() {
     console.log(`Dashboard mock Supabase: ${resources.mockSupabase.url}`);
     console.log(`Dashboard Next server: ${resources.next.baseUrl}`);
 
-    console.log('Scenario: real getSession + INITIAL_SESSION dedup under development Strict Mode');
-    await runInitialDedupScenario(resources.browser, resources.next.baseUrl, 'listener-near-hydration', 0);
+    if (REQUESTED_SCENARIO === 'ui-int-03') {
+      console.log('Scenario: Clients content remains available across entitlement and auth states');
+      await runClientsRenderingScenarios(resources.browser, resources.next.baseUrl, resources.mockSupabase);
+      console.log('Scenario passed: Clients content and Guest lock behavior');
+
+      console.log('Scenario: successful Sign out replaces Dashboard until /auth');
+      await runSignOutSuccessScenario(resources.browser, resources.next.baseUrl);
+      console.log('Scenario passed: stable successful Sign out transition');
+
+      console.log('Scenario: failed Sign out restores Dashboard with a stable error');
+      await runSignOutFailureScenario(resources.browser, resources.next.baseUrl);
+      console.log('Scenario passed: failed Sign out recovery');
+    } else {
+      console.log('Scenario: real getSession + INITIAL_SESSION dedup under development Strict Mode');
+      await runInitialDedupScenario(resources.browser, resources.next.baseUrl, 'listener-near-hydration', 0);
+    }
     if (!REQUESTED_SCENARIO) {
       await runInitialDedupScenario(resources.browser, resources.next.baseUrl, 'listener-after-hydration', 200);
       console.log('Scenario passed: hydration and INITIAL_SESSION each load core endpoints exactly once');

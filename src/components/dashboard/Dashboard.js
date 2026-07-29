@@ -618,6 +618,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [toast, setToast] = useState(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const isSigningOutRef = useRef(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState('Dashboard');
@@ -1222,7 +1223,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleSignOut = async () => {
-    if (isSigningOut) return;
+    if (isSigningOutRef.current) return;
+    isSigningOutRef.current = true;
     setIsSigningOut(true);
     setAccountMenuOpen(false);
 
@@ -1231,14 +1233,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         window.sessionStorage.removeItem('corvioz_sandbox_mode');
       }
       if (supabaseClient) {
-        await supabaseClient.auth.signOut();
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) throw error;
       }
       clearAnalyticsUserId();
-      setUser({ name: 'Photographer', plan: 'free' });
       clearDashboardData();
       router.replace('/auth');
     } catch (error) {
       console.error('Sign out error:', error);
+      isSigningOutRef.current = false;
       setIsSigningOut(false);
       triggerToast('Sign out failed. Please try again.', 'error');
     }
@@ -1351,7 +1354,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       } else {
         clearAnalyticsUserId();
         clearDashboardData();
-        redirectToAuth('dashboard_session_auth_guard');
+        if (!isSigningOutRef.current) {
+          redirectToAuth('dashboard_session_auth_guard');
+        }
         return;
       }
       setAuthChecked(true);
@@ -2750,6 +2755,31 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const isStudioMode = activeClientsCount >= 3 || activeInvoicesCount >= 5 || hasOverdueInvoices;
   const businessModeBadge = isStudioMode ? 'Business Mode' : 'Photographer Mode';
+
+  if (isSigningOut) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2147483647,
+          width: '100%',
+          minHeight: '100vh',
+          background: 'var(--bg-page)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-main)',
+          fontSize: '0.9rem',
+          fontWeight: 650,
+        }}
+      >
+        Signing out…
+      </div>
+    );
+  }
 
   if (!authChecked || isLoading) {
     return (
@@ -4870,8 +4900,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'clients' && (
           !session && !isSandboxMode ? (
             renderGuestLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.')
-          ) : !entitlements.crm && !isSandboxMode ? (
-            renderPaidLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.', 'pro')
           ) : (activeTheme === 'studio') ? (
             <StudioSpace
               clients={getActiveClients()}
@@ -6292,53 +6320,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           </form>
         </div>
       )}
-
-      {isSigningOut && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(3, 7, 18, 0.72)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              padding: '20px 32px',
-              background: 'var(--background-card)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              transform: 'none'
-            }}
-          >
-            <div
-              className="animate-pulse"
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: 'var(--primary)'
-              }}
-            />
-            <span style={{ fontSize: '0.9rem', fontWeight: 650, color: 'var(--text-main)' }}>
-              Signing out…
-            </span>
-          </div>
-        </div>
-      )}
-
 
       {/* Reminder Text Copy Modal */}
       {showReminderModal && selectedInvoiceForReminder && (
