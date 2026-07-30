@@ -87,6 +87,26 @@ const nextConfig = {
         destination: '/photographer-invoice-template',
         permanent: true,
       },
+      {
+        source: '/quote-generator/:type/ca',
+        destination: '/quote-generator/:type/canada',
+        permanent: true,
+      },
+      {
+        source: '/quote-generator/:type/ca/:useCase',
+        destination: '/quote-generator/:type/canada/:useCase',
+        permanent: true,
+      },
+      {
+        source: '/invoice-generator/:type/ca',
+        destination: '/invoice-generator/:type/canada',
+        permanent: true,
+      },
+      {
+        source: '/invoice-generator/:type/ca/:useCase',
+        destination: '/invoice-generator/:type/canada/:useCase',
+        permanent: true,
+      },
     ];
   },
 };

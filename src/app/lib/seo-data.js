@@ -178,7 +178,7 @@ export function getCoreMoneyPage(pathname) {
 }
 
 const programmaticAudiences = [
-  ['freelancer', 'Photographer', 'independent photographers and photography businesses'],
+  ['freelancer', 'Freelancer', 'independent freelancers and solo service providers'],
   ['contractor', 'Contractor', 'independent contractors and field service providers'],
   ['designer', 'Designer', 'brand, graphic, product, and web designers'],
   ['developer', 'Developer', 'software developers and technical consultants'],
@@ -270,7 +270,7 @@ export const programmaticSeoPaths = coreMoneyPagePaths.flatMap((basePath) =>
 export const matrixSeoTypes = [
   {
     slug: 'freelancer',
-    label: 'Photographer',
+    label: 'Freelancer',
     audience: 'independent freelancers and solo service providers',
     client: 'a growing local business',
     project: 'multi-service client engagement',
@@ -357,18 +357,6 @@ export const matrixSeoCountries = [
   },
   {
     slug: 'canada',
-    label: 'Canada',
-    audience: 'clients in Canada',
-    currency: 'CAD',
-    symbol: 'C$',
-    taxLabel: 'GST/HST',
-    taxRate: 0.13,
-    paymentTerms: 'Net 14',
-    paymentMethod: 'client document instructions',
-    localDetail: 'Canadian clients usually look for GST/HST clarity, province-aware notes, and a document that separates services from tax.',
-  },
-  {
-    slug: 'ca',
     label: 'Canada',
     audience: 'clients in Canada',
     currency: 'CAD',
