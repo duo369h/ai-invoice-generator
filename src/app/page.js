@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button, Card } from './components/UIComponents';
 import PublicHeader from './components/PublicHeader';
 import SharedFooter from './components/SharedFooter';
+import WorkflowContinuitySection from "./components/WorkflowContinuitySection";
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
 import { sendEvent } from '../core/analytics/eventRouter';
@@ -358,6 +359,9 @@ export default function Home() {
       <section className="section-product-preview">
         <ProductPreview />
       </section>
+      <div className="transition-block02-light-scope">
+        <WorkflowContinuitySection />
+      </div>
 
       <section id="how-corvioz-works" className="section section-how-it-works">
         <div className="landing-section-container landing-section-container--narrow u-text-center">

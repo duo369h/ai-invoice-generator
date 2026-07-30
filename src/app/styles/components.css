@@ -2351,3 +2351,521 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* BLOCK-02 INTEGRATION START */
+/* Block-02: Workflow Continuity & Surface Lift Responsive Integration        */
+/* -------------------------------------------------------------------------- */
+.transition-block02-light-scope {
+  position: relative;
+  z-index: 10;
+  isolation: isolate;
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0B0F19;
+
+  /* Scoped Light Theme Variables */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --text-main: #0B0F19;
+  --text-muted: #4B5563;
+  --text-soft: #6B7280;
+
+  --primary: #4F46E5;
+  --primary-hover: #4338ca;
+  --primary-glow: rgba(79, 70, 229, 0.06);
+
+  --accent: #06B6D4;
+  --accent-glow: rgba(6, 182, 212, 0.06);
+
+  --success: #10b981;
+  --success-text: #047857;
+  --success-bg: rgba(16, 185, 129, 0.08);
+  --success-border: rgba(16, 185, 129, 0.2);
+
+  --border: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.12);
+  --border-focus: #4F46E5;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Radius & Shadows */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08);
+
+  --container-max-width: 1000px;
+  --transition-fast: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Surface Lift Default (Desktop) */
+  margin-top: -64px;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -8px 28px rgba(0,0,0,.10);
+  border-top: 1px solid rgba(0,0,0,.05);
+}
+
+@media (max-width: 1024px) {
+  .transition-block02-light-scope {
+    margin-top: -13px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .transition-block02-light-scope {
+    margin-top: -32px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+}
+
+/* Candidate Styles: Continuous Record Rail Refinement */
+
+/* Candidate Styles: Continuous Record Rail Refinement */
+
+.transition-block02-light-scope .section-workflow-continuity {
+  padding: 114px 24px;
+  background-color: var(--bg-page);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.transition-block02-light-scope .container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.transition-block02-light-scope .continuity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 72px;
+  align-items: center;
+}
+
+/* ---------------- LEFT COLUMN: COPY & HIERARCHY ---------------- */
+.transition-block02-light-scope .copy-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.transition-block02-light-scope .eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.transition-block02-light-scope .headline {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin-bottom: 16px;
+}
+
+.transition-block02-light-scope .body-text {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+/* Primary Conclusion: Supporting Statement Box */
+.transition-block02-light-scope .supporting-statement-box {
+  width: 100%;
+  background: rgba(79, 70, 229, 0.03);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.transition-block02-light-scope .supporting-statement {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+/* Secondary Subordinate Proof Labels */
+.transition-block02-light-scope .proof-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transition-block02-light-scope .proof-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.transition-block02-light-scope .proof-pill:hover {
+  border-color: rgba(79, 70, 229, 0.3);
+  color: var(--primary);
+}
+
+.transition-block02-light-scope .proof-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--primary);
+}
+
+/* ---------------- RIGHT COLUMN: RAIL & CARD CONNECTION ---------------- */
+.transition-block02-light-scope .visual-col {
+  position: relative;
+}
+
+.transition-block02-light-scope .rail-card-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px 28px 24px 28px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Process Rail Timeline */
+.transition-block02-light-scope .continuous-rail {
+  list-style: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.transition-block02-light-scope .continuous-rail::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--primary) 0%, #06B6D4 100%);
+  border-radius: 2px;
+}
+
+.transition-block02-light-scope .rail-node {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.transition-block02-light-scope .node-indicator {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 3px solid var(--bg-card);
+  box-shadow: 0 0 0 2px var(--primary);
+  z-index: 2;
+  transition: var(--transition-fast);
+}
+
+.transition-block02-light-scope .rail-node:hover .node-indicator {
+  transform: scale(1.15);
+}
+
+.transition-block02-light-scope .node-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transition-block02-light-scope .node-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.transition-block02-light-scope .node-desc {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Seamless Connection Stem from 3rd Node into Card Header */
+.transition-block02-light-scope .rail-connection-stem {
+  position: relative;
+  height: 20px;
+  margin-left: 6px;
+}
+
+.transition-block02-light-scope .stem-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #06B6D4;
+}
+
+/* Project Record Card */
+.transition-block02-light-scope .project-record-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  transition: var(--transition-fast);
+}
+
+.transition-block02-light-scope .project-record-card:hover {
+  border-color: rgba(79, 70, 229, 0.25);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Top Connection Badge */
+.transition-block02-light-scope .card-connector-tag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 700;
+  color: #0891b2;
+  margin-bottom: 2px;
+}
+
+.transition-block02-light-scope .tag-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.transition-block02-light-scope .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.transition-block02-light-scope .project-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transition-block02-light-scope .meta-label {
+  font-size: 13px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.transition-block02-light-scope .meta-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.transition-block02-light-scope .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.transition-block02-light-scope .badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+/* Card Body & Definition List */
+.transition-block02-light-scope .record-definition-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.transition-block02-light-scope .def-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transition-block02-light-scope .def-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 16px;
+}
+
+.transition-block02-light-scope .def-label {
+  font-size: 13px;
+  color: var(--text-soft);
+  font-weight: 600;
+
+}
+
+.transition-block02-light-scope .def-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.transition-block02-light-scope .font-mono {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.transition-block02-light-scope .path-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(79, 70, 229, 0.05);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* ---------------- RESPONSIVE BREAKPOINTS ---------------- */
+
+/* Tablet Viewport (768px) */
+@media (max-width: 1024px) {
+  .transition-block02-light-scope .section-workflow-continuity {
+    padding: 56px 24px;
+  }
+
+  .transition-block02-light-scope .continuity-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .transition-block02-light-scope .headline {
+    font-size: 34px;
+  }
+
+  .transition-block02-light-scope .body-text {
+    font-size: 16px;
+  }
+
+  .transition-block02-light-scope .rail-card-wrapper {
+    padding: 24px;
+  }
+}
+
+/* Mobile Viewport (390px) */
+@media (max-width: 768px) {
+  .transition-block02-light-scope .section-workflow-continuity {
+    padding: 64px 16px;
+  }
+
+  .transition-block02-light-scope .continuity-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .transition-block02-light-scope .headline {
+    font-size: 28px;
+    margin-bottom: 14px;
+  }
+
+  .transition-block02-light-scope .body-text {
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+
+  .transition-block02-light-scope .supporting-statement-box {
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+
+  .transition-block02-light-scope .supporting-statement {
+    font-size: 14.5px;
+  }
+
+  .transition-block02-light-scope .proof-pills {
+    gap: 8px;
+  }
+
+  .transition-block02-light-scope .proof-pill {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+
+  .transition-block02-light-scope .rail-card-wrapper {
+    padding: 20px 18px;
+  }
+
+  .transition-block02-light-scope .def-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .transition-block02-light-scope .path-text {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+/* BLOCK-02 INTEGRATION END */
