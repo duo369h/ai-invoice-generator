@@ -2869,3 +2869,273 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
 }
 
 /* BLOCK-02 INTEGRATION END */
+
+/* SCOPE CLARITY SECTION (BLOCK-03 LEDGER) INTEGRATION */
+.scope-clarity-section {
+  padding: 80px 24px;
+  background-color: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+  color: var(--gray-900);
+  box-sizing: border-box;
+}
+
+.scope-clarity-section .scope-clarity-container {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.scope-clarity-section .scope-clarity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 52px;
+  align-items: flex-start;
+}
+
+.scope-clarity-section .scope-clarity-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.scope-clarity-section .scope-clarity-headline {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--gray-900);
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+}
+
+.scope-clarity-section .scope-clarity-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--gray-600);
+  margin-bottom: 0;
+}
+
+.scope-clarity-section .quote-document-paper {
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
+  padding: 22px 26px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--gray-900) 5%, transparent), 0 1px 2px color-mix(in srgb, var(--gray-900) 3%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scope-clarity-section .document-meta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.scope-clarity-section .meta-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scope-clarity-section .doc-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--gray-900);
+}
+
+.scope-clarity-section .doc-divider {
+  font-size: 10px;
+  color: var(--gray-500);
+}
+
+.scope-clarity-section .doc-id {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--gray-500);
+}
+
+.scope-clarity-section .meta-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.scope-clarity-section .status-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gray-500);
+}
+
+.scope-clarity-section .doc-status-val {
+  font-size: 11.5px;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+
+.scope-clarity-section .document-project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.scope-clarity-section .project-name {
+  font-size: 18.5px;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+  color: var(--gray-900);
+}
+
+.scope-clarity-section .client-name {
+  font-size: 12.5px;
+  color: var(--gray-600);
+}
+
+.scope-clarity-section .project-total-box {
+  text-align: right;
+}
+
+.scope-clarity-section .total-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  display: block;
+  letter-spacing: 0.05em;
+}
+
+.scope-clarity-section .total-amount {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: var(--gray-900);
+  font-family: var(--font-mono);
+}
+
+.scope-clarity-section .document-sections-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scope-clarity-section .doc-section {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--gray-200) 50%, transparent);
+}
+
+.scope-clarity-section .section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scope-clarity-section .scope-grid {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+}
+
+.scope-clarity-section .scope-grid div {
+  display: flex;
+  gap: 6px;
+}
+
+.scope-clarity-section .s-lbl {
+  color: var(--gray-500);
+}
+
+.scope-clarity-section .s-val {
+  color: var(--gray-900);
+  font-weight: 600;
+}
+
+.scope-clarity-section .deliverables-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-clarity-section .del-row {
+  font-size: 13px;
+  color: var(--gray-900);
+}
+
+.scope-clarity-section .usage-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scope-clarity-section .u-item {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.scope-clarity-section .u-lbl {
+  width: 65px;
+  color: var(--gray-500);
+  font-size: 11.5px;
+}
+
+.scope-clarity-section .u-val {
+  color: var(--gray-900);
+}
+
+.scope-clarity-section .terms-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+}
+
+.scope-clarity-section .t-row {
+  display: flex;
+  justify-content: space-between;
+  max-width: 320px;
+}
+
+.scope-clarity-section .t-row strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.scope-clarity-section .not-inc-rows {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+@media (max-width: 1024px) {
+  .scope-clarity-section { padding: 60px 24px; }
+  .scope-clarity-section .scope-clarity-grid { grid-template-columns: 1fr; gap: 36px; }
+  .scope-clarity-section .scope-clarity-headline { font-size: 28px; }
+}
+
+@media (max-width: 768px) {
+  .scope-clarity-section { padding: 32px 16px; }
+  .scope-clarity-section .scope-clarity-grid { grid-template-columns: 1fr; gap: 18px; }
+  .scope-clarity-section .scope-clarity-headline { font-size: 22px; margin-bottom: 8px; }
+  .scope-clarity-section .scope-clarity-body { font-size: 14.5px; }
+  .scope-clarity-section .quote-document-paper { padding: 16px 18px; gap: 10px; }
+  .scope-clarity-section .document-meta-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .scope-clarity-section .document-project-header { flex-direction: column; gap: 6px; }
+  .scope-clarity-section .project-total-box { text-align: left; display: flex; gap: 8px; align-items: baseline; }
+  .scope-clarity-section .doc-section { grid-template-columns: 1fr; gap: 3px; padding-bottom: 6px; }
+  .scope-clarity-section .scope-grid { gap: 14px; }
+}
+

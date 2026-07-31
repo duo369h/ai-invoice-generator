@@ -6,6 +6,7 @@ import { Button, Card } from './components/UIComponents';
 import PublicHeader from './components/PublicHeader';
 import SharedFooter from './components/SharedFooter';
 import WorkflowContinuitySection from "./components/WorkflowContinuitySection";
+import ScopeClaritySection from "./components/ScopeClaritySection";
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
 import { sendEvent } from '../core/analytics/eventRouter';
@@ -158,13 +159,6 @@ const faqs = [
     q: 'Is Corvioz full accounting software?',
     a: 'No. Corvioz is a client management dashboard for quotes, invoices, and client records. It does not replace bookkeeping or tax software.',
   },
-];
-
-const launchWorkflowSteps = [
-  { title: 'Capture Request', icon: '01' },
-  { title: 'Create Quote', icon: '02' },
-  { title: 'Prepare Quote', icon: '03' },
-  { title: 'Manage Delivery', icon: '04' },
 ];
 
 function ProductPreview() {
@@ -363,22 +357,7 @@ export default function Home() {
         <WorkflowContinuitySection />
       </div>
 
-      <section id="how-corvioz-works" className="section section-how-it-works">
-        <div className="landing-section-container landing-section-container--narrow u-text-center">
-            <p className="section-kicker">How Corvioz Works</p>
-            <p className="section-lede">One dashboard for turning client requests into organized documents, approvals, and delivery records.</p>
-          <div className="workflow-steps-grid">
-            {launchWorkflowSteps.map((step) => (
-              <div key={step.title} className="workflow-step-card">
-                <span className="workflow-step-number">
-                  {step.icon}
-                </span>
-                <h3 className="workflow-step-title">{step.title}</h3>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <ScopeClaritySection />
 
       <section id="why-corvioz" className="section section-why">
         <div className="landing-section-container landing-section-container--narrow u-text-center">
