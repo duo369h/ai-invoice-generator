@@ -7,7 +7,7 @@ export default function ScopeClaritySection() {
         <div className="scope-clarity-grid">
           <div className="scope-clarity-copy">
             <span className="scope-clarity-eyebrow">SCOPE BEFORE APPROVAL</span>
-            <h2 className="scope-clarity-headline">Make what's included clear before work begins.</h2>
+            <h2 className="scope-clarity-headline">Make what’s included clear before work begins.</h2>
             <p className="scope-clarity-body">
               Structure scope, deliverables, usage rights, and payment terms in one quote clients can review before approving.
             </p>

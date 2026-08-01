@@ -2390,35 +2390,34 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   z-index: 10;
   isolation: isolate;
   color-scheme: light;
-  background-color: #f8fafc;
-  color: #0B0F19;
+  background-color: var(--gray-50);
+  color: var(--block02-dark-ink);
 
   /* Scoped Light Theme Variables */
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --bg-page: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
-  --text-main: #0B0F19;
-  --text-muted: #4B5563;
-  --text-soft: #6B7280;
+  --bg-page: var(--gray-50);
+  --bg-card: var(--white);
+  --bg-card-hover: var(--gray-100);
+  --text-main: var(--block02-dark-ink);
+  --text-muted: var(--block02-gray-muted);
+  --text-soft: var(--block02-gray-soft);
 
-  --primary: #4F46E5;
-  --primary-hover: #4338ca;
+  --block02-primary: var(--primary);
+  --block02-primary-hover: var(--primary-hover);
   --primary-glow: rgba(79, 70, 229, 0.06);
 
-  --accent: #06B6D4;
+  --block02-accent: var(--accent);
   --accent-glow: rgba(6, 182, 212, 0.06);
 
-  --success: #10b981;
-  --success-text: #047857;
+  --block02-success: var(--success);
   --success-bg: rgba(16, 185, 129, 0.08);
   --success-border: rgba(16, 185, 129, 0.2);
 
   --border: rgba(0, 0, 0, 0.06);
   --border-hover: rgba(0, 0, 0, 0.12);
-  --border-focus: #4F46E5;
+  --border-focus: var(--primary);
 
   /* Spacing */
   --space-1: 4px;
@@ -2614,7 +2613,7 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   bottom: 0;
   left: 6px;
   width: 2px;
-  background: linear-gradient(to bottom, var(--primary) 0%, #06B6D4 100%);
+  background: linear-gradient(to bottom, var(--primary) 0%, var(--accent) 100%);
   border-radius: 2px;
 }
 
@@ -2673,7 +2672,7 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   bottom: 0;
   left: 0;
   width: 2px;
-  background: #06B6D4;
+  background: var(--accent);
 }
 
 /* Project Record Card */
@@ -2706,7 +2705,7 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 700;
-  color: #0891b2;
+  color: var(--block02-accent-dark);
   margin-bottom: 2px;
 }
 
@@ -2750,7 +2749,7 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   padding: 4px 10px;
   background: var(--success-bg);
   border: 1px solid var(--success-border);
-  color: var(--success-text);
+  color: var(--block02-success-text);
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--radius-pill);
