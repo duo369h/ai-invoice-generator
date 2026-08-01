@@ -1168,6 +1168,11 @@
   .feature-overview-card,
   .pricing-card,
   .proof-card { padding: 22px; }
+  .pricing-grid,
+  .pricing-grid-three {
+    grid-template-columns: 1fr !important;
+    max-width: 100% !important;
+  }
   .landing-footer {
     align-items: flex-start;
     flex-direction: column;
@@ -1367,7 +1372,7 @@
 /* Consent Banner Layout positioning */
 .consent-banner-layout {
   position: fixed;
-  bottom: var(--space-4);
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   display: flex;
@@ -1376,3 +1381,122 @@
   pointer-events: none;
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* HOME-01 BETA POLISH — editorial page structure                              */
+/* -------------------------------------------------------------------------- */
+.landing-nav--editorial {
+  height: 70px;
+  padding: 0 clamp(20px, 4vw, 56px);
+  background: rgba(250, 250, 248, 0.94);
+  border-bottom-color: rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(10px);
+}
+
+.landing-nav--editorial .nav-links {
+  gap: clamp(18px, 2vw, 30px);
+}
+
+.landing-nav--editorial .header-account-action {
+  margin-left: clamp(18px, 2.5vw, 42px);
+}
+
+.landing-hero--editorial {
+  min-height: auto;
+  padding: clamp(72px, 9vw, 104px) 24px clamp(52px, 7vw, 76px);
+  background: var(--editorial-page);
+  border-bottom: 0;
+}
+
+.landing-hero--editorial::before {
+  display: none;
+}
+
+.landing-hero--editorial .hero-content-center {
+  max-width: 840px;
+}
+
+.section-product-preview {
+  padding: 0 24px clamp(72px, 9vw, 112px);
+  background: var(--editorial-page);
+}
+
+.section-why--editorial,
+.section-resources--editorial,
+.section-faq--editorial,
+.section-transparency--editorial {
+  padding-top: clamp(88px, 10vw, 128px);
+  padding-bottom: clamp(88px, 10vw, 128px);
+}
+
+.why-editorial-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(420px, 1.22fr);
+  column-gap: clamp(56px, 8vw, 112px);
+  row-gap: 52px;
+  align-items: start;
+}
+
+.why-editorial-intro .section-title,
+.why-editorial-intro .section-lede {
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.why-editorial-facts {
+  grid-column: 1 / -1;
+}
+
+.founder-note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: clamp(48px, 8vw, 104px);
+  align-items: start;
+}
+
+.section-final-cta--ink {
+  min-height: 340px;
+  display: flex;
+  align-items: center;
+  background: var(--editorial-dark);
+  border-top: 0;
+}
+
+@media (max-width: 980px) {
+  .why-editorial-layout,
+  .founder-note-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .why-editorial-layout {
+    row-gap: 44px;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-nav--editorial {
+    height: 64px;
+    padding: 0 18px;
+  }
+
+  .landing-hero--editorial {
+    padding: 56px 18px 42px;
+  }
+
+  .section-product-preview {
+    padding: 0 16px 72px;
+  }
+
+  .section-why--editorial,
+  .section-resources--editorial,
+  .section-faq--editorial,
+  .section-transparency--editorial {
+    padding-top: 68px;
+    padding-bottom: 68px;
+  }
+
+  .section-final-cta--ink {
+    min-height: 300px;
+  }
+}

@@ -15,7 +15,7 @@ export function openBetaFeedbackWidget(source = 'unknown') {
 export default function BetaGrowthShell({ children }) {
   const pathname = usePathname();
   const isDashboardOrAuth = pathname?.startsWith('/dashboard') || pathname?.startsWith('/auth');
-
+  const isHomePage = pathname === '/';
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -95,16 +95,18 @@ export default function BetaGrowthShell({ children }) {
 
       {children}
 
-      <button
-        type="button"
-        className="feedback-floating-button"
-        data-beta-feedback-ui
-        onClick={() => openBetaFeedbackWidget('floating_button')}
-        aria-label="Send feedback"
-      >
-        <MessageSquare size={18} aria-hidden="true" />
-        <span>Feedback</span>
-      </button>
+      {!isHomePage && (
+        <button
+          type="button"
+          className="feedback-floating-button"
+          data-beta-feedback-ui
+          onClick={() => openBetaFeedbackWidget('floating_button')}
+          aria-label="Send feedback"
+        >
+          <MessageSquare size={18} aria-hidden="true" />
+          <span>Feedback</span>
+        </button>
+      )}
 
       {isOpen && (
         <div className="feedback-panel-backdrop" data-beta-feedback-ui>

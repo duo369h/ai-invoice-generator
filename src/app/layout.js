@@ -93,13 +93,9 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{__html: `
           (function() {
             try {
+              var isPublicHome = window.location.pathname === '/';
               var savedTheme = localStorage.getItem('theme') || 'light';
-              var theme = 'light';
-              if (savedTheme === 'dark') {
-                theme = 'dark';
-              } else {
-                theme = 'light';
-              }
+              var theme = isPublicHome ? 'light' : (savedTheme === 'dark' ? 'dark' : 'light');
               document.documentElement.setAttribute('data-theme', theme);
             } catch (e) {}
           })();

@@ -76,4 +76,26 @@ export const MOTION = {
     open45: 'rotate(45deg)',
     close45: 'rotate(-45deg)',
   },
+
+  /**
+   * HOME-01 Beta document handoff.
+   *
+   * One viewport-triggered sequence:
+   * Quote sent -> client approved -> invoice ready.
+   * No page rotation, corner fold, payment state, or loop.
+   */
+  heroDemo: {
+    statusDuration: '340ms',
+    documentDuration: '520ms',
+    documentOpacityDuration: '420ms',
+    revealDuration: '480ms',
+    revealDelays: ['90ms', '190ms', '300ms'],
+
+    quoteHandoff: 'translate3d(-8px, -12px, 0) scale(0.992)',
+    quoteExit: 'translate3d(-14px, -18px, 0) scale(0.988)',
+    invoiceRest: 'translate3d(12px, 20px, 0) scale(0.985)',
+    invoiceHandoff: 'translate3d(5px, 8px, 0) scale(0.994)',
+    invoiceFinal: 'translate3d(0, 0, 0) scale(1)',
+    contentReveal: 'translateY(7px)',
+  },
 } as const;

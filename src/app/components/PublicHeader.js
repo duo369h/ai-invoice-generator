@@ -29,6 +29,7 @@ export default function PublicHeader({
   primaryAction = { label: 'Create Quote', href: '/dashboard?tool=quote', variant: 'primary' },
   className = 'navbar',
   logoSize,
+  showThemeToggle = true,
 }) {
   return (
     <nav className={className}>
@@ -39,6 +40,7 @@ export default function PublicHeader({
         navLinks={navLinks}
         accountAction={accountAction}
         primaryAction={primaryAction}
+        showThemeToggle={showThemeToggle}
       />
     </nav>
   );
