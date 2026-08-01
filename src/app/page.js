@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Button, Card } from './components/UIComponents';
+import { Button } from './components/UIComponents';
 import PublicHeader from './components/PublicHeader';
 import SharedFooter from './components/SharedFooter';
-import WorkflowContinuitySection from "./components/WorkflowContinuitySection";
-import ScopeClaritySection from "./components/ScopeClaritySection";
+import HeroProductDemo from './components/HeroProductDemo';
+import WorkflowContinuitySection from './components/WorkflowContinuitySection';
+import ScopeClaritySection from './components/ScopeClaritySection';
 import { saveIntendedRoute, saveSelectedPlan } from './lib/intent-store';
 import { calculatePlanPrice } from '../core/pricing/pricingDeterministicMapper';
 import { sendEvent } from '../core/analytics/eventRouter';
@@ -93,117 +94,57 @@ function normalizePlansForReview(rawPlans) {
 }
 
 const resources = [
-  { title: 'Freelance Pricing Guide', href: '/blog/how-to-price-web-design-projects' },
-  { title: 'Client Follow-Up Guide', href: '/blog/best-invoice-software-for-freelancers' },
-  { title: 'Invoice vs Quote vs Receipt', href: '/blog/invoice-vs-quote-vs-receipt' },
+  {
+    title: 'Freelance Pricing Guide',
+    description: 'Build clearer project pricing without hiding the scope behind a single number.',
+    href: '/blog/how-to-price-web-design-projects',
+  },
+  {
+    title: 'Client Follow-Up Guide',
+    description: 'Keep decisions and next steps moving without turning every reminder into a chase.',
+    href: '/blog/best-invoice-software-for-freelancers',
+  },
+  {
+    title: 'Invoice vs Quote vs Receipt',
+    description: 'Understand where each document belongs in a professional client workflow.',
+    href: '/blog/invoice-vs-quote-vs-receipt',
+  },
 ];
 
 const faqs = [
   {
-    q: 'Why Corvioz instead of invoicing software?',
-    a: 'Corvioz starts before the final document. It helps freelancers create a quote, prepare an invoice, and keep client records organized in one dashboard.',
-  },
-  {
     q: 'Who is Corvioz built for?',
-    a: 'Corvioz is built for photographers, consultants, designers, developers, and small studios that need a clear quote-to-invoice workflow without a heavy accounting suite.',
+    a: 'Corvioz is built for photographers, consultants, designers, developers, and small studios that need a clear client workflow without a heavy accounting suite.',
   },
   {
-    q: 'Can I manage recurring clients?',
-    a: 'Yes. You can keep client records, reuse quote and invoice details, and manage repeat work from the same dashboard.',
-  },
-  {
-    q: 'How are subscription plans handled?',
-    a: 'Subscriptions are securely handled through Paddle. Corvioz does not store card details.',
-  },
-  {
-    q: 'Can I switch plans later?',
-    a: 'Yes. You can move between Free, Starter, and Pro as your client workflow changes, without changing your existing quotes, invoices, or client records.',
-  },
-  {
-    q: 'Can I cancel before renewal?',
-    a: 'Yes. You can cancel future renewal before the next plan period or request plan support without cancellation fees or long-term contracts.',
-  },
-  {
-    q: 'How do refunds work?',
-    a: 'Subscription plans include a clear 14-day refund window. Email support@corvioz.com with your account email and Paddle receipt.',
-  },
-  {
-    q: 'Who owns my data?',
-    a: 'You own your invoices, quotes, client records, and exported documents. Corvioz does not sell personal data.',
-  },
-  {
-    q: 'Can I export my invoices?',
-    a: 'Yes. You can export client-ready invoices and quote documents so your records are not locked inside Corvioz.',
-  },
-  {
-    q: 'How long is my data stored?',
-    a: 'Account data is retained while your account is active and handled according to the privacy policy. Deleted account data follows the stated retention and deletion process.',
-  },
-  {
-    q: 'How is my data protected?',
-    a: 'Corvioz uses Supabase for authentication and database storage, and subscriptions are securely handled through Paddle with scoped account-data access patterns.',
+    q: 'Why Corvioz instead of invoicing software?',
+    a: 'Corvioz starts before the invoice. It connects the quote, the client decision, the invoice, and the project record so the context does not disappear between tools.',
   },
   {
     q: 'Do clients need an account?',
     a: 'No. Clients can review shared quote, invoice, and Client Portal links without creating a Corvioz account.',
   },
   {
-    q: 'Can I customize invoices?',
-    a: 'Yes. Corvioz supports professional invoice document details and subscription plans add stronger branding and delivery controls.',
+    q: 'Can I customize quotes and invoices?',
+    a: 'Yes. Corvioz supports professional document details, with stronger branding and delivery controls available on subscription plans.',
   },
   {
-    q: 'Can I use my own branding?',
-    a: 'Yes. Branding options depend on your plan, with subscription plans designed for independent professionals who want more polished client delivery.',
+    q: 'Who owns my data?',
+    a: 'You own your quotes, invoices, client records, and exported documents. Corvioz does not sell personal data.',
   },
   {
-    q: 'Is Corvioz full accounting software?',
-    a: 'No. Corvioz is a client management dashboard for quotes, invoices, and client records. It does not replace bookkeeping or tax software.',
+    q: 'How are subscription plans handled?',
+    a: 'Subscriptions are securely handled through Paddle. Corvioz does not store card details.',
+  },
+  {
+    q: 'Can I cancel before renewal?',
+    a: 'Yes. You can cancel future renewal before the next plan period without a long-term contract.',
+  },
+  {
+    q: 'Is Corvioz accounting software?',
+    a: 'No. Corvioz manages the client-facing workflow around quotes, invoices, and project records. It does not replace bookkeeping or tax software.',
   },
 ];
-
-function ProductPreview() {
-  const steps = [
-    { icon: '01', label: 'Request', text: 'Project scope captured', badge: 'Logged' },
-    { icon: '02', label: 'Quote', text: 'Milestone estimate prepared', badge: 'Drafted' },
-    { icon: '03', label: 'Quote', text: 'Client document delivered', badge: 'Sent' },
-    { icon: '04', label: 'Approval', text: 'Client approval captured', badge: 'Approved' },
-    { icon: '05', label: 'Delivery', text: 'Client timeline updated', badge: 'Completed', isOutcome: true }
-  ];
-
-  return (
-    <div className="hero-product-card" aria-label="Corvioz product preview">
-      <div className="product-topbar">
-        <div className="window-dots"><span /><span /><span /></div>
-        <span>dashboard / client management</span>
-        <span>Live workflow preview</span>
-      </div>
-      <div className="product-preview-header">
-        <div>
-          <span className="preview-label">Client delivery flow</span>
-          <h3>Quote to client approval, in one dashboard.</h3>
-        </div>
-        <div className="preview-summary-pill">5 steps organized</div>
-      </div>
-      <div className="workflow-container">
-        {steps.map((step, idx) => (
-          <React.Fragment key={step.label}>
-            <div className={`workflow-step ${step.isOutcome ? 'outcome-step' : ''}`}>
-              <span className="workflow-step-icon">{step.icon}</span>
-              <h4>{step.label}</h4>
-              <p>{step.text}</p>
-              <span className={`workflow-step-badge${step.isOutcome ? ' outcome' : ''}`}>
-                {step.badge}
-              </span>
-            </div>
-            {idx < steps.length - 1 && (
-              <div className="workflow-arrow">→</div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function CheckIcon() {
   return (
@@ -269,54 +210,42 @@ export default function Home() {
   return (
     <main className="landing-page">
       <PublicHeader
-          className="navbar landing-nav"
-          surfaceId="home-global-control-surface"
-          route="/"
-          navLinks={[
-            { label: 'How It Works', href: '#how-corvioz-works' },
-            { label: 'For Photographers', href: '/for-photographers' },
-            { label: 'Pricing', href: '#pricing' },
-            {
-              label: 'Resources',
-              href: '#resources',
-              children: [
-                { label: 'Blog', href: '/blog' },
-                { label: 'Invoice Templates', href: '/invoice-template' },
-                { label: 'Quote Templates', href: '/quote-template' },
-              ],
-            },
-            { label: 'Security', href: '/security' },
-            { label: 'Help Center', href: '/help' },
-          ]}
-          accountAction={{
-            label: 'Sign in',
-            href: '/dashboard',
-            variant: 'secondary',
-            onClick: () => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' }),
-          }}
-          primaryAction={{
-            label: 'Create Quote',
-            href: '/dashboard?tool=quote',
-            variant: 'primary',
-            onClick: () => {
-              saveIntendedRoute('/dashboard?tool=quote', '/');
-              trackEvent('signup_click', { position: 'navbar' });
-              trackEvent('cta_click', { cta_name: 'Create Quote', position: 'navbar' });
-            },
-          }}
+        className="navbar landing-nav landing-nav--editorial"
+        surfaceId="home-global-control-surface"
+        route="/"
+        showThemeToggle={false}
+        navLinks={[
+          { label: 'How It Works', href: '#how-corvioz-works' },
+          { label: 'Why Corvioz', href: '#why-corvioz' },
+          { label: 'Pricing', href: '#pricing' },
+          {
+            label: 'Resources',
+            href: '#resources',
+            children: [
+              { label: 'Blog', href: '/blog' },
+              { label: 'Invoice Templates', href: '/invoice-template' },
+              { label: 'Quote Templates', href: '/quote-template' },
+            ],
+          },
+        ]}
+        accountAction={{
+          label: 'Sign in',
+          href: '/dashboard',
+          variant: 'secondary',
+          onClick: () => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' }),
+        }}
+        primaryAction={null}
       />
 
-      <header className="landing-hero animate-fade-in">
+      <header className="landing-hero landing-hero--editorial animate-fade-in">
         <div className="hero-content-center">
-          <div className="hero-badge">
-            Photography Business Dashboard
-          </div>
+          <div className="hero-badge">Client workflow, connected</div>
           <h1 className="hero-title">
             Run every client workflow<br />
-            <span className="glow-gradient-text">with structure.</span>
+            <span>with structure.</span>
           </h1>
           <p className="hero-lede">
-            Corvioz helps independent professionals organize quotes, invoices, client documents, and project records in one focused dashboard.
+            Create the quote, capture the client&apos;s decision, issue the invoice, and keep every step connected through payment.
           </p>
 
           <div className="hero-actions">
@@ -324,7 +253,7 @@ export default function Home() {
               href="/dashboard?tool=quote"
               variant="primary"
               size="lg"
-              className="btn-hero-primary"
+              className="btn-hero-primary btn-hero-primary--ink"
               onClick={() => {
                 saveIntendedRoute('/dashboard?tool=quote', '/');
                 sendEvent('CTA_CLICK', { cta_name: 'Create Quote', position: 'hero', label: 'Create Quote' });
@@ -332,213 +261,62 @@ export default function Home() {
             >
               Create Quote
             </Button>
-            <Button
-              href="/demo"
-              variant="secondary"
-              size="lg"
-              className="btn-hero-secondary"
-              onClick={() => { sendEvent('CTA_CLICK', { cta_name: 'Explore Example', position: 'hero', label: 'Explore Example' }); }}
-            >
-              View Example
-            </Button>
           </div>
-          <div className="hero-social-proof">
+          <div className="hero-social-proof" aria-label="Product notes">
             <span>Free to start</span>
             <span>Built for independent professionals</span>
-            <span>Subscriptions are securely handled through Paddle.</span>
           </div>
         </div>
       </header>
 
       <section className="section-product-preview">
-        <ProductPreview />
+        <HeroProductDemo />
       </section>
+
       <div className="transition-block02-light-scope">
         <WorkflowContinuitySection />
       </div>
 
       <ScopeClaritySection />
 
-      <section id="why-corvioz" className="section section-why">
-        <div className="landing-section-container landing-section-container--narrow u-text-center">
-          <div className="section-header">
+      <section id="why-corvioz" className="section section-why section-why--editorial">
+        <div className="landing-section-container landing-section-container--wide why-editorial-layout">
+          <div className="why-editorial-intro">
             <p className="section-kicker">Why Corvioz</p>
-            <h2 className="section-title">Built for Independent Professionals</h2>
-            <p className="section-lede">The simple, professional dashboard to handle quotes, invoices, client records, and portfolio delivery without subscription creep.</p>
+            <h2 className="section-title">Built for independent professionals.</h2>
+            <p className="section-lede">
+              A focused operating record for the client-facing work that happens before, between, and after documents.
+            </p>
           </div>
 
-          <div className="why-cards-grid">
-            <div className="card why-card">
-              <h3 className="card-heading">Work more professionally</h3>
-              <p className="card-body">
-                Create consistent quotes, invoices, and client documents without rebuilding the same workflow every time.
-              </p>
-            </div>
-            <div className="card why-card">
-              <h3 className="card-heading">Keep client work clear</h3>
-              <p className="card-body">
-                Track client records, document status, and project context from one organized dashboard.
-              </p>
-            </div>
-            <div className="card why-card">
-              <h3 className="card-heading">Own your client records</h3>
-              <p className="card-body">
-                Your quotes, invoices, client notes, and exported documents remain part of your working archive.
-              </p>
-            </div>
+          <div className="why-editorial-list">
+            <article className="why-editorial-item">
+              <span className="why-editorial-number">01</span>
+              <div>
+                <h3>Make scope clear before approval.</h3>
+                <p>Put deliverables, usage rights, exclusions, and payment terms in one document clients can review.</p>
+              </div>
+            </article>
+            <article className="why-editorial-item">
+              <span className="why-editorial-number">02</span>
+              <div>
+                <h3>Keep every client decision connected.</h3>
+                <p>Preserve the relationship between the quote, the approval, the invoice, and the project record.</p>
+              </div>
+            </article>
+            <article className="why-editorial-item">
+              <span className="why-editorial-number">03</span>
+              <div>
+                <h3>Own the record after the project ends.</h3>
+                <p>Your documents and client history remain part of a working archive you can return to.</p>
+              </div>
+            </article>
           </div>
 
-          <div className="trust-badges-row">
-            <span>Subscriptions are securely handled through Paddle.</span>
-            <span className="trust-divider">|</span>
+          <div className="why-editorial-facts">
+            <span>Subscriptions handled through Paddle</span>
             <span>Privacy-focused client data controls</span>
-            <span className="trust-divider">|</span>
-            <span>Free to try</span>
-          </div>
-          <p style={{ marginTop: '18px' }}>
-            <Link href="/trust" className="btn btn-secondary btn-sm">
-              Why Trust Corvioz
-            </Link>
-          </p>
-        </div>
-      </section>
-
-      <section id="trust" className="section section-trust">
-        <div className="landing-section-container landing-section-container--wide">
-          <div className="section-header u-text-center">
-            <p className="section-kicker">Platform Integrity &amp; Previews</p>
-            <h2 className="section-title">Verified Visual Previews</h2>
-            <p className="section-lede">Explore the visual structure and interface layouts of the Corvioz dashboard. No fake testimonials, no mock logos, just real product outlines.</p>
-          </div>
-
-          <div className="trust-stats-grid">
-            <Card className="trust-stat-card">
-              <span className="trust-stat-label trust-stat-label--primary">Photographer Focus</span>
-              <h3 className="trust-stat-heading">Built for independent professionals</h3>
-              <p className="trust-stat-body">
-                A focused, lightweight dashboard built specifically for independent professionals, sole proprietors, and consultants.
-              </p>
-            </Card>
-            <Card className="trust-stat-card">
-              <span className="trust-stat-label trust-stat-label--success">Global Trust</span>
-              <h3 className="trust-stat-heading">Used worldwide</h3>
-              <p className="trust-stat-body">
-                Independent professionals use Corvioz to draft milestone quotes, prepare client-ready documents, and keep project records organized.
-              </p>
-            </Card>
-            <Card className="trust-stat-card">
-              <span className="trust-stat-label trust-stat-label--accent">Active Development</span>
-              <h3 className="trust-stat-heading">Early Access</h3>
-              <p className="trust-stat-body">
-                We grow with real feedback. We prioritize simple, direct client workflows over complex systems and algorithms.
-              </p>
-            </Card>
-          </div>
-
-          <div className="screenshot-gallery-grid">
-            <div className="product-preview-card">
-              <div>
-                <span className="preview-label">Layout 01</span>
-                <h4 className="preview-heading">Photography Dashboard</h4>
-                <p className="preview-body">
-                  A focused dashboard for project status, active clients, open documents, and delivery outcomes.
-                </p>
-              </div>
-              <div className="screenshot-window-mockup">
-                <div className="screenshot-window-dots"><span /><span /><span /></div>
-                <div className="wireframe-box">
-                  <div className="wireframe-row space-between">
-                    <span className="wireframe-bar md w-30"></span>
-                    <span className="wireframe-bar md w-20"></span>
-                  </div>
-                  <div className="wireframe-placeholder">
-                    Dashboard overview
-                  </div>
-                  <div className="wireframe-grid-3">
-                    <div className="wireframe-bar xl"></div>
-                    <div className="wireframe-bar xl"></div>
-                    <div className="wireframe-bar xl"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="product-preview-card">
-              <div>
-                <span className="preview-label">Layout 02</span>
-                <h4 className="preview-heading">Milestone Quotes</h4>
-                <p className="preview-body">
-                  Turn project scope, milestone pricing, and client approval into a clear quote flow.
-                </p>
-              </div>
-              <div className="screenshot-window-mockup">
-                <div className="screenshot-window-dots"><span /><span /><span /></div>
-                <div className="wireframe-box">
-                  <div className="wireframe-row">
-                    <span className="wireframe-bar md w-60"></span>
-                  </div>
-                  <div className="wireframe-placeholder">
-                    Quote builder
-                  </div>
-                  <div className="wireframe-row--interactive">
-                    <span className="wireframe-bar sm w-40"></span>
-                    <span className="wireframe-bar--cta"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="product-preview-card">
-              <div>
-                <span className="preview-label">Layout 03</span>
-                <h4 className="preview-heading">Documents &amp; Client Updates</h4>
-                <p className="preview-body">
-                  Create branded client documents, track review status, and keep project records in one place.
-                </p>
-              </div>
-              <div className="screenshot-window-mockup">
-                <div className="screenshot-window-dots"><span /><span /><span /></div>
-                <div className="wireframe-box">
-                  <div className="wireframe-row space-between">
-                    <span className="wireframe-bar md w-40"></span>
-                    <span className="wireframe-bar paid">DONE</span>
-                  </div>
-                  <div className="wireframe-placeholder">
-                    Document timeline
-                  </div>
-                  <div className="wireframe-divider">
-                    <span className="wireframe-bar sm w-20"></span>
-                    <span className="wireframe-bar sm w-30 accent"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="product-preview-card">
-              <div>
-                <span className="preview-label">Layout 04</span>
-                <h4 className="preview-heading">Client Portal</h4>
-                <p className="preview-body">
-                  Give clients a direct place to review quotes, documents, approvals, and project updates.
-                </p>
-              </div>
-              <div className="screenshot-window-mockup">
-                <div className="screenshot-window-dots"><span /><span /><span /></div>
-                <div className="wireframe-box">
-                  <div className="wireframe-row--align-center">
-                    <span className="wireframe-avatar--sm"></span>
-                    <span className="wireframe-bar sm w-50"></span>
-                  </div>
-                  <div className="wireframe-placeholder">
-                    Client portal
-                  </div>
-                  <div className="wireframe-row">
-                    <span className="wireframe-bar sm flex-1"></span>
-                    <span className="wireframe-bar sm flex-1"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Link href="/trust">Read the trust principles</Link>
           </div>
         </div>
       </section>
@@ -551,7 +329,7 @@ export default function Home() {
 
           <div className="billing-period-wrapper">
             <div className="billing-savings-label">
-              Switch to Yearly for 2 Months Free (Save 20%)
+              Save 20% when billed yearly
             </div>
             <div className="billing-toggle">
               <button
@@ -566,7 +344,7 @@ export default function Home() {
                 className={`billing-toggle-btn${billingPeriod === 'yearly' ? ' active' : ''}`}
                 onClick={() => setBillingPeriod('yearly')}
               >
-                Yearly <span className="billing-save-badge">Save 20%</span>
+                Yearly
               </button>
             </div>
           </div>
@@ -659,21 +437,27 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="resources" className="section section-resources">
-        <div className="landing-section-container landing-section-container--narrow u-text-center">
-          <p className="section-kicker">Resources</p>
-          <h2 className="section-title">Practical Guides for Client Work</h2>
-          <div className="feature-overview-grid">
+      <section id="resources" className="section section-resources section-resources--editorial">
+        <div className="landing-section-container landing-section-container--narrow">
+          <div className="section-header u-text-center">
+            <p className="section-kicker">Resources</p>
+            <h2 className="section-title">Practical guides for client work.</h2>
+          </div>
+          <div className="resource-editorial-list">
             {resources.map((resource) => (
-              <Link key={resource.href} href={resource.href} className="resource-card">
-                {resource.title}
+              <Link key={resource.href} href={resource.href} className="resource-editorial-item">
+                <div>
+                  <h3>{resource.title}</h3>
+                  <p>{resource.description}</p>
+                </div>
+                <span aria-hidden="true">↗</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="faq" className="section section-faq">
+      <section id="faq" className="section section-faq section-faq--editorial">
         <div className="landing-section-container landing-section-container--faq u-text-center">
           <p className="section-kicker">FAQ</p>
           <h2 className="section-title">Questions before you start</h2>
@@ -682,7 +466,7 @@ export default function Home() {
               <div key={item.q} className="faq-item">
                 <button type="button" onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}>
                   <span>{item.q}</span>
-                  <span>{activeFaq === idx ? '-' : '+'}</span>
+                  <span>{activeFaq === idx ? '−' : '+'}</span>
                 </button>
                 {activeFaq === idx && <p>{item.a}</p>}
               </div>
@@ -691,36 +475,32 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="transparency" className="section section-transparency">
-        <div className="landing-section-container landing-section-container--narrow">
-          <div className="transparency-grid">
-            <div className="card transparency-card">
-              <span className="transparency-label transparency-label--primary">Note from the Founder</span>
-              <h3 className="transparency-heading">Built for Independent Professionals</h3>
-              <p className="transparency-body">
-                &quot;Hi, I&apos;m Duo, the creator of Corvioz. Like many of you, I struggled with bloated, expensive CRM software and accounting tools that assumed I had a finance team.
-              </p>
-              <p className="transparency-body">
-                We built Corvioz to give independent professionals a focused, fast, and beautiful dashboard to handle quotes, invoices, client documents, and client records. We believe in providing value first, which is why you can try the tool with zero signup and download watermarked copies for free.&quot;
-              </p>
-              <strong className="transparency-sig">Duo, Founder of Corvioz</strong>
-            </div>
-
-            <div className="card transparency-card">
-              <span className="transparency-label transparency-label--accent">Ethical &amp; Transparent</span>
-              <h3 className="transparency-heading">Our Transparency Pledge</h3>
-              <p className="transparency-body">
-                We respect your data and trust. Guest mode drafts are secured locally in your own browser cache using localStorage. We do not track or store your client information on our servers until you choose to sign up and sync it.
-              </p>
-              <p className="transparency-body u-mb-0">
-                Our monetization is simple: client-ready document export, custom client portals, and client record management are Pro features. We never sell your data, and we do not use manipulative pricing or fake urgency timers.
-              </p>
-            </div>
+      <section id="transparency" className="section section-transparency section-transparency--editorial">
+        <div className="landing-section-container landing-section-container--wide founder-note-layout">
+          <div className="founder-note-copy">
+            <span className="transparency-label">A note from Duo</span>
+            <h2>Independent professionals should not need a finance team to run a clear client process.</h2>
+            <p>
+              Corvioz began with a simple frustration: quotes, client decisions, invoices, and project records were spread across tools that did not understand how the work connected.
+            </p>
+            <p>
+              We are building a quieter, more focused system for keeping that client-facing record clear from the first quote onward.
+            </p>
+            <strong className="transparency-sig">Duo · Founder, Corvioz</strong>
+          </div>
+          <div className="founder-promises">
+            <p className="section-kicker">Our principles</p>
+            <ul>
+              <li>Your client records remain yours.</li>
+              <li>No fake urgency or manipulative pricing.</li>
+              <li>No data resale.</li>
+              <li>Focused workflows, not accounting bloat.</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      <section id="final-cta" className="section section-final-cta">
+      <section id="final-cta" className="section section-final-cta section-final-cta--ink">
         <div className="landing-section-container landing-section-container--cta u-text-center">
           <p className="section-kicker">
             Built for independent professionals
@@ -749,7 +529,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="final-cta-note">
-            Free during early access.
+            Free to start during early access.
           </p>
         </div>
       </section>

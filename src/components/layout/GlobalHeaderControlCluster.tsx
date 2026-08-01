@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ThemeToggle from '../../app/components/ThemeToggle';
 import { Button } from '../ui/Button';
 import { assertSingleControlSurface } from '../../core/ui/controlSurfaceEnforcer';
+import type { GlobalControlSurfaceKey } from '../../core/ui/globalControlSurface';
 
 export interface HeaderControlLink {
   label: string;
@@ -28,6 +29,7 @@ export interface GlobalHeaderControlClusterProps {
   surfaceId?: string;
   route?: string;
   compact?: boolean;
+  showThemeToggle?: boolean;
 }
 
 export function GlobalHeaderControlCluster({
@@ -37,6 +39,7 @@ export function GlobalHeaderControlCluster({
   surfaceId,
   route,
   compact = false,
+  showThemeToggle = true,
 }: GlobalHeaderControlClusterProps) {
   const generatedId = useId();
   const resolvedSurfaceId = surfaceId ?? `global-header-control-${generatedId}`;
@@ -44,12 +47,12 @@ export function GlobalHeaderControlCluster({
   const hasMenu = navLinks.length > 0 || Boolean(accountAction) || Boolean(primaryAction);
 
   useEffect(() => {
-    return assertSingleControlSurface(
-      resolvedSurfaceId,
-      ['theme_toggle', 'menu_trigger', 'auth_entry', 'workspace_switch'],
-      route,
-    );
-  }, [resolvedSurfaceId, route]);
+    const controls: GlobalControlSurfaceKey[] = showThemeToggle
+      ? ['theme_toggle', 'menu_trigger', 'auth_entry', 'workspace_switch']
+      : ['menu_trigger', 'auth_entry', 'workspace_switch'];
+
+    return assertSingleControlSurface(resolvedSurfaceId, controls, route);
+  }, [resolvedSurfaceId, route, showThemeToggle]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -59,7 +62,7 @@ export function GlobalHeaderControlCluster({
       variant={action.variant ?? fallbackVariant}
       size="sm"
       icon={undefined}
-      className={action.variant === 'primary' ? 'btn-navbar-cta' : undefined}
+      className={action.variant === 'primary' ? 'btn-navbar-cta' : 'header-account-action'}
       onClick={() => {
         closeMenu();
         action.onClick?.();
@@ -72,7 +75,7 @@ export function GlobalHeaderControlCluster({
   if (compact) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <ThemeToggle />
+        {showThemeToggle && <ThemeToggle />}
         {accountAction && renderAction(accountAction, 'secondary')}
       </div>
     );
@@ -186,7 +189,7 @@ export function GlobalHeaderControlCluster({
       </div>
 
       <div className="global-control-actions">
-        <ThemeToggle />
+        {showThemeToggle && <ThemeToggle />}
         {hasMenu && (
           <button
             type="button"
