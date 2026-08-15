@@ -1813,9 +1813,13 @@ const styles = String.raw`/* ===================================================
 }
 
 .fp-reveal-item {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(6px);
   transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+}
+
+.home-reveal-ready .fp-reveal-item:not(.revealed) {
+  opacity: 0;
 }
 
 .fp-reveal-item.revealed {
@@ -2241,7 +2245,11 @@ const styles = String.raw`/* ===================================================
   }
 
   .workflow-rail-fill,
-  .fp-reveal-item {
+  .fp-reveal-item,
+  .home-reveal-ready .fp-reveal-item:not(.revealed),
+  .home-reveal-ready .resources-reveal-item:not(.revealed),
+  .home-reveal-ready .founder-trust-reveal-item:not(.revealed),
+  .home-reveal-ready .final-cta-reveal-item:not(.revealed) {
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -2413,9 +2421,13 @@ const styles = String.raw`/* ===================================================
 
 /* Restrained Section Entry Reveal */
 .resources-reveal-item {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(6px);
   transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+}
+
+.home-reveal-ready .resources-reveal-item:not(.revealed) {
+  opacity: 0;
 }
 
 .resources-reveal-item.revealed {
@@ -2427,6 +2439,11 @@ const styles = String.raw`/* ===================================================
 @media (prefers-reduced-motion: reduce) {
   .resources-reveal-item {
     transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .home-reveal-ready .resources-reveal-item:not(.revealed) {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -2711,9 +2728,13 @@ const styles = String.raw`/* ===================================================
 
 /* Restrained Entry Motion Reveal */
 .founder-trust-reveal-item {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(6px);
   transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+}
+
+.home-reveal-ready .founder-trust-reveal-item:not(.revealed) {
+  opacity: 0;
 }
 
 .founder-trust-reveal-item.revealed {
@@ -2725,6 +2746,11 @@ const styles = String.raw`/* ===================================================
 @media (prefers-reduced-motion: reduce) {
   .founder-trust-reveal-item {
     transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .home-reveal-ready .founder-trust-reveal-item:not(.revealed) {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -2812,9 +2838,13 @@ const styles = String.raw`/* ===================================================
 
 /* Restrained Entry Motion Reveal */
 .final-cta-reveal-item {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(6px);
   transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+}
+
+.home-reveal-ready .final-cta-reveal-item:not(.revealed) {
+  opacity: 0;
 }
 
 .final-cta-reveal-item.revealed {
@@ -2826,6 +2856,11 @@ const styles = String.raw`/* ===================================================
 @media (prefers-reduced-motion: reduce) {
   .final-cta-reveal-item {
     transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .home-reveal-ready .final-cta-reveal-item:not(.revealed) {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -3555,6 +3590,29 @@ export default function HomeV1() {
     cleanups.push(listen(document, 'pointerdown', (event) => { if (mobileMenu && !mobileMenu.hidden && !mobileMenu.contains(event.target) && !menuToggle?.contains(event.target)) closeMobileMenu(); }));
     cleanups.push(listen(window, 'resize', () => { if (window.innerWidth > 820) closeMobileMenu(); }));
 
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const revealItems = ['fp-section-reveal', 'resources-surface-reveal', 'founder-trust-reveal', 'final-cta-reveal']
+      .map((id) => root.querySelector(`#${id}`))
+      .filter(Boolean);
+    const revealAll = () => revealItems.forEach((item) => item.classList.add('revealed'));
+    if (motionQuery.matches || typeof IntersectionObserver === 'undefined') {
+      revealAll();
+    } else if (revealItems.length) {
+      root.classList.add('home-reveal-ready');
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.01, rootMargin: '0px 0px -5% 0px' });
+      revealItems.forEach((item) => revealObserver.observe(item));
+      cleanups.push(() => revealObserver.disconnect());
+    }
+    cleanups.push(listen(motionQuery, 'change', () => { if (motionQuery.matches) revealAll(); }));
+    cleanups.push(() => root.classList.remove('home-reveal-ready'));
+
     const stages = {
       1: ['STAGE 1: QUOTE SENT', 'badge-stage-1', 'Quote Sent', 'Commercial Photography Quote #Q-2026-084', 'Prepared for Maya Chen / Northline Studio • Sent Aug 10, 2026', 'Quote delivered to client for review', '$4,800.00', false, [['Commercial Photo Shoot (Full Day Directing & Crew)', '1', '$2,400.00', '$2,400.00'], ['High-Res Digital Licensing (2-Year Rights)', '1', '$1,600.00', '$1,600.00'], ['Color Grading & Retouching (20 Selected Master Assets)', '1', '$800.00', '$800.00']]],
       2: ['STAGE 2: CLIENT APPROVED', 'badge-stage-2', 'Client Approved', 'Quote #Q-2026-084', 'Approved by Northline Studio • Active Working Reference', 'Client approval recorded • Scope locked as working baseline', '$4,800.00', false, [['Commercial Photo Shoot (Full Day Directing & Crew)', '1', '$2,400.00', '$2,400.00'], ['High-Res Digital Licensing (2-Year Rights)', '1', '$1,600.00', '$1,600.00'], ['Color Grading & Retouching (20 Selected Master Assets)', '1', '$800.00', '$800.00']]],
@@ -3563,7 +3621,6 @@ export default function HomeV1() {
     };
     let autoplay = null;
     let userInteracted = false;
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const setText = (selector, value) => { const element = root.querySelector(selector); if (element) element.textContent = value; };
     const applyStage = (number) => {
       const [name, badge, status, title, subtitle, note, total, showConvert, rows] = stages[number];
