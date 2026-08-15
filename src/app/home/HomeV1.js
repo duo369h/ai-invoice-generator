@@ -1012,7 +1012,7 @@ const styles = String.raw`/* ===================================================
   /* min-height: prototype-only removed in Cohesion V1 — PROTOTYPE_ONLY_EMPTY_TAIL_REMOVED=YES */
 }
 
-[data-home-v1] a {
+[data-home-v1] a:not(.btn-primary-cta):not(.btn-hero-cta):not(.btn-final-cta-primary) {
   color: inherit;
   text-decoration: none;
 }
@@ -3022,6 +3022,10 @@ const styles = String.raw`/* ===================================================
   margin: 0 28px 0 0;
   flex-shrink: 0;
   align-self: center;
+}
+
+.footer-trust-strip .footer-trust-sep {
+  flex: 0 0 1px;
 }
 
 .footer-trust-link {
