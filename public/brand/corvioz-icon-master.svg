@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" color="#4F46E5" shape-rendering="geometricPrecision">
+  <defs><mask id="d-refined-master" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="white"/><circle cx="28.5" cy="34" r="12.5" fill="black"/><path d="M48 5 59 16 39 36 28 25 48 5Z" fill="black"/></mask></defs>
+  <circle cx="32" cy="32" r="27" fill="currentColor" mask="url(#d-refined-master)"/>
+</svg>
+

@@ -2,3 +2,4 @@
   <defs><mask id="d-small-proportional" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><circle cx="7.125" cy="8.5" r="3.125" fill="black"/><path d="M12 1.25 14.75 4 9.75 9 7 6.25 12 1.25Z" fill="black"/></mask></defs>
   <circle cx="8" cy="8" r="6.75" fill="currentColor" mask="url(#d-small-proportional)"/>
 </svg>
+

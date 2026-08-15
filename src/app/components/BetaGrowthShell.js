@@ -16,6 +16,7 @@ export default function BetaGrowthShell({ children }) {
   const pathname = usePathname();
   const isDashboardOrAuth = pathname?.startsWith('/dashboard') || pathname?.startsWith('/auth');
   const isHomePage = pathname === '/';
+  const isApprovedPublicPage = pathname === '/' || pathname === '/for-photographers';
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -73,7 +74,7 @@ export default function BetaGrowthShell({ children }) {
     }
   };
 
-  if (isDashboardOrAuth) {
+  if (isDashboardOrAuth || isApprovedPublicPage) {
     return <>{children}</>;
   }
 
