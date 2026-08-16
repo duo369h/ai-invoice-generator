@@ -25,12 +25,6 @@ export default function MatrixCountryPage({ page, siteUrl }) {
       <PublicHeader
         route={page.canonicalPath || page.breadcrumbs?.[page.breadcrumbs.length - 1]?.item || 'matrix-country'}
         surfaceId="matrix-country-public-header"
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
-        primaryAction={null}
       />
 
       <header className="container" style={{ padding: '72px 24px 42px', maxWidth: '1080px', margin: '0 auto' }}>

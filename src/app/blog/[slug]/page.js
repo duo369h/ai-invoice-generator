@@ -132,14 +132,6 @@ export default async function BlogPostPage({ params }) {
       <PublicHeader
         route={`/blog/${slug}`}
         surfaceId="blog-post-public-header"
-        logoSize={22}
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Resources', href: '/blog', active: true },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
-        primaryAction={null}
       />
 
       <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '72px 24px' }}>

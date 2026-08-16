@@ -41,12 +41,6 @@ export default function SeoMoneyPage({ page }) {
       <PublicHeader
         route={`/${page.slug}`}
         surfaceId={`seo-money-header-${page.slug}`}
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Resources', href: '/blog' },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
       />
 
       <header className="container" style={{ padding: '76px 24px 48px', maxWidth: '1120px', margin: '0 auto' }}>

@@ -63,12 +63,6 @@ export default function MatrixSeoPage({ page, siteUrl }) {
       <PublicHeader
         route={page.canonicalPath}
         surfaceId="matrix-seo-public-header"
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
-        primaryAction={null}
       />
 
       <header className="container" style={{ padding: '72px 24px 42px', maxWidth: '1080px', margin: '0 auto' }}>

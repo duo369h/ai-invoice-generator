@@ -65,11 +65,6 @@ export default function ProgrammaticSeoPage({ page, siteUrl }) {
       <PublicHeader
         route={page.canonicalPath}
         surfaceId="programmatic-seo-public-header"
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
       />
 
       <header className="container" style={{ padding: '76px 24px 44px', maxWidth: '1080px', margin: '0 auto' }}>

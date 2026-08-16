@@ -67,13 +67,6 @@ export default function SeoEntryLandingPage({ page }) {
       <PublicHeader
         route={page.path}
         surfaceId={`seo-entry-header-${page.analyticsSlug}`}
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Pricing', href: '/pricing' },
-          { label: 'Resources', href: '/blog' },
-        ]}
-        primaryAction={{ label: 'Create Quote', href: '/dashboard?tool=quote', variant: 'primary' }}
       />
 
       <header className="container" style={{ padding: '72px 24px 44px', maxWidth: '1120px', margin: '0 auto' }}>

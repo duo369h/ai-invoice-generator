@@ -21,15 +21,6 @@ export default function BlogIndex() {
       <PublicHeader
         route="/blog"
         surfaceId="blog-public-header"
-        logoSize={22}
-        navLinks={[
-          { label: 'Documents', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Resources', href: '/blog', active: true },
-          { label: 'Pricing', href: '/pricing' },
-          { label: 'Security', href: '/security' },
-        ]}
-        primaryAction={null}
       />
 
       {/* Main Container */}

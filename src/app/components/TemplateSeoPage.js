@@ -24,12 +24,6 @@ export default function TemplateSeoPage({ page }) {
       <PublicHeader
         route={page.canonicalPath || page.ctaHref || 'template-seo'}
         surfaceId="template-seo-public-header"
-        navLinks={[
-          { label: 'Invoices', href: '/invoice-generator' },
-          { label: 'Quotes', href: '/quote-generator' },
-          { label: 'Resources', href: '/blog' },
-          { label: 'Pricing', href: '/pricing' },
-        ]}
       />
 
       <header className="container" style={{ padding: '68px 24px 36px', maxWidth: '980px', margin: '0 auto' }}>
