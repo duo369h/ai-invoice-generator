@@ -129,6 +129,7 @@ export function GlobalHeaderControlCluster({
         <style>{`
           .public-v2-navbar {
             box-sizing: border-box;
+            font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             height: 64px;
             width: 100%;
             padding: 0 32px;
