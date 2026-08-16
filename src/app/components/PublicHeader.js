@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Logo } from './UIComponents';
+import Link from 'next/link';
 import GlobalHeaderControlCluster from '../../components/layout/GlobalHeaderControlCluster';
 
 const DEFAULT_NAV_LINKS = [
@@ -12,13 +12,13 @@ const DEFAULT_NAV_LINKS = [
     label: 'Resources',
     href: '#',
     children: [
+      { label: 'Guides', href: '/#guides' },
+      { label: 'Templates', href: '/quote-template' },
       { label: 'Blog', href: '/blog' },
-      { label: 'Invoice Templates', href: '/invoice-template' },
-      { label: 'Quote Templates', href: '/quote-template' }
+      { label: 'Help Center', href: '/help' }
     ]
   },
-  { label: 'Security', href: '/security' },
-  { label: 'Help Center', href: '/help' }
+  { label: 'Security', href: '/security' }
 ];
 
 export default function PublicHeader({
@@ -26,21 +26,23 @@ export default function PublicHeader({
   surfaceId,
   navLinks = DEFAULT_NAV_LINKS,
   accountAction = { label: 'Sign in', href: '/dashboard', variant: 'secondary' },
-  primaryAction = { label: 'Create Quote', href: '/dashboard?tool=quote', variant: 'primary' },
+  primaryAction = { label: 'Create Quote', href: '/signup?redirect=%2Fdashboard%3Ftool%3Dquote%26mode%3Dcreate%26flow%3Dfirst-quote', variant: 'primary' },
   className = 'navbar',
   logoSize,
-  showThemeToggle = true,
 }) {
   return (
-    <nav className={className}>
-      <Logo size={logoSize} />
+    <nav className={`${className} public-v2-navbar`} data-public-header="v2">
+      <Link href="/" className="public-v2-logo" aria-label="Corvioz home">
+        <span className="public-v2-wordmark" data-logo-size={logoSize || undefined}>Corvioz</span>
+      </Link>
       <GlobalHeaderControlCluster
         surfaceId={surfaceId || `public-header-${route}`}
         route={route}
         navLinks={navLinks}
         accountAction={accountAction}
         primaryAction={primaryAction}
-        showThemeToggle={showThemeToggle}
+        showThemeToggle={false}
+        variant="publicV2"
       />
     </nav>
   );

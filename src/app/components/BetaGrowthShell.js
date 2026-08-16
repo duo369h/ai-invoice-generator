@@ -7,6 +7,39 @@ import { trackFeedbackSubmitted } from '../lib/product-analytics';
 
 const FEEDBACK_EVENT = 'corvioz:open-feedback';
 
+const PUBLIC_EXACT_ROUTES = new Set([
+  '/',
+  '/for-photographers',
+  '/pricing',
+  '/contact',
+  '/help',
+  '/security',
+  '/privacy',
+  '/terms',
+  '/trust',
+  '/refund-policy',
+  '/payment-instructions',
+  '/client-portal',
+  '/freelancers',
+  '/freelancer-profile-demo',
+  '/photographer-invoice-software',
+  '/photographer-invoice-template',
+  '/photographer-quote-template',
+]);
+
+const PUBLIC_ROUTE_FAMILIES = [
+  '/blog',
+  '/invoice-generator',
+  '/invoice-template',
+  '/quote-generator',
+  '/quote-template',
+];
+
+function isPublicMarketingRoute(pathname) {
+  if (PUBLIC_EXACT_ROUTES.has(pathname)) return true;
+  return PUBLIC_ROUTE_FAMILIES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 export function openBetaFeedbackWidget(source = 'unknown') {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(FEEDBACK_EVENT, { detail: { source } }));
@@ -15,8 +48,7 @@ export function openBetaFeedbackWidget(source = 'unknown') {
 export default function BetaGrowthShell({ children }) {
   const pathname = usePathname();
   const isDashboardOrAuth = pathname?.startsWith('/dashboard') || pathname?.startsWith('/auth');
-  const isHomePage = pathname === '/';
-  const isApprovedPublicPage = pathname === '/' || pathname === '/for-photographers';
+  const isPublicRoute = isPublicMarketingRoute(pathname);
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -74,7 +106,7 @@ export default function BetaGrowthShell({ children }) {
     }
   };
 
-  if (isDashboardOrAuth || isApprovedPublicPage) {
+  if (isDashboardOrAuth || isPublicRoute) {
     return <>{children}</>;
   }
 
@@ -96,7 +128,7 @@ export default function BetaGrowthShell({ children }) {
 
       {children}
 
-      {!isHomePage && (
+      {!isPublicRoute && (
         <button
           type="button"
           className="feedback-floating-button"
