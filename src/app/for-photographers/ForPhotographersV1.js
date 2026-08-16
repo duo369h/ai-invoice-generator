@@ -260,7 +260,7 @@ const markup = String.raw`
               <!-- ACTIVE BRIDGE LINE FILL -->
               <line class="connector-svg-fill" id="connectorSvgFill" x1="0" y1="9" x2="120" y2="9" stroke="#4F46E5" stroke-width="1.25" stroke-linecap="round" />
               <!-- CUSTOM SLENDER ARROWHEAD (NO INTERNAL SHAFT!) -->
-              <path class="connector-svg-arrowhead" id="connectorSvgArrowhead" fill="none" stroke="#4F46E5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" d="M -6 -3.5 L 0 0 L -6 3.5" />
+              <path class="connector-svg-arrowhead" id="connectorSvgArrowhead" fill="none" stroke="#4F46E5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" transform="translate(120 9)" d="M -6 -3.5 L 0 0 L -6 3.5" />
             </svg>
           </div>
         </div>
