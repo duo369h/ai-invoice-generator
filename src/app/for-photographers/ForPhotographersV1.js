@@ -5264,7 +5264,157 @@ export default function ForPhotographersV1() {
     const applyM06 = (row) => { scopeEntries?.classList.toggle('has-attention', Boolean(row)); usecaseRows.forEach((candidate) => candidate.classList.toggle('is-active', candidate === row)); };
     cleanups.push(listen(scopeRegister, 'pointermove', (event) => { let row = usecaseRows.find((candidate) => candidate.contains(event.target)); if (!row) row = usecaseRows.find((candidate) => { const rect = candidate.getBoundingClientRect(); return event.clientY >= rect.top && event.clientY <= rect.bottom; }); if (!row && usecaseRows.length) row = usecaseRows.reduce((closest, candidate) => Math.abs(candidate.getBoundingClientRect().top + candidate.getBoundingClientRect().height / 2 - event.clientY) < Math.abs(closest.getBoundingClientRect().top + closest.getBoundingClientRect().height / 2 - event.clientY) ? candidate : closest); applyM06(row); })); cleanups.push(listen(scopeRegister, 'pointerleave', () => applyM06(null)));
 
-    return () => { closeMobile(); cleanups.forEach((cleanup) => cleanup?.()); };
+    // MODULE 02 UPPER TRANSFORMATION — frozen V2.11 pointer synchronization.
+    const transformation = root.querySelector('#transformationLayout');
+    const inquiry = root.querySelector('#inquiryCol');
+    const scope = root.querySelector('#scopeCol');
+    const inquiryText = root.querySelector('#inquiryQuoteText');
+    const connectorFill = root.querySelector('#connectorSvgFill');
+    const arrowhead = root.querySelector('#connectorSvgArrowhead');
+    const spine = root.querySelector('#scopeSpine');
+    const spineFill = root.querySelector('#spineFill');
+    const factItems = ['fact-1', 'fact-2', 'fact-3', 'fact-4'].map((id) => root.querySelector(`#${id}`));
+    const factTexts = ['factText1', 'factText2', 'factText3', 'factText4'].map((id) => root.querySelector(`#${id}`));
+    const factBranches = ['factBranch1', 'factBranch2', 'factBranch3', 'factBranch4'].map((id) => root.querySelector(`#${id}`));
+    let upperMotionDisposed = false;
+
+    if (transformation && connectorFill && arrowhead && spine && spineFill && inquiryText && finePointer.matches && !reducedMotion.matches) {
+      let quoteStartX = 0;
+      let factEntryX = 0;
+      let spineTopY = 0;
+      let spineHeight = 1;
+      let factBounds = [];
+      let factSpineScale = [];
+      let targetHProgress = 1;
+      let currentHProgress = 1;
+      let rawPointerY = 0;
+      let isHovering = false;
+      let rafId = 0;
+
+      const updateGeometry = () => {
+        const quoteRect = inquiryText.getBoundingClientRect();
+        const firstFactRect = factTexts[0]?.getBoundingClientRect();
+        const fallbackFactRect = firstFactRect || quoteRect;
+        const rects = factTexts.map((fact) => fact?.getBoundingClientRect() || fallbackFactRect);
+        const spineRect = spine.getBoundingClientRect();
+
+        quoteStartX = quoteRect.left;
+        factEntryX = fallbackFactRect.left;
+        spineTopY = spineRect.top;
+        spineHeight = Math.max(1, spineRect.height);
+        factBounds = rects.map((rect) => ({
+          top: rect.top,
+          center: rect.top + (rect.height / 2),
+          bottom: rect.bottom,
+        }));
+        factSpineScale = factBounds.map((bounds) => Math.max(0, Math.min(1, (bounds.center - spineTopY) / spineHeight)));
+      };
+
+      const calculateHorizontalProgress = (pointerX) => {
+        if (pointerX <= quoteStartX) return 0;
+        if (pointerX >= factEntryX) return 1;
+        return (pointerX - quoteStartX) / (factEntryX - quoteStartX);
+      };
+
+      const renderVisualState = (horizontalProgress) => {
+        const h = Math.max(0, Math.min(1, horizontalProgress));
+        inquiry.style.opacity = (isHovering ? 1 - (h * 0.4) : 0.85).toFixed(3);
+        scope.style.opacity = '1';
+
+        const bridgeProgress = isHovering ? h : 1;
+        const endpointX = bridgeProgress * 120;
+        connectorFill.setAttribute('x2', endpointX.toFixed(2));
+        arrowhead.setAttribute('transform', `translate(${endpointX.toFixed(2)}, 9)`);
+        arrowhead.style.opacity = isHovering && bridgeProgress < 0.03 ? '0' : '1';
+
+        let spineScaleY = 1;
+        if (isHovering) {
+          if (h < 0.95) {
+            spineScaleY = 0;
+          } else if (rawPointerY <= (factBounds[0]?.center || 500)) {
+            spineScaleY = factSpineScale[0] || 0;
+          } else if (rawPointerY >= (factBounds[3]?.center || 650)) {
+            spineScaleY = factSpineScale[3] || 0;
+          } else {
+            spineScaleY = Math.max(0, Math.min(1, (rawPointerY - spineTopY) / spineHeight));
+          }
+        }
+        spineFill.style.transform = `scaleY(${spineScaleY.toFixed(3)})`;
+
+        factBounds.forEach((bounds, index) => {
+          let localProgress = 1;
+          if (isHovering) {
+            if (h < 0.95 || rawPointerY <= bounds.top) {
+              localProgress = 0;
+            } else if (rawPointerY < bounds.center) {
+              const rawLocal = (rawPointerY - bounds.top) / (bounds.center - bounds.top);
+              localProgress = rawLocal * rawLocal * (3 - (2 * rawLocal));
+            }
+          }
+          const clampedProgress = Math.max(0, Math.min(1, localProgress));
+          const item = factItems[index];
+          const branch = factBranches[index];
+          if (item) {
+            item.style.opacity = (0.35 + (clampedProgress * 0.65)).toFixed(3);
+            item.style.transform = `translateX(${(-2 * (1 - clampedProgress)).toFixed(2)}px)`;
+          }
+          if (branch) {
+            branch.style.transform = `scaleX(${clampedProgress.toFixed(3)})`;
+            branch.style.backgroundColor = clampedProgress <= 0.05 ? 'var(--border-subtle)' : 'var(--brand-primary)';
+          }
+        });
+      };
+
+      const startRafLoop = () => {
+        if (rafId) return;
+        const loop = () => {
+          const diff = targetHProgress - currentHProgress;
+          currentHProgress += diff * 0.25;
+          renderVisualState(currentHProgress);
+          if (Math.abs(diff) > 0.0005 || isHovering) {
+            rafId = window.requestAnimationFrame(loop);
+          } else {
+            currentHProgress = targetHProgress;
+            renderVisualState(currentHProgress);
+            rafId = 0;
+          }
+        };
+        rafId = window.requestAnimationFrame(loop);
+      };
+
+      updateGeometry();
+      renderVisualState(1);
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(() => {
+          if (!upperMotionDisposed) updateGeometry();
+        }).catch(() => {});
+      }
+      cleanups.push(listen(window, 'resize', updateGeometry));
+      cleanups.push(listen(transformation, 'mouseenter', (event) => {
+        isHovering = true;
+        rawPointerY = event.clientY;
+        updateGeometry();
+        targetHProgress = calculateHorizontalProgress(event.clientX);
+        startRafLoop();
+      }));
+      cleanups.push(listen(transformation, 'mousemove', (event) => {
+        rawPointerY = event.clientY;
+        targetHProgress = calculateHorizontalProgress(event.clientX);
+        startRafLoop();
+      }));
+      cleanups.push(listen(transformation, 'mouseleave', () => {
+        isHovering = false;
+        targetHProgress = 1;
+        startRafLoop();
+      }));
+      cleanups.push(() => {
+        upperMotionDisposed = true;
+        if (rafId) window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      });
+    }
+
+    return () => { upperMotionDisposed = true; closeMobile(); cleanups.forEach((cleanup) => cleanup?.()); };
   }, []);
   return <div data-photographers-v1 ref={rootRef}><style>{styles}</style><div dangerouslySetInnerHTML={{ __html: markup }} /></div>;
 }
