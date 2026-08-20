@@ -3,6 +3,7 @@ import "./styles/base.css";
 import "./styles/utilities.css";
 import "./styles/components.css";
 import "./styles/layouts.css";
+import "./styles/public-shell.css";
 import { getSiteUrl } from "./lib/config";
 import AnalyticsProvider from "./components/AnalyticsProvider";
 import BetaGrowthShell from "./components/BetaGrowthShell";

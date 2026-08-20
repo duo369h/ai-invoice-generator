@@ -300,10 +300,18 @@ export async function PATCH(request, { params }) {
       .eq('id', resolved.data.user_id)
       .maybeSingle();
 
-    const freelancerName = freelancerProfile?.name || 'Freelancer';
+    const freelancerName = freelancerProfile?.name || 'Photographer';
     const freelancerEmail = freelancerProfile?.email;
 
     if (resolved.type === 'quote') {
+      if (action === 'approve' || action === 'reject') {
+        if (!entitlements.client_approval || entitlements.approval_scope !== 'quotes_only') {
+          return NextResponse.json({
+            error: 'UPGRADE_REQUIRED',
+            requiredPlan: 'pro'
+          }, { status: 403 });
+        }
+      }
       if (action === 'approve') {
         const { error } = await serviceSupabase
           .from('quotes')
@@ -335,36 +343,8 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    if (resolved.type === 'invoice') {
-      if (action === 'pay') {
-        const { error } = await serviceSupabase
-          .from('invoices')
-          .update({ status: 'paid', updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .eq('user_id', resolved.data.user_id);
-
-        if (error) throw error;
-
-        await writeAuditLog(serviceSupabase, {
-          userId: resolved.data.user_id,
-          action: 'portal_invoice_paid',
-          resourceType: 'invoice',
-          resourceId: id,
-          ip,
-        });
-
-        // Trigger Invoice Paid email
-        if (freelancerEmail) {
-          try {
-            const { sendInvoicePaidEmail } = await import('../../../../lib/email');
-            await sendInvoicePaidEmail(freelancerEmail, resolved.data, freelancerName);
-          } catch (mailErr) {
-            console.error('Failed to send Invoice Paid email:', mailErr);
-          }
-        }
-
-        return NextResponse.json({ success: true, status: 'paid' });
-      }
+    if (resolved.type === 'invoice' && action === 'pay') {
+      return NextResponse.json({ error: 'Payment must be recorded by the photographer or payment provider' }, { status: 409 });
     }
 
     return NextResponse.json({ error: 'Action not supported' }, { status: 400 });

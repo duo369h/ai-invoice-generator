@@ -1,38 +1,46 @@
-import { NextResponse } from 'next/server';
-import { createServiceSupabaseClient, createSupabasePortalToken, getRequestUser, writeAuditLog, recordServerGrowthEvent, trackProfileMetric } from '../../lib/supabase';
-import { rateLimitAuthenticated } from '../../lib/rate-limit';
-import { authRequiredResponse, getIp, requestContextResponse } from '../../lib/security';
-import { enumValue, validateObject, validateQuotePayload, validationResponse } from '../../lib/validation';
-import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
-import { getFirstRevenueLoopContext } from '../../lib/first-revenue-loop';
-import { canTransitionFirstRevenueQuote } from '../../../core/revenue/firstRevenueLoop';
+import { NextResponse } from "next/server";
+import {
+  createServiceSupabaseClient,
+  createSupabasePortalToken,
+  getRequestUser,
+  writeAuditLog,
+  recordServerGrowthEvent,
+  trackProfileMetric,
+  getDocumentQuota,
+  createQuoteWithAtomicQuota
+} from "../../lib/supabase";
+import { rateLimitAuthenticated } from "../../lib/rate-limit";
+import { authRequiredResponse, getIp, requestContextResponse } from "../../lib/security";
+import { enumValue, validateObject, validateQuotePayload, validationResponse } from "../../lib/validation";
+import { recordProductAnalyticsEvent } from "../../lib/product-analytics-server";
+import { getUserEntitlements } from "../../../../lib/entitlements";
 
 export async function GET(request) {
   try {
     const context = await getRequestUser(request);
-    const contextFailure = requestContextResponse(context, 'quotes');
+    const contextFailure = requestContextResponse(context, "quotes");
     if (contextFailure) return contextFailure;
-    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    const limitResult = await rateLimitAuthenticated("invoiceApi", context.user.id);
     if (!limitResult.success) {
-      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+      return NextResponse.json({ error: limitResult.error || "Too many requests" }, { status: limitResult.status || 429 });
     }
     
-    if (context.mode === 'supabase') {
+    if (context.mode === "supabase") {
       const { data, error } = await context.supabase
-        .from('quotes')
-        .select('*')
-        .eq('user_id', context.user.id)
-        .order('created_at', { ascending: false });
+        .from("quotes")
+        .select("*")
+        .eq("user_id", context.user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return NextResponse.json({ data: data || [] });
     }
 
-    return authRequiredResponse('quotes');
+    return authRequiredResponse("quotes");
 
   } catch (error) {
-    console.error('Error fetching quotes:', error);
-    return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
+    console.error("Error fetching quotes:", error);
+    return NextResponse.json({ error: "Failed to fetch quotes" }, { status: 500 });
   }
 }
 
@@ -40,25 +48,25 @@ export async function POST(request) {
   try {
     const ip = getIp(request);
     const context = await getRequestUser(request);
-    const contextFailure = requestContextResponse(context, 'quotes');
+    const contextFailure = requestContextResponse(context, "quotes");
     if (contextFailure) return contextFailure;
 
-    const serviceSupabase = createServiceSupabaseClient();
+    const serviceSupabase = createServiceSupabaseClient() || context.supabase;
     if (!serviceSupabase) {
-      return NextResponse.json({ error: 'First revenue loop service is unavailable' }, { status: 503 });
+      return NextResponse.json({ error: "Database service is unavailable" }, { status: 503 });
     }
 
     const { data: profile, error: profileError } = await serviceSupabase
-      .from('profiles')
-      .select('plan')
-      .eq('id', context.user.id)
+      .from("profiles")
+      .select("plan")
+      .eq("id", context.user.id)
       .maybeSingle();
     if (profileError) throw profileError;
-    const plan = profile?.plan || 'free';
+    const plan = profile?.plan || "free";
 
-    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    const limitResult = await rateLimitAuthenticated("invoiceApi", context.user.id);
     if (!limitResult.success) {
-      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+      return NextResponse.json({ error: limitResult.error || "Too many requests" }, { status: limitResult.status || 429 });
     }
     const body = validateQuotePayload(await request.json());
 
@@ -82,16 +90,21 @@ export async function POST(request) {
     const calculatedTaxAmount = Math.round(taxableAmount * (Number(tax_rate) / 100));
     const calculatedTotal = taxableAmount + calculatedTaxAmount;
 
-    if (context.mode === 'supabase') {
+    if (context.mode === "supabase") {
+      // Non-authoritative UX quota precheck for telemetry
+      if (!id) {
+        await getDocumentQuota(serviceSupabase, context.user.id, plan).catch(() => null);
+      }
+
       const profileName =
         context.user.user_metadata?.name ||
         context.user.user_metadata?.full_name ||
-        context.user.email?.split('@')[0] ||
-        'User';
+        context.user.email?.split("@")[0] ||
+        "User";
       const payload = {
         id: id || undefined,
         user_id: context.user.id,
-        _profile_email: context.user.email || '',
+        _profile_email: context.user.email || "",
         _profile_name: profileName,
         quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         client_name,
@@ -115,68 +128,68 @@ export async function POST(request) {
         updated_at: new Date().toISOString()
       };
 
-      let firstRevenueLoop = null;
-      if (plan === 'free') {
-        firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
+      let data;
+      if (id) {
+        const { data: updateData, error: updateError } = await serviceSupabase
+          .from("quotes")
+          .update(payload)
+          .eq("id", id)
+          .eq("user_id", context.user.id)
+          .select("*")
+          .single();
+        if (updateError) throw updateError;
+        data = updateData;
+      } else {
+        try {
+          const creation = await createQuoteWithAtomicQuota(serviceSupabase, context.user.id, plan, payload);
+          data = creation.data;
 
-        if (id) {
-          const transition = canTransitionFirstRevenueQuote({
-            plan,
-            loop: firstRevenueLoop.loop,
-            quote: firstRevenueLoop.quote,
-            requestedStatus: status,
-          });
-          if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
-            return NextResponse.json({ error: transition.reason }, { status: 403 });
+          // Non-authoritative, idempotent first-revenue tracking record (never blocks quote creation)
+          if (plan === 'free' && data?.id) {
+            try {
+              const { error: trackingError } = await serviceSupabase.rpc('claim_first_revenue_quote', {
+                p_user_id: context.user.id,
+                p_quote_id: data.id
+              });
+              if (trackingError) {
+                console.warn('[FirstRevenue] Non-blocking quote tracking notice:', trackingError.message || trackingError);
+              }
+            } catch (trackErr) {
+              console.warn('[FirstRevenue] Non-blocking quote tracking exception:', trackErr.message || trackErr);
+            }
           }
-        } else if (!firstRevenueLoop.decision.canCreateQuote) {
-          return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
+        } catch (atomicErr) {
+          if (atomicErr.code === "QUOTA_EXCEEDED" || atomicErr.status === 403) {
+            return NextResponse.json({
+              error: atomicErr.message || "Document limit reached for current cycle.",
+              code: "QUOTA_EXCEEDED"
+            }, { status: 403 });
+          }
+          return NextResponse.json({
+            error: atomicErr.message || "Database atomic document creation failed.",
+            code: "DATABASE_ERROR"
+          }, { status: 500 });
         }
       }
 
-      let data;
-      let error;
-      if (id) {
-        ({ data, error } = await serviceSupabase
-          .from('quotes')
-          .update(payload)
-          .eq('id', id)
-          .eq('user_id', context.user.id)
-          .select('*')
-          .single());
-      } else if (plan === 'free') {
-        ({ data, error } = await serviceSupabase.rpc('create_first_revenue_quote', {
-          p_user_id: context.user.id,
-          p_quote: payload,
-        }));
-        if (Array.isArray(data)) data = data[0] || null;
-      } else {
-        ({ data, error } = await serviceSupabase
-          .from('quotes')
-          .insert(payload)
-          .select('*')
-          .single());
-      }
-
-      if (error?.message?.includes('first_revenue_quote_already_claimed') || error?.message?.includes('first_revenue_loop_legacy_blocked')) {
-        return NextResponse.json({ error: 'FIRST_REVENUE_QUOTE_ALREADY_CLAIMED' }, { status: 409 });
-      }
-      if (error) throw error;
-      let portalToken = '';
-      try {
-        portalToken = await createSupabasePortalToken(context.supabase, {
-          ownerId: context.user.id,
-          resourceType: 'quote',
-          resourceId: data.id,
-        });
-      } catch (tokenErr) {
-        console.error('Failed to create quote portal token:', tokenErr);
+      let portalToken = "";
+      const entitlements = getUserEntitlements(plan);
+      if (entitlements.client_portal) {
+        try {
+          portalToken = await createSupabasePortalToken(context.supabase, {
+            ownerId: context.user.id,
+            resourceType: "quote",
+            resourceId: data.id,
+          });
+        } catch (tokenErr) {
+          console.error("Failed to create quote portal token:", tokenErr);
+        }
       }
 
       await writeAuditLog(context.supabase, {
         userId: context.user.id,
-        action: id ? 'quote_updated' : 'quote_created',
-        resourceType: 'quote',
+        action: id ? "quote_updated" : "quote_created",
+        resourceType: "quote",
         resourceId: data.id,
         ip,
       });
@@ -184,37 +197,49 @@ export async function POST(request) {
       if (!id) {
         try {
           await recordProductAnalyticsEvent({
-            eventName: 'Proposal Created',
+            eventName: "Proposal Created",
             userId: context.user.id,
-            source: 'quotes_api',
+            source: "quotes_api",
             properties: {
               identity: context.user.id,
               user_id: context.user.id,
-              plan: 'free',
-              country: '',
+              plan,
+              country: "",
               quote_id: data.id,
               quote_number: data.quote_number,
               total: data.total,
               currency: data.currency,
-              source: 'quotes_api',
+              source: "quotes_api",
               timestamp: new Date().toISOString(),
             },
           });
         } catch (analyticsError) {
-          console.error('Failed to record proposal creation:', analyticsError);
+          console.error("Failed to record proposal creation:", analyticsError);
         }
       }
 
       return NextResponse.json({ ...data, portal_token: portalToken }, { status: 201 });
     }
 
-    return authRequiredResponse('quotes');
+    return authRequiredResponse("quotes");
 
   } catch (error) {
+    if (error.code === "QUOTA_EXCEEDED" || error.status === 403) {
+      return NextResponse.json({
+        error: error.message || "Document limit reached for current cycle.",
+        code: "QUOTA_EXCEEDED"
+      }, { status: 403 });
+    }
+    if (error.code === "DATABASE_ERROR" || error.status === 500) {
+      return NextResponse.json({
+        error: error.message || "Database error during quote creation.",
+        code: "DATABASE_ERROR"
+      }, { status: 500 });
+    }
     const validation = validationResponse(error);
     if (validation) return validation;
-    console.error('Error creating quote:', error);
-    return NextResponse.json({ error: 'Failed to create quote' }, { status: 500 });
+    console.error("Error creating quote:", error);
+    return NextResponse.json({ error: "Failed to create quote", code: "DATABASE_ERROR" }, { status: 500 });
   }
 }
 
@@ -222,63 +247,49 @@ export async function PATCH(request) {
   try {
     const ip = getIp(request);
     const context = await getRequestUser(request);
-    const contextFailure = requestContextResponse(context, 'quotes');
+    const contextFailure = requestContextResponse(context, "quotes");
     if (contextFailure) return contextFailure;
-    const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+    const limitResult = await rateLimitAuthenticated("invoiceApi", context.user.id);
     if (!limitResult.success) {
-      return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
+      return NextResponse.json({ error: limitResult.error || "Too many requests" }, { status: limitResult.status || 429 });
     }
     const body = validateObject(await request.json());
     const id = body.id;
-    const status = enumValue(body.status, 'status', ['draft', 'sent', 'approved', 'declined', 'converted']);
+    const status = enumValue(body.status, "status", ["draft", "sent", "approved", "declined", "converted"]);
 
     if (!id || !status) {
-      return NextResponse.json({ error: 'Missing required fields: id, status' }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
     }
 
-    if (context.mode === 'supabase') {
-      const profile = await (await import('../../lib/supabase')).ensureProfile(context.supabase, context.user);
-      const plan = profile?.plan || 'free';
-      const serviceSupabase = createServiceSupabaseClient();
+    if (context.mode === "supabase") {
+      const serviceSupabase = createServiceSupabaseClient() || context.supabase;
       if (!serviceSupabase) {
-        return NextResponse.json({ error: 'Quote service is unavailable' }, { status: 503 });
-      }
-      if (plan === 'free') {
-        const firstRevenueLoop = await getFirstRevenueLoopContext(serviceSupabase, context.user.id, plan);
-        const transition = canTransitionFirstRevenueQuote({
-          plan,
-          loop: firstRevenueLoop.loop,
-          quote: firstRevenueLoop.quote,
-          requestedStatus: status,
-        });
-        if (!transition.allowed || firstRevenueLoop.quote?.id !== id) {
-          return NextResponse.json({ error: transition.reason || 'first_revenue_quote_unavailable' }, { status: 403 });
-        }
+        return NextResponse.json({ error: "Quote service is unavailable" }, { status: 503 });
       }
 
       const { data, error } = await serviceSupabase
-        .from('quotes')
-        .update({ status })
-        .eq('id', id)
-        .eq('user_id', context.user.id)
-        .select('*')
+        .from("quotes")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("user_id", context.user.id)
+        .select("*")
         .single();
 
       if (error) throw error;
       await writeAuditLog(context.supabase, {
         userId: context.user.id,
-        action: 'quote_status_changed',
-        resourceType: 'quote',
+        action: "quote_status_changed",
+        resourceType: "quote",
         resourceId: data.id,
         ip,
       });
 
-      if (status === 'sent') {
-        await trackProfileMetric(context.supabase, context.user.id, 'quote_sent_timestamp');
+      if (status === "sent") {
+        await trackProfileMetric(context.supabase, context.user.id, "quote_sent_timestamp");
         await recordServerGrowthEvent(context.supabase, {
-          eventName: 'quote_sent',
+          eventName: "quote_sent",
           userId: context.user.id,
-          source: 'user',
+          source: "user",
           properties: {
             quote_id: data.id,
             quote_number: data.quote_number,
@@ -287,52 +298,52 @@ export async function PATCH(request) {
         });
         try {
           await recordProductAnalyticsEvent({
-            eventName: 'Proposal Sent',
+            eventName: "Proposal Sent",
             userId: context.user.id,
-            source: 'quotes_api',
+            source: "quotes_api",
             properties: {
               identity: context.user.id,
               user_id: context.user.id,
-              plan: 'free',
-              country: '',
+              plan: "free",
+              country: "",
               quote_id: data.id,
               quote_number: data.quote_number,
-              source: 'quotes_api',
+              source: "quotes_api",
               timestamp: new Date().toISOString(),
             },
           });
         } catch (analyticsError) {
-          console.error('Failed to record proposal sent:', analyticsError);
+          console.error("Failed to record proposal sent:", analyticsError);
         }
       }
 
       // Trigger Quote Approved email notification
-      if (status === 'approved') {
+      if (status === "approved") {
         try {
           const { data: profile } = await context.supabase
-            .from('profiles')
-            .select('name, email')
-            .eq('id', context.user.id)
+            .from("profiles")
+            .select("name, email")
+            .eq("id", context.user.id)
             .maybeSingle();
 
           if (profile?.email) {
-            const { sendQuoteApprovedEmail } = await import('../../lib/email');
-            await sendQuoteApprovedEmail(profile.email, data, profile.name || 'Photographer');
+            const { sendQuoteApprovedEmail } = await import("../../lib/email");
+            await sendQuoteApprovedEmail(profile.email, data, profile.name || "Photographer");
           }
         } catch (mailErr) {
-          console.error('Failed to trigger Quote Approved email:', mailErr);
+          console.error("Failed to trigger Quote Approved email:", mailErr);
         }
       }
 
       return NextResponse.json(data);
     }
 
-    return authRequiredResponse('quotes');
+    return authRequiredResponse("quotes");
 
   } catch (error) {
     const validation = validationResponse(error);
     if (validation) return validation;
-    console.error('Error updating quote status:', error);
-    return NextResponse.json({ error: 'Failed to update quote status' }, { status: 500 });
+    console.error("Error updating quote status:", error);
+    return NextResponse.json({ error: "Failed to update quote status" }, { status: 500 });
   }
 }

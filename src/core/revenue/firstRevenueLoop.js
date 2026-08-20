@@ -1,9 +1,10 @@
 const FREE_PLAN = 'free';
 
+import { paymentStatusForInvoice } from './invoicePaymentState.js';
+
 const noActions = {
   canCreateQuote: false,
   canSendQuote: false,
-  canOpenQuotePortal: false,
   canCreateInvoiceDraft: false,
   canPreparePayment: false,
 };
@@ -41,18 +42,22 @@ export function resolveFirstRevenueLoop({ plan = FREE_PLAN, loop = null, quote =
       return result('unavailable', 'blocked', loop);
     }
 
-    if (String(invoice.payment_link || '').trim()) {
+    if (paymentStatusForInvoice(invoice) === 'paid') {
       return result('complete', 'allowance', loop);
     }
 
-    return result('invoice_draft', 'allowance', loop, { canPreparePayment: true });
+    if (paymentStatusForInvoice(invoice) === 'partial') {
+      return result('first_payment_received', 'allowance', loop, { canPreparePayment: true });
+    }
+
+    return result('invoice_created', 'allowance', loop, { canPreparePayment: true });
   }
 
   switch (quote.status) {
     case 'draft':
       return result('draft', 'allowance', loop, { canSendQuote: true });
     case 'sent':
-      return result('sent', 'allowance', loop, { canOpenQuotePortal: true });
+      return result('sent', 'allowance', loop);
     case 'approved':
       return result('approved', 'allowance', loop, { canCreateInvoiceDraft: true });
     case 'declined':
@@ -111,15 +116,18 @@ export function canCreateFirstRevenueInvoiceDraft({
   return { allowed: true, reason: null };
 }
 
-export function canAccessFirstRevenueQuotePortal({
-  plan = FREE_PLAN,
+export function isFirstRevenueTrackedResource({
   loop = null,
   quote = null,
   resourceType,
   resourceId,
 } = {}) {
-  if (String(plan).toLowerCase() !== FREE_PLAN) return false;
-  if (loop?.legacy_blocked_at || resourceType !== 'quote') return false;
-  if (!loop?.quote_id || loop.quote_id !== resourceId || quote?.id !== resourceId) return false;
-  return ['sent', 'approved', 'declined'].includes(quote.status);
+  if (!loop?.quote_id || loop?.legacy_blocked_at) return false;
+  if (resourceType === 'quote') {
+    return loop.quote_id === resourceId;
+  }
+  if (resourceType === 'invoice') {
+    return loop.invoice_id === resourceId;
+  }
+  return false;
 }

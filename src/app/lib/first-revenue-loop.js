@@ -1,7 +1,7 @@
 import {
-  canAccessFirstRevenueQuotePortal,
+  isFirstRevenueTrackedResource,
   resolveFirstRevenueLoop,
-} from '../../core/revenue/firstRevenueLoop';
+} from '../../core/revenue/firstRevenueLoop.js';
 
 export async function getFirstRevenueLoopContext(supabase, userId, plan) {
   if (String(plan || '').toLowerCase() !== 'free') {
@@ -52,9 +52,8 @@ export async function getFirstRevenueLoopContext(supabase, userId, plan) {
   };
 }
 
-export function isFirstRevenueQuotePortalResource(loopContext, resourceType, resourceId, plan) {
-  return canAccessFirstRevenueQuotePortal({
-    plan,
+export function isFirstRevenueTrackedResourceContext(loopContext, resourceType, resourceId) {
+  return isFirstRevenueTrackedResource({
     loop: loopContext?.loop,
     quote: loopContext?.quote,
     resourceType,
@@ -69,7 +68,6 @@ export function serializeFirstRevenueLoop(decision) {
     invoice_id: decision.invoiceId,
     can_create_quote: decision.canCreateQuote,
     can_send_quote: decision.canSendQuote,
-    can_open_quote_portal: decision.canOpenQuotePortal,
     can_create_invoice_draft: decision.canCreateInvoiceDraft,
     can_prepare_payment: decision.canPreparePayment,
   };

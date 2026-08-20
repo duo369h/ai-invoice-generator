@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security';
+import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security.js';
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -209,6 +209,10 @@ export function mapSupabaseInvoice(row) {
     discount_rate: Number(row.discount_rate || 0),
     tax_rate: Number(row.tax_rate || 0),
     payment_link: row.payment_link || '',
+    invoice_kind: row.invoice_kind || 'standard',
+    payment_status: row.payment_status || (row.status === 'paid' ? 'paid' : 'unpaid'),
+    amount_paid_cents: Number(row.amount_paid_cents || (row.status === 'paid' ? row.total : 0)),
+    amount_due_cents: Number(row.amount_due_cents ?? (row.status === 'paid' ? 0 : row.total || 0)),
   };
 }
 
@@ -273,98 +277,254 @@ export async function writeAuditLog(supabase, {
   }
 }
 
-export async function getSupabaseQuota(supabase, userId, plan = 'free') {
-  const normalizedPlan = String(plan || 'free').toLowerCase() === 'pro' ? 'pro' : 'free';
-  const currentMonth = new Date().toISOString().substring(0, 7);
-  const monthStart = `${currentMonth}-01T00:00:00.000Z`;
+export function getClampedAnniversaryDate(anchorDateStr, targetYear, targetMonthIndex) {
+  const anchor = new Date(anchorDateStr);
+  const anchorDay = anchor.getUTCDate();
+  const anchorHours = anchor.getUTCHours();
+  const anchorMinutes = anchor.getUTCMinutes();
+  const anchorSeconds = anchor.getUTCSeconds();
+  const anchorMs = anchor.getUTCMilliseconds();
 
-  const { count: invoicesUsed = 0 } = await supabase
-    .from('invoices')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', monthStart);
+  const daysInMonth = new Date(Date.UTC(targetYear, targetMonthIndex + 1, 0)).getUTCDate();
+  const clampedDay = Math.min(anchorDay, daysInMonth);
 
-  const { data: usage } = await supabase
-    .from('usage')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('month', currentMonth)
-    .maybeSingle();
+  return new Date(Date.UTC(targetYear, targetMonthIndex, clampedDay, anchorHours, anchorMinutes, anchorSeconds, anchorMs));
+}
 
-  const limits = {
-    free: { invoices: 5, ai: 3 },
-    pro: { invoices: 999999, ai: 100 },
+export function computeMonthlyAnniversaryCycle(anchorDateStr, nowStr = new Date().toISOString()) {
+  const anchor = new Date(anchorDateStr);
+  const now = new Date(nowStr);
+
+  const anchorYear = anchor.getUTCFullYear();
+  const anchorMonth = anchor.getUTCMonth();
+
+  let monthOffset = 0;
+  let cycleStart = getClampedAnniversaryDate(anchorDateStr, anchorYear, anchorMonth + monthOffset);
+  let cycleEnd = getClampedAnniversaryDate(anchorDateStr, anchorYear, anchorMonth + monthOffset + 1);
+
+  while (now >= cycleEnd) {
+    monthOffset++;
+    cycleStart = cycleEnd;
+    cycleEnd = getClampedAnniversaryDate(anchorDateStr, anchorYear, anchorMonth + monthOffset + 1);
+  }
+
+  return {
+    cycleStart: cycleStart.toISOString(),
+    cycleEnd: cycleEnd.toISOString(),
   };
+}
 
-  const currentLimits = limits[normalizedPlan];
-  const aiUsed = usage?.ai_parses_used || 0;
+export async function resolveUserBillingCycle(supabase, userId, plan = "free") {
+  const normalizedPlan = String(plan || "free").toLowerCase();
+
+  if (normalizedPlan === "starter" || normalizedPlan === "pro" || normalizedPlan === "studio") {
+    try {
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("current_period_start, current_period_end, status")
+        .eq("user_id", userId)
+        .in("status", ["active", "trialing"])
+        .order("created_at", { ascending: false })
+        .maybeSingle();
+
+      if (sub?.current_period_start && sub?.current_period_end) {
+        const now = new Date().getTime();
+        const start = new Date(sub.current_period_start).getTime();
+        const end = new Date(sub.current_period_end).getTime();
+        if (now >= start && now <= end) {
+          return {
+            cycleStart: new Date(sub.current_period_start).toISOString(),
+            cycleEnd: new Date(sub.current_period_end).toISOString(),
+            cycleType: "subscription_period",
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("Error querying subscriptions for cycle:", err);
+    }
+  }
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("created_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const createdAt = profile?.created_at || new Date().toISOString();
+    const anniversaryCycle = computeMonthlyAnniversaryCycle(createdAt);
+    return {
+      ...anniversaryCycle,
+      cycleType: "account_anniversary",
+    };
+  } catch (err) {
+    console.warn("Error querying profile for anniversary anchor:", err);
+    const anniversaryCycle = computeMonthlyAnniversaryCycle(new Date().toISOString());
+    return {
+      ...anniversaryCycle,
+      cycleType: "account_anniversary_fallback",
+    };
+  }
+}
+
+export async function getDocumentQuota(supabase, userId, plan = "free") {
+  const normalizedPlan = String(plan || "free").toLowerCase();
+
+  // Pro, Agency, and legacy Studio have unlimited quota
+  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
+    return {
+      plan: normalizedPlan,
+      documentsUsed: 0,
+      documentsLimit: Infinity,
+      documentsAllowed: true,
+      invoicesUsed: 0,
+      invoicesLimit: Infinity,
+      invoicesAllowed: true,
+      quotesUsed: 0,
+      quotesLimit: Infinity,
+      quotesAllowed: true,
+      totalUsed: 0,
+      cycleStart: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+      cycleEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      cycleType: "unlimited",
+    };
+  }
+
+  const limit = normalizedPlan === "starter" ? 30 : 5;
+  const cycle = await resolveUserBillingCycle(supabase, userId, normalizedPlan);
+
+  const [quotesResult, invoicesResult] = await Promise.all([
+    supabase
+      .from("quotes")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", cycle.cycleStart)
+      .lt("created_at", cycle.cycleEnd),
+    supabase
+      .from("invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", cycle.cycleStart)
+      .lt("created_at", cycle.cycleEnd),
+  ]);
+
+  const quotesCount = quotesResult.count || 0;
+  const invoicesCount = invoicesResult.count || 0;
+  const totalUsed = quotesCount + invoicesCount;
 
   return {
     plan: normalizedPlan,
-    invoicesUsed: invoicesUsed || 0,
-    invoicesLimit: currentLimits.invoices,
-    invoicesAllowed: (invoicesUsed || 0) < currentLimits.invoices,
-    aiUsed,
-    aiLimit: currentLimits.ai,
-    aiAllowed: aiUsed < currentLimits.ai,
+    documentsUsed: totalUsed,
+    documentsLimit: limit,
+    documentsAllowed: totalUsed < limit,
+    // Compatibility fields
+    invoicesUsed: invoicesCount,
+    invoicesLimit: limit,
+    invoicesAllowed: totalUsed < limit,
+    quotesUsed: quotesCount,
+    quotesLimit: limit,
+    quotesAllowed: totalUsed < limit,
+    totalUsed,
+    cycleStart: cycle.cycleStart,
+    cycleEnd: cycle.cycleEnd,
+    cycleType: normalizedPlan === "starter" ? "subscription" : "anniversary",
   };
 }
 
-export async function incrementSupabaseAiUsage(supabase, userId) {
-  const currentMonth = new Date().toISOString().substring(0, 7);
+export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, payload) {
+  const normalizedPlan = String(plan || "free").toLowerCase();
+  const serviceSupabase = createServiceSupabaseClient() || supabaseClient;
 
-  const { data: existing } = await supabase
-    .from('usage')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('month', currentMonth)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from('usage')
-      .update({ ai_parses_used: (existing.ai_parses_used || 0) + 1 })
-      .eq('id', existing.id)
-      .eq('user_id', userId)
-      .eq('month', currentMonth);
-    return;
+  // Pro / Agency / legacy Studio: Unlimited allowance may bypass finite quota serialization
+  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
+    const { data, error } = await serviceSupabase
+      .from("quotes")
+      .insert({ ...payload, user_id: userId })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return { data, quota: { documentsAllowed: true, documentsLimit: Infinity } };
   }
 
-  await supabase.from('usage').insert({
-    user_id: userId,
-    month: currentMonth,
-    invoices_created: 0,
-    ai_parses_used: 1,
+  const limit = plan === "starter" ? 30 : 5;
+
+  // Execute secured service_role RPC check_and_create_quote
+  const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_quote", {
+    p_user_id: userId,
+    p_quote_payload: payload
   });
-}
 
-export async function incrementSupabaseInvoiceUsage(supabase, userId) {
-  const currentMonth = new Date().toISOString().substring(0, 7);
-
-  const { data: existing } = await supabase
-    .from('usage')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('month', currentMonth)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from('usage')
-      .update({ invoices_created: (existing.invoices_created || 0) + 1 })
-      .eq('id', existing.id)
-      .eq('user_id', userId)
-      .eq('month', currentMonth);
-    return;
+  if (rpcError) {
+    if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
+      const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
+      quotaExceededErr.code = "QUOTA_EXCEEDED";
+      quotaExceededErr.status = 403;
+      throw quotaExceededErr;
+    }
+    // FAIL CLOSED: No non-atomic fallback allowed for finite plans
+    const dbErr = new Error(`Atomic quote creation failed: ${rpcError.message || "Unknown database error"}`);
+    dbErr.code = "DATABASE_ERROR";
+    dbErr.status = 500;
+    throw dbErr;
   }
 
-  await supabase.from('usage').insert({
-    user_id: userId,
-    month: currentMonth,
-    invoices_created: 1,
-    ai_parses_used: 0,
-  });
+  if (!rpcData) {
+    const dbErr = new Error("Atomic quote creation returned no document record.");
+    dbErr.code = "DATABASE_ERROR";
+    dbErr.status = 500;
+    throw dbErr;
+  }
+
+  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: limit } };
 }
+
+export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan, payload) {
+  const normalizedPlan = String(plan || "free").toLowerCase();
+  const serviceSupabase = createServiceSupabaseClient() || supabaseClient;
+
+  // Pro / Agency / legacy Studio: Unlimited allowance may bypass finite quota serialization
+  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
+    const { data, error } = await serviceSupabase
+      .from("invoices")
+      .insert({ ...payload, user_id: userId })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return { data, quota: { documentsAllowed: true, documentsLimit: Infinity } };
+  }
+
+  const limit = plan === "starter" ? 30 : 5;
+
+  // Execute secured service_role RPC check_and_create_invoice
+  const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_invoice", {
+    p_user_id: userId,
+    p_invoice_payload: payload
+  });
+
+  if (rpcError) {
+    if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
+      const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
+      quotaExceededErr.code = "QUOTA_EXCEEDED";
+      quotaExceededErr.status = 403;
+      throw quotaExceededErr;
+    }
+    // FAIL CLOSED: No non-atomic fallback allowed for finite plans
+    const dbErr = new Error(`Atomic invoice creation failed: ${rpcError.message || "Unknown database error"}`);
+    dbErr.code = "DATABASE_ERROR";
+    dbErr.status = 500;
+    throw dbErr;
+  }
+
+  if (!rpcData) {
+    const dbErr = new Error("Atomic invoice creation returned no document record.");
+    dbErr.code = "DATABASE_ERROR";
+    dbErr.status = 500;
+    throw dbErr;
+  }
+
+  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: limit } };
+}
+
 
 export async function trackProfileMetric(supabase, userId, field) {
   const writer = createServiceSupabaseClient() || supabase;
@@ -372,9 +532,9 @@ export async function trackProfileMetric(supabase, userId, field) {
 
   try {
     const { data: profile } = await writer
-      .from('profiles')
-      .select('created_at, first_invoice_created_at, first_client_added_at, invoice_sent_timestamp, quote_sent_timestamp, time_to_first_export, time_to_first_client_response')
-      .eq('id', userId)
+      .from("profiles")
+      .select("created_at, first_invoice_created_at, first_client_added_at, invoice_sent_timestamp, quote_sent_timestamp, time_to_first_export, time_to_first_client_response")
+      .eq("id", userId)
       .maybeSingle();
 
     if (!profile) return;
@@ -384,47 +544,43 @@ export async function trackProfileMetric(supabase, userId, field) {
     const createdTime = new Date(profile.created_at).getTime();
     const durationSeconds = Math.max(0, Math.floor((Date.now() - createdTime) / 1000));
 
-    if (field === 'first_invoice_created_at' && !profile.first_invoice_created_at) {
+    if (field === "first_invoice_created_at" && !profile.first_invoice_created_at) {
       updates.first_invoice_created_at = nowStr;
     }
-    if (field === 'first_client_added_at' && !profile.first_client_added_at) {
+    if (field === "first_client_added_at" && !profile.first_client_added_at) {
       updates.first_client_added_at = nowStr;
     }
-    if (field === 'invoice_sent_timestamp') {
+    if (field === "invoice_sent_timestamp") {
       updates.invoice_sent_timestamp = nowStr;
     }
-    if (field === 'quote_sent_timestamp') {
+    if (field === "quote_sent_timestamp") {
       updates.quote_sent_timestamp = nowStr;
     }
-    if (field === 'time_to_first_export' && profile.time_to_first_export === null) {
+    if (field === "time_to_first_export" && profile.time_to_first_export == null) {
       updates.time_to_first_export = durationSeconds;
     }
-    if (field === 'time_to_first_client_response' && profile.time_to_first_client_response === null) {
+    if (field === "time_to_first_client_response" && profile.time_to_first_client_response == null) {
       updates.time_to_first_client_response = durationSeconds;
     }
 
     if (Object.keys(updates).length > 0) {
-      const { error } = await writer
-        .from('profiles')
-        .update({ ...updates, updated_at: nowStr })
-        .eq('id', userId);
-      if (error) throw error;
+      await writer.from("profiles").update(updates).eq("id", userId);
     }
-  } catch (err) {
-    console.error(`Failed to update profile metric ${field}:`, err);
+  } catch (error) {
+    console.error("Failed to track profile metric:", error);
   }
 }
 
 export async function recordServerGrowthEvent(supabase, {
   eventName,
   userId,
-  sessionId = '',
-  pagePath = '',
-  pageLocation = '',
-  source = 'system',
+  sessionId = "",
+  pagePath = "",
+  pageLocation = "",
+  source = "system",
   properties = {}
 }) {
-  const ALLOWED_EVENTS = new Set(['invoice_created', 'invoice_sent', 'invoice_paid']);
+  const ALLOWED_EVENTS = new Set(["invoice_created", "invoice_sent", "invoice_paid"]);
   if (!ALLOWED_EVENTS.has(eventName)) {
     return;
   }
@@ -446,8 +602,59 @@ export async function recordServerGrowthEvent(supabase, {
     }
   };
 
-  const { error } = await writer.from('growth_events').insert(payload);
+  const { error } = await writer.from("growth_events").insert(payload);
   if (error) {
     console.error(`Failed to record server growth event ${eventName}:`, error);
   }
+}
+
+export async function getSupabaseQuota(supabase, userId, plan = "free") {
+  const docQuota = await getDocumentQuota(supabase, userId, plan);
+
+  return {
+    plan: docQuota.plan,
+    documentsUsed: docQuota.documentsUsed,
+    documentsLimit: docQuota.documentsLimit,
+    documentsAllowed: docQuota.documentsAllowed,
+    invoicesUsed: docQuota.documentsUsed,
+    invoicesLimit: docQuota.documentsLimit,
+    invoicesAllowed: docQuota.documentsAllowed,
+    quotesUsed: docQuota.documentsUsed,
+    quotesLimit: docQuota.documentsLimit,
+    quotesAllowed: docQuota.documentsAllowed,
+    aiUsed: 0,
+    aiLimit: 100,
+    aiAllowed: true,
+    cycleStart: docQuota.cycleStart,
+    cycleEnd: docQuota.cycleEnd,
+    cycleType: docQuota.cycleType,
+  };
+}
+
+export async function incrementSupabaseInvoiceUsage(supabase, userId) {
+  const currentMonth = new Date().toISOString().substring(0, 7);
+
+  const { data: existing } = await supabase
+    .from("usage")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("month", currentMonth)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("usage")
+      .update({ invoices_created: (existing.invoices_created || 0) + 1 })
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+      .eq("month", currentMonth);
+    return;
+  }
+
+  await supabase.from("usage").insert({
+    user_id: userId,
+    month: currentMonth,
+    invoices_created: 1,
+    ai_parses_used: 0,
+  });
 }

@@ -15,7 +15,6 @@ assert.deepEqual(noQuote, {
   invoiceId: null,
   canCreateQuote: true,
   canSendQuote: false,
-  canOpenQuotePortal: false,
   canCreateInvoiceDraft: false,
   canPreparePayment: false,
 });
@@ -47,8 +46,8 @@ assert.equal(
     quote: { id: 'quote-1', status: 'converted' },
     invoice: { id: 'invoice-1', status: 'pending', payment_link: '' },
   }).stage,
-  'invoice_draft',
-  'an invoice without a payment link remains in payment preparation'
+  'invoice_created',
+  'an invoice without a successful payment remains in the collection stage'
 );
 
 assert.equal(
@@ -56,10 +55,21 @@ assert.equal(
     plan: 'free',
     loop: { quote_id: 'quote-1', invoice_id: 'invoice-1', legacy_blocked_at: null },
     quote: { id: 'quote-1', status: 'converted' },
-    invoice: { id: 'invoice-1', status: 'pending', payment_link: 'https://pay.example.com/invoice-1' },
+    invoice: { id: 'invoice-1', status: 'pending', payment_link: 'https://pay.example.com/invoice-1', payment_status: 'unpaid' },
+  }).stage,
+  'invoice_created',
+  'a linked invoice with an external payment link remains unpaid until a payment record succeeds'
+);
+
+assert.equal(
+  resolveFirstRevenueLoop({
+    plan: 'free',
+    loop: { quote_id: 'quote-1', invoice_id: 'invoice-1', legacy_blocked_at: null },
+    quote: { id: 'quote-1', status: 'approved' },
+    invoice: { id: 'invoice-1', payment_status: 'paid' },
   }).stage,
   'complete',
-  'a linked invoice with an external payment link completes payment preparation'
+  'a settled payment completes the first revenue loop'
 );
 
 assert.equal(

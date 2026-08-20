@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { CheckCircle2, MessageSquare, Send, X } from 'lucide-react';
 import { trackFeedbackSubmitted } from '../lib/product-analytics';
 
@@ -12,6 +13,8 @@ export function openBetaFeedbackWidget(source = 'unknown') {
 }
 
 export default function BetaGrowthShell({ children }) {
+  const pathname = usePathname();
+  const isPublicMarketingPage = pathname === '/pricing' || pathname === '/for-photographers' || pathname === '/how-it-works' || pathname === '/';
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -71,6 +74,7 @@ export default function BetaGrowthShell({ children }) {
 
   return (
     <>
+      {!isPublicMarketingPage && (
       <div className="beta-banner" data-beta-feedback-ui>
         <div className="beta-banner-inner">
           <div className="beta-banner-copy">
@@ -84,6 +88,7 @@ export default function BetaGrowthShell({ children }) {
           </div>
         </div>
       </div>
+      )}
 
       {children}
 
