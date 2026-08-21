@@ -142,7 +142,7 @@ export function getWelcomeEmailHtml(freelancerName) {
   const bodyHtml = `
     <h2 style="font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">Welcome aboard, ${freelancerName}!</h2>
     <p style="margin-top: 0; margin-bottom: 16px;">
-      We're thrilled to have you join Corvioz. We built this platform specifically for independent professional freelancers who want to streamline client management and collect payments with zero overhead.
+      We're thrilled to have you join Corvioz. We built this platform specifically for independent professional freelancers who want to streamline document workflows and manage invoices with zero overhead.
     </p>
     <p style="margin-bottom: 24px;">
       Here is what you can do right now to get started:
@@ -160,7 +160,7 @@ export function getWelcomeEmailHtml(freelancerName) {
       </tr>
       <tr>
         <td style="padding: 0 0 12px 0; font-size: 15px;">
-          <strong>3. Share Client Portals:</strong> Send secure tokenized sharing links so clients can view quotes, leave feedback, and pay inline.
+          <strong>3. Share Client Portals:</strong> Send secure tokenized sharing links so clients can view quotes, leave feedback, and review payment instructions.
         </td>
       </tr>
     </table>
@@ -279,12 +279,16 @@ export function getInvoiceSentEmailHtml(invoice, portalUrl, freelancerName) {
     <p style="margin-bottom: 8px;"><strong>Due Date:</strong> ${invoice.due_date || 'Upon Receipt'}</p>
     <p style="margin-bottom: 24px;"><strong>Payment Terms:</strong> ${invoice.payment_terms || 'Net 30'}</p>
 
+    ${portalUrl ? `
     <p style="margin-bottom: 24px;">
       You can view the full interactive Client Portal, print the PDF, and review payment details through your secure client link:
     </p>
     <div style="text-align: center; margin-bottom: 0;">
-      <a href="${portalUrl}" style="background-color: #4F46E5; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">View Invoice Portal</a>
-    </div>
+      <a href="${portalUrl}" style="background-color: #4F46E5; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">View Invoice in Portal</a>
+    </div>` : `
+    <p style="margin-bottom: 16px; font-size: 14px; color: #6b7280;">
+      Please find your invoice details itemized above. If you have questions regarding payment instructions or terms, please reply directly to this email.
+    </p>`}
   `;
   return emailLayout({ title, previewText, bodyHtml });
 }
@@ -307,7 +311,7 @@ export function getInvoicePaidEmailHtml(invoice, freelancerName) {
       <p style="margin: 0; font-size: 14px;"><strong>Status:</strong> Paid / Settled</p>
     </div>
     <p style="margin-bottom: 0;">
-      Thank you for your business. The transaction has been recorded in the photographer’s payment history.
+      Thank you for your business. The status has been recorded in the document ledger.
     </p>
   `;
   return emailLayout({ title, previewText, bodyHtml });
@@ -446,12 +450,16 @@ export function getPaymentReminderEmailHtml(invoice, portalUrl, reminderText, fr
       </p>
     </div>
     
+    ${portalUrl ? `
     <p style="margin-bottom: 24px;">
-      You can review invoice details, download the PDF, and complete your payment via the secure client portal link below:
+      You can review invoice details, download the PDF, and check payment instructions via your secure client link:
     </p>
     <div style="text-align: center; margin-bottom: 0;">
-      <a href="${portalUrl}" style="background-color: #EF4444; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">Pay Invoice & View Portal</a>
-    </div>
+      <a href="${portalUrl}" style="background-color: #EF4444; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">View Invoice in Portal</a>
+    </div>` : `
+    <p style="margin-bottom: 16px; font-size: 14px; color: #6b7280;">
+      Please review the reminder details above. To coordinate invoice settlement or discuss details, reply directly to this email.
+    </p>`}
   `;
   return emailLayout({ title, previewText, bodyHtml });
 }

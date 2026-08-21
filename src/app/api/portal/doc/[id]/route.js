@@ -300,10 +300,18 @@ export async function PATCH(request, { params }) {
       .eq('id', resolved.data.user_id)
       .maybeSingle();
 
-    const freelancerName = freelancerProfile?.name || 'Freelancer';
+    const freelancerName = freelancerProfile?.name || 'Photographer';
     const freelancerEmail = freelancerProfile?.email;
 
     if (resolved.type === 'quote') {
+      if (action === 'approve' || action === 'reject') {
+        if (!entitlements.client_approval || entitlements.approval_scope !== 'quotes_only') {
+          return NextResponse.json({
+            error: 'UPGRADE_REQUIRED',
+            requiredPlan: 'pro'
+          }, { status: 403 });
+        }
+      }
       if (action === 'approve') {
         const { error } = await serviceSupabase
           .from('quotes')

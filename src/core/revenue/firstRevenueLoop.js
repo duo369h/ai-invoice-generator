@@ -5,7 +5,6 @@ const FREE_PLAN = 'free';
 const noActions = {
   canCreateQuote: false,
   canSendQuote: false,
-  canOpenQuotePortal: false,
   canCreateInvoiceDraft: false,
   canPreparePayment: false,
 };
@@ -62,7 +61,7 @@ export function resolveFirstRevenueLoop({ plan = FREE_PLAN, loop = null, quote =
     case 'draft':
       return result('draft', 'allowance', loop, { canSendQuote: true });
     case 'sent':
-      return result('sent', 'allowance', loop, { canOpenQuotePortal: true });
+      return result('sent', 'allowance', loop);
     case 'approved':
       return result('approved', 'allowance', loop, { canCreateInvoiceDraft: true });
     case 'declined':
@@ -121,15 +120,13 @@ export function canCreateFirstRevenueInvoiceDraft({
   return { allowed: true, reason: null };
 }
 
-export function canAccessFirstRevenueQuotePortal({
-  plan = FREE_PLAN,
-  loop = null,
-  quote = null,
-  resourceType,
-  resourceId,
-} = {}) {
-  if (String(plan).toLowerCase() !== FREE_PLAN) return false;
-  if (loop?.legacy_blocked_at || resourceType !== 'quote') return false;
-  if (!loop?.quote_id || loop.quote_id !== resourceId || quote?.id !== resourceId) return false;
-  return ['sent', 'approved', 'declined'].includes(quote.status);
+export function isFirstRevenueTrackedResource({ loop = null, quote = null, resourceType, resourceId } = {}) {
+  if (!loop?.quote_id || loop.legacy_blocked_at) return false;
+  if (resourceType === 'quote') {
+    return loop.quote_id === resourceId && quote?.id === resourceId;
+  }
+  if (resourceType === 'invoice') {
+    return Boolean(loop.invoice_id && loop.invoice_id === resourceId);
+  }
+  return false;
 }

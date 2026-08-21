@@ -162,6 +162,7 @@ async function saveSupabaseComment(serviceSupabase, portalToken, comment) {
   return comments;
 }
 
+
 export async function GET(request, { params }) {
   try {
     const ip = getIp(request);
@@ -180,6 +181,8 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
     }
 
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Portal');
     const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
     const entitlements = getUserEntitlements(resolved.plan);
     if (!entitlements.client_portal) {
@@ -191,31 +194,28 @@ export async function GET(request, { params }) {
 
     // Telemetry tracking for Client Reality Loop
     const ownerId = resolved.portalToken.owner_id;
-    const serviceSupabase = createServiceSupabaseClient();
-    if (serviceSupabase) {
-      if (resolved.type === 'invoice') {
-        await recordServerGrowthEvent(serviceSupabase, {
-          eventName: 'invoice_viewed',
-          userId: ownerId,
-          source: 'client',
-          properties: {
-            invoice_id: resolved.data?.id,
-            invoice_number: resolved.data?.invoice_number,
-            client_email: resolved.data?.client_email
-          }
-        });
-      } else if (resolved.type === 'quote' && resolved.data?.status === 'sent') {
-        await recordServerGrowthEvent(serviceSupabase, {
-          eventName: 'quote_status_pending',
-          userId: ownerId,
-          source: 'client',
-          properties: {
-            quote_id: resolved.data?.id,
-            quote_number: resolved.data?.quote_number,
-            client_email: resolved.data?.client_email
-          }
-        });
-      }
+    if (resolved.type === 'invoice') {
+      await recordServerGrowthEvent(serviceSupabase, {
+        eventName: 'invoice_viewed',
+        userId: ownerId,
+        source: 'client',
+        properties: {
+          invoice_id: resolved.data?.id,
+          invoice_number: resolved.data?.invoice_number,
+          client_email: resolved.data?.client_email
+        }
+      });
+    } else if (resolved.type === 'quote' && resolved.data?.status === 'sent') {
+      await recordServerGrowthEvent(serviceSupabase, {
+        eventName: 'quote_status_pending',
+        userId: ownerId,
+        source: 'client',
+        properties: {
+          quote_id: resolved.data?.id,
+          quote_number: resolved.data?.quote_number,
+          client_email: resolved.data?.client_email
+        }
+      });
     }
 
     return NextResponse.json({
@@ -262,6 +262,9 @@ export async function POST(request, { params }) {
       }, { status: 403 });
     }
 
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Portal comments');
+
     const comment = {
       id: `c_${Math.random().toString(36).substring(2, 14)}`,
       author,
@@ -269,8 +272,6 @@ export async function POST(request, { params }) {
       created_at: new Date().toISOString()
     };
 
-    const serviceSupabase = createServiceSupabaseClient();
-    if (!serviceSupabase) return failClosedResponse('Portal comments');
     const comments = await saveSupabaseComment(serviceSupabase, resolved.portalToken, comment);
 
     if (!comments) {
@@ -331,6 +332,8 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Portal link expired' }, { status: 404 });
     }
 
+    const serviceSupabase = createServiceSupabaseClient();
+    if (!serviceSupabase) return failClosedResponse('Portal update');
     const { getUserEntitlements } = await import('../../../../../../lib/entitlements');
     const entitlements = getUserEntitlements(resolved.plan);
     if (!entitlements.client_portal) {
@@ -345,8 +348,14 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Action is required' }, { status: 400 });
     }
 
-    const serviceSupabase = createServiceSupabaseClient();
-    if (!serviceSupabase) return failClosedResponse('Portal update');
+    if (resolved.type === 'quote' && (action === 'approve' || action === 'reject')) {
+      if (!entitlements.client_approval || entitlements.approval_scope !== 'quotes_only') {
+        return NextResponse.json({
+          error: 'UPGRADE_REQUIRED',
+          requiredPlan: 'pro'
+        }, { status: 403 });
+      }
+    }
 
     // Fetch freelancer profile for notification routing
     const { data: freelancerProfile } = await serviceSupabase
@@ -355,7 +364,7 @@ export async function PATCH(request, { params }) {
       .eq('id', resolved.portalToken.owner_id)
       .maybeSingle();
 
-    const freelancerName = freelancerProfile?.name || 'Freelancer';
+    const freelancerName = freelancerProfile?.name || 'Photographer';
     const freelancerEmail = freelancerProfile?.email;
 
     if (resolved.type === 'quote') {

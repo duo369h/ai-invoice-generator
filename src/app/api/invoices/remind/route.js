@@ -61,21 +61,22 @@ export async function POST(request) {
 
     // Retrieve freelancer profile for branding / naming
     const profile = await ensureProfile(context.supabase, context.user);
-    const freelancerName = profile.name || 'Freelancer';
+    const freelancerName = profile.name || 'Photographer';
+    const plan = profile.plan || 'free';
+    const { getUserEntitlements } = await import('../../../../../lib/entitlements');
+    const entitlements = getUserEntitlements(plan);
 
-    // Generate or fetch client portal token
-    const portalToken = await createSupabasePortalToken(context.supabase, {
-      userId: context.user.id,
-      resourceId: invoice.id,
-      resourceType: 'invoice'
-    });
-
-    if (!portalToken) {
-      return NextResponse.json({ error: 'Failed to generate secure portal token' }, { status: 500 });
+    let portalUrl = '';
+    if (entitlements.client_portal) {
+      const portalToken = await createSupabasePortalToken(context.supabase, {
+        ownerId: context.user.id,
+        resourceId: invoice.id,
+        resourceType: 'invoice'
+      });
+      if (portalToken) {
+        portalUrl = `${getSiteUrl()}/portal/${portalToken}`;
+      }
     }
-
-    const siteUrl = getSiteUrl();
-    const portalUrl = `${siteUrl}/portal/token/${portalToken.token}`;
 
     // AI Injection Layer (Payment Flow) - Observability only
     injectPaymentOptimization({

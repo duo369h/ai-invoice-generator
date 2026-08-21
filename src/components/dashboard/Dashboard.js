@@ -50,9 +50,20 @@ import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
 import { Icons } from '@/styles/icons';
+import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
 import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
+import {
+  buildFirstQuoteActivationEvent,
+  shouldBypassOnboardingForFirstQuote,
+} from '../../core/entry/first-quote-flow';
 import { reconcileEntryState } from '../../core/entry/ENTRY_STATE_RECONCILER';
 import { resolveRevenueEntry } from '../../core/entry/ENTRY_REVENUE_RESOLVER';
+import {
+  DASHBOARD_ENTITLEMENT_STATUS,
+  EMPTY_DASHBOARD_ENTITLEMENTS,
+  buildDashboardEntitlementState,
+  mapEntitlementRecord,
+} from '../../core/state/dashboardEntitlementState';
 import {
   isEntryIntendedAction,
   isEntrySelectedPlan,
@@ -80,6 +91,79 @@ const INVOICE_FLOW_STAGES = [
   { id: 'send', label: 'Send' },
   { id: 'paid', label: 'Completed' },
 ];
+
+function FirstRevenueLoopAction({ loop, onCreateQuote, onSendQuote, onCreateInvoiceDraft, onPreparePayment }) {
+  if (!loop || loop.stage === 'unavailable') return null;
+
+  const stageContent = {
+    no_quote: {
+      title: 'Create your first quote',
+      description: 'Start a client-ready photography quote and save it to begin your first revenue workflow.',
+      actionLabel: 'Create Quote',
+      onAction: onCreateQuote,
+    },
+    draft: {
+      title: 'Mark your quote as sent',
+      description: 'Your quote is ready. Mark it as sent to start tracking the client decision.',
+      actionLabel: 'Mark as Sent',
+      onAction: onSendQuote,
+    },
+    sent: {
+      title: 'Awaiting client response',
+      description: 'Your quote is marked as sent. Record the outcome when received from your client.',
+    },
+    approved: {
+      title: 'Create a linked invoice draft',
+      description: 'Your client approved the quote. Prepare the matching invoice terms next.',
+      actionLabel: 'Create Linked Invoice Draft',
+      onAction: onCreateInvoiceDraft,
+    },
+    invoice_created: {
+      title: 'Prepare payment collection',
+      description: 'Your deposit invoice is ready. Add payment terms and record funds only when received.',
+      actionLabel: 'Prepare Payment',
+      onAction: onPreparePayment,
+    },
+    first_payment_received: {
+      title: 'First payment received',
+      description: 'Record the remaining balance when it is received to complete this first revenue loop.',
+      actionLabel: 'Prepare Payment',
+      onAction: onPreparePayment,
+    },
+    complete: {
+      title: 'First revenue loop complete',
+      description: 'A successful payment was recorded for this first client workflow.',
+    },
+    rejected: {
+      title: 'Client declined the quote',
+      description: 'This first revenue loop is complete without an invoice draft.',
+    },
+  };
+
+  const content = stageContent[loop.stage];
+  if (!content) return null;
+
+  return (
+    <section
+      className="card animate-fade-in"
+      data-testid="first-revenue-loop-action"
+      style={{ marginBottom: '20px', padding: '20px 22px', border: '1px solid var(--accent)', background: 'var(--background-card)' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: '650px' }}>
+          <p style={{ margin: '0 0 6px', fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase' }}>First Revenue Loop</p>
+          <h2 style={{ margin: 0, fontSize: '1.12rem', fontWeight: 800, color: 'var(--text-main)' }}>{content.title}</h2>
+          <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.5 }}>{content.description}</p>
+        </div>
+        {content.onAction && (
+          <button type="button" onClick={content.onAction} className="btn btn-primary" style={{ fontWeight: 750 }}>
+            {content.actionLabel}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function inferRevenueActionFromRoute(route) {
   if (!route || typeof route !== 'string') return null;
@@ -162,7 +246,7 @@ const shouldOpenQuoteCreateFromRoute = (tool) => {
 
 const isFirstQuoteFlowRoute = () => {
   if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).get('flow') === 'first-quote';
+  return shouldBypassOnboardingForFirstQuote(window.location.search);
 };
 
 const readFirstQuoteStartedAt = () => {
@@ -173,10 +257,6 @@ const readFirstQuoteStartedAt = () => {
   } catch (_) {
     return window.sessionStorage.getItem('corvioz_signup_started_at') || null;
   }
-};
-
-const isAdvancedDashboardTool = (tool) => {
-  return ['invoice', 'client', 'profile', 'studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool);
 };
 
 // Helpers to serialize/deserialize custom metadata in the text notes column
@@ -367,7 +447,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [activeTab, setActiveTab] = useState(() => {
     return getDashboardTabForTool(initialTool);
   }); // overview, leads, quotes, invoices, clients, profile
-  const [showAdvanced, setShowAdvanced] = useState(() => isAdvancedDashboardTool(initialTool));
   
   const [session, setSession] = useState(null);
   const sessionRef = useRef(null);
@@ -407,8 +486,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     sessionRef.current = session;
   }, [session]);
 
-  const [entitlements, setEntitlements] = useState(() => {
-    return { invoice: true, ...getUserEntitlements(user?.plan) };
+  const buildFallbackEntitlements = useCallback((plan) => {
+    if (!plan) return null;
+    return { invoice: true, ...getUserEntitlements(plan) };
+  }, []);
+
+  const [entitlementState, setEntitlementState] = useState(() => {
+    return buildDashboardEntitlementState({
+      mode,
+      session: previewMode ? {} : session,
+      authChecked,
+      user,
+      fallbackEntitlements: buildFallbackEntitlements(user?.plan),
+    });
   });
 
   // ── Unified Decision Engine (v8.5 Decision Unification Layer) ────────────────────────────
@@ -455,9 +545,40 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   useEffect(() => {
     let channel = null;
+    let cancelled = false;
+
+    if (mode !== 'live' || previewMode) {
+      setEntitlementState(buildDashboardEntitlementState({
+        mode,
+        session: previewMode ? {} : session,
+        authChecked: true,
+        user,
+        fallbackEntitlements: buildFallbackEntitlements(user?.plan) || { invoice: true, ...getUserEntitlements('free') },
+      }));
+      return undefined;
+    }
+
+    if (!authChecked || (session && !user?.id)) {
+      setEntitlementState(buildDashboardEntitlementState({
+        mode,
+        session,
+        authChecked,
+        user,
+        fallbackEntitlements: null,
+      }));
+      return undefined;
+    }
 
     if (user?.id) {
       const loadEntitlements = async () => {
+        setEntitlementState(buildDashboardEntitlementState({
+          mode,
+          session,
+          authChecked,
+          user,
+          fallbackEntitlements: null,
+        }));
+
         try {
           const supabase = createBrowserSupabaseClient();
           if (supabase) {
@@ -468,14 +589,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               .maybeSingle();
 
             if (data) {
-              setEntitlements({
-                invoice: true,
-                export_pdf: !!data.export_pdf,
-                client_portal: !!data.client_portal,
-                crm: !!data.crm,
-                automation: !!data.automation,
-                advanced_invoicing: !!data.advanced_invoicing
-              });
+              if (cancelled) return;
+              setEntitlementState(buildDashboardEntitlementState({
+                mode,
+                session,
+                authChecked,
+                user,
+                entitlementRecord: data,
+                fallbackEntitlements: null,
+              }));
 
               channel = supabase
                 .channel(`entitlements:${user.id}`)
@@ -490,13 +612,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   (payload) => {
                     console.log('Real-time entitlement update received:', payload);
                     if (payload.new) {
-                      setEntitlements({
-                        invoice: true,
-                        export_pdf: !!payload.new.export_pdf,
-                        client_portal: !!payload.new.client_portal,
-                        crm: !!payload.new.crm,
-                        automation: !!payload.new.automation,
-                        advanced_invoicing: !!payload.new.advanced_invoicing,
+                      setEntitlementState({
+                        status: DASHBOARD_ENTITLEMENT_STATUS.READY,
+                        entitlements: mapEntitlementRecord(payload.new),
+                        error: null,
                       });
                     }
                   }
@@ -512,24 +631,48 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           const hasCRM = await canAccess(user.id, 'crm');
           const hasAutomation = await canAccess(user.id, 'automation');
           const hasAdvancedInvoicing = await canAccess(user.id, 'advanced_invoicing');
-          setEntitlements({
-            invoice: true,
-            export_pdf: hasExport,
-            client_portal: hasPortal,
-            crm: hasCRM,
-            automation: hasAutomation,
-            advanced_invoicing: hasAdvancedInvoicing
-          });
+          if (cancelled) return;
+          setEntitlementState(buildDashboardEntitlementState({
+            mode,
+            session,
+            authChecked,
+            user,
+            fallbackEntitlements: user.plan ? {
+              invoice: true,
+              export_pdf: hasExport,
+              client_portal: hasPortal,
+              crm: hasCRM,
+              automation: hasAutomation,
+              advanced_invoicing: hasAdvancedInvoicing
+            } : null,
+            fallbackResolved: true,
+          }));
         } catch (err) {
           console.error('Error fetching entitlements dynamically:', err);
+          if (!cancelled) {
+            setEntitlementState(buildDashboardEntitlementState({
+              mode,
+              session,
+              authChecked,
+              user,
+              entitlementError: 'entitlement_fetch_failed',
+            }));
+          }
         }
       };
       loadEntitlements();
     } else {
-      setEntitlements({ invoice: true, ...getUserEntitlements(user?.plan) });
+      setEntitlementState(buildDashboardEntitlementState({
+        mode,
+        session,
+        authChecked,
+        user,
+        fallbackEntitlements: buildFallbackEntitlements(user?.plan),
+      }));
     }
 
     return () => {
+      cancelled = true;
       if (channel) {
         const supabase = createBrowserSupabaseClient();
         if (supabase) {
@@ -537,10 +680,39 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
       }
     };
-  }, [user]);
+  }, [authChecked, buildFallbackEntitlements, mode, previewMode, session, user]);
+
+  const entitlementReady = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.READY;
+  const entitlements = entitlementReady ? (entitlementState.entitlements || EMPTY_DASHBOARD_ENTITLEMENTS) : EMPTY_DASHBOARD_ENTITLEMENTS;
+  const isEntitlementLoading = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.LOADING;
+  const isEntitlementError = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.ERROR;
 
   const isPro = entitlements.export_pdf || entitlements.client_portal;
-  const isFree = !isPro;
+  const isFree = entitlementReady ? !isPro : false;
+  const firstRevenueLoop = user?.first_revenue_loop || null;
+  const firstRevenueLoopActionReady = Boolean(
+    firstRevenueLoop
+      && (
+        firstRevenueLoop.stage === 'no_quote'
+        || !firstRevenueLoop.quote_id
+        || quotes.some((quote) => quote.id === firstRevenueLoop.quote_id)
+      )
+  );
+  const canAccessFirstRevenueQuotes = Boolean(
+    firstRevenueLoop?.can_create_quote
+      || firstRevenueLoop?.can_send_quote
+      || firstRevenueLoop?.can_create_invoice_draft
+      || firstRevenueLoop?.can_prepare_payment
+  );
+  const canAccessFirstRevenueInvoices = Boolean(
+    firstRevenueLoop?.can_create_invoice_draft || firstRevenueLoop?.can_prepare_payment
+  );
+  const canCreateFirstRevenueInvoiceDraft = Boolean(
+    firstRevenueLoop?.can_create_invoice_draft && firstRevenueLoop?.quote_id
+  );
+  const planStatusLabel = isEntitlementLoading
+    ? 'Loading'
+    : (isEntitlementError ? 'Unavailable' : (user?.plan || (isFree ? 'free' : 'paid')));
 
   const [exportCount, setExportCount] = useState(0);
   const [showExportPurposeModal, setShowExportPurposeModal] = useState(false);
@@ -735,6 +907,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qClientName, setQClientName] = useState('');
   const [qClientEmail, setQClientEmail] = useState('');
   const [qClientAddress, setQClientAddress] = useState('');
+  const [qClientId, setQClientId] = useState('');
   const [qItems, setQItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
   const [qTaxRate, setQTaxRate] = useState(0);
   const [qDiscountRate, setQDiscountRate] = useState(0);
@@ -775,6 +948,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invPaymentLink, setInvPaymentLink] = useState('');
   const [invQuoteId, setInvQuoteId] = useState(null);
   const [invBillingType, setInvBillingType] = useState('standard');
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   // Client editor state
   const [newClientName, setNewClientName] = useState('');
@@ -899,12 +1073,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       default: return '$';
     }
   };
-
-  const getAuthHeaders = useCallback((token) => {
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
-
-
 
   const restoreUserIntent = useCallback((userId = null, entryState = 'AUTHENTICATED') => {
     if (typeof window === 'undefined') return;
@@ -1125,19 +1293,94 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setActiveTab(resolvedTab);
     setFormError('');
     setFormSuccess('');
-  }, [kernelUi, invoiceFlowLocked, activeTab, invoiceView, triggerToast, showAdvanced]);
+  }, [kernelUi, invoiceFlowLocked, activeTab, invoiceView, triggerToast]);
 
-  // v10: renderPaidLockState is REMOVED.
-  // Tabs are now freely accessible — upgrade nudges fire AFTER value moments, not before access.
-  // This stub is kept for compatibility only; it renders nothing and fires the nudge hook.
   const renderPaidLockState = (title, description, targetPlan = 'pro') => {
-    // Signal the tier wrapper to fire a success nudge (non-blocking)
+    if (isEntitlementLoading) {
+      return (
+        <div className="animate-fade-in" style={{
+          minHeight: '48vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          padding: '40px 24px',
+          textAlign: 'center',
+          color: 'var(--text-muted)'
+        }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            border: '3px solid var(--border)',
+            borderTopColor: 'var(--primary)',
+            animation: 'spin 0.9s linear infinite'
+          }} />
+          <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem', fontWeight: 800 }}>Loading dashboard access</h2>
+          <p style={{ margin: 0, maxWidth: '460px', lineHeight: 1.5 }}>
+            We are validating your session and entitlement state before opening {title.toLowerCase()}.
+          </p>
+        </div>
+      );
+    }
+
+    if (isEntitlementError) {
+      return (
+        <div className="animate-fade-in" style={{
+          minHeight: '48vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '14px',
+          padding: '40px 24px',
+          textAlign: 'center',
+          border: '1px dashed var(--border)',
+          borderRadius: '12px',
+          background: 'var(--btn-secondary-bg)',
+          margin: '24px 0'
+        }}>
+          <Icons.Warning size={32} style={{ color: 'var(--danger)' }} />
+          <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem', fontWeight: 800 }}>Dashboard access unavailable</h2>
+          <p style={{ margin: 0, maxWidth: '500px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            We could not resolve your entitlement state. Refresh the dashboard or sign in again before continuing.
+          </p>
+          <button type="button" onClick={() => window.location.reload()} className="btn btn-secondary">
+            Refresh
+          </button>
+        </div>
+      );
+    }
+
     if (typeof window !== 'undefined' && window.__corvioz_fire_success_nudge) {
-      // We don't know the exact moment here, so we fire a generic upgrade nudge via window
       window.__corvioz_fire_success_nudge('INVOICE_CREATED');
     }
-    // Return null — the calling tab section will render its real content
-    return null;
+    return (
+      <div className="animate-fade-in" style={{
+        minHeight: '48vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '14px',
+        padding: '40px 24px',
+        textAlign: 'center',
+        border: '1px dashed var(--border)',
+        borderRadius: '12px',
+        background: 'var(--btn-secondary-bg)',
+        margin: '24px 0'
+      }}>
+        <Icons.Lock size={32} style={{ color: 'var(--primary)' }} />
+        <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.25rem', fontWeight: 800 }}>{title}</h2>
+        <p style={{ margin: 0, maxWidth: '520px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {description}
+        </p>
+        <Link href={`/pricing?plan=${targetPlan}`} className="btn btn-primary" style={{ textDecoration: 'none' }}>
+          Upgrade to {targetPlan === 'pro' ? 'Pro' : targetPlan}
+        </Link>
+      </div>
+    );
   };
 
   const renderGuestLockState = (title, description) => {
@@ -1284,7 +1527,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
         if (cancelled) return;
-        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
+        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated && !isFirstQuoteFlowRoute()) {
           router.replace('/onboarding');
           return;
         }
@@ -1317,7 +1560,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
       const authEventAction = getDashboardAuthEventAction(_event, nextSession);
       if (authEventAction === 'ignore') return;
-
       if (!nextSession && !sessionRef.current) {
         setAuthChecked(false);
       }
@@ -1333,7 +1575,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
         const dashboardSnapshot = await fetchData(nextSession.access_token);
         if (cancelled) return;
-        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated) {
+        if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated && !isFirstQuoteFlowRoute()) {
           router.replace('/onboarding');
           return;
         }
@@ -1504,7 +1746,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             { description: 'Phase 2: Custom Core Frontend Engineering', quantity: 1, unitPrice: 2500 },
             { description: 'Phase 3: Integration & Launch Clearance', quantity: 1, unitPrice: 1000 }
           ]);
-          setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'quote_generated', pipeline_status: 'Proposal Sent' } : l));
+          setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'quote_generated', pipeline_status: 'Quote Sent' } : l));
           handleDashboardTabChange('quotes', 'lead_ai_quote');
           setQuoteView('create');
           triggerToast('AI generated quote draft from visitor inquiry (Sandbox)!', 'success');
@@ -1515,7 +1757,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       try {
         const res = await fetch('/api/quotes/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders(session.access_token) },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message_text: lead.message })
         });
 
@@ -1563,60 +1805,181 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     });
   };
 
-  // Convert approved Quote to Invoice
-  const handleConvertQuoteToInvoice = (quote) => {
+  const openInvoiceFromQuote = (quote, { firstRevenueDraft = false } = {}) => {
+    setInvId('');
+    setInvNumber(generateRandomNumberString('INV'));
+    setInvClientName(quote.client_name);
+    setInvClientEmail(quote.client_email || '');
+    setInvClientAddress(quote.client_address || '');
+    setInvCurrency(quote.currency || 'USD');
+    setInvNotes(quote.notes || '');
+    setInvDate(getTodayString());
+    setInvDueDate(getFutureDateString(30));
+    setInvPaymentTerms('Net 30');
+    setInvStatus(firstRevenueDraft ? 'draft' : 'pending');
+    setInvQuoteId(quote.id);
+    setInvPaymentLink('');
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(true);
+    setShowPaymentWaitingBanner(false);
+
+    const parsedItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
+    setInvItems(parsedItems.map(item => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice || (item.unit_price || 0) / 100
+    })));
+    setInvTaxRate(Number(quote.tax_rate || 0));
+    setInvDiscountRate(Number(quote.discount_rate || 0));
+
+    trackEvent('quote_convert_to_invoice', { quote_id: quote.id });
+    handleDashboardTabChange('invoices', 'quote_conversion');
+    setInvoiceView('create');
+    triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
+  };
+
+  const openInvoiceDraft = (invoice, quote) => {
+    const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
+    setInvId(invoice.id);
+    setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
+    setInvClientName(invoice.client_name || quote.client_name || '');
+    setInvClientEmail(invoice.client_email || quote.client_email || '');
+    setInvClientAddress(invoice.client_address || quote.client_address || '');
+    setInvCurrency(invoice.currency || quote.currency || 'USD');
+    setInvNotes(invoice.notes || quote.notes || '');
+    setInvDate(invoice.invoice_date || getTodayString());
+    setInvDueDate(invoice.due_date || getFutureDateString(30));
+    setInvPaymentTerms(invoice.payment_terms || 'Net 30');
+    setInvStatus('draft');
+    setInvQuoteId(quote.id);
+    setInvPaymentLink(invoice.payment_link || '');
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(false);
+    setShowPaymentWaitingBanner(false);
+    setInvItems(parsedItems.map(item => ({ description: item.description, quantity: item.quantity, unitPrice: item.unitPrice || (item.unit_price || 0) / 100 })));
+    setInvTaxRate(Number(invoice.tax_rate || quote.tax_rate || 0));
+    setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
+    handleDashboardTabChange('invoices', 'quote_conversion');
+    setInvoiceView('create');
+    triggerToast('Invoice draft created. Review and save it before sending.', 'success');
+  };
+
+  const handleConvertQuoteToInvoice = async (quote) => {
     trackEvent('create_invoice_click', { source: 'quote_convert' });
-    evaluateAction('create_invoice', () => {
-      // Fill Invoice state
-      resetInvoiceCreateState();
-      setInvNumber(generateRandomNumberString('INV'));
-      setInvClientName(quote.client_name);
-      setInvClientEmail(quote.client_email || '');
-      setInvClientAddress(quote.client_address || '');
-      setInvCurrency(quote.currency || 'USD');
-      setInvNotes(quote.notes || '');
-      setInvDate(getTodayString());
-      setInvDueDate(getFutureDateString(30));
-      setInvPaymentTerms('Net 30');
-      setInvStatus('pending');
-      setInvQuoteId(quote.id);
-      setInvPaymentLink(''); // Allow freelancer to set their client document link
-      setInvoiceFlowStage('create');
-      setInvoiceFlowLocked(true);
-      setShowPaymentWaitingBanner(false);
+    if (quote.status !== 'approved') return;
+    try {
+      const response = await fetch(`/api/quotes/${quote.id}/invoice-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Unable to create Invoice draft');
+      openInvoiceDraft(result.invoice, quote);
+      await fetchData(session?.access_token);
+    } catch (error) {
+      triggerToast(error.message || 'Unable to create Invoice draft.', 'error');
+    }
+  };
 
-      const parsedItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
-      setInvItems(parsedItems.map(item => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice || (item.unit_price || 0) / 100
-      })));
+  const handleSendFirstRevenueQuote = async () => {
+    if (!firstRevenueLoop?.can_send_quote || !firstRevenueLoop.quote_id) return;
+    const quote = quotes.find((item) => item.id === firstRevenueLoop.quote_id);
+    if (!quote) {
+      triggerToast('Your first quote is still loading. Refresh and try again.', 'error');
+      return;
+    }
 
-      setInvTaxRate(Number(quote.tax_rate || 0));
-      setInvDiscountRate(Number(quote.discount_rate || 0));
+    try {
+      const quoteResponse = await fetch('/api/quotes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: quote.id, status: 'sent' })
+      });
+      const quoteData = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok) throw new Error(quoteData.error || 'Unable to mark quote as sent');
 
-      // Change quote status to accepted/converted
-      const handleStatusUpdate = async () => {
-        if (session) {
-          await fetch('/api/quotes', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders(session.access_token) },
-            body: JSON.stringify({ id: quote.id, status: 'converted' })
-          });
-          fetchData(session.access_token);
-        } else {
-          // Offline / Sandbox Mode
-          setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'converted' } : q));
-        }
-      };
-      handleStatusUpdate();
+      await fetchData(session?.access_token);
+      triggerToast('Quote marked as sent.', 'success');
+    } catch (error) {
+      console.error(error);
+      triggerToast(error.message || 'Unable to update quote status.', 'error');
+    }
+  };
 
-      // Navigate to Invoice editor
-      trackEvent('quote_convert_to_invoice', { quote_id: quote.id });
-      handleDashboardTabChange('invoices', 'quote_conversion');
-      setInvoiceView('create');
-      triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
-    });
+  const handleOpenFirstRevenueInvoiceDraft = () => {
+    if (!canCreateFirstRevenueInvoiceDraft) return;
+    const quote = quotes.find((item) => item.id === firstRevenueLoop.quote_id);
+    if (!quote) {
+      triggerToast('Your approved quote is still loading. Refresh and try again.', 'error');
+      return;
+    }
+    handleConvertQuoteToInvoice(quote);
+  };
+
+  const handlePrepareFirstRevenuePayment = () => {
+    if (!firstRevenueLoop?.can_prepare_payment || !firstRevenueLoop.invoice_id) return;
+    const invoice = invoices.find((item) => item.id === firstRevenueLoop.invoice_id);
+    if (!invoice) {
+      triggerToast('Your linked invoice is still loading. Refresh and try again.', 'error');
+      return;
+    }
+    setInvId(invoice.id);
+    setInvNumber(invoice.invoice_number);
+    setInvClientName(invoice.client_name);
+    setInvClientEmail(invoice.client_email || '');
+    setInvClientAddress(invoice.client_address || '');
+    setInvCurrency(invoice.currency || 'USD');
+    const deserialized = deserializeInvoiceNotes(invoice.notes);
+    setInvNotes(deserialized.notes);
+    setInvBillingType(deserialized.billing_type);
+    setInvTaxRate(Number(invoice.tax_rate || 0));
+    setInvDiscountRate(Number(invoice.discount_rate || 0));
+    setInvDate(invoice.invoice_date || getTodayString());
+    setInvDueDate(invoice.due_date || getFutureDateString(30));
+    setInvPaymentTerms(invoice.payment_terms || 'Net 30');
+    setInvPaymentLink(invoice.payment_link || '');
+    setInvQuoteId(invoice.quote_id || null);
+    const itemsParsed = Array.isArray(invoice.items) ? invoice.items : JSON.parse(invoice.items || '[]');
+    setInvItems(itemsParsed.map(item => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice || (item.unit_price || 0) / 100
+    })));
+    setInvStatus(invoice.status);
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(true);
+    setShowPaymentWaitingBanner(false);
+    handleDashboardTabChange('invoices', 'first_revenue_payment');
+    setInvoiceView('edit');
+  };
+
+  const handleRecordPayment = async (invoice) => {
+    const entered = typeof window !== 'undefined'
+      ? window.prompt(`Amount received (${invoice.currency || 'USD'})`, ((invoice.amount_due_cents ?? invoice.total ?? 0) / 100).toFixed(2))
+      : null;
+    if (entered === null) return;
+    const amountCents = Math.round(Number(entered) * 100);
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+      triggerToast('Enter a positive payment amount.', 'error');
+      return;
+    }
+
+    setIsRecordingPayment(true);
+    try {
+      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${invoice.id}-${Date.now()}`;
+      const response = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount_cents: amountCents, currency: invoice.currency || 'USD', idempotency_key: idempotencyKey })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Unable to record payment.');
+      await fetchData(session?.access_token);
+      triggerToast(`Payment recorded. State: ${result.payment_status || 'updated'}.`, 'success');
+    } catch (error) {
+      triggerToast(error.message || 'Unable to record payment.', 'error');
+    } finally {
+      setIsRecordingPayment(false);
+    }
   };
 
   const handleCopyPortalLink = async (resourceId, resourceType) => {
@@ -1636,14 +1999,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
 
       try {
-        const headers = {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(session?.access_token)
-        };
-        
         const res = await fetch('/api/portal/token/generate', {
           method: 'POST',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             resource_id: resourceId,
             resource_type: resourceType
@@ -1744,6 +2102,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       const payload = {
         id: qId || undefined,
+        client_id: qClientId || null,
         quote_number: qNumber,
         client_name: qClientName.trim(),
         client_email: qClientEmail.trim(),
@@ -1833,6 +2192,22 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               const startedAt = readFirstQuoteStartedAt();
               const completedAt = new Date().toISOString();
               const deltaMs = startedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(startedAt)) : null;
+              if (isFirstQuoteFlow) {
+                const activationEvent = buildFirstQuoteActivationEvent({
+                  userId: session.user?.id || null,
+                  quoteId: res.data?.id || qId || null,
+                  quoteNumber: qNumber,
+                  presetId: selectedQuotePreset?.id || null,
+                  completedAt,
+                });
+                await fetch('/api/events/track', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(activationEvent),
+                }).catch((error) => {
+                  console.error('Failed to record first quote activation:', error);
+                });
+              }
               sendEvent('signup_to_first_quote_completed', {
                 quote_number: qNumber,
                 quote_id: res.data?.id || qId || null,
@@ -1848,6 +2223,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           }
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
           triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
+          if (!qId && mode === 'live') {
+            await fetchData(session?.access_token);
+          }
           setSuggestedActionDoc({
             type: 'quote',
             number: qNumber,
@@ -2027,20 +2405,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
     };
 
-    if (!invId) {
-      evaluateAction('create_invoice', () => {
-        performSave().then((saved) => {
-          if (!saved) return;
-          if (advanceToSend) {
-            setInvoiceFlowStage('send');
-            setShowPaymentWaitingBanner(true);
-            setInvStatus('pending');
-          }
-          if (exitAfterSave) {
-            handleExitInvoiceFlow();
-          }
-        });
+    const finishSave = () => {
+      performSave().then((saved) => {
+        if (!saved) return;
+        if (advanceToSend) {
+          setInvoiceFlowStage('send');
+          setShowPaymentWaitingBanner(true);
+          setInvStatus('pending');
+        }
+        if (exitAfterSave) {
+          handleExitInvoiceFlow();
+        }
       });
+    };
+
+    if (!invId) {
+      const isFirstRevenueInvoiceDraft = Boolean(
+        canCreateFirstRevenueInvoiceDraft && invQuoteId === firstRevenueLoop?.quote_id
+      );
+      if (isFirstRevenueInvoiceDraft) {
+        finishSave();
+      } else {
+        evaluateAction('create_invoice', finishSave);
+      }
     } else {
       const saved = await performSave();
       if (!saved) return false;
@@ -2089,8 +2476,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const response = await fetch('/api/card-profile/generate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': session?.access_token ? `Bearer ${session.access_token}` : ''
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           raw_text: profilePrompt
@@ -2339,7 +2725,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
     } catch (e) {
       console.error(e);
-      setFormError('Network error when saving client.');
+      setFormError(e?.message || 'Failed to save client.');
     }
   };
 
@@ -2558,9 +2944,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Document total computations
   const currentInvoices = getActiveInvoices();
-  const totalPaid = currentInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalPending = currentInvoices.filter(i => i.status === 'pending' || i.status === 'sent' || i.status === 'unpaid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalOverdue = currentInvoices.filter(i => i.status === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalPending = currentInvoices.filter(i => ['pending', 'sent', 'unpaid', 'partial'].includes(i.payment_status || i.status)).reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalOverdue = currentInvoices.filter(i => (i.payment_status || i.status) === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
   const totalVolume = totalPaid + totalPending + totalOverdue;
 
   // Init blank Quote
@@ -2748,7 +3134,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const activeClientsCount = clients ? clients.length : 0;
   const activeInvoicesCount = invoices ? invoices.length : 0;
   const hasOverdueInvoices = invoices ? invoices.some(inv => {
-    if (inv.status === 'paid' || !inv.due_date) return false;
+    if ((inv.payment_status || inv.status) === 'paid' || !inv.due_date) return false;
     const dueDate = new Date(inv.due_date);
     return dueDate < new Date();
   }) : false;
@@ -2807,7 +3193,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               Loading dashboard
             </div>
             <div style={{ color: 'var(--text-main)', fontSize: '1.6rem', fontWeight: 900, marginBottom: '8px' }}>
-              Preparing your workspace...
+              Preparing your dashboard...
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Checking your session and loading client workflow data.
@@ -2911,6 +3297,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               const IconComponent = Icons[tab.id];
               const isActive = activeTab === tab.id;
               const iconColor = isActive ? '#4F46E5' : '#59677c';
+              // B+ icon set (Quote/Invoice/Clients) uses its own stroke-width
+              // convention (1.7 default / 1.8 active) per the approved design
+              // handoff. Other tabs (e.g. profile) keep their existing values.
+              const isBPlusIcon = tab.id === 'quotes' || tab.id === 'invoices' || tab.id === 'clients';
+              const iconStrokeWidth = isBPlusIcon ? (isActive ? 1.8 : 1.7) : (isActive ? 2.5 : 2);
 
               // Identity theme accent colors
               const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
@@ -2956,7 +3347,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             transition: 'color 0.25s'
                           }}
                         >
-                          <IconComponent size={18} strokeWidth={2} />
+                          <IconComponent size={18} strokeWidth={iconStrokeWidth} />
                         </span>
                       )}
                       <span style={{ transition: 'color 0.25s' }}>{tab.label}</span>
@@ -2965,6 +3356,86 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </React.Fragment>
               );
             })}
+
+            <Link
+              href="/client-portal"
+              onClick={(e) => {
+                e.preventDefault();
+                evaluateAction('client_portal', () => {
+                  router.push('/client-portal');
+                });
+              }}
+              aria-label="Client Portal: external pages shared with clients"
+              title="External pages shared with clients"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8.5px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                textDecoration: 'none',
+                transition: 'var(--transition)'
+              }}
+            >
+              <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
+              Client Portal
+            </Link>
+
+            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
+            <button
+              type="button"
+              onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8.5px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                transition: 'var(--transition)'
+              }}
+            >
+              <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDashboardTabChange('profile', 'sidebar_account')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8.5px 12px',
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                cursor: 'pointer',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                transition: 'var(--transition)'
+              }}
+            >
+              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
+              Account
+            </button>
           </nav>
         </div>
 
@@ -3062,18 +3533,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span>Plan Status:</span>
               <span style={{ 
-                background: isFree ? 'var(--btn-secondary-bg)' : 'var(--success-glow)', 
-                color: isFree ? 'var(--text-muted)' : 'var(--success)', 
+                background: isEntitlementLoading || isFree ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
+                color: isEntitlementLoading || isFree ? 'var(--text-muted)' : 'var(--success)',
                 fontSize: '0.65rem', 
                 padding: '2px 8px', 
                 borderRadius: '99px', 
                 fontWeight: 800,
                 textTransform: 'uppercase'
               }}>
-                {user?.plan || 'free'}
+                {planStatusLabel}
               </span>
             </div>
-            {isFree && (
+            {entitlementReady && isFree && (
               <Link
                 href="/pricing?checkout=pro"
                 onClick={(e) => {
@@ -3152,7 +3623,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="product-state-mark">Preview</span>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 500 }}>
-                You are exploring Corvioz in <strong>Preview Mode</strong>. Your workspace changes are kept locally in your browser.
+                You are exploring Corvioz in <strong>Preview Mode</strong>. Your dashboard changes are kept locally in your browser.
               </p>
             </div>
             <Link 
@@ -3216,6 +3687,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           />
         )}
         {renderActivationGuide()}
+        <FirstRevenueLoopAction
+          loop={firstRevenueLoopActionReady ? firstRevenueLoop : null}
+          onCreateQuote={() => initCreateQuote('first_revenue_loop')}
+          onSendQuote={handleSendFirstRevenueQuote}
+          onCreateInvoiceDraft={handleOpenFirstRevenueInvoiceDraft}
+          onPreparePayment={handlePrepareFirstRevenuePayment}
+        />
 
           {/* TAB 1: OVERVIEW CONTROL CENTER */}
         {activeTab === 'overview' && (
@@ -3525,7 +4003,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'quotes' && (
           !session && quoteView !== 'create' ? (
             renderGuestLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.')
-          ) : session && !entitlements.invoice ? (
+          ) : session && !entitlements.invoice && !canAccessFirstRevenueQuotes ? (
             renderPaidLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.', 'pro')
           ) : (
             <div className="animate-fade-in">
@@ -3602,6 +4080,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     setQClientName(q.client_name);
                                     setQClientEmail(q.client_email || '');
                                     setQClientAddress(q.client_address || '');
+                                    setQClientId(q.client_id || '');
                                     setQCurrency(q.currency || 'USD');
                                     setQNotes(q.notes || '');
                                     setQTaxRate(Number(q.tax_rate || 0));
@@ -3636,9 +4115,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 >
                                   Delete
                                 </button>
-                                {q.status !== 'converted' && (
+                                {q.status === 'approved' && (
                                   <button onClick={() => handleConvertQuoteToInvoice(q)} className="btn btn-primary btn-sm">
-                                    Convert to Invoice
+                                    Create Invoice Draft
                                   </button>
                                 )}
                               </div>
@@ -3738,6 +4217,26 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   {/* Left Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div className="input-group">
+                        <label className="input-label">Existing Client (optional)</label>
+                        <select
+                          className="form-input"
+                          value={qClientId}
+                          onChange={e => {
+                            const nextId = e.target.value;
+                            setQClientId(nextId);
+                            const client = clients.find(item => item.id === nextId);
+                            if (client) {
+                              setQClientName(client.name || '');
+                              setQClientEmail(client.email || '');
+                              setQClientAddress(client.address || '');
+                            }
+                          }}
+                        >
+                          <option value="">No linked Client (legacy/manual Quote)</option>
+                          {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+                        </select>
+                      </div>
                       <div className="input-group">
                         <label className="input-label">Quote Number</label>
                         <input type="text" className="form-input" value={qNumber} onChange={e => setQNumber(e.target.value)} required />
@@ -4099,7 +4598,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         {activeTab === 'invoices' && (
           !session && invoiceView !== 'create' ? (
             renderGuestLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.')
-          ) : session && !entitlements.invoice ? (
+          ) : session && !entitlements.invoice && !canAccessFirstRevenueInvoices ? (
             renderPaidLockState('Invoice Documents', 'Create invoice documents, organize due dates, and keep client records connected.', 'pro')
           ) : (
             <div className="animate-fade-in">
@@ -4182,11 +4681,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 className="badge"
                                 style={{
                                   fontSize: '0.7rem',
-                                  backgroundColor: inv.status === 'paid' ? 'var(--success-glow)' : (inv.status === 'overdue' ? 'var(--danger-glow)' : 'var(--btn-secondary-bg)'),
-                                  color: inv.status === 'paid' ? 'var(--success-text)' : (inv.status === 'overdue' ? 'var(--danger-text)' : 'var(--text-muted)')
+                                  backgroundColor: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-glow)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-glow)' : 'var(--btn-secondary-bg)'),
+                                  color: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-text)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-text)' : 'var(--text-muted)')
                                 }}
                               >
-                                {inv.status}
+                                {inv.payment_status || inv.status}
                               </span>
                             </td>
                             <td style={{ padding: '14px 18px', textAlign: 'right' }}>
@@ -4232,7 +4731,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 >
                                   Copy Link
                                 </button>
-                                {['sent', 'unpaid', 'overdue', 'pending'].includes(inv.status) && (
+                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
+                                  <button
+                                    onClick={() => handleRecordPayment(inv)}
+                                    disabled={isRecordingPayment}
+                                    className="btn btn-primary btn-sm"
+                                  >
+                                    {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+                                  </button>
+                                )}
+                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
                                   <button
                                     onClick={() => {
                                       evaluateAction('payment_reminder', () => {
@@ -4360,15 +4868,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-secondary">Exit to dashboard</button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setInvStatus('paid');
-                            setInvoiceFlowStage('paid');
-                            setShowPaymentWaitingBanner(false);
-                          }}
+                          onClick={() => handleRecordPayment(invoices.find((invoice) => invoice.id === invId) || { id: invId, currency: invCurrency, total: 0 })}
                           className="btn btn-primary"
                           style={{ fontWeight: 800 }}
                         >
-                          Mark as completed
+                          Record Payment
                         </button>
                       </div>
                     </div>
@@ -5565,7 +6069,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               onUpgrade={() => {
                 setModalProps({
                   source: 'studio_preview_banner',
-                  explanation: 'Upgrade to the Studio Plan to unlock unlimited client operations and full communication automation.',
+                  explanation: 'Upgrade to the Studio Plan to unlock expanded client management and full communication automation.',
                 });
                 setActiveModal('pricing_upsell');
               }}
@@ -6810,7 +7314,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 Next-Step Insights
               </h4>
               <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-soft)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <li>Recommended action: Send the client portal link for review.</li>
+                <li>Recommended action: Share your exported document with your client.</li>
                 <li>Common next step: Track delivery and status updates.</li>
               </ul>
             </div>
@@ -6947,7 +7451,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           setIsDebugPanelVisible={setIsDebugPanelVisible}
           exportCount={exportCount}
           isFree={isFree}
-          user={user}
+          planStatusLabel={planStatusLabel}
           showExportPurposeModal={showExportPurposeModal}
         />
       )}
@@ -6961,7 +7465,7 @@ function DevDashboardAuditPanel({
   setIsDebugPanelVisible,
   exportCount,
   isFree,
-  user,
+  planStatusLabel,
   showExportPurposeModal
 }) {
   if (isDebugPanelVisible) {
@@ -7011,7 +7515,7 @@ function DevDashboardAuditPanel({
           </div>
           <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '2px' }}>User Plan</div>
-            <strong style={{ fontSize: '1rem', color: isFree ? '#f43f5e' : '#10b981' }}>{user?.plan || 'Free'}</strong>
+            <strong style={{ fontSize: '1rem', color: isFree ? '#f43f5e' : '#10b981' }}>{planStatusLabel}</strong>
           </div>
         </div>
 

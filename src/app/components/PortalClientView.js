@@ -393,9 +393,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   // Status checks for timeline
   const isInvoice = docType === 'invoice';
   const status = doc.status || 'draft';
-  const paymentStatus =
-    doc.payment_status ||
-    (doc.status === 'paid' ? 'paid' : 'unpaid');
+  const paymentStatus = isInvoice ? (doc.payment_status || (status === 'paid' ? 'paid' : 'unpaid')) : status;
 
   return (
     <div className="portal-root">
@@ -563,10 +561,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 borderRadius: '8px',
                 textTransform: 'uppercase',
                 fontWeight: 800,
-                backgroundColor: doc.status === 'paid' || doc.status === 'approved' ? 'var(--success-glow)' : 'var(--btn-secondary-bg)',
-                color: doc.status === 'paid' || doc.status === 'approved' ? 'var(--success)' : 'var(--text-muted)'
+                backgroundColor: paymentStatus === 'paid' || paymentStatus === 'approved' ? 'var(--success-glow)' : 'var(--btn-secondary-bg)',
+                color: paymentStatus === 'paid' || paymentStatus === 'approved' ? 'var(--success)' : 'var(--text-muted)'
               }}>
-                {doc.status}
+                {paymentStatus}
               </span>
             </h1>
           </div>
@@ -672,10 +670,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </div>
 
                     <div className="timeline-item">
-                      <div className={`timeline-node ${paymentStatus === 'paid' ? 'completed' : (['opened', 'overdue'].includes(status) ? 'current' : '')}`} />
+                      <div className={`timeline-node ${paymentStatus === 'paid' ? 'completed' : (['partial', 'overdue'].includes(paymentStatus) ? 'current' : '')}`} />
                       <div className="timeline-content">
                         <span className="timeline-title">Settled / Paid</span>
-                        <span className="timeline-desc">{paymentStatus === 'paid' ? 'Paid in full' : (paymentStatus === 'partial' ? 'Partially paid' : 'Awaiting final payment')}</span>
+                        <span className="timeline-desc">{paymentStatus === 'paid' ? 'Paid in full' : (paymentStatus === 'partial' ? 'Partial payment recorded' : 'Awaiting final payment')}</span>
                       </div>
                     </div>
                   </>

@@ -201,11 +201,12 @@ check(
 );
 
 check(
-  '6d. firstRevenueLoop preserves its existing exports',
+  '6d. firstRevenueLoop preserves workflow exports without a Free portal exception',
   /export function resolveFirstRevenueLoop/.test(source.firstRevenueLoop) &&
     /export function canTransitionFirstRevenueQuote/.test(source.firstRevenueLoop) &&
     /export function canCreateFirstRevenueInvoiceDraft/.test(source.firstRevenueLoop) &&
-    /export function canAccessFirstRevenueQuotePortal/.test(source.firstRevenueLoop)
+    /export function isFirstRevenueTrackedResource/.test(source.firstRevenueLoop) &&
+    !/export function canAccessFirstRevenueQuotePortal/.test(source.firstRevenueLoop)
 );
 
 check(
@@ -297,12 +298,14 @@ check(
   // No payments API route may exist under the invoices API tree.
   const invoicesApiDir = path.join(ROOT, 'src/app/api/invoices');
   const invoiceApiFiles = walkDir(invoicesApiDir, ['.js', '.ts']);
-  const paymentsRoutes = invoiceApiFiles.filter((f) =>
-    f.split(path.sep).includes('payments')
-  );
+  const paymentsRoutes = invoiceApiFiles.filter((f) => f.split(path.sep).includes('payments'));
+  const paymentRoute = paymentsRoutes.find((file) => file.endsWith(path.join('payments', 'route.js')));
+  const paymentRouteSource = paymentRoute ? readFileSync(paymentRoute, 'utf8') : '';
   check(
-    '9d. no payments API route created under src/app/api/invoices',
-    paymentsRoutes.length === 0
+    '9d. the accepted invoice payment endpoint delegates settlement to the RPC and has no direct ledger write',
+    paymentsRoutes.length === 1 &&
+      /record_invoice_payment/.test(paymentRouteSource) &&
+      !/from\(\s*['"]invoice_payments['"]\s*\)/.test(paymentRouteSource)
   );
 
   const paymentsTopLevel = path.join(ROOT, 'src/app/api/payments');

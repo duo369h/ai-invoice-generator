@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import {
   getRequestUser,
   getSupabaseQuota,
+  getDocumentQuota,
+  createInvoiceWithAtomicQuota,
   mapSupabaseInvoice,
   incrementSupabaseInvoiceUsage
 } from '../../lib/supabase';
@@ -129,7 +131,11 @@ export async function POST(request) {
       doc_type,
       client_id,
       quote_id,
-      payment_link
+      payment_link,
+      invoice_kind,
+      payment_status,
+      amount_paid_cents,
+      amount_due_cents
     } = body;
 
     if (doc_type === 'receipt') {
@@ -252,24 +258,16 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Default status: quotes -> draft, invoices -> pending, receipts -> paid
+    // Default status: quotes -> draft, invoices/receipts -> pending (ledger-neutral)
     let defaultStatus = 'pending';
     if (doc_type === 'quote') {
       defaultStatus = 'draft';
-    } else if (doc_type === 'receipt') {
-      defaultStatus = 'paid';
     }
 
     if (context.mode === 'supabase') {
       const profile = await ensureProfile(context.supabase, context.user);
-      const quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
-
-      if (!quota.invoicesAllowed) {
-        return NextResponse.json(
-          { error: 'Monthly invoice limit reached. Please upgrade to Pro.', code: 'QUOTA_EXCEEDED' },
-          { status: 403 }
-        );
-      }
+      // Non-authoritative UX quota precheck for telemetry
+      await getDocumentQuota(context.supabase, context.user.id, profile.plan).catch(() => null);
 
       // AI Injection Layer (Invoice Flow) - Observability only
       const invoice = {
@@ -304,24 +302,48 @@ export async function POST(request) {
           ...item,
           description: idx === 0 ? invoice.description : item.description,
         })),
+        invoice_kind: ['standard', 'deposit', 'milestone', 'final'].includes(invoice_kind) ? invoice_kind : 'standard',
+        payment_status: 'unpaid',
+        amount_paid_cents: 0,
+        amount_due_cents: total
       };
 
-      // SAFE-03SEC-B1: the document write runs as service_role so that the
-      // `authenticated` role no longer needs table-level DML on public.invoices.
-      // Ownership is not inherited from the connection: `payload.user_id` is set
-      // from the verified `context.user.id` above and never from the request body.
-      const serviceSupabase = createServiceSupabaseClient();
-      if (!serviceSupabase) {
-        return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+      let creation;
+      try {
+        const serviceSupabase = createServiceSupabaseClient();
+        if (!serviceSupabase) {
+          return NextResponse.json({ error: 'Invoice service is unavailable' }, { status: 503 });
+        }
+        creation = await createInvoiceWithAtomicQuota(serviceSupabase, context.user.id, profile.plan, payload);
+
+        // Non-authoritative, idempotent first-revenue invoice tracking (never blocks invoice creation)
+        if (profile.plan === 'free' && creation?.data?.id && quote_id) {
+          try {
+            const { error: trackingError } = await serviceSupabase.rpc('claim_first_revenue_invoice', {
+              p_user_id: context.user.id,
+              p_quote_id: quote_id,
+              p_invoice_id: creation.data.id,
+            });
+            if (trackingError) {
+              console.warn("[FirstRevenue] Non-blocking invoice tracking notice:", trackingError.message || trackingError);
+            }
+          } catch (trackErr) {
+            console.warn("[FirstRevenue] Non-blocking invoice tracking exception:", trackErr.message || trackErr);
+          }
+        }
+      } catch (atomicErr) {
+        if (atomicErr.code === "QUOTA_EXCEEDED" || atomicErr.status === 403) {
+          return NextResponse.json({
+            error: atomicErr.message || "Document limit reached for current cycle.",
+            code: "QUOTA_EXCEEDED"
+          }, { status: 403 });
+        }
+        return NextResponse.json({
+          error: atomicErr.message || "Database atomic document creation failed.",
+          code: "DATABASE_ERROR"
+        }, { status: 500 });
       }
-
-      const { data, error } = await serviceSupabase
-        .from('invoices')
-        .insert(payload)
-        .select('*')
-        .single();
-
-      if (error) throw error;
+      const data = creation.data;
       // V3_REVENUE_HOOK_POINT
       // DO NOT IMPLEMENT YET
       await trackProfileMetric(context.supabase, context.user.id, 'first_invoice_created_at');
@@ -332,15 +354,17 @@ export async function POST(request) {
         console.error('Failed to increment supabase invoice usage:', useErr);
       }
 
-      let portalToken = '';
-      try {
-        portalToken = await createSupabasePortalToken(context.supabase, {
-          ownerId: context.user.id,
-          resourceType: 'invoice',
-          resourceId: data.id,
-        });
-      } catch (tokenErr) {
-        console.error('Failed to create invoice portal token:', tokenErr);
+      let portalToken = null;
+      if (entitlements.client_portal) {
+        try {
+          portalToken = await createSupabasePortalToken(context.supabase, {
+            ownerId: context.user.id,
+            resourceType: 'invoice',
+            resourceId: data.id,
+          });
+        } catch (tokenErr) {
+          console.error('Failed to create invoice portal token:', tokenErr);
+        }
       }
 
       await writeAuditLog(context.supabase, {
@@ -386,10 +410,22 @@ export async function POST(request) {
 
     return authRequiredResponse('invoices');
   } catch (error) {
+    if (error.code === "QUOTA_EXCEEDED" || error.status === 403) {
+      return NextResponse.json({
+        error: error.message || "Document limit reached for current cycle.",
+        code: "QUOTA_EXCEEDED"
+      }, { status: 403 });
+    }
+    if (error.code === "DATABASE_ERROR" || error.status === 500) {
+      return NextResponse.json({
+        error: error.message || "Database error during invoice creation.",
+        code: "DATABASE_ERROR"
+      }, { status: 500 });
+    }
     const validation = validationResponse(error);
     if (validation) return validation;
-    console.error('Error creating invoice:', error);
-    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
+    console.error("Error creating invoice:", error);
+    return NextResponse.json({ error: "Failed to create invoice", code: "DATABASE_ERROR" }, { status: 500 });
   }
 }
 
@@ -406,14 +442,19 @@ export async function PATCH(request) {
     const body = validateObject(await request.json());
     const { id, status } = body;
 
-    if (!id) {
-      return NextResponse.json({ error: 'Missing required field: id' }, { status: 400 });
+    const paymentTruthFields = ['payment_status', 'amount_paid_cents', 'amount_due_cents'];
+    if (paymentTruthFields.some((field) => Object.prototype.hasOwnProperty.call(body, field))) {
+      return NextResponse.json({ error: 'Payment records determine payment state' }, { status: 400 });
+    }
+
+    if (!id || !status) {
+      return NextResponse.json({ error: 'Missing required fields: id and status' }, { status: 400 });
     }
 
     if (status === 'paid') {
       return NextResponse.json({
-        error: 'PAID_STATUS_REQUIRES_PAYMENT_RECORD',
-        message: 'Paid status can only be set by recording a payment.'
+        error: 'Payment records determine paid state',
+        code: 'PAID_STATUS_REQUIRES_PAYMENT_RECORD'
       }, { status: 400 });
     }
 
@@ -445,7 +486,6 @@ export async function PATCH(request) {
       if (hasRecordedInvoicePayment(existingInvoice)) {
         return settledInvoiceConflictResponse();
       }
-
       const { data, error } = await serviceSupabase
         .from('invoices')
         .update({ status })
@@ -488,21 +528,31 @@ export async function PATCH(request) {
       // Trigger email notifications
       if (status === 'sent' && data.client_email) {
         try {
-          const portalToken = await createSupabasePortalToken(context.supabase, {
-            ownerId: context.user.id,
-            resourceType: 'invoice',
-            resourceId: data.id
-          });
-          const portalUrl = `${getSiteUrl()}/portal/${portalToken}`;
-          
-          const { data: profile } = await context.supabase
+          const profile = await ensureProfile(context.supabase, context.user);
+          const plan = profile?.plan || 'free';
+          const { getUserEntitlements } = await import('../../../../lib/entitlements');
+          const entitlements = getUserEntitlements(plan);
+
+          let portalUrl = null;
+          if (entitlements.client_portal) {
+            const portalToken = await createSupabasePortalToken(context.supabase, {
+              ownerId: context.user.id,
+              resourceType: 'invoice',
+              resourceId: data.id
+            });
+            if (portalToken) {
+              portalUrl = `${getSiteUrl()}/portal/${portalToken}`;
+            }
+          }
+
+          const { data: freelancerProfile } = await context.supabase
             .from('profiles')
             .select('name')
             .eq('id', context.user.id)
             .maybeSingle();
 
           const { sendInvoiceSentEmail } = await import('../../lib/email');
-          await sendInvoiceSentEmail(data.client_email, data, portalUrl, profile?.name || 'Freelancer');
+          await sendInvoiceSentEmail(data.client_email, data, portalUrl, freelancerProfile?.name || 'Freelancer');
         } catch (mailErr) {
           console.error('Failed to trigger Invoice Sent email:', mailErr);
         }

@@ -22,6 +22,7 @@ const FILES = {
   portalDoc: path.join(ROOT, 'src/app/api/portal/doc/[id]/route.js'),
   portalClientView: path.join(ROOT, 'src/app/components/PortalClientView.js'),
   invoicesRoute: path.join(ROOT, 'src/app/api/invoices/route.js'),
+  paymentRoute: path.join(ROOT, 'src/app/api/invoices/[id]/payments/route.js'),
 };
 
 const source = {};
@@ -283,6 +284,22 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+// Phase 3 settlement endpoint: only the privileged RPC may create ledger truth.
+// ---------------------------------------------------------------------------
+
+check('payment endpoint: authoritative RPC is used', /\.rpc\('record_invoice_payment'/.test(source.paymentRoute));
+check('payment endpoint: no invoice_payments insert bypass exists', !/from\(\s*['"]invoice_payments['"]\s*\)/.test(source.paymentRoute));
+check('payment endpoint: fully paid rows are not preemptively rejected', !/existing\.payment_status\s*===\s*['"]paid['"]/.test(source.paymentRoute));
+check('payment endpoint: draft rows remain ineligible', /existing\.status\s*===\s*['"]draft['"]/.test(source.paymentRoute));
+check('payment endpoint: due conflict maps to 409', /invoice_payment_exceeds_amount_due:\s*409/.test(source.paymentRoute));
+check('payment endpoint: idempotency conflict maps to 409', /invoice_payment_idempotency_key_reused:\s*409/.test(source.paymentRoute));
+check('payment endpoint: currency conflict maps to 409', /invoice_payment_currency_mismatch:\s*409/.test(source.paymentRoute));
+check('payment endpoint: missing invoice maps to 404', /invoice_not_found:\s*404/.test(source.paymentRoute));
+check('payment endpoint: unknown errors are generic 500 responses', /Failed to record payment/.test(source.paymentRoute) && /status:\s*500/.test(source.paymentRoute));
+check('payment endpoint: side effects are all-settled after the RPC', /Promise\.allSettled/.test(source.paymentRoute));
+check('payment endpoint: side-effect failures are logged', /failed after payment commit/.test(source.paymentRoute));
+
+// ---------------------------------------------------------------------------
 // 4. Invoice PATCH: explicit rejection of status='paid'.
 // ---------------------------------------------------------------------------
 
@@ -351,16 +368,16 @@ check(
 );
 
 {
-  // Ensure the guard appears before the invoices insert call within POST.
+  // Ensure the guard appears before the accepted atomic invoice creation call.
   const postStart = source.invoicesRoute.indexOf('export async function POST');
   const postEnd = source.invoicesRoute.indexOf('export async function PATCH');
   const postBody = source.invoicesRoute.slice(postStart, postEnd === -1 ? undefined : postEnd);
   const guardIdx = postBody.indexOf('RECEIPT_CREATION_NOT_SUPPORTED');
-  const insertIdx = postBody.indexOf(".insert(payload)");
+  const createIdx = postBody.indexOf('createInvoiceWithAtomicQuota(');
 
   check(
-    'invoices/route.js: POST doc_type=receipt guard runs before the invoices insert call',
-    guardIdx !== -1 && insertIdx !== -1 && guardIdx < insertIdx
+    'invoices/route.js: POST doc_type=receipt guard runs before atomic invoice creation',
+    guardIdx !== -1 && createIdx !== -1 && guardIdx < createIdx
   );
 }
 
@@ -379,7 +396,7 @@ check(
   const requestJsonIdx = postBody.indexOf('request.json()');
   const receiptGuardIdx = postBody.indexOf('RECEIPT_CREATION_NOT_SUPPORTED');
   const ensureProfileIdx = postBody.indexOf('ensureProfile(');
-  const insertIdx = postBody.indexOf('.insert(payload)');
+  const createIdx = postBody.indexOf('createInvoiceWithAtomicQuota(');
   const rateLimitCallCount = (postBody.match(/rateLimitAuthenticated\(/g) || []).length;
 
   check(
@@ -406,10 +423,10 @@ check(
   );
 
   check(
-    'invoices/route.js POST: receipt guard runs before invoices insert',
+    'invoices/route.js POST: receipt guard runs before atomic invoice creation',
     receiptGuardIdx !== -1 &&
-      insertIdx !== -1 &&
-      receiptGuardIdx < insertIdx
+      createIdx !== -1 &&
+      receiptGuardIdx < createIdx
   );
 
   check(
@@ -419,13 +436,19 @@ check(
 }
 
 check(
-  'invoices/route.js: no payment_status POST assignment introduced',
-  !/\bpayment_status\s*:/.test(
-    source.invoicesRoute.slice(
+  'invoices/route.js: POST initializes ledger-neutral payment truth without accepting request-controlled payment truth',
+  (() => {
+    const postBody = source.invoicesRoute.slice(
       source.invoicesRoute.indexOf('export async function POST'),
       source.invoicesRoute.indexOf('export async function PATCH')
-    )
-  )
+    );
+    const assignments = postBody.match(/\bpayment_status\s*:\s*[^,\n}]+/g) || [];
+    return assignments.length === 1
+      && /payment_status\s*:\s*['"]unpaid['"]/.test(assignments[0])
+      && /amount_paid_cents\s*:\s*0/.test(postBody)
+      && /amount_due_cents\s*:\s*total/.test(postBody)
+      && !/payment_status\s*:\s*(?:body\.)?payment_status/.test(postBody);
+  })()
 );
 
 check(

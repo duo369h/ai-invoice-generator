@@ -16,8 +16,7 @@ assert.deepEqual(noQuote, {
   invoiceId: null,
   canCreateQuote: true,
   canSendQuote: false,
-  canOpenQuotePortal: false,
-  canCreateInvoiceDraft: false,
+    canCreateInvoiceDraft: false,
   canPreparePayment: false,
 });
 
