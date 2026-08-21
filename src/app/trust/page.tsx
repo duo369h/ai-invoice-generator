@@ -48,38 +48,38 @@ const trustSections = [
 
 export default function TrustPage() {
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-page)', color: 'var(--text-main)' }}>
+    <main className="resource-page">
       <PublicHeader route="/trust" surfaceId="trust-public-header" logoSize={24} />
 
-      <section className="container" style={{ maxWidth: '940px', margin: '0 auto', padding: '72px 24px 42px' }}>
+      <section className="container resource-page__intro resource-page__intro--standard">
         <p className="section-kicker">Why Trust Corvioz</p>
-        <h1 className="section-title" style={{ marginBottom: '16px' }}>
+        <h1 className="section-title resource-page__title">
           Built for freelancers who need clear, trustworthy client work
         </h1>
-        <p className="section-lede" style={{ maxWidth: '760px' }}>
+        <p className="section-lede resource-page__lede">
           Corvioz is designed around a simple promise: help freelancers move from client request to quote, invoice, client document, and delivery record without hiding data ownership, plan terms, or privacy terms.
         </p>
       </section>
 
-      <section className="container" style={{ maxWidth: '940px', margin: '0 auto', padding: '0 24px 72px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
+      <section className="container resource-page__content resource-page__content--standard">
+        <div className="resource-page__grid">
           {trustSections.map((section) => (
-            <article key={section.title} className="card" style={{ padding: '24px', borderRadius: '8px' }}>
-              <h2 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 800 }}>
+            <article key={section.title} className="card resource-page__card">
+              <h2 className="resource-page__card-title">
                 {section.title}
               </h2>
-              <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+              <p className="resource-page__card-copy resource-page__trust-card-copy">
                 {section.body}
               </p>
             </article>
           ))}
         </div>
 
-        <div className="card" style={{ marginTop: '24px', padding: '24px', borderRadius: '8px' }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: '1.25rem', fontWeight: 800 }}>
+        <div className="card resource-page__card resource-page__security-card">
+          <h2 className="resource-page__card-title resource-page__security-title">
             Security details
           </h2>
-          <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+          <p className="resource-page__card-copy resource-page__security-copy">
             For the practical security controls behind Corvioz, review the Security Center.
           </p>
           <Link href="/security" className="btn btn-secondary btn-sm">

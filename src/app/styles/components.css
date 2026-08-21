@@ -244,6 +244,32 @@
   resize: vertical;
 }
 
+/* Password field control pattern: the affordance remains inside the input hit area. */
+.password-input {
+  width: 100%;
+}
+.password-input__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input__control {
+  width: 100%;
+  padding-right: 40px;
+}
+.password-input__toggle {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
@@ -4028,4 +4054,3 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
     font-size: 11.5px;
   }
 }
-

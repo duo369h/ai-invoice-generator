@@ -24,41 +24,41 @@ const futureResources = [
 
 export default function HelpCenterPage() {
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-page)', color: 'var(--text-main)' }}>
+    <main className="resource-page">
       <PublicHeader route="/help" surfaceId="help-public-header" logoSize={24} />
 
-      <section className="container" style={{ maxWidth: '980px', margin: '0 auto', padding: '72px 24px 42px' }}>
+      <section className="container resource-page__intro resource-page__intro--wide">
         <p className="section-kicker">Help Center</p>
-        <h1 className="section-title" style={{ marginBottom: '16px' }}>
+        <h1 className="section-title resource-page__title">
           Trust, legal, and support resources in one place
         </h1>
-        <p className="section-lede" style={{ maxWidth: '760px' }}>
+        <p className="section-lede resource-page__lede">
           Use this page as the central entry for Corvioz support, policies, security, and transparency resources.
         </p>
       </section>
 
-      <section className="container" style={{ maxWidth: '980px', margin: '0 auto', padding: '0 24px 72px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
+      <section className="container resource-page__content resource-page__content--wide">
+        <div className="resource-page__grid">
           {helpLinks.map((item) => (
-            <Link key={item.href} href={item.href} className="card hover-card" style={{ padding: '24px', borderRadius: '8px', textDecoration: 'none' }}>
-              <h2 style={{ margin: '0 0 10px', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+            <Link key={item.href} href={item.href} className="card hover-card resource-page__card resource-page__link-card">
+              <h2 className="resource-page__card-title resource-page__link-card-title">
                 {item.title}
               </h2>
-              <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.65 }}>
+              <p className="resource-page__card-copy resource-page__link-card-copy">
                 {item.body}
               </p>
             </Link>
           ))}
         </div>
 
-        <div className="card" style={{ marginTop: '24px', padding: '24px', borderRadius: '8px' }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 800 }}>
+        <div className="card resource-page__card resource-page__future-card">
+          <h2 className="resource-page__card-title resource-page__future-title">
             Future resources
           </h2>
-          <p style={{ margin: '0 0 14px', color: 'var(--text-muted)', lineHeight: 1.65 }}>
+          <p className="resource-page__card-copy resource-page__future-copy">
             These resources are planned as Corvioz grows. They are listed here as the future home for support expansion.
           </p>
-          <ul style={{ margin: 0, paddingLeft: '22px', color: 'var(--text-muted)', lineHeight: 1.8 }}>
+          <ul className="resource-page__future-list">
             {futureResources.map((item) => (
               <li key={item}>{item}</li>
             ))}

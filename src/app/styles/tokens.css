@@ -64,6 +64,11 @@
   --warning: #f59e0b;
   --danger: #f43f5e;
 
+  /* Pricing V2 surface variants retained from the accepted visual authority. */
+  --pricing-brand-light: #EEF2FF;
+  --pricing-brand-wash: #F5F7FF;
+  --pricing-feature-surface: #EDF2F7;
+
   /* Block-02 Semantic Color Tokens */
   --block02-dark-ink: #0B0F19;
   --block02-gray-muted: #4B5563;
