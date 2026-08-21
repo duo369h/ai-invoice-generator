@@ -369,13 +369,33 @@ export async function PATCH(request, { params }) {
 
     if (resolved.type === 'quote') {
       if (action === 'approve') {
-        const { error } = await serviceSupabase
+        if (resolved.data?.status === 'approved') {
+          return NextResponse.json({ success: true, status: 'approved', idempotent: true });
+        }
+
+        const { data: approvedQuote, error } = await serviceSupabase
           .from('quotes')
           .update({ status: 'approved', updated_at: new Date().toISOString() })
           .eq('id', resolved.portalToken.resource_id)
-          .eq('user_id', resolved.portalToken.owner_id);
+          .eq('user_id', resolved.portalToken.owner_id)
+          .eq('status', 'sent')
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+        if (!approvedQuote) {
+          const { data: latestQuote, error: latestQuoteError } = await serviceSupabase
+            .from('quotes')
+            .select('status')
+            .eq('id', resolved.portalToken.resource_id)
+            .eq('user_id', resolved.portalToken.owner_id)
+            .maybeSingle();
+          if (latestQuoteError) throw latestQuoteError;
+          if (latestQuote?.status === 'approved') {
+            return NextResponse.json({ success: true, status: 'approved', idempotent: true });
+          }
+          return NextResponse.json({ error: 'QUOTE_APPROVAL_INVALID_STATE' }, { status: 409 });
+        }
 
         await recordServerGrowthEvent(serviceSupabase, {
           eventName: 'quote_accepted',
@@ -415,7 +435,7 @@ export async function PATCH(request, { params }) {
           }
         }
 
-        return NextResponse.json({ success: true, status: 'approved' });
+        return NextResponse.json({ success: true, status: 'approved', idempotent: false });
       }
 
       if (action === 'reject') {
