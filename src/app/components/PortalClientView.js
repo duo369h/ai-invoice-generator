@@ -393,6 +393,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   // Status checks for timeline
   const isInvoice = docType === 'invoice';
   const status = doc.status || 'draft';
+  const quoteAccepted = ['approved', 'converted'].includes(status);
   const paymentStatus = isInvoice ? (doc.payment_status || (status === 'paid' ? 'paid' : 'unpaid')) : status;
 
   return (
@@ -573,7 +574,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
             <button onClick={() => window.print()} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               Print / Save PDF
             </button>
-            {docType === 'quote' && doc.status !== 'approved' && doc.status !== 'declined' && (
+            {docType === 'quote' && !quoteAccepted && doc.status !== 'declined' && (
               <>
                 <button onClick={handleApproveQuote} disabled={approving} className="btn btn-primary btn-sm">
                   {approving ? 'Approving...' : 'Accept Quote'}
@@ -689,7 +690,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </div>
 
                     <div className="timeline-item">
-                      <div className={`timeline-node ${['sent', 'approved', 'declined'].includes(status) ? 'completed' : 'current'}`} />
+                      <div className={`timeline-node ${['sent', 'approved', 'declined', 'converted'].includes(status) ? 'completed' : 'current'}`} />
                       <div className="timeline-content">
                         <span className="timeline-title">Submitted for Approval</span>
                         <span className="timeline-desc">Sent to client for signature</span>
@@ -697,10 +698,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </div>
 
                     <div className="timeline-item">
-                      <div className={`timeline-node ${status === 'approved' || status === 'declined' ? 'completed' : (status === 'sent' ? 'current' : '')}`} style={status === 'declined' ? { borderColor: 'var(--danger)', backgroundColor: 'var(--danger-glow)' } : undefined} />
+                      <div className={`timeline-node ${quoteAccepted || status === 'declined' ? 'completed' : (status === 'sent' ? 'current' : '')}`} style={status === 'declined' ? { borderColor: 'var(--danger)', backgroundColor: 'var(--danger-glow)' } : undefined} />
                       <div className="timeline-content">
                         <span className="timeline-title">{status === 'declined' ? 'Declined' : 'Approved'}</span>
-                        <span className="timeline-desc">{status === 'approved' ? 'Accepted & ready for invoicing' : (status === 'declined' ? 'Declined by client' : 'Waiting for client signature')}</span>
+                        <span className="timeline-desc">{quoteAccepted ? (status === 'converted' ? 'Accepted & converted to invoice' : 'Accepted & ready for invoicing') : (status === 'declined' ? 'Declined by client' : 'Waiting for client signature')}</span>
                       </div>
                     </div>
                   </>
@@ -747,7 +748,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
               </div>
             )}
 
-            {!isInvoice && status !== 'approved' && status !== 'declined' && (
+            {!isInvoice && !quoteAccepted && status !== 'declined' && (
               <div className="card" style={{
                 padding: '24px',
                 display: 'flex',

@@ -369,8 +369,8 @@ export async function PATCH(request, { params }) {
 
     if (resolved.type === 'quote') {
       if (action === 'approve') {
-        if (resolved.data?.status === 'approved') {
-          return NextResponse.json({ success: true, status: 'approved', idempotent: true });
+        if (['approved', 'converted'].includes(resolved.data?.status)) {
+          return NextResponse.json({ success: true, status: resolved.data.status, idempotent: true });
         }
 
         const { data: approvedQuote, error } = await serviceSupabase
@@ -391,8 +391,8 @@ export async function PATCH(request, { params }) {
             .eq('user_id', resolved.portalToken.owner_id)
             .maybeSingle();
           if (latestQuoteError) throw latestQuoteError;
-          if (latestQuote?.status === 'approved') {
-            return NextResponse.json({ success: true, status: 'approved', idempotent: true });
+          if (['approved', 'converted'].includes(latestQuote?.status)) {
+            return NextResponse.json({ success: true, status: latestQuote.status, idempotent: true });
           }
           return NextResponse.json({ error: 'QUOTE_APPROVAL_INVALID_STATE' }, { status: 409 });
         }
@@ -439,13 +439,33 @@ export async function PATCH(request, { params }) {
       }
 
       if (action === 'reject') {
-        const { error } = await serviceSupabase
+        if (resolved.data?.status === 'declined') {
+          return NextResponse.json({ success: true, status: 'declined', idempotent: true });
+        }
+
+        const { data: declinedQuote, error } = await serviceSupabase
           .from('quotes')
           .update({ status: 'declined', updated_at: new Date().toISOString() })
           .eq('id', resolved.portalToken.resource_id)
-          .eq('user_id', resolved.portalToken.owner_id);
+          .eq('user_id', resolved.portalToken.owner_id)
+          .eq('status', 'sent')
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+        if (!declinedQuote) {
+          const { data: latestQuote, error: latestQuoteError } = await serviceSupabase
+            .from('quotes')
+            .select('status')
+            .eq('id', resolved.portalToken.resource_id)
+            .eq('user_id', resolved.portalToken.owner_id)
+            .maybeSingle();
+          if (latestQuoteError) throw latestQuoteError;
+          if (latestQuote?.status === 'declined') {
+            return NextResponse.json({ success: true, status: 'declined', idempotent: true });
+          }
+          return NextResponse.json({ error: 'QUOTE_REJECTION_INVALID_STATE' }, { status: 409 });
+        }
 
         await recordServerGrowthEvent(serviceSupabase, {
           eventName: 'quote_rejected',
@@ -471,7 +491,7 @@ export async function PATCH(request, { params }) {
           ip,
         });
 
-        return NextResponse.json({ success: true, status: 'declined' });
+        return NextResponse.json({ success: true, status: 'declined', idempotent: false });
       }
     }
 
