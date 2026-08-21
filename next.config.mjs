@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+  outputFileTracingIncludes: {
+    '/api/pdf/export': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+  },
   experimental: {
     cpus: 4,
     staticGenerationMaxConcurrency: 2,
