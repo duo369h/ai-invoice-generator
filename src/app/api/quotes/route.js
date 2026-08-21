@@ -76,6 +76,7 @@ export async function POST(request) {
       client_name,
       client_email,
       client_address,
+      client_id,
       items,
       discount_rate,
       tax_rate,
@@ -91,6 +92,43 @@ export async function POST(request) {
     const calculatedTotal = taxableAmount + calculatedTaxAmount;
 
     if (context.mode === "supabase") {
+      let existingQuote = null;
+      if (id) {
+        const { data: existingQuoteData, error: existingQuoteError } = await serviceSupabase
+          .from("quotes")
+          .select("client_id, client_name, client_email, client_address")
+          .eq("id", id)
+          .eq("user_id", context.user.id)
+          .maybeSingle();
+        if (existingQuoteError) throw existingQuoteError;
+        existingQuote = existingQuoteData;
+      }
+
+      const requestedClientId = client_id || null;
+      const effectiveClientId = id && existingQuote?.client_id && !requestedClientId
+        ? existingQuote.client_id
+        : requestedClientId;
+      const clientRelationChanged = !id || !existingQuote || effectiveClientId !== (existingQuote.client_id || null);
+      let clientSnapshot = null;
+      if (effectiveClientId) {
+        const { data: ownedClient, error: clientError } = await serviceSupabase
+          .from("clients")
+          .select("id, name, email, address")
+          .eq("id", effectiveClientId)
+          .eq("user_id", context.user.id)
+          .maybeSingle();
+        if (clientError) throw clientError;
+        if (!ownedClient) {
+          return NextResponse.json({ error: "Client does not belong to the authenticated user.", code: "CLIENT_NOT_OWNED" }, { status: 403 });
+        }
+        if (clientRelationChanged) {
+          clientSnapshot = {
+            client_name: ownedClient.name || "",
+            client_email: ownedClient.email || "",
+            client_address: ownedClient.address || ""
+          };
+        }
+      }
       // Non-authoritative UX quota precheck for telemetry
       if (!id) {
         await getDocumentQuota(serviceSupabase, context.user.id, plan).catch(() => null);
@@ -104,12 +142,13 @@ export async function POST(request) {
       const payload = {
         id: id || undefined,
         user_id: context.user.id,
+        client_id: effectiveClientId,
         _profile_email: context.user.email || "",
         _profile_name: profileName,
         quote_number: quote_number || `QT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        client_name,
-        client_email,
-        client_address,
+        client_name: id && existingQuote && !clientRelationChanged ? existingQuote.client_name : (clientSnapshot?.client_name ?? client_name),
+        client_email: id && existingQuote && !clientRelationChanged ? existingQuote.client_email : (clientSnapshot?.client_email ?? client_email),
+        client_address: id && existingQuote && !clientRelationChanged ? existingQuote.client_address : (clientSnapshot?.client_address ?? client_address),
         items: items.map(item => ({
           description: item.description,
           quantity: Number(item.quantity) || 1,
@@ -224,6 +263,9 @@ export async function POST(request) {
     return authRequiredResponse("quotes");
 
   } catch (error) {
+    if (error.code === "CLIENT_NOT_OWNED") {
+      return NextResponse.json({ error: error.message || "Client does not belong to the authenticated user.", code: "CLIENT_NOT_OWNED" }, { status: 403 });
+    }
     if (error.code === "QUOTA_EXCEEDED" || error.status === 403) {
       return NextResponse.json({
         error: error.message || "Document limit reached for current cycle.",

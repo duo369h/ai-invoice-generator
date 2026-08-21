@@ -870,6 +870,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qClientName, setQClientName] = useState('');
   const [qClientEmail, setQClientEmail] = useState('');
   const [qClientAddress, setQClientAddress] = useState('');
+  const [qClientId, setQClientId] = useState('');
   const [qItems, setQItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
   const [qTaxRate, setQTaxRate] = useState(0);
   const [qDiscountRate, setQDiscountRate] = useState(0);
@@ -1965,6 +1966,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       const payload = {
         id: qId || undefined,
+        client_id: qClientId || null,
         quote_number: qNumber,
         client_name: qClientName.trim(),
         client_email: qClientEmail.trim(),
@@ -2822,6 +2824,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQClientName('');
       setQClientEmail('');
       setQClientAddress('');
+      setQClientId('');
       setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
       setQTaxRate(0);
       setQDiscountRate(0);
@@ -3996,6 +3999,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     setQClientName(q.client_name);
                                     setQClientEmail(q.client_email || '');
                                     setQClientAddress(q.client_address || '');
+                                    setQClientId(q.client_id || '');
                                     setQCurrency(q.currency || 'USD');
                                     setQNotes(q.notes || '');
                                     setQTaxRate(Number(q.tax_rate || 0));
@@ -4132,6 +4136,26 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   {/* Left Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div className="input-group">
+                        <label className="input-label">Existing Client (optional)</label>
+                        <select
+                          className="form-input"
+                          value={qClientId}
+                          onChange={e => {
+                            const nextId = e.target.value;
+                            setQClientId(nextId);
+                            const client = clients.find(item => item.id === nextId);
+                            if (client) {
+                              setQClientName(client.name || '');
+                              setQClientEmail(client.email || '');
+                              setQClientAddress(client.address || '');
+                            }
+                          }}
+                        >
+                          <option value="">No linked Client (legacy/manual Quote)</option>
+                          {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+                        </select>
+                      </div>
                       <div className="input-group">
                         <label className="input-label">Quote Number</label>
                         <input type="text" className="form-input" value={qNumber} onChange={e => setQNumber(e.target.value)} required />

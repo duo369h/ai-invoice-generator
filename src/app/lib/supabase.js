@@ -432,21 +432,10 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
 }
 
 export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, payload) {
-  const normalizedPlan = String(plan || "free").toLowerCase();
   const serviceSupabase = createServiceSupabaseClient() || supabaseClient;
-
-  // Pro / Agency / legacy Studio: Unlimited allowance may bypass finite quota serialization
-  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
-    const { data, error } = await serviceSupabase
-      .from("quotes")
-      .insert({ ...payload, user_id: userId })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return { data, quota: { documentsAllowed: true, documentsLimit: Infinity } };
-  }
-
-  const limit = plan === "starter" ? 30 : 5;
+  const normalizedPlan = String(plan || "free").toLowerCase();
+  const limit = normalizedPlan === "starter" ? 30 : 5;
+  const documentsLimit = ["pro", "agency", "studio"].includes(normalizedPlan) ? Infinity : limit;
 
   // Execute secured service_role RPC check_and_create_quote
   const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_quote", {
@@ -455,6 +444,12 @@ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, p
   });
 
   if (rpcError) {
+    if (rpcError.message && rpcError.message.includes("CLIENT_NOT_OWNED")) {
+      const ownershipErr = new Error("Client does not belong to the authenticated user.");
+      ownershipErr.code = "CLIENT_NOT_OWNED";
+      ownershipErr.status = 403;
+      throw ownershipErr;
+    }
     if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
       const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
       quotaExceededErr.code = "QUOTA_EXCEEDED";
@@ -475,25 +470,14 @@ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, p
     throw dbErr;
   }
 
-  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: limit } };
+  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit } };
 }
 
 export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan, payload) {
-  const normalizedPlan = String(plan || "free").toLowerCase();
   const serviceSupabase = createServiceSupabaseClient() || supabaseClient;
-
-  // Pro / Agency / legacy Studio: Unlimited allowance may bypass finite quota serialization
-  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
-    const { data, error } = await serviceSupabase
-      .from("invoices")
-      .insert({ ...payload, user_id: userId })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return { data, quota: { documentsAllowed: true, documentsLimit: Infinity } };
-  }
-
-  const limit = plan === "starter" ? 30 : 5;
+  const normalizedPlan = String(plan || "free").toLowerCase();
+  const limit = normalizedPlan === "starter" ? 30 : 5;
+  const documentsLimit = ["pro", "agency", "studio"].includes(normalizedPlan) ? Infinity : limit;
 
   // Execute secured service_role RPC check_and_create_invoice
   const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_invoice", {
@@ -502,6 +486,12 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
   });
 
   if (rpcError) {
+    if (rpcError.message && rpcError.message.includes("CLIENT_NOT_OWNED")) {
+      const ownershipErr = new Error("Client does not belong to the authenticated user.");
+      ownershipErr.code = "CLIENT_NOT_OWNED";
+      ownershipErr.status = 403;
+      throw ownershipErr;
+    }
     if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
       const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
       quotaExceededErr.code = "QUOTA_EXCEEDED";
@@ -522,7 +512,7 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
     throw dbErr;
   }
 
-  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: limit } };
+  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit } };
 }
 
 

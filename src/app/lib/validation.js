@@ -147,6 +147,7 @@ export function validateQuotePayload(body) {
   const obj = validateObject(body);
   return {
     id: obj.id ? id(obj.id, 'id') : '',
+    client_id: obj.client_id ? id(obj.client_id, 'client_id') : null,
     quote_number: text(obj.quote_number, 'quote_number', { max: 80 }),
     client_name: text(obj.client_name, 'client_name', { required: true, max: 180 }),
     client_email: email(obj.client_email, 'client_email'),

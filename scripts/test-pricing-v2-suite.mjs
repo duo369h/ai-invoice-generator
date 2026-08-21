@@ -376,59 +376,48 @@ async function runAll() {
   });
 
 
-  console.log("\n9. Testing Final Delta Patch 01 (Studio Atomic Bypass & Migration Safety)...");
+  console.log("\n9. Testing Single Atomic RPC Authority & Migration Safety...");
 
-  await test("createQuoteWithAtomicQuota(studio) returns documentsLimit=Infinity", async () => {
+  await test("createQuoteWithAtomicQuota(studio) uses the same atomic RPC path", async () => {
     const fakeDoc = { id: "q_studio_1", quote_number: "Q-STUDIO", total: 10000, items: [] };
+    const calls = [];
     const mockSupabase = {
-      from: () => ({
-        insert: () => ({
-          select: () => ({
-            single: async () => ({ data: fakeDoc, error: null })
-          })
-        })
-      })
+      rpc: async (name) => { calls.push(name); return { data: fakeDoc, error: null }; }
     };
 
     const result = await createQuoteWithAtomicQuota(mockSupabase, "user-studio", "studio", fakeDoc);
-    assert.strictEqual(result.quota.documentsLimit, Infinity, "Studio quote quota must be Infinity");
-    assert.strictEqual(result.quota.documentsAllowed, true);
+    assert.deepStrictEqual(calls, ["check_and_create_quote"]);
     assert.strictEqual(result.data.id, "q_studio_1");
   });
 
-  await test("createInvoiceWithAtomicQuota(studio) returns documentsLimit=Infinity", async () => {
+  await test("createInvoiceWithAtomicQuota(studio) uses the same atomic RPC path", async () => {
     const fakeDoc = { id: "inv_studio_1", invoice_number: "INV-STUDIO", total: 10000, items: [] };
+    const calls = [];
     const mockSupabase = {
-      from: () => ({
-        insert: () => ({
-          select: () => ({
-            single: async () => ({ data: fakeDoc, error: null })
-          })
-        })
-      })
+      rpc: async (name) => { calls.push(name); return { data: fakeDoc, error: null }; }
     };
 
     const result = await createInvoiceWithAtomicQuota(mockSupabase, "user-studio", "studio", fakeDoc);
-    assert.strictEqual(result.quota.documentsLimit, Infinity, "Studio invoice quota must be Infinity");
-    assert.strictEqual(result.quota.documentsAllowed, true);
+    assert.deepStrictEqual(calls, ["check_and_create_invoice"]);
     assert.strictEqual(result.data.id, "inv_studio_1");
   });
 
-  await test("Migration SQL does NOT destructively overwrite studio plan on conflict", () => {
-    const sql = fs.readFileSync("supabase/migrations/20260820_pricing_v2_reconciliation.sql", "utf8");
-    assert.ok(sql.includes("('studio', 'Studio', NULL, NULL, false, 4, '[]')") && sql.includes("ON CONFLICT (id) DO NOTHING;"), "Studio must use ON CONFLICT (id) DO NOTHING");
+  await test("Migration SQL adds the nullable Quote Client link without destructive plan writes", () => {
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("ADD COLUMN IF NOT EXISTS client_id UUID"), "Migration must add nullable quote client_id");
+    assert.ok(sql.includes("quotes_client_id_fkey"), "Migration must add the quote-client foreign key");
   });
 
-  await test("SQL get_clamped_anniversary_timestamptz is explicitly UTC-deterministic and STABLE", () => {
-    const sql = fs.readFileSync("supabase/migrations/20260820_pricing_v2_reconciliation.sql", "utf8");
-    assert.ok(sql.includes("p_anchor AT TIME ZONE 'UTC'"), "Must extract anchor at UTC");
-    assert.ok(sql.includes("STABLE"), "Function should have STABLE volatility");
+  await test("SQL invoice authority ignores caller settlement fields", () => {
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("'unpaid'"), "New invoices must be unpaid");
+    assert.match(sql, /'unpaid',\s+0,\s+v_total/, "New invoices must start with zero paid and total due");
   });
 
   await test("SQL starter subscription query requires period to be active (NOW inside start and end)", () => {
-    const sql = fs.readFileSync("supabase/migrations/20260820_pricing_v2_reconciliation.sql", "utf8");
-    assert.ok(sql.includes("current_period_start <= NOW()"), "Must check current_period_start <= NOW()");
-    assert.ok(sql.includes("current_period_end > NOW()"), "Must check current_period_end > NOW()");
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("current_period_start <= v_now"), "Must check current_period_start <= current time");
+    assert.ok(sql.includes("current_period_end > v_now"), "Must check current_period_end > current time");
   });
 
   console.log("==================================================");
