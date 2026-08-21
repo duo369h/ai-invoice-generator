@@ -82,3 +82,78 @@ export async function saveDashboardDocument({
     return { success: false, error: error.message };
   }
 }
+
+export async function saveAndSendDashboardInvoice({
+  endpoint,
+  payload,
+  invoiceId = '',
+  token = null,
+  isDemo,
+  isPreview,
+  setDocuments,
+  fetchData,
+  getAuthHeaders,
+  fetchImpl = fetch,
+}) {
+  let savedInvoiceId = invoiceId;
+
+  if (!savedInvoiceId) {
+    const saved = await saveDashboardDocument({
+      documentType: 'invoice',
+      endpoint,
+      payload,
+      token,
+      isDemo,
+      isPreview,
+      setDocuments,
+      fetchData,
+      getAuthHeaders,
+      fetchImpl,
+    });
+
+    if (!saved.success) return saved;
+
+    savedInvoiceId = saved?.data?.id || saved?.id || '';
+    if (!savedInvoiceId) {
+      return {
+        success: false,
+        saved: true,
+        error: 'Invoice was saved, but sending failed.',
+      };
+    }
+  }
+
+  if (isPreview || isDemo) {
+    return { success: true, saved: true, invoiceId: savedInvoiceId, data: { id: savedInvoiceId, status: 'sent' } };
+  }
+
+  try {
+    const response = await fetchImpl(endpoint, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders(token) },
+      body: JSON.stringify({ id: savedInvoiceId, status: 'sent' }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        saved: true,
+        invoiceId: savedInvoiceId,
+        error: 'Invoice was saved, but sending failed.',
+        sendError: data.error || 'Failed to send invoice',
+      };
+    }
+
+    await fetchData(token);
+    return { success: true, saved: true, invoiceId: savedInvoiceId, data };
+  } catch (error) {
+    return {
+      success: false,
+      saved: true,
+      invoiceId: savedInvoiceId,
+      error: 'Invoice was saved, but sending failed.',
+      sendError: error.message,
+    };
+  }
+}

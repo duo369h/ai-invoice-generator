@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { saveDashboardDocument } from './dashboard-document-save';
+import { saveAndSendDashboardInvoice, saveDashboardDocument } from './dashboard-document-save';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
@@ -400,6 +400,13 @@ export function useDashboardData(mode, session = null) {
     });
   }, [isDemo, isPreview, fetchData, getAuthHeaders]);
 
+  const saveAndSendInvoice = useCallback(async (payload, token = null, invoiceId = '') => {
+    return saveAndSendDashboardInvoice({
+      endpoint: '/api/invoices', payload, invoiceId, token, isDemo, isPreview,
+      setDocuments: setInvoices, fetchData, getAuthHeaders,
+    });
+  }, [isDemo, isPreview, fetchData, getAuthHeaders]);
+
   // Save Card Profile Action
   const saveCardProfile = useCallback(async (payload, token = null) => {
     if (isPreview) return { success: true };
@@ -589,6 +596,7 @@ export function useDashboardData(mode, session = null) {
     resetDemoData,
     saveQuote,
     saveInvoice,
+    saveAndSendInvoice,
     saveCardProfile,
     deleteQuote,
     deleteInvoice,

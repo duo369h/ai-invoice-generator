@@ -474,6 +474,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     resetDemoData,
     saveQuote,
     saveInvoice,
+    saveAndSendInvoice,
     saveCardProfile,
     deleteQuote,
     deleteInvoice,
@@ -2324,6 +2325,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       setIsSaving(true);
       try {
+        const isNewInvoice = !invId;
         let currentEditCount = 0;
         let existingComments = [];
         let existingFiles = [];
@@ -2363,9 +2365,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           payment_link: invPaymentLink
         };
 
-        const res = await saveInvoice(payload, session?.access_token);
+        const res = advanceToSend
+          ? await saveAndSendInvoice(payload, session?.access_token, invId)
+          : await saveInvoice(payload, session?.access_token);
         if (res.success) {
-          if (!invId) {
+          const savedInvoiceId = res?.data?.id || res?.id || res?.invoiceId || invId || '';
+          if (savedInvoiceId && isNewInvoice) {
+            setInvId(savedInvoiceId);
+          }
+          if (isNewInvoice) {
             trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
             if (typeof window !== 'undefined') {
               window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
@@ -2378,18 +2386,24 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               }
             }
           }
-          setFormSuccess(isDemo ? 'Invoice saved successfully (Sandbox Mode)!' : 'Invoice saved successfully!');
-          triggerToast(isDemo ? 'Invoice saved successfully (Sandbox Mode)!' : 'Invoice saved successfully!', 'success');
+          const successMessage = advanceToSend
+            ? (isDemo ? 'Invoice sent successfully (Sandbox Mode)!' : 'Invoice sent successfully!')
+            : (isDemo ? 'Invoice saved successfully (Sandbox Mode)!' : 'Invoice saved successfully!');
+          setFormSuccess(successMessage);
+          triggerToast(successMessage, 'success');
           setSuggestedActionDoc({
             type: 'invoice',
             number: invNumber,
-            id: res.data?.id || invId || 'mock-id',
+            id: savedInvoiceId || 'mock-id',
             elementId: 'printable-invoice'
           });
           setFormSuccess('');
           return true;
         } else {
-          if (res.error === 'QUOTA_EXCEEDED') {
+          if (res.saved) {
+            if (res.invoiceId && isNewInvoice) setInvId(res.invoiceId);
+            setFormError('Invoice was saved, but sending failed.');
+          } else if (res.error === 'QUOTA_EXCEEDED') {
             evaluateAction('create_invoice');
           } else {
             setFormError(res.error || 'Failed to save invoice. Please verify all inputs.');
@@ -2411,7 +2425,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         if (advanceToSend) {
           setInvoiceFlowStage('send');
           setShowPaymentWaitingBanner(true);
-          setInvStatus('pending');
+          setInvStatus('sent');
         }
         if (exitAfterSave) {
           handleExitInvoiceFlow();
@@ -2434,7 +2448,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (advanceToSend) {
         setInvoiceFlowStage('send');
         setShowPaymentWaitingBanner(true);
-        setInvStatus('pending');
+        setInvStatus('sent');
       }
       if (exitAfterSave) {
         handleExitInvoiceFlow();
