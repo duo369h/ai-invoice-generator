@@ -15,6 +15,7 @@ assert.match(route, /executablePath: await serverlessChromium\.executablePath\(\
 assert.match(route, /args: serverlessChromium\.args/);
 assert.match(route, /headless: "shell"/);
 assert.match(route, /page\.setViewport\(/);
+assert.match(route, /waitUntil: isServerless \? "networkidle0" : "networkidle"/);
 assert.match(nextConfig, /serverExternalPackages: \['@sparticuz\/chromium', 'puppeteer-core'\]/);
 assert.match(nextConfig, /'\/api\/pdf\/export': \['\.\/node_modules\/@sparticuz\/chromium\/bin\/\*\*\/\*'\]/);
 assert.match(route, /import\("playwright"\)/, 'Local development must retain the installed Playwright browser path');

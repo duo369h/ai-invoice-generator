@@ -80,7 +80,7 @@ async function renderPdfFromHtml(html) {
     }
 
     await page.setContent(html, {
-      waitUntil: "networkidle",
+      waitUntil: isServerless ? "networkidle0" : "networkidle",
       timeout: 15000,
     });
 
