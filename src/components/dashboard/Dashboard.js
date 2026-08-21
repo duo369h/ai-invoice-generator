@@ -926,6 +926,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Invoice Editor State
   const [invId, setInvId] = useState('');
+  const [pendingSendRetryInvoiceId, setPendingSendRetryInvoiceId] = useState('');
   const [invNumber, setInvNumber] = useState(() => initialTool === 'invoice' ? generateRandomNumberString('INV') : '');
   const [invClientName, setInvClientName] = useState(() => initialTool === 'invoice' ? 'Acme Corporation' : '');
   const [invClientEmail, setInvClientEmail] = useState(() => initialTool === 'invoice' ? 'client@acme.com' : '');
@@ -1678,6 +1679,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const resetInvoiceCreateState = () => {
     setInvId('');
+    setPendingSendRetryInvoiceId('');
     setInvNumber(generateRandomNumberString('INV'));
     setInvClientName('Acme Corporation');
     setInvClientEmail('client@acme.com');
@@ -2365,14 +2367,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           payment_link: invPaymentLink
         };
 
+        const retrySendOnly = advanceToSend && pendingSendRetryInvoiceId === invId;
         const res = advanceToSend
-          ? await saveAndSendInvoice(payload, session?.access_token, invId)
+          ? await saveAndSendInvoice(payload, session?.access_token, invId, retrySendOnly)
           : await saveInvoice(payload, session?.access_token);
         if (res.success) {
           const savedInvoiceId = res?.data?.id || res?.id || res?.invoiceId || invId || '';
           if (savedInvoiceId && isNewInvoice) {
             setInvId(savedInvoiceId);
           }
+          if (advanceToSend) setPendingSendRetryInvoiceId('');
           if (isNewInvoice) {
             trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
             if (typeof window !== 'undefined') {
@@ -2402,6 +2406,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         } else {
           if (res.saved) {
             if (res.invoiceId && isNewInvoice) setInvId(res.invoiceId);
+            if (res.retrySendOnly && res.invoiceId) setPendingSendRetryInvoiceId(res.invoiceId);
             setFormError('Invoice was saved, but sending failed.');
           } else if (res.error === 'QUOTA_EXCEEDED') {
             evaluateAction('create_invoice');

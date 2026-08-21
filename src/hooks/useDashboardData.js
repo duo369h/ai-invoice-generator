@@ -400,9 +400,9 @@ export function useDashboardData(mode, session = null) {
     });
   }, [isDemo, isPreview, fetchData, getAuthHeaders]);
 
-  const saveAndSendInvoice = useCallback(async (payload, token = null, invoiceId = '') => {
+  const saveAndSendInvoice = useCallback(async (payload, token = null, invoiceId = '', retrySendOnly = false) => {
     return saveAndSendDashboardInvoice({
-      endpoint: '/api/invoices', payload, invoiceId, token, isDemo, isPreview,
+      endpoint: '/api/invoices', payload, invoiceId, retrySendOnly, token, isDemo, isPreview,
       setDocuments: setInvoices, fetchData, getAuthHeaders,
     });
   }, [isDemo, isPreview, fetchData, getAuthHeaders]);

@@ -104,11 +104,59 @@ for (const claimResult of [true, false]) {
   assert.equal(first.success, false, 'PATCH failure does not report a sent invoice');
   assert.equal(first.saved, true, 'PATCH failure preserves the saved invoice state');
   assert.equal(first.invoiceId, 'inv-saved-1', 'PATCH failure preserves the created invoice id');
+  assert.equal(first.retrySendOnly, true, 'PATCH failure marks the invoice for an explicit PATCH-only retry');
   assert.equal(first.error, 'Invoice was saved, but sending failed.');
 
-  const retry = await saveAndSendDashboardInvoice({ ...options, invoiceId: first.invoiceId });
+  const retry = await saveAndSendDashboardInvoice({ ...options, invoiceId: first.invoiceId, retrySendOnly: first.retrySendOnly });
   assert.equal(retry.success, false, 'failed retry remains a send failure when PATCH fails');
   assert.deepEqual(calls, ['POST', 'PATCH', 'PATCH'], 'retry only PATCHes the saved invoice and never creates a duplicate');
+}
+
+{
+  const calls = [];
+  const editedPayload = { id: 'inv-existing-draft-1', client_name: 'Edited client', items: [{ quantity: 2, unitPrice: 250 }] };
+  const result = await saveAndSendDashboardInvoice({
+    endpoint: '/api/invoices', payload: editedPayload, invoiceId: 'inv-existing-draft-1', isDemo: false, isPreview: false,
+    setDocuments: () => {}, fetchData: async () => {}, getAuthHeaders: () => ({}),
+    fetchImpl: async (url, options) => {
+      calls.push({ method: options.method, body: JSON.parse(options.body) });
+      if (options.method === 'POST') return { ok: true, json: async () => ({ data: { id: 'inv-existing-draft-1' } }) };
+      return { ok: true, json: async () => ({ id: 'inv-existing-draft-1', status: 'sent' }) };
+    },
+  });
+  assert.equal(result.success, true, 'existing draft normal send reports success after persistence and send');
+  assert.deepEqual(calls.map(({ method }) => method), ['POST', 'PATCH'], 'existing draft normal send POSTs latest edits before PATCH');
+  assert.deepEqual(calls[0].body, editedPayload, 'existing draft normal send POST body includes the existing id and latest edited payload');
+  assert.deepEqual(calls[1].body, { id: 'inv-existing-draft-1', status: 'sent' }, 'existing draft normal send PATCHes sent status after save');
+}
+
+{
+  const calls = [];
+  const result = await saveAndSendDashboardInvoice({
+    endpoint: '/api/invoices', payload: { id: 'inv-existing-draft-post-failure' }, invoiceId: 'inv-existing-draft-post-failure', isDemo: false, isPreview: false,
+    setDocuments: () => {}, fetchData: async () => {}, getAuthHeaders: () => ({}),
+    fetchImpl: async (url, options) => {
+      calls.push(options.method);
+      return { ok: false, json: async () => ({ error: 'POST_FAILED' }) };
+    },
+  });
+  assert.equal(result.success, false, 'existing draft POST failure does not report a sent invoice');
+  assert.deepEqual(calls, ['POST'], 'existing draft POST failure never calls PATCH');
+}
+
+{
+  const calls = [];
+  const result = await saveAndSendDashboardInvoice({
+    endpoint: '/api/invoices', payload: { id: 'inv-retry-1', client_name: 'Ignored on retry' }, invoiceId: 'inv-retry-1', retrySendOnly: true, isDemo: false, isPreview: false,
+    setDocuments: () => {}, fetchData: async () => {}, getAuthHeaders: () => ({}),
+    fetchImpl: async (url, options) => {
+      calls.push(options.method);
+      return { ok: true, json: async () => ({ id: 'inv-retry-1', status: 'sent' }) };
+    },
+  });
+  assert.equal(result.success, true, 'successful retry reports a sent invoice');
+  assert.equal(result.retrySendOnly, false, 'successful retry clears retry-only state');
+  assert.deepEqual(calls, ['PATCH'], 'only an explicit retry-only request skips POST');
 }
 
 {
@@ -121,7 +169,7 @@ for (const claimResult of [true, false]) {
       return { ok: true, json: async () => ({ id: 'inv-existing-1', status: 'sent' }) };
     },
   });
-  assert.deepEqual(calls, ['PATCH'], 'existing invoice retry only PATCHes status=sent');
+  assert.deepEqual(calls, ['POST', 'PATCH'], 'existing invoice id alone does not skip saving latest edits');
 }
 
 console.log('Dashboard document save runtime tests passed.');

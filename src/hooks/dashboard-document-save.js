@@ -87,6 +87,7 @@ export async function saveAndSendDashboardInvoice({
   endpoint,
   payload,
   invoiceId = '',
+  retrySendOnly = false,
   token = null,
   isDemo,
   isPreview,
@@ -97,7 +98,7 @@ export async function saveAndSendDashboardInvoice({
 }) {
   let savedInvoiceId = invoiceId;
 
-  if (!savedInvoiceId) {
+  if (!retrySendOnly) {
     const saved = await saveDashboardDocument({
       documentType: 'invoice',
       endpoint,
@@ -114,17 +115,18 @@ export async function saveAndSendDashboardInvoice({
     if (!saved.success) return saved;
 
     savedInvoiceId = saved?.data?.id || saved?.id || '';
-    if (!savedInvoiceId) {
-      return {
-        success: false,
-        saved: true,
-        error: 'Invoice was saved, but sending failed.',
-      };
-    }
+  }
+
+  if (!savedInvoiceId) {
+    return {
+      success: false,
+      saved: true,
+      error: 'Invoice was saved, but sending failed.',
+    };
   }
 
   if (isPreview || isDemo) {
-    return { success: true, saved: true, invoiceId: savedInvoiceId, data: { id: savedInvoiceId, status: 'sent' } };
+    return { success: true, saved: true, invoiceId: savedInvoiceId, retrySendOnly: false, data: { id: savedInvoiceId, status: 'sent' } };
   }
 
   try {
@@ -140,18 +142,20 @@ export async function saveAndSendDashboardInvoice({
         success: false,
         saved: true,
         invoiceId: savedInvoiceId,
+        retrySendOnly: true,
         error: 'Invoice was saved, but sending failed.',
         sendError: data.error || 'Failed to send invoice',
       };
     }
 
     await fetchData(token);
-    return { success: true, saved: true, invoiceId: savedInvoiceId, data };
+    return { success: true, saved: true, invoiceId: savedInvoiceId, retrySendOnly: false, data };
   } catch (error) {
     return {
       success: false,
       saved: true,
       invoiceId: savedInvoiceId,
+      retrySendOnly: true,
       error: 'Invoice was saved, but sending failed.',
       sendError: error.message,
     };
