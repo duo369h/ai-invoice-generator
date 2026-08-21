@@ -382,6 +382,28 @@ const FUTURE = '2026-12-31';
 }
 
 // ---------------------------------------------------------------------------
+// R1-7a/7b. Pacific date-line boundaries: UTC+14 Kiritimati and UTC-10
+// Honolulu both preserve the due calendar day through its final local minute,
+// then become overdue on the following local calendar day.
+// ---------------------------------------------------------------------------
+{
+  const invoice = { total: 100000, amount_paid_cents: 0, due_date: '2026-07-25' };
+  const earlyKiritimati = deriveInvoicePaymentState(invoice, new Date('2026-07-24T10:00:01.000Z'), { timeZone: 'Pacific/Kiritimati' });
+  const lateKiritimati = deriveInvoicePaymentState(invoice, new Date('2026-07-25T09:59:00.000Z'), { timeZone: 'Pacific/Kiritimati' });
+  const nextDayKiritimati = deriveInvoicePaymentState(invoice, new Date('2026-07-25T10:00:00.000Z'), { timeZone: 'Pacific/Kiritimati' });
+  check('R1-7a. Pacific/Kiritimati due-day start -> unpaid', earlyKiritimati.paymentStatus === PAYMENT_STATUSES.UNPAID);
+  check('R1-7a. Pacific/Kiritimati due-day late -> unpaid', lateKiritimati.paymentStatus === PAYMENT_STATUSES.UNPAID);
+  check('R1-7a. Pacific/Kiritimati next calendar day -> overdue', nextDayKiritimati.paymentStatus === PAYMENT_STATUSES.OVERDUE);
+
+  const earlyHonolulu = deriveInvoicePaymentState(invoice, new Date('2026-07-25T10:00:01.000Z'), { timeZone: 'Pacific/Honolulu' });
+  const lateHonolulu = deriveInvoicePaymentState(invoice, new Date('2026-07-26T09:59:00.000Z'), { timeZone: 'Pacific/Honolulu' });
+  const nextDayHonolulu = deriveInvoicePaymentState(invoice, new Date('2026-07-26T10:00:00.000Z'), { timeZone: 'Pacific/Honolulu' });
+  check('R1-7b. Pacific/Honolulu due-day start -> unpaid', earlyHonolulu.paymentStatus === PAYMENT_STATUSES.UNPAID);
+  check('R1-7b. Pacific/Honolulu due-day late -> unpaid', lateHonolulu.paymentStatus === PAYMENT_STATUSES.UNPAID);
+  check('R1-7b. Pacific/Honolulu next calendar day -> overdue', nextDayHonolulu.paymentStatus === PAYMENT_STATUSES.OVERDUE);
+}
+
+// ---------------------------------------------------------------------------
 // R1-8. Determinism: the result depends only on the explicit timeZone
 // option, never on the host process's ambient/local time zone. This file is
 // also run under `TZ=UTC`, `TZ=Asia/Shanghai`, and `TZ=America/Los_Angeles`
