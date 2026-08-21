@@ -61,15 +61,15 @@ function loadPaymentRoute(overrides = {}) {
     if (id.includes('product-analytics-server')) return { recordProductAnalyticsEvent: overrides.recordProductAnalyticsEvent || (async () => {}) };
     return {};
   };
-  const module = { exports: {} };
+  const loadedModule = { exports: {} };
   new Function('exports', 'require', 'module', '__filename', '__dirname', code)(
-    module.exports,
+    loadedModule.exports,
     customRequire,
-    module,
+    loadedModule,
     path.join(root, 'src/app/api/invoices/[id]/payments/route.js'),
     path.join(root, 'src/app/api/invoices/[id]/payments')
   );
-  return module.exports;
+  return loadedModule.exports;
 }
 
 async function test(name, callback) {

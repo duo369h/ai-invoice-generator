@@ -11,15 +11,15 @@ function loadModule(file, mocks) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText;
   const exports = {};
-  const module = { exports };
+  const loadedModule = { exports };
   const fn = new Function("exports", "require", "module", "__filename", "__dirname", code);
   fn(exports, (id) => {
     for (const [needle, value] of Object.entries(mocks)) {
       if (id.includes(needle)) return value;
     }
     return {};
-  }, module, path.join(root, file), path.dirname(path.join(root, file)));
-  return module.exports;
+  }, loadedModule, path.join(root, file), path.dirname(path.join(root, file)));
+  return loadedModule.exports;
 }
 
 function makeDb() {
