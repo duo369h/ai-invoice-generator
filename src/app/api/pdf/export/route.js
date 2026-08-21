@@ -49,18 +49,20 @@ function injectPdfBranding(html, branding) {
 }
 
 async function renderPdfFromHtml(html) {
+  const isServerless = process.env.VERCEL === "1";
   let browser;
-  if (process.env.VERCEL === "1") {
-    const [{ chromium: playwrightChromium }, chromiumModule] = await Promise.all([
-      import("playwright-core"),
+  if (isServerless) {
+    const [puppeteerModule, chromiumModule] = await Promise.all([
+      import("puppeteer-core"),
       import("@sparticuz/chromium"),
     ]);
+    const puppeteer = puppeteerModule.default;
     const serverlessChromium = chromiumModule.default;
     serverlessChromium.setGraphicsMode = false;
-    browser = await playwrightChromium.launch({
+    browser = await puppeteer.launch({
       args: serverlessChromium.args,
       executablePath: await serverlessChromium.executablePath(),
-      headless: true,
+      headless: "shell",
     });
   } else {
     const { chromium } = await import("playwright");
@@ -70,17 +72,19 @@ async function renderPdfFromHtml(html) {
   }
 
   try {
-    const page = await browser.newPage({
-      viewport: { width: 794, height: 1123 },
-      deviceScaleFactor: 2,
-    });
+    const page = await browser.newPage();
+    if (isServerless) {
+      await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
+    } else {
+      await page.setViewportSize({ width: 794, height: 1123 });
+    }
 
     await page.setContent(html, {
       waitUntil: "networkidle",
       timeout: 15000,
     });
 
-    return await page.pdf({
+    const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
       margin: {
@@ -90,6 +94,7 @@ async function renderPdfFromHtml(html) {
         left: "0",
       },
     });
+    return Buffer.from(pdf);
   } finally {
     await browser.close();
   }
