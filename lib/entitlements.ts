@@ -8,8 +8,12 @@ import { recordDecisionTelemetry } from '../src/core/telemetry/decisionTelemetry
 
 export interface Entitlements {
   invoice: boolean;
+  quote: boolean;
   export_pdf: boolean;
+  pdf_branding: 'branded' | 'clean';
   client_portal: boolean;
+  client_approval: boolean;
+  approval_scope: 'quotes_only' | 'none';
   crm: boolean;
   automation: boolean;
   advanced_invoicing: boolean;
@@ -36,13 +40,16 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     );
   }
 
-  // Starter ($9 plan): Single Client Closure Engine.
-  // Locked: Invoice, CRM/Client tracking, PDF exports. Only allows Proposal and watermarked shares.
+  // Starter ($9 plan / $90 yearly): 30 documents per cycle, clean PDF.
   if (plan === 'starter') {
-    const result = {
-      invoice: false,
-      export_pdf: false,
+    const result: Entitlements = {
+      invoice: true,
+      quote: true,
+      export_pdf: true,
+      pdf_branding: 'clean',
       client_portal: false,
+      client_approval: false,
+      approval_scope: 'none',
       crm: false,
       automation: false,
       advanced_invoicing: false,
@@ -58,13 +65,16 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     return result;
   }
 
-  // Pro ($19 plan): Freelance Operating System.
-  // Allowed: Invoice generation, Quote creation, basic CRM client tracking, PDF export (no watermark), clean share links.
+  // Pro ($19 plan / $190 yearly): unlimited documents, clean PDF, Portal, and quote-only Approval.
   if (plan === 'pro') {
-    const result = {
+    const result: Entitlements = {
       invoice: true,
+      quote: true,
       export_pdf: true,
+      pdf_branding: 'clean',
       client_portal: true,
+      client_approval: true,
+      approval_scope: 'quotes_only',
       crm: true,
       automation: false,
       advanced_invoicing: true,
@@ -80,13 +90,16 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     return result;
   }
 
-  // Studio plan: Agency Execution Layer.
-  // Allowed: Multi-client workspace (2-3 clients), batch exports, brand kits, reusable templates, priority AI.
+  // Studio plan: legacy compatibility retention; public sale remains Coming Soon.
   if (plan === 'studio') {
-    const result = {
+    const result: Entitlements = {
       invoice: true,
+      quote: true,
       export_pdf: true,
+      pdf_branding: 'clean',
       client_portal: true,
+      client_approval: true,
+      approval_scope: 'quotes_only',
       crm: true,
       automation: true, // Used to gate Brand Kit & Batch operations
       advanced_invoicing: true,
@@ -102,11 +115,15 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
     return result;
   }
 
-  // Default / 'free'
-  const result = {
-    invoice: false,
-    export_pdf: false,
+  // Default / 'free': 5 documents per cycle, branded PDF.
+  const result: Entitlements = {
+    invoice: true,
+    quote: true,
+    export_pdf: true,
+    pdf_branding: 'branded',
     client_portal: false,
+    client_approval: false,
+    approval_scope: 'none',
     crm: false,
     automation: false,
     advanced_invoicing: false,

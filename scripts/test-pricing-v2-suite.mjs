@@ -75,6 +75,51 @@ async function test(desc, fn) {
 }
 
 async function runAll() {
+  console.log("\n0. Testing Frozen Plan Entitlement Truth...");
+
+  await test("Free keeps Quote + Invoice + branded PDF and denies Portal/Approval", () => {
+    assert.deepStrictEqual(getUserEntitlements("free"), {
+      invoice: true,
+      quote: true,
+      export_pdf: true,
+      pdf_branding: "branded",
+      client_portal: false,
+      client_approval: false,
+      approval_scope: "none",
+      crm: false,
+      automation: false,
+      advanced_invoicing: false,
+      unlimited_invoices: false,
+    });
+  });
+
+  await test("Starter keeps Quote + Invoice + clean PDF and denies Portal/Approval", () => {
+    assert.deepStrictEqual(getUserEntitlements("starter"), {
+      invoice: true,
+      quote: true,
+      export_pdf: true,
+      pdf_branding: "clean",
+      client_portal: false,
+      client_approval: false,
+      approval_scope: "none",
+      crm: false,
+      automation: false,
+      advanced_invoicing: false,
+      unlimited_invoices: false,
+    });
+  });
+
+  await test("Pro enables Portal and quote-only Approval with clean PDF", () => {
+    const pro = getUserEntitlements("pro");
+    assert.strictEqual(pro.invoice, true);
+    assert.strictEqual(pro.quote, true);
+    assert.strictEqual(pro.export_pdf, true);
+    assert.strictEqual(pro.pdf_branding, "clean");
+    assert.strictEqual(pro.client_portal, true);
+    assert.strictEqual(pro.client_approval, true);
+    assert.strictEqual(pro.approval_scope, "quotes_only");
+  });
+
   console.log("\n1. Testing Unified Free Monthly Anniversary Calculation (No Drift)...");
 
   await test("Preserves Jan 31 anchor without drift: Jan 31 -> Feb 28/29 -> Mar 31 -> Apr 30", () => {
