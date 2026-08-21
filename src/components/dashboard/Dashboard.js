@@ -1753,25 +1753,44 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
   };
 
-  // Keep the existing paid conversion behavior unchanged.
-  const handleConvertQuoteToInvoice = (quote) => {
+  const openInvoiceDraft = (invoice, quote) => {
+    const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
+    setInvId(invoice.id);
+    setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
+    setInvClientName(invoice.client_name || quote.client_name || '');
+    setInvClientEmail(invoice.client_email || quote.client_email || '');
+    setInvClientAddress(invoice.client_address || quote.client_address || '');
+    setInvCurrency(invoice.currency || quote.currency || 'USD');
+    setInvNotes(invoice.notes || quote.notes || '');
+    setInvDate(invoice.invoice_date || getTodayString());
+    setInvDueDate(invoice.due_date || getFutureDateString(30));
+    setInvPaymentTerms(invoice.payment_terms || 'Net 30');
+    setInvStatus('draft');
+    setInvQuoteId(quote.id);
+    setInvPaymentLink(invoice.payment_link || '');
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(false);
+    setShowPaymentWaitingBanner(false);
+    setInvItems(parsedItems.map(item => ({ description: item.description, quantity: item.quantity, unitPrice: item.unitPrice || (item.unit_price || 0) / 100 })));
+    setInvTaxRate(Number(invoice.tax_rate || quote.tax_rate || 0));
+    setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
+    handleDashboardTabChange('invoices', 'quote_conversion');
+    setInvoiceView('create');
+    triggerToast('Invoice draft created. Review and save it before sending.', 'success');
+  };
+
+  const handleConvertQuoteToInvoice = async (quote) => {
     trackEvent('create_invoice_click', { source: 'quote_convert' });
-    evaluateAction('create_invoice', () => {
-      openInvoiceFromQuote(quote);
-      const handleStatusUpdate = async () => {
-        if (session) {
-          await fetch('/api/quotes', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: quote.id, status: 'converted' })
-          });
-          fetchData(session.access_token);
-        } else {
-          setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'converted' } : q));
-        }
-      };
-      handleStatusUpdate();
-    });
+    if (quote.status !== 'approved') return;
+    try {
+      const response = await fetch(`/api/quotes/${quote.id}/invoice-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Unable to create Invoice draft');
+      openInvoiceDraft(result.invoice, quote);
+      await fetchData(session?.access_token);
+    } catch (error) {
+      triggerToast(error.message || 'Unable to create Invoice draft.', 'error');
+    }
   };
 
   const handleSendFirstRevenueQuote = async () => {
@@ -1806,7 +1825,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       triggerToast('Your approved quote is still loading. Refresh and try again.', 'error');
       return;
     }
-    openInvoiceFromQuote(quote, { firstRevenueDraft: true });
+    handleConvertQuoteToInvoice(quote);
   };
 
   const handlePrepareFirstRevenuePayment = () => {
@@ -4034,9 +4053,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 >
                                   Delete
                                 </button>
-                                {q.status !== 'converted' && (
+                                {q.status === 'approved' && (
                                   <button onClick={() => handleConvertQuoteToInvoice(q)} className="btn btn-primary btn-sm">
-                                    Convert to Invoice
+                                    Create Invoice Draft
                                   </button>
                                 )}
                               </div>

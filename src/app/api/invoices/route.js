@@ -339,6 +339,30 @@ export async function PATCH(request) {
     const body = validateObject(await request.json());
     const { id, status } = body;
 
+    if (id && !status) {
+      if (context.mode !== 'supabase') return authRequiredResponse('invoices');
+      const items = Array.isArray(body.items) ? body.items : [];
+      const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
+      const discountRate = Number(body.discount_rate || 0);
+      const taxRate = Number(body.tax_rate || 0);
+      const discountAmount = Math.round(subtotal * (discountRate / 100));
+      const taxableAmount = Math.max(0, subtotal - discountAmount);
+      const taxAmount = Math.round(taxableAmount * (taxRate / 100));
+      const total = taxableAmount + taxAmount;
+      const writer = createServiceSupabaseClient() || context.supabase;
+      const { data, error } = await writer.from('invoices').update({
+        client_name: body.client_name || '', client_email: body.client_email || '', client_address: body.client_address || '',
+        currency: String(body.currency || 'USD').toUpperCase(),
+        items: items.map((item) => ({ description: item.description, quantity: Number(item.quantity) || 1, unit_price: Math.round(Number(item.unitPrice || item.unit_price || 0) * 100), amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100) })),
+        discount_rate: discountRate, discount_amount: discountAmount, tax_rate: taxRate, tax_amount: taxAmount,
+        subtotal, total, amount_paid_cents: 0, amount_due_cents: total, payment_status: 'unpaid', payment_link: body.payment_link || '',
+        invoice_number: body.invoice_number || undefined, invoice_date: body.invoice_date || undefined, due_date: body.due_date || undefined,
+        payment_terms: body.payment_terms || 'Net 30', notes: body.notes || '', updated_at: new Date().toISOString()
+      }).eq('id', id).eq('user_id', context.user.id).eq('status', 'draft').select('*').single();
+      if (error || !data) return NextResponse.json({ error: 'Draft invoice not found or is no longer editable' }, { status: 409 });
+      return NextResponse.json(mapSupabaseInvoice(data));
+    }
+
     if (!id || !status) {
       return NextResponse.json({ error: 'Missing required fields: id and status' }, { status: 400 });
     }

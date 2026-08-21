@@ -354,7 +354,7 @@ export function useDashboardData(mode, session = null) {
     // Live Mode API request
     try {
       const res = await fetch('/api/invoices', {
-        method: 'POST',
+        method: payload.id ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders(token) },
         body: JSON.stringify(payload)
       });

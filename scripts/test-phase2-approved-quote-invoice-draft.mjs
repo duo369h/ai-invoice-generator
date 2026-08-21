@@ -1,0 +1,93 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { createInvoiceDraftFromApprovedQuote, createInvoiceWithAtomicQuota } from '../src/app/lib/supabase.js';
+
+const userId = '00000000-0000-0000-0000-000000000001';
+const ownedClient = '00000000-0000-0000-0000-000000000010';
+const secondClient = '00000000-0000-0000-0000-000000000011';
+const foreignClient = '00000000-0000-0000-0000-000000000099';
+const quoteId = '00000000-0000-0000-0000-000000000020';
+
+const makeQuote = (status = 'approved', clientId = ownedClient) => ({
+  id: quoteId, user_id: userId, status, client_id: clientId,
+  client_name: clientId === secondClient ? 'Second Snapshot' : 'Original Snapshot',
+  client_email: clientId === secondClient ? 'second@example.test' : 'original@example.test',
+  client_address: 'Original Address', total: 12500,
+});
+
+function fakeDb(initialQuote) {
+  const state = { quote: structuredClone(initialQuote), clientNames: { [ownedClient]: 'Original Snapshot', [secondClient]: 'Second Snapshot' }, invoice: null, calls: 0 };
+  return {
+    state,
+    rpc: async (name, args) => {
+      assert.equal(name, 'create_invoice_draft_from_approved_quote');
+      assert.equal(args.p_user_id, userId);
+      state.calls += 1;
+      if (state.quote.client_id === foreignClient) return { data: null, error: { message: 'CLIENT_NOT_OWNED' } };
+      if (!state.quote || state.quote.id !== args.p_quote_id) return { data: null, error: { message: 'QUOTE_NOT_FOUND' } };
+      if (state.invoice) return { data: { invoice: state.invoice, created: false, idempotent: true }, error: null };
+      if (state.quote.status !== 'approved') return { data: null, error: { message: state.quote.status === 'converted' ? 'QUOTE_ALREADY_CONVERTED' : 'QUOTE_NOT_APPROVED' } };
+      state.invoice = { id: '00000000-0000-0000-0000-000000000030', status: 'draft', payment_status: 'unpaid', amount_paid_cents: 0, amount_due_cents: state.quote.total, quote_id: state.quote.id, client_id: state.quote.client_id, client_name: state.quote.client_name, client_email: state.quote.client_email, client_address: state.quote.client_address };
+      state.quote.status = 'converted';
+      return { data: { invoice: state.invoice, created: true, idempotent: false }, error: null };
+    },
+  };
+}
+
+const expectCode = async (promise, code) => {
+  await assert.rejects(promise, (error) => error.code === code);
+};
+
+// 1-4: new Quote with owned Client creates one linked, snapshot-preserving draft.
+const db = fakeDb(makeQuote());
+const created = await createInvoiceDraftFromApprovedQuote(db, userId, 'free', quoteId);
+assert.equal(created.data.invoice.quote_id, quoteId);
+assert.equal(created.data.invoice.client_id, ownedClient);
+assert.equal(created.data.invoice.client_name, 'Original Snapshot');
+assert.equal(created.data.invoice.status, 'draft');
+assert.equal(created.data.invoice.payment_status, 'unpaid');
+assert.equal(created.data.invoice.amount_paid_cents, 0);
+assert.equal(created.data.invoice.amount_due_cents, 12500);
+assert.equal(db.state.quote.status, 'converted');
+
+// 5-7: repeated conversion is idempotent and does not create a second document.
+const repeated = await createInvoiceDraftFromApprovedQuote(db, userId, 'free', quoteId);
+assert.equal(repeated.data.idempotent, true);
+assert.equal(db.state.calls, 2);
+assert.equal(repeated.data.invoice.id, created.data.invoice.id);
+
+// 8-10: approval gate rejects draft, sent, and declined states.
+for (const status of ['draft', 'sent', 'declined']) await expectCode(createInvoiceDraftFromApprovedQuote(fakeDb(makeQuote(status)), userId, 'free', quoteId), 'QUOTE_NOT_APPROVED');
+await expectCode(createInvoiceDraftFromApprovedQuote(fakeDb(makeQuote('converted')), userId, 'free', quoteId), 'QUOTE_ALREADY_CONVERTED');
+
+// 11-12: foreign Client and missing Quote are rejected before creation.
+await expectCode(createInvoiceDraftFromApprovedQuote(fakeDb(makeQuote('approved', foreignClient)), userId, 'free', quoteId), 'CLIENT_NOT_OWNED');
+await expectCode(createInvoiceDraftFromApprovedQuote(fakeDb(makeQuote()), userId, 'free', '00000000-0000-0000-0000-000000000099'), 'QUOTE_NOT_FOUND');
+
+// 13-15: legacy null client remains valid and switching Client uses a new snapshot.
+const legacy = fakeDb(makeQuote('approved', null));
+const legacyDraft = await createInvoiceDraftFromApprovedQuote(legacy, userId, 'free', quoteId);
+assert.equal(legacyDraft.data.invoice.client_id, null);
+const switched = fakeDb(makeQuote('approved', secondClient));
+const switchedDraft = await createInvoiceDraftFromApprovedQuote(switched, userId, 'starter', quoteId);
+assert.equal(switchedDraft.data.invoice.client_id, secondClient);
+assert.equal(switchedDraft.data.invoice.client_name, 'Second Snapshot');
+
+// 16-18: plan metadata remains the shared helper contract; RPC is the only creation path.
+for (const [plan, limit] of [['free', 5], ['starter', 30], ['pro', Infinity]]) {
+  const calls = [];
+  const result = await createInvoiceWithAtomicQuota({ rpc: async (name) => { calls.push(name); return { data: { id: 'invoice' }, error: null }; } }, userId, plan, {});
+  assert.equal(result.quota.documentsLimit, limit);
+  assert.deepEqual(calls, ['check_and_create_invoice']);
+}
+
+// 19-20: source and migration closure checks prevent direct insert/payment behavior.
+const helperSource = fs.readFileSync(new URL('../src/app/lib/supabase.js', import.meta.url), 'utf8');
+const routeSource = fs.readFileSync(new URL('../src/app/api/invoices/route.js', import.meta.url), 'utf8');
+const migration = fs.readFileSync(new URL('../supabase/migrations/20260821185325_approved_quote_invoice_draft.sql', import.meta.url), 'utf8');
+assert.equal(helperSource.includes('.from("invoices").insert') || helperSource.includes(".from('invoices').insert"), false);
+assert.equal(routeSource.includes('.from("invoices").insert') || routeSource.includes(".from('invoices').insert"), false);
+assert.match(migration, /check_and_create_invoice/);
+assert.match(migration, /payment_status.*unpaid/s);
+assert.match(migration, /amount_paid_cents.*0/s);
+console.log('PHASE2_APPROVED_QUOTE_INVOICE_DRAFT=PASS');

@@ -56,7 +56,7 @@ emailWrapper(emailModule, (id) => ({ Resend: function() { return { emails: { sen
 const { getInvoiceSentEmailHtml, getPaymentReminderEmailHtml } = fakeEmailModule.exports;
 
 console.log("==================================================");
-console.log("RUNNING CORVIOZ PRICING V2 REMEDIATION 04 TEST SUITE");
+console.log("RUNNING CORVIOZ PRICING V2 CONTRACT TEST SUITE");
 console.log("==================================================");
 
 let passed = 0;

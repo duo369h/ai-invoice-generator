@@ -515,6 +515,45 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
   return { data: rpcData, quota: { documentsAllowed: true, documentsLimit } };
 }
 
+export async function createInvoiceDraftFromApprovedQuote(supabaseClient, userId, plan, quoteId) {
+  const serviceSupabase = createServiceSupabaseClient() || supabaseClient;
+  const normalizedPlan = String(plan || 'free').toLowerCase();
+  const documentsLimit = normalizedPlan === 'starter' ? 30 : ['pro', 'agency', 'studio'].includes(normalizedPlan) ? Infinity : 5;
+  const { data, error } = await serviceSupabase.rpc('create_invoice_draft_from_approved_quote', {
+    p_user_id: userId,
+    p_quote_id: quoteId,
+  });
+
+  if (error) {
+    const message = error.message || 'Approved Quote conversion failed.';
+    const known = ['QUOTE_NOT_FOUND', 'QUOTE_NOT_APPROVED', 'QUOTE_ALREADY_CONVERTED', 'CLIENT_NOT_OWNED'];
+    const code = known.find((value) => message.includes(value));
+    if (code) {
+      const conversionError = new Error(message);
+      conversionError.code = code;
+      conversionError.status = code === 'QUOTE_NOT_FOUND' ? 404 : 409;
+      throw conversionError;
+    }
+    if (message.includes('QUOTA_EXCEEDED')) {
+      const quotaError = new Error(`You have reached your limit of ${documentsLimit} documents for this billing cycle. Please upgrade.`);
+      quotaError.code = 'QUOTA_EXCEEDED';
+      quotaError.status = 403;
+      throw quotaError;
+    }
+    const dbError = new Error(`Atomic approved Quote conversion failed: ${message}`);
+    dbError.code = 'DATABASE_ERROR';
+    dbError.status = 500;
+    throw dbError;
+  }
+  if (!data?.invoice) {
+    const dbError = new Error('Atomic approved Quote conversion returned no Invoice draft.');
+    dbError.code = 'DATABASE_ERROR';
+    dbError.status = 500;
+    throw dbError;
+  }
+  return { data, quota: { documentsAllowed: true, documentsLimit } };
+}
+
 
 export async function trackProfileMetric(supabase, userId, field) {
   const writer = createServiceSupabaseClient() || supabase;
