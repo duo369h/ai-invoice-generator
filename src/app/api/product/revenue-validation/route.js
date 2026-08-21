@@ -44,7 +44,7 @@ export async function GET(request) {
         .limit(20000),
       supabase
         .from('invoices')
-        .select('id, user_id, total, currency, status, doc_type, created_at')
+        .select('id, user_id, total, currency, status, payment_status, doc_type, created_at')
         .gte('created_at', since)
         .limit(20000),
       supabase
@@ -67,7 +67,11 @@ export async function GET(request) {
     const outcomes = outcomesResult.data || [];
     const profiles = profilesResult.data || [];
     const planByUser = new Map(profiles.map((profile) => [profile.id, profile.plan || 'free']));
-    const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid');
+    const paidInvoices = invoices.filter((invoice) =>
+      invoice.payment_status !== null && invoice.payment_status !== undefined
+        ? invoice.payment_status === 'paid'
+        : invoice.status === 'paid'
+    );
     const sentOrClosedQuotes = quotes.filter((quote) => ['sent', 'approved', 'declined', 'converted'].includes(quote.status));
     const acceptedQuotes = quotes.filter((quote) => ['approved', 'converted'].includes(quote.status));
     const invoiceCandidates = invoices.filter((invoice) => invoice.doc_type !== 'quote');

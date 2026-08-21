@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { defaultPortalExpiry, generatePortalToken, hashPortalToken } from './security.js';
+import { resolveInvoicePaymentReadModel } from '../../core/revenue/invoicePaymentState.js';
 
 export function isSupabaseConfigured() {
   return Boolean(
@@ -201,6 +202,8 @@ export async function ensureProfile(supabase, user) {
 }
 
 export function mapSupabaseInvoice(row) {
+  const readModel = resolveInvoicePaymentReadModel(row);
+
   return {
     ...row,
     object: 'invoice',
@@ -209,10 +212,10 @@ export function mapSupabaseInvoice(row) {
     discount_rate: Number(row.discount_rate || 0),
     tax_rate: Number(row.tax_rate || 0),
     payment_link: row.payment_link || '',
-    invoice_kind: row.invoice_kind || 'standard',
-    payment_status: row.payment_status || (row.status === 'paid' ? 'paid' : 'unpaid'),
-    amount_paid_cents: Number(row.amount_paid_cents || (row.status === 'paid' ? row.total : 0)),
-    amount_due_cents: Number(row.amount_due_cents ?? (row.status === 'paid' ? 0 : row.total || 0)),
+    invoice_kind: readModel.invoice_kind,
+    payment_status: readModel.payment_status,
+    amount_paid_cents: readModel.amount_paid_cents,
+    amount_due_cents: readModel.amount_due_cents,
   };
 }
 

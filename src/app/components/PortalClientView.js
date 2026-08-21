@@ -21,7 +21,6 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   
   // Approval and Payment states
   const [approving, setApproving] = useState(false);
-  const [paying, setPaying] = useState(false);
   const [ownerPlan, setOwnerPlan] = useState('free');
   const [ownerId, setOwnerId] = useState('');
 
@@ -249,50 +248,6 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
     }
   };
 
-  const handleMarkPaid = async () => {
-    if (!confirm('Are you sure you want to confirm this invoice as paid?')) return;
-    setPaying(true);
-
-    // Sandbox mode check
-    if (identifier && identifier.startsWith('sandbox-')) {
-      setTimeout(() => {
-        setDoc(prev => {
-          const next = { ...prev, status: 'paid' };
-          const parts = identifier.split('-');
-          const type = parts[1] || 'invoice';
-          const id = parts.slice(2).join('-');
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem(`sandbox-${type}-${id}`, JSON.stringify(next));
-          }
-          return next;
-        });
-        triggerToast('Payment confirmed! The freelancer has been notified (Sandbox Mode).', 'success');
-        setPaying(false);
-      }, 500);
-      return;
-    }
-
-    try {
-      const res = await fetch(fetchUrl, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pay' })
-      });
-      if (res.ok) {
-        setDoc(prev => ({ ...prev, status: 'paid' }));
-        triggerToast('Payment confirmed! The freelancer has been notified.', 'success');
-      } else {
-        const errData = await res.json();
-        triggerToast(errData.error || 'Failed to confirm payment.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      triggerToast('Error confirming payment.', 'error');
-    } finally {
-      setPaying(false);
-    }
-  };
-
   const handleSubmitComment = async (event) => {
     event.preventDefault();
     if (!postCommentUrl || !commentAuthor.trim() || !commentText.trim()) return;
@@ -438,6 +393,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
   // Status checks for timeline
   const isInvoice = docType === 'invoice';
   const status = doc.status || 'draft';
+  const paymentStatus = isInvoice ? (doc.payment_status || (status === 'paid' ? 'paid' : 'unpaid')) : status;
 
   return (
     <div className="portal-root">
@@ -605,10 +561,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                 borderRadius: '8px',
                 textTransform: 'uppercase',
                 fontWeight: 800,
-                backgroundColor: doc.status === 'paid' || doc.status === 'approved' ? 'var(--success-glow)' : 'var(--btn-secondary-bg)',
-                color: doc.status === 'paid' || doc.status === 'approved' ? 'var(--success)' : 'var(--text-muted)'
+                backgroundColor: paymentStatus === 'paid' || paymentStatus === 'approved' ? 'var(--success-glow)' : 'var(--btn-secondary-bg)',
+                color: paymentStatus === 'paid' || paymentStatus === 'approved' ? 'var(--success)' : 'var(--text-muted)'
               }}>
-                {doc.status}
+                {paymentStatus}
               </span>
             </h1>
           </div>
@@ -714,10 +670,10 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                     </div>
 
                     <div className="timeline-item">
-                      <div className={`timeline-node ${status === 'paid' ? 'completed' : (['opened', 'overdue'].includes(status) ? 'current' : '')}`} />
+                      <div className={`timeline-node ${paymentStatus === 'paid' ? 'completed' : (['partial', 'overdue'].includes(paymentStatus) ? 'current' : '')}`} />
                       <div className="timeline-content">
                         <span className="timeline-title">Settled / Paid</span>
-                        <span className="timeline-desc">{status === 'paid' ? 'Paid in full' : 'Awaiting final payment'}</span>
+                        <span className="timeline-desc">{paymentStatus === 'paid' ? 'Paid in full' : (paymentStatus === 'partial' ? 'Partial payment recorded' : 'Awaiting final payment')}</span>
                       </div>
                     </div>
                   </>
@@ -758,7 +714,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           <main className="portal-main">
             
             {/* Quick Checkout / Approval Banners */}
-            {isInvoice && status !== 'paid' && (
+            {isInvoice && paymentStatus !== 'paid' && (
               <div className="card" style={{
                 padding: '24px',
                 display: 'flex',
@@ -776,7 +732,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     {doc.payment_link 
                       ? 'Review this document using the secure client link.' 
-                      : 'Please contact the photographer for document instructions, then click the confirmation button to notify them.'}
+                    : 'Please contact the photographer for payment instructions.'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -785,9 +741,6 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                       💳 Pay {currencySymbol}{totalAmount.toFixed(2)} Now
                     </a>
                   )}
-                  <button onClick={handleMarkPaid} disabled={paying} className="btn btn-secondary" style={{ padding: '12px 24px', fontWeight: 700, borderRadius: 'var(--radius-md)' }}>
-                    {paying ? 'Processing...' : 'Confirm Paid'}
-                  </button>
                 </div>
               </div>
             )}

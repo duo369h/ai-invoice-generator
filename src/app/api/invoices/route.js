@@ -339,6 +339,11 @@ export async function PATCH(request) {
     const body = validateObject(await request.json());
     const { id, status } = body;
 
+    const paymentTruthFields = ['payment_status', 'amount_paid_cents', 'amount_due_cents'];
+    if (paymentTruthFields.some((field) => Object.prototype.hasOwnProperty.call(body, field))) {
+      return NextResponse.json({ error: 'Payment records determine payment state' }, { status: 400 });
+    }
+
     if (id && !status) {
       if (context.mode !== 'supabase') return authRequiredResponse('invoices');
       const items = Array.isArray(body.items) ? body.items : [];

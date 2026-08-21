@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   invoice_number TEXT NOT NULL,
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'sent', 'paid', 'overdue', 'approved')),
+  invoice_kind TEXT NOT NULL DEFAULT 'standard' CHECK (invoice_kind IN ('standard', 'deposit', 'milestone', 'final')),
+  payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partial', 'paid', 'overdue')),
+  amount_paid_cents INTEGER NOT NULL DEFAULT 0,
+  amount_due_cents INTEGER NOT NULL DEFAULT 0,
   doc_type TEXT DEFAULT 'invoice' CHECK (doc_type IN ('invoice', 'receipt', 'quote')),
   client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
   -- Client (flat copy for printing)
@@ -293,6 +297,30 @@ CREATE TABLE IF NOT EXISTS public.quotes (
 -- Alter invoices
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES public.quotes(id) ON DELETE SET NULL;
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS payment_link TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS public.invoice_payments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
+  source TEXT NOT NULL CHECK (source IN ('manual', 'portal', 'legacy_backfill')),
+  received_at TIMESTAMPTZ,
+  idempotency_key TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.invoice_payments ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.invoice_payments FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE public.invoice_payments TO authenticated;
+
+DROP POLICY IF EXISTS "Users can view own invoice payments" ON public.invoice_payments;
+CREATE POLICY "Users can view own invoice payments"
+  ON public.invoice_payments
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
 
 -- Alter card profiles for production profile persistence
 ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '';

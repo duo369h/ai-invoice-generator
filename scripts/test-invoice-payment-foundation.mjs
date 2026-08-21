@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
   deriveInvoicePaymentState,
+  paymentStatusForInvoice,
+  resolveInvoicePaymentReadModel,
 } from "../src/core/revenue/invoicePaymentState.js";
 import {
   isFirstRevenueTrackedResource,
@@ -9,30 +11,43 @@ import {
 
 const beforeDueDate = new Date("2026-07-10T00:00:00.000Z");
 
-assert.deepEqual(
-  deriveInvoicePaymentState({ totalCents: 10000, amountPaidCents: 0, dueDate: "2026-07-20", now: beforeDueDate }),
-  { amount_paid_cents: 0, amount_due_cents: 10000, payment_status: "unpaid" },
-  "an invoice without payments is unpaid before its due date"
+// 1. Unpaid before due date
+const unpaidState = deriveInvoicePaymentState(
+  { total: 10000, amount_paid_cents: 0, due_date: "2026-07-20" },
+  beforeDueDate
 );
+assert.equal(unpaidState.paymentStatus, "unpaid", "an invoice without payments is unpaid before its due date");
+assert.equal(unpaidState.amountPaidCents, 0);
+assert.equal(unpaidState.amountDueCents, 10000);
 
-assert.deepEqual(
-  deriveInvoicePaymentState({ totalCents: 10000, amountPaidCents: 3500, dueDate: "2026-07-01", now: beforeDueDate }),
-  { amount_paid_cents: 3500, amount_due_cents: 6500, payment_status: "partial" },
-  "a settled deposit is partial even when the remaining balance is overdue"
+// 2. Partial payment
+const partialState = deriveInvoicePaymentState(
+  { total: 10000, amount_paid_cents: 3500, due_date: "2026-07-01" },
+  beforeDueDate
 );
+assert.equal(partialState.paymentStatus, "partial", "a settled deposit is partial even when remaining balance is overdue");
+assert.equal(partialState.amountPaidCents, 3500);
+assert.equal(partialState.amountDueCents, 6500);
 
-assert.deepEqual(
-  deriveInvoicePaymentState({ totalCents: 10000, amountPaidCents: 10000, dueDate: "2026-07-01", now: beforeDueDate }),
-  { amount_paid_cents: 10000, amount_due_cents: 0, payment_status: "paid" },
-  "payment at or above the invoice total is paid"
+// 3. Paid at or above total
+const paidState = deriveInvoicePaymentState(
+  { total: 10000, amount_paid_cents: 10000, due_date: "2026-07-01" },
+  beforeDueDate
 );
+assert.equal(paidState.paymentStatus, "paid", "payment at or above the invoice total is paid");
+assert.equal(paidState.amountPaidCents, 10000);
+assert.equal(paidState.amountDueCents, 0);
 
-assert.deepEqual(
-  deriveInvoicePaymentState({ totalCents: 10000, amountPaidCents: 0, dueDate: "2026-07-01", now: beforeDueDate }),
-  { amount_paid_cents: 0, amount_due_cents: 10000, payment_status: "overdue" },
-  "an unpaid past-due invoice is overdue"
+// 4. Overdue
+const overdueState = deriveInvoicePaymentState(
+  { total: 10000, amount_paid_cents: 0, due_date: "2026-07-01" },
+  beforeDueDate
 );
+assert.equal(overdueState.paymentStatus, "overdue", "an unpaid past-due invoice is overdue");
+assert.equal(overdueState.amountPaidCents, 0);
+assert.equal(overdueState.amountDueCents, 10000);
 
+// First revenue loop payment checks
 const loop = { quote_id: "quote-1", invoice_id: "invoice-1", legacy_blocked_at: null };
 const quote = { id: "quote-1", status: "approved" };
 

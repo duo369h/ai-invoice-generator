@@ -911,6 +911,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invPaymentLink, setInvPaymentLink] = useState('');
   const [invQuoteId, setInvQuoteId] = useState(null);
   const [invBillingType, setInvBillingType] = useState('standard');
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   // Client editor state
   const [newClientName, setNewClientName] = useState('');
@@ -1863,6 +1864,38 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setShowPaymentWaitingBanner(false);
     handleDashboardTabChange('invoices', 'first_revenue_payment');
     setInvoiceView('edit');
+  };
+
+  const handleRecordPayment = async (invoice) => {
+    const entered = typeof window !== 'undefined'
+      ? window.prompt(`Amount received (${invoice.currency || 'USD'})`, ((invoice.amount_due_cents ?? invoice.total ?? 0) / 100).toFixed(2))
+      : null;
+    if (entered === null) return;
+    const amountCents = Math.round(Number(entered) * 100);
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+      triggerToast('Enter a positive payment amount.', 'error');
+      return;
+    }
+
+    setIsRecordingPayment(true);
+    try {
+      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${invoice.id}-${Date.now()}`;
+      const response = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ amount_cents: amountCents, currency: invoice.currency || 'USD', idempotency_key: idempotencyKey })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Unable to record payment.');
+      await fetchData(session?.access_token);
+      triggerToast(`Payment recorded. State: ${result.payment_status || 'updated'}.`, 'success');
+    } catch (error) {
+      triggerToast(error.message || 'Unable to record payment.', 'error');
+    } finally {
+      setIsRecordingPayment(false);
+    }
   };
 
   const handleCopyPortalLink = async (resourceId, resourceType) => {
@@ -2827,9 +2860,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Document total computations
   const currentInvoices = getActiveInvoices();
-  const totalPaid = currentInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalPending = currentInvoices.filter(i => i.status === 'pending' || i.status === 'sent' || i.status === 'unpaid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalOverdue = currentInvoices.filter(i => i.status === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalPending = currentInvoices.filter(i => ['pending', 'sent', 'unpaid', 'partial'].includes(i.payment_status || i.status)).reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalOverdue = currentInvoices.filter(i => (i.payment_status || i.status) === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
   const totalVolume = totalPaid + totalPending + totalOverdue;
 
   // Init blank Quote
@@ -3052,7 +3085,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const activeClientsCount = clients ? clients.length : 0;
   const activeInvoicesCount = invoices ? invoices.length : 0;
   const hasOverdueInvoices = invoices ? invoices.some(inv => {
-    if (inv.status === 'paid' || !inv.due_date) return false;
+    if ((inv.payment_status || inv.status) === 'paid' || !inv.due_date) return false;
     const dueDate = new Date(inv.due_date);
     return dueDate < new Date();
   }) : false;
@@ -4619,11 +4652,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 className="badge"
                                 style={{
                                   fontSize: '0.7rem',
-                                  backgroundColor: inv.status === 'paid' ? 'var(--success-glow)' : (inv.status === 'overdue' ? 'var(--danger-glow)' : 'var(--btn-secondary-bg)'),
-                                  color: inv.status === 'paid' ? 'var(--success-text)' : (inv.status === 'overdue' ? 'var(--danger-text)' : 'var(--text-muted)')
+                                  backgroundColor: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-glow)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-glow)' : 'var(--btn-secondary-bg)'),
+                                  color: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-text)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-text)' : 'var(--text-muted)')
                                 }}
                               >
-                                {inv.status}
+                                {inv.payment_status || inv.status}
                               </span>
                             </td>
                             <td style={{ padding: '14px 18px', textAlign: 'right' }}>
@@ -4669,7 +4702,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 >
                                   Copy Link
                                 </button>
-                                {['sent', 'unpaid', 'overdue', 'pending'].includes(inv.status) && (
+                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
+                                  <button
+                                    onClick={() => handleRecordPayment(inv)}
+                                    disabled={isRecordingPayment}
+                                    className="btn btn-primary btn-sm"
+                                  >
+                                    {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+                                  </button>
+                                )}
+                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
                                   <button
                                     onClick={() => {
                                       evaluateAction('payment_reminder', () => {
@@ -4797,15 +4839,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-secondary">Exit to dashboard</button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setInvStatus('paid');
-                            setInvoiceFlowStage('paid');
-                            setShowPaymentWaitingBanner(false);
-                          }}
+                          onClick={() => handleRecordPayment(invoices.find((invoice) => invoice.id === invId) || { id: invId, currency: invCurrency, total: 0 })}
                           className="btn btn-primary"
                           style={{ fontWeight: 800 }}
                         >
-                          Mark as completed
+                          Record Payment
                         </button>
                       </div>
                     </div>

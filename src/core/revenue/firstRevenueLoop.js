@@ -1,6 +1,6 @@
-const FREE_PLAN = 'free';
+import { PAYMENT_STATUSES, paymentStatusForInvoice } from './invoicePaymentState.js';
 
-import { paymentStatusForInvoice } from './invoicePaymentState.js';
+const FREE_PLAN = 'free';
 
 const noActions = {
   canCreateQuote: false,
@@ -42,11 +42,12 @@ export function resolveFirstRevenueLoop({ plan = FREE_PLAN, loop = null, quote =
       return result('unavailable', 'blocked', loop);
     }
 
-    if (paymentStatusForInvoice(invoice) === 'paid') {
+    const paymentStatus = paymentStatusForInvoice(invoice);
+    if (paymentStatus === PAYMENT_STATUSES.PAID) {
       return result('complete', 'allowance', loop);
     }
 
-    if (paymentStatusForInvoice(invoice) === 'partial') {
+    if (paymentStatus === PAYMENT_STATUSES.PARTIAL) {
       return result('first_payment_received', 'allowance', loop, { canPreparePayment: true });
     }
 
@@ -116,18 +117,26 @@ export function canCreateFirstRevenueInvoiceDraft({
   return { allowed: true, reason: null };
 }
 
-export function isFirstRevenueTrackedResource({
+export function canAccessFirstRevenueQuotePortal({
+  plan = FREE_PLAN,
   loop = null,
   quote = null,
   resourceType,
   resourceId,
 } = {}) {
-  if (!loop?.quote_id || loop?.legacy_blocked_at) return false;
+  if (String(plan).toLowerCase() !== FREE_PLAN) return false;
+  if (loop?.legacy_blocked_at || resourceType !== 'quote') return false;
+  if (!loop?.quote_id || loop.quote_id !== resourceId || quote?.id !== resourceId) return false;
+  return ['sent', 'approved', 'declined'].includes(quote.status);
+}
+
+export function isFirstRevenueTrackedResource({ loop = null, quote = null, resourceType, resourceId } = {}) {
+  if (!loop?.quote_id || loop.legacy_blocked_at) return false;
   if (resourceType === 'quote') {
-    return loop.quote_id === resourceId;
+    return loop.quote_id === resourceId && quote?.id === resourceId;
   }
   if (resourceType === 'invoice') {
-    return loop.invoice_id === resourceId;
+    return Boolean(loop.invoice_id && loop.invoice_id === resourceId);
   }
   return false;
 }

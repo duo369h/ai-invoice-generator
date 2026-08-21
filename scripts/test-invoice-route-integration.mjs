@@ -230,6 +230,34 @@ async function run() {
     assert.strictEqual(updateFilterUserId, "usr_free_123", "Must filter by authenticated user_id");
   });
 
+  await test("MOCKED_ROUTE_INTEGRATION_TEST: PATCH rejects payment truth fields before any writer is used", async () => {
+    let writerCalled = false;
+    const route = loadInvoiceRoute({
+      createServiceSupabaseClient: () => {
+        writerCalled = true;
+        throw new Error('payment truth fields must not reach the writer');
+      }
+    });
+    const res = await route.PATCH(mockRequest({ id: "inv_target_01", payment_status: "paid" }));
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(writerCalled, false);
+    assert.strictEqual(res.body.error, 'Payment records determine payment state');
+  });
+
+  await test("MOCKED_ROUTE_INTEGRATION_TEST: PATCH rejects status=paid before any writer is used", async () => {
+    let writerCalled = false;
+    const route = loadInvoiceRoute({
+      createServiceSupabaseClient: () => {
+        writerCalled = true;
+        throw new Error('paid status must not reach the writer');
+      }
+    });
+    const res = await route.PATCH(mockRequest({ id: "inv_target_01", status: "paid" }));
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(writerCalled, false);
+    assert.strictEqual(res.body.error, 'Payment records determine paid state');
+  });
+
   console.log("\n3. Testing Tracking Failure Non-Blocking in POST Handler...");
   await test("MOCKED_ROUTE_INTEGRATION_TEST: POST succeeds with HTTP 201 when claim_first_revenue_invoice returns an RPC error", async () => {
     const mockService = {
