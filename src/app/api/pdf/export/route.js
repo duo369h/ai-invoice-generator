@@ -32,8 +32,12 @@ function injectPdfBranding(html, branding) {
   // Visual QA Tag: PDF_BRANDING_VISUAL_QA_REQUIRED
   const brandBlock = `
     <!-- PDF_BRANDING_VISUAL_QA_REQUIRED -->
-    <div class="corvioz-pdf-branding" style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b; font-family: system-ui, -apple-system, sans-serif;">
-      <span style="font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">Corvioz</span>
+    <style>
+      .corvioz-pdf-branding { margin-top: 32px; padding-top: 16px; border-top: 1px solid rgb(226, 232, 240); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: rgb(100, 116, 139); font-family: system-ui, -apple-system, sans-serif; }
+      .corvioz-pdf-branding-name { font-weight: 700; color: rgb(15, 23, 42); letter-spacing: -0.02em; }
+    </style>
+    <div class="corvioz-pdf-branding">
+      <span class="corvioz-pdf-branding-name">Corvioz</span>
       <span>Created with Corvioz &middot; corvioz.com</span>
     </div>
   `;
@@ -45,10 +49,25 @@ function injectPdfBranding(html, branding) {
 }
 
 async function renderPdfFromHtml(html) {
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  let browser;
+  if (process.env.VERCEL === "1") {
+    const [{ chromium: playwrightChromium }, chromiumModule] = await Promise.all([
+      import("playwright-core"),
+      import("@sparticuz/chromium"),
+    ]);
+    const serverlessChromium = chromiumModule.default;
+    serverlessChromium.setGraphicsMode = false;
+    browser = await playwrightChromium.launch({
+      args: serverlessChromium.args,
+      executablePath: await serverlessChromium.executablePath(),
+      headless: true,
+    });
+  } else {
+    const { chromium } = await import("playwright");
+    browser = await chromium.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
 
   try {
     const page = await browser.newPage({
