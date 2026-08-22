@@ -1975,6 +1975,46 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   transform: translateY(-1px);
 }
 
+/* UI authority reconciliation: visual-only lift from the approved Public V2
+   and B+ sidebar references. Runtime handlers and route contracts remain in
+   their existing components. */
+.public-reconciliation-v2 .landing-hero--editorial {
+  background:
+    radial-gradient(circle at 78% 16%, rgba(79, 70, 229, 0.12), transparent 30%),
+    linear-gradient(180deg, var(--gray-50) 0%, var(--bg-page) 100%);
+}
+
+.public-reconciliation-v2 .hero-title,
+.public-reconciliation-v2 .photo-hero-title {
+  letter-spacing: -0.055em;
+}
+
+.public-reconciliation-v2 .section-product-preview,
+.public-reconciliation-v2 .photo-section {
+  position: relative;
+}
+
+.public-reconciliation-v2 .section-product-preview::before,
+.public-reconciliation-v2 .photo-section::before {
+  background: var(--border);
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 0 auto var(--space-8);
+  max-width: 1120px;
+  opacity: 0.7;
+}
+
+.dashboard-sidebar-nav button,
+.dashboard-sidebar-nav a {
+  min-height: 40px;
+}
+
+.dashboard-sidebar-nav button svg,
+.dashboard-sidebar-nav a svg {
+  color: currentColor;
+}
+
 .input-group {
   gap: var(--space-2);
   margin-bottom: var(--space-5);

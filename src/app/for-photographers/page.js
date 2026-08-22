@@ -140,7 +140,7 @@ export default function ForPhotographersPage() {
   };
 
   return (
-    <main className="photographers-page">
+    <main className="photographers-page public-reconciliation-v2">
       <style>{`
         .photographers-page {
           min-height: 100vh;

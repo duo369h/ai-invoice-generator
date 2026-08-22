@@ -50,7 +50,12 @@ import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
 import { Icons } from '@/styles/icons';
-import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
+import {
+  ClientPortalIcon,
+  QuoteIcon,
+  InvoiceIcon,
+  ClientsIcon,
+} from '@/components/icons/SidebarIconsBPlus';
 import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
 import {
   buildFirstQuoteActivationEvent,
@@ -3311,7 +3316,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           {/* Navigation Links */}
           <nav className="dashboard-sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             {getDashboardTabs(kernelUi).map(tab => {
-              const IconComponent = Icons[tab.id];
+              const IconComponent = {
+                quotes: QuoteIcon,
+                invoices: InvoiceIcon,
+                clients: ClientsIcon,
+              }[tab.id] || Icons[tab.id];
               const isActive = activeTab === tab.id;
               const iconColor = isActive ? '#4F46E5' : '#59677c';
               // B+ icon set (Quote/Invoice/Clients) uses its own stroke-width

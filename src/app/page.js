@@ -208,7 +208,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="landing-page">
+    <main className="landing-page public-reconciliation-v2">
       <PublicHeader
         className="navbar landing-nav landing-nav--editorial"
         surfaceId="home-global-control-surface"
