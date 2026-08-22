@@ -63,6 +63,7 @@ import {
   EMPTY_DASHBOARD_ENTITLEMENTS,
   buildDashboardEntitlementState,
   mapEntitlementRecord,
+  resolveDashboardEntitlements,
 } from '../../core/state/dashboardEntitlementState';
 import {
   isEntryIntendedAction,
@@ -581,25 +582,44 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }));
 
         try {
-          const supabase = createBrowserSupabaseClient();
-          if (supabase) {
-            const { data } = await supabase
-              .from('entitlements')
-              .select('*')
-              .eq('user_id', user.id)
-              .maybeSingle();
+          const resolved = await resolveDashboardEntitlements({
+            user,
+            session,
+            getFallbackEntitlements: buildFallbackEntitlements,
+          });
+          if (cancelled) return;
+          if (resolved.status === DASHBOARD_ENTITLEMENT_STATUS.ERROR) {
+            setEntitlementState(buildDashboardEntitlementState({
+              mode,
+              session,
+              authChecked,
+              user,
+              entitlementError: resolved.error,
+            }));
+          } else if (resolved.entitlementRecord) {
+            setEntitlementState(buildDashboardEntitlementState({
+              mode,
+              session,
+              authChecked,
+              user,
+              entitlementRecord: resolved.entitlementRecord,
+              fallbackEntitlements: null,
+            }));
+          } else {
+            setEntitlementState(buildDashboardEntitlementState({
+              mode,
+              session,
+              authChecked,
+              user,
+              fallbackEntitlements: resolved.entitlements,
+              fallbackResolved: resolved.fallbackResolved,
+            }));
+          }
 
-            if (data) {
-              if (cancelled) return;
-              setEntitlementState(buildDashboardEntitlementState({
-                mode,
-                session,
-                authChecked,
-                user,
-                entitlementRecord: data,
-                fallbackEntitlements: null,
-              }));
-
+          // Realtime is best-effort and never blocks the authenticated API result.
+          try {
+            const supabase = createBrowserSupabaseClient();
+            if (supabase) {
               channel = supabase
                 .channel(`entitlements:${user.id}`)
                 .on(
@@ -622,32 +642,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   }
                 )
                 .subscribe();
-
-              return;
             }
+          } catch (realtimeError) {
+            console.warn('Realtime entitlement subscription unavailable:', realtimeError);
           }
-
-          const hasExport = await canAccess(user.id, 'export_pdf');
-          const hasPortal = await canAccess(user.id, 'client_portal');
-          const hasCRM = await canAccess(user.id, 'crm');
-          const hasAutomation = await canAccess(user.id, 'automation');
-          const hasAdvancedInvoicing = await canAccess(user.id, 'advanced_invoicing');
-          if (cancelled) return;
-          setEntitlementState(buildDashboardEntitlementState({
-            mode,
-            session,
-            authChecked,
-            user,
-            fallbackEntitlements: user.plan ? {
-              invoice: true,
-              export_pdf: hasExport,
-              client_portal: hasPortal,
-              crm: hasCRM,
-              automation: hasAutomation,
-              advanced_invoicing: hasAdvancedInvoicing
-            } : null,
-            fallbackResolved: true,
-          }));
         } catch (err) {
           console.error('Error fetching entitlements dynamically:', err);
           if (!cancelled) {

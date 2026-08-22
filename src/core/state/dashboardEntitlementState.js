@@ -24,6 +24,55 @@ export function mapEntitlementRecord(record) {
   };
 }
 
+const TRUSTED_DASHBOARD_PLANS = new Set(['free', 'starter', 'pro', 'studio']);
+
+export async function resolveDashboardEntitlements({
+  user,
+  session,
+  fetchImpl = fetch,
+  getFallbackEntitlements = () => null,
+} = {}) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetchImpl('/api/user/entitlements', {
+      method: 'GET',
+      headers,
+      credentials: 'same-origin',
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result?.entitlements && typeof result.entitlements === 'object') {
+        return {
+          status: DASHBOARD_ENTITLEMENT_STATUS.READY,
+          entitlementRecord: result.entitlements,
+          entitlements: mapEntitlementRecord(result.entitlements),
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('Authenticated entitlement API unavailable:', error);
+  }
+
+  const plan = String(user?.plan || '').toLowerCase();
+  if (TRUSTED_DASHBOARD_PLANS.has(plan)) {
+    const entitlements = getFallbackEntitlements(plan);
+    if (entitlements) {
+      return {
+        status: DASHBOARD_ENTITLEMENT_STATUS.READY,
+        entitlements,
+        fallbackResolved: true,
+      };
+    }
+  }
+
+  return {
+    status: DASHBOARD_ENTITLEMENT_STATUS.ERROR,
+    entitlements: null,
+    error: 'entitlement_unavailable',
+  };
+}
+
 export function buildDashboardEntitlementState({
   mode = 'live',
   session = null,
