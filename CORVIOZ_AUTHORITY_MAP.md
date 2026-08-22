@@ -30,8 +30,9 @@ Fields use the requested meanings. `LOCAL_PATH` identifies the source of truth o
 
 | NAME | LOCAL_PATH | GIT_BRANCH | COMMIT_SHA | STATUS | FROZEN | COMPLETE | MAIN | PRODUCTION | CLASSIFICATION |
 |---|---|---|---|---|---|---|---|---|---|
-| Home design authority | `/Users/duo/Documents/想做个网站/corvioz-home-01` | N/A | N/A; registry hashes available | ACCEPTED; requires truth reconciliation | NO | PARTIAL | PARTIAL (`src/app/page.js` plus `src/app/home`) | UNKNOWN | PARTIALLY_INTEGRATED |
-| Home current implementation | `/private/tmp/corvioz-public-authority-r1-20260822/src/app/page.js` | `codex/public-authority-reconciliation-r1-20260822` | reconciliation commit | full-page shell/nav/visual and product-truth fallback reconciliation | NO | YES (source-level) | YES | UNKNOWN | COMPLETED_AUTHORITY |
+| Home visual authority (V1C) | `/Users/duo/Documents/corvioz-home-01-desktop-cohesion-prototypes/final-qa-v1c/final-home-01-qa.html` + `styles.css` | N/A | HTML `e373bdf800c95c9b3a91b5c06ec16858841883e9f46d2260b43310871dc290c2`; CSS `ea9779ed34b2ffc2a20d68942b9d3a3dc02919dc4864e4865b56e3a120e5ed58` | DESIGN_STATUS=FROZEN; V1C evidence bundle | YES | YES | PARTIAL (candidate integration) | UNKNOWN | FROZEN_AUTHORITY |
+| Home implementation lineage | `/Users/duo/Documents/想做个网站/corvioz-home-01` | N/A | historical lineage; not visual authority | retained as implementation lineage only | UNKNOWN | PARTIAL | PARTIAL | UNKNOWN | LEGACY |
+| Home current implementation | `/private/tmp/corvioz-public-authority-r1-20260822/src/app/page.js` plus `src/app/home` and `public/home-v1c.css` | `codex/public-authority-reconciliation-r1-20260822` | uncommitted; base `a4fc27465b56c69bddcf8af0a7077ca08734d3d4` | full-page V1C adaptation with current Main product truth | NO | YES (source-level) | YES (candidate) | UNKNOWN | COMPLETED_AUTHORITY |
 | For Photographers design authority | `/Users/duo/Documents/Corvioz-Design/for-photographers-v2/codex-10-1-accessibility-remediation` | N/A | N/A; registry hashes available | DESIGN_STATUS=FROZEN | YES | YES (design artifact) | PARTIAL | UNKNOWN | FROZEN_AUTHORITY |
 | For Photographers implementation | `/private/tmp/corvioz-public-authority-r1-20260822/src/app/for-photographers/page.js` | `codex/public-authority-reconciliation-r1-20260822` | reconciliation commit | full page sections, shared shell, responsive styles, and product-boundary copy reconciled | YES (design source) | YES (source-level) | YES | UNKNOWN | COMPLETED_AUTHORITY |
 | Pricing V2 design authority | `/Users/duo/Documents/Corvioz-Design/pricing-v2/full-page-visual-assembly-08-final` | N/A | N/A; registry hashes available | APPROVED_DESIGN_AUTHORITY / FROZEN | YES | YES (design artifact) | PARTIAL | UNKNOWN | FROZEN_AUTHORITY |
@@ -57,18 +58,18 @@ Fields use the requested meanings. `LOCAL_PATH` identifies the source of truth o
 - `git fetch origin` completed; `origin/main` equals the required Main SHA.
 - Clean isolated worktree began at the required SHA with no pre-existing changes.
 - Only five public files are modified; no API, auth, entitlement, dashboard, payment, revenue, email, Supabase, migration, or database files changed.
-- `npm run build`: PASS. `npm run lint`: PASS, 0 errors and 84 existing warnings.
+- `npm run build`: PASS. `npm run lint`: PASS, 0 errors and 83 existing warnings.
 - UI Guard: PASS. Pricing V2 suite: 22 passed, 0 failed. Invoice route: 5 passed, 0 failed. Invoice/payment state: 88 passed, 0 failed. Payment write/read guardrails: 82/74 passed, 0 failed. Production PDF runtime: PASS. Portal approval idempotency: PASS. Pricing CTA: PASS.
 - `git diff --check`: PASS.
 - `verify-pricing-contract.mjs`: its two static checks target an unchanged Main pricing-page pattern; runtime/view-model checks pass. No pricing runtime file changed.
 - `verify-entitlements.mjs`: local Chromium/macOS permission prevented this optional browser harness; entitlement source was unchanged and the non-browser runtime suite passed.
-- Preview/browser smoke is the remaining runtime evidence step; it is not a source correctness blocker.
+- Fresh browser evidence: no Home console errors; all required V1C viewports captured; mobile menu open state, footer views, favicon resources, normal in-view autoplay, and reduced-motion no-autoplay verified locally.
 
 ## Required summary
 
 ```text
 PUBLIC_SHELL_AUTHORITY=/Users/duo/Documents/Corvioz-Design/public-shell-v2-freeze/raw
-HOME_AUTHORITY=/Users/duo/Documents/想做个网站/corvioz-home-01
+HOME_AUTHORITY=/Users/duo/Documents/corvioz-home-01-desktop-cohesion-prototypes/final-qa-v1c (visual); implementation lineage=/Users/duo/Documents/想做个网站/corvioz-home-01
 FOR_PHOTOGRAPHERS_AUTHORITY=/Users/duo/Documents/Corvioz-Design/for-photographers-v2/codex-10-1-accessibility-remediation
 PRICING_AUTHORITY=/Users/duo/Documents/Corvioz-Design/pricing-v2/full-page-visual-assembly-08-final
 HOW_IT_WORKS_AUTHORITY=/Users/duo/Documents/Corvioz-Design/how-it-works-freeze-v1/source/candidate-a (CANDIDATE ONLY; NOT INTEGRATED)
@@ -76,8 +77,8 @@ WHY_CORVIOZ_AUTHORITY=No standalone frozen authority; accepted Home section only
 RESOURCES_AUTHORITY=No standalone frozen authority; accepted Home section only
 AUTH_UI_AUTHORITY=Current Main at 5a7263762e8566e092c1e4eea2f630499557b677
 DASHBOARD_AUTHORITY=Current Main at 5a7263762e8566e092c1e4eea2f630499557b677; historical candidate e59344756956ba8884ad169141843f3c73c8a269 is not final
-MISSING_AUTHORITIES=Standalone Why Corvioz, Resources, FAQ, newer frozen Dashboard, browser/Preview evidence
-AMBIGUOUS_AUTHORITIES=Home fallback pricing copy; Dashboard newer/frozen status; standalone public auth visual authority
+MISSING_AUTHORITIES=Standalone Why Corvioz, Resources, FAQ, newer frozen Dashboard, independent review acceptance
+AMBIGUOUS_AUTHORITIES=Dashboard newer/frozen status; standalone public auth visual authority
 SAFE_TO_BEGIN_RECONCILIATION=YES
 REAL_BLOCKER=NONE
 ```
