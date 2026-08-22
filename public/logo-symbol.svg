@@ -1,6 +1,4 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M22 8.5 A 9.5 9.5 0 1 0 24.5 20.5" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
-  <path d="M13 22 V11 H20" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M13 16 H18" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M21 9 L25 13 L21 17" stroke="#06B6D4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" color="#4F46E5" shape-rendering="geometricPrecision">
+  <defs><mask id="d-small-proportional" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><circle cx="7.125" cy="8.5" r="3.125" fill="black"/><path d="M12 1.25 14.75 4 9.75 9 7 6.25 12 1.25Z" fill="black"/></mask></defs>
+  <circle cx="8" cy="8" r="6.75" fill="currentColor" mask="url(#d-small-proportional)"/>
 </svg>
