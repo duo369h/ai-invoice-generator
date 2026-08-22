@@ -186,6 +186,7 @@ export function GlobalHeaderControlCluster({
           .public-v2-logo { display: inline-flex; align-items: center; text-decoration: none; }
           .public-v2-wordmark { color: var(--text-main, #0f172a); font-size: 1.3rem; font-weight: 900; letter-spacing: -.035em; }
           .public-v2-controls { display: flex; align-items: center; gap: 24px; }
+          .public-v2-actions { display: flex; align-items: center; gap: 24px; }
           .public-v2-nav { display: flex; align-items: center; gap: 24px; }
           .public-v2-nav-group { position: relative; display: inline-flex; align-items: center; }
           .public-v2-nav-trigger, .public-v2-nav-link, .public-v2-signin { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 8px 4px; border: 0; background: transparent; color: var(--text-muted, #64748b); font: inherit; font-size: .875rem; font-weight: 600; text-decoration: none; cursor: pointer; }
@@ -204,7 +205,7 @@ export function GlobalHeaderControlCluster({
           .public-v2-mobile-trigger { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; flex-direction: column; gap: 5px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-main, #0f172a); cursor: pointer; }
           .public-v2-mobile-trigger span { width: 18px; height: 2px; border-radius: 2px; background: currentColor; }
           .public-v2-mobile-menu { display: none; }
-          @media (max-width: 1100px) { .public-v2-navbar { padding-left: 24px; padding-right: 24px; } .public-v2-nav, .public-v2-controls { gap: 14px; } }
+          @media (max-width: 1100px) { .public-v2-navbar { padding-left: 24px; padding-right: 24px; } .public-v2-nav, .public-v2-controls, .public-v2-actions { gap: 14px; } }
           @media (max-width: 820px) { .public-v2-navbar { padding-left: 20px; padding-right: 20px; } .public-v2-nav, .public-v2-signin, .public-v2-cta { display: none; } .public-v2-mobile-trigger { display: inline-flex; } .public-v2-mobile-menu { position: absolute; top: 64px; left: 0; right: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 20px 20px; border-bottom: 1px solid var(--border-medium, #e2e8f0); background: #f8fafc; box-shadow: 0 12px 20px rgba(15,23,42,.08); } .public-v2-mobile-menu[hidden] { display: none; } .public-v2-mobile-menu a, .public-v2-mobile-menu button { min-height: 44px; display: flex; align-items: center; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted, #64748b); font: inherit; font-size: .95rem; font-weight: 650; text-align: left; text-decoration: none; } .public-v2-mobile-menu .public-v2-signin { display: flex; } .public-v2-mobile-menu > div { display: flex; flex-direction: column; gap: 4px; } .public-v2-mobile-menu [hidden] { display: none !important; } .public-v2-mobile-menu a:hover, .public-v2-mobile-menu a:focus-visible, .public-v2-mobile-menu button:hover, .public-v2-mobile-menu button:focus-visible { background: var(--brand-light, #eef2ff); color: #4f46e5; outline: none; } .public-v2-mobile-menu .public-v2-mobile-cta { justify-content: center; margin-top: 6px; background: #4f46e5; color: #fff; } .public-v2-mobile-menu .public-v2-mobile-cta:hover, .public-v2-mobile-menu .public-v2-mobile-cta:focus-visible { background: #4338ca; color: #fff; } }
           @media (max-width: 540px) { .public-v2-navbar { padding-left: 16px; padding-right: 16px; } .public-v2-mobile-menu { padding-left: 16px; padding-right: 16px; } }
           @media (prefers-reduced-motion: reduce) { .public-v2-navbar *, .public-v2-navbar *::after { transition: none !important; } }
@@ -227,8 +228,10 @@ export function GlobalHeaderControlCluster({
               ) : <Link className="public-v2-nav-link" href={link.href} key={`${link.href}-${link.label}`} aria-current={route === link.href ? 'page' : undefined}>{link.label}</Link>;
             })}
           </div>
-          {accountAction && renderPublicAction(accountAction, 'account')}
-          {primaryAction && renderPublicAction(primaryAction, 'primary')}
+          <div className="public-v2-actions">
+            {accountAction && renderPublicAction(accountAction, 'account')}
+            {primaryAction && renderPublicAction(primaryAction, 'primary')}
+          </div>
           <button type="button" id={mobileTriggerId} className="public-v2-mobile-trigger" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls={mobileMenuId} onClick={(e) => { lastTriggerRef.current = e.currentTarget; setMenuOpen((open) => !open); }}><span /><span /><span /></button>
         </div>
         <nav id={mobileMenuId} className="public-v2-mobile-menu" aria-label="Mobile navigation" aria-labelledby={mobileTriggerId} hidden={!menuOpen}>
