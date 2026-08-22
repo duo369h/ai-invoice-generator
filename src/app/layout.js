@@ -39,10 +39,10 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' }
+      { url: '/favicon.svg?v=brand-v1', type: 'image/svg+xml' },
+      { url: '/favicon.ico?v=brand-v1', sizes: 'any' }
     ],
-    apple: '/apple-touch-icon.png',
+    apple: '/apple-touch-icon.png?v=brand-v1',
   },
   manifest: '/manifest.webmanifest',
   openGraph: {
