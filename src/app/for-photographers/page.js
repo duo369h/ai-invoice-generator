@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import ForPhotographersCta from './ForPhotographersCta';
-import ForPhotographersHeader from './ForPhotographersHeader';
+import PublicHeader from '../components/PublicHeader';
+import SharedFooter from '../components/SharedFooter';
 const pageTitle = 'Corvioz for Independent Photographers';
-const pageDescription = "Quote, invoice, and track deposits and final payments in your own currency, built around how a shoot actually gets booked and paid.";
+const pageDescription = "Create quotes, invoices, and payment records in your own currency, built around how a shoot actually gets booked and delivered.";
 
 const assumptions = [
   {
@@ -10,12 +11,12 @@ const assumptions = [
     corvioz: 'Set your own currency as the default for every quote and invoice',
   },
   {
-    common: "Contracts follow one region's legal norms and templates",
-    corvioz: 'Editable photography agreement templates for deposits, delivery timelines, usage rights, and payment terms',
+    common: "Client documents follow one region's assumptions",
+    corvioz: 'Keep quote and invoice details, delivery notes, and payment terms in the client workflow',
   },
   {
-    common: 'Payments are tracked through card-first workflows',
-    corvioz: 'Track card, bank transfer, cash, and other offline payments — deposits and final balances — in one client record',
+    common: 'Payment records are tied to one default method',
+    corvioz: 'Record card, bank transfer, cash, and other offline payments in one client record',
   },
   {
     common: "Pricing tiers assume one market's average freelance income",
@@ -33,10 +34,10 @@ const workflowSteps = [
     ),
   },
   {
-    title: 'Quote to Deposit & Agreement',
+    title: 'Approved Quote to Invoice',
     body: (
       <>
-        Once they confirm, the quote becomes an agreement with deposit terms, delivery timeline, and usage rights attached — no copying details between separate documents when using dedicated <Link href="/photographer-invoice-software" style={{ textDecoration: 'underline', color: 'inherit' }}>photographer invoice software</Link>.
+        Once a client approves a quote, use the invoice builder to carry the agreed details forward and save the invoice when it is ready — no automatic conversion or payment processing is implied.
       </>
     ),
   },
@@ -57,23 +58,23 @@ const workflowSteps = [
 const useCases = [
   {
     title: 'Wedding Shoot',
-    body: 'Quote 8-hour coverage with a second shooter and an album add-on as optional line items. Collect a deposit to reserve the date, then invoice the remaining balance once galleries are delivered.',
+    body: 'Quote 8-hour coverage with a second shooter and an album add-on as optional line items. Keep the agreed scope visible through delivery, then record the payment status on the client record.',
   },
   {
     title: 'Portrait Session',
-    body: 'Quote a session fee with retouching add-ons priced separately. Confirm the booking with a deposit, then send the final invoice with the balance due on delivery.',
+    body: 'Quote a session fee with retouching add-ons priced separately. Keep the quote, invoice, and delivery notes connected as the session moves forward.',
   },
   {
     title: 'Event Photography',
-    body: 'Quote coverage for a corporate event or private function by the hour or as a package, with add-ons like extended coverage or same-day highlights. Collect a deposit to hold the date, then invoice the balance once photos are delivered.',
+    body: 'Quote coverage for a corporate event or private function by the hour or as a package, with add-ons like extended coverage or same-day highlights. Carry the agreed details into the invoice and record payment status after delivery.',
   },
   {
     title: 'Commercial Shoot',
-    body: 'Break a brand or campaign shoot into staged payments tied to deliverables, with usage rights and revision limits spelled out in the agreement — invoice each stage as work is completed and signed off.',
+    body: 'Break a brand or campaign shoot into clear quote and invoice line items, with delivery notes and revision boundaries visible before work begins.',
   },
   {
     title: 'Product Photography',
-    body: 'Quote a batch of product shots by SKU or set size, with a deposit to begin and the balance due on final delivery — usage rights and revision limits included in the agreement, same as any commercial job.',
+    body: 'Quote a batch of product shots by SKU or set size, then keep the invoice and recorded payment status connected to the client record as work is delivered.',
   },
 ];
 
@@ -87,23 +88,23 @@ const pricingLines = [
 const faqs = [
   {
     question: 'Does Corvioz process payments for me?',
-    answer: 'No — Corvioz is built for tracking payments, not processing them. You record card, bank transfer, cash, or other payments as they happen, so you always have a clear history of deposits and final balances per client.',
+    answer: 'No — Corvioz records payment status; it does not process payments. Record card, bank transfer, cash, or other payment methods against the relevant client workflow.',
   },
   {
     question: 'Can I quote and invoice in my own currency?',
     answer: 'Yes. Set your default currency once, and every quote, invoice, and payment record uses it.',
   },
   {
-    question: 'Are the contract templates legally valid in my country?',
-    answer: 'Corvioz provides editable photography agreement templates covering deposits, delivery timelines, usage rights, and payment terms as a starting point. This is not legal advice — always review templates with a local professional before relying on them.',
+    question: 'Does Corvioz replace contracts or legal advice?',
+    answer: 'No. Corvioz helps organize quotes, invoices, client records, and recorded payment status. It does not provide legal agreements or legal advice.',
   },
   {
     question: 'What if my clients pay by bank transfer or cash instead of card?',
-    answer: "You can log any payment method — card, bank transfer, cash, or other offline payments — against a client's deposit or final balance.",
+    answer: "You can log any payment method — card, bank transfer, cash, or other offline payments — against the client's invoice record.",
   },
   {
     question: "I don't only shoot weddings — does this still work for me?",
-    answer: 'Yes. The quote-to-payment flow works for weddings, portrait sessions, events, commercial shoots, and product photography, and templates can be customized for each type of work.',
+    answer: 'Yes. The quote-to-invoice workflow works for weddings, portrait sessions, events, commercial shoots, and product photography, with details you can adapt to each type of work.',
   },
 ];
 
@@ -140,7 +141,7 @@ export default function ForPhotographersPage() {
   };
 
   return (
-    <main className="photographers-page">
+    <main className="photographers-page public-reconciliation-v2">
       <style>{`
         .photographers-page {
           min-height: 100vh;
@@ -467,15 +468,15 @@ export default function ForPhotographersPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
 
-      <ForPhotographersHeader />
+      <PublicHeader route="/for-photographers" />
 
       <section className="photo-hero">
         <div className="photo-container photo-hero-grid">
           <div>
             <p className="photo-eyebrow">For Independent Photographers</p>
-            <h1>From quote to final payment — without squeezing into someone else's workflow.</h1>
+            <h1>From quote to delivery — without squeezing into someone else's workflow.</h1>
             <p className="photo-lede">
-              Corvioz helps independent photographers quote, invoice, and track deposits and final payments in their own currency — built around how a shoot actually gets booked and paid, not around one market's assumptions.
+              Corvioz helps independent photographers create quotes, invoices, and payment records in their own currency — built around how a shoot actually gets booked and delivered, not around one market's assumptions.
             </p>
             <ForPhotographersCta position="hero" />
             <p className="photo-microcopy">
@@ -490,18 +491,18 @@ export default function ForPhotographersPage() {
           <div className="photo-mockup" aria-label="Quote workflow preview">
             <div className="photo-mockup-top">
               <span>Photography quote</span>
-              <span>Deposit + final balance</span>
+              <span>Quote + invoice workflow</span>
             </div>
             <div className="photo-mockup-body">
               <div className="photo-doc-row"><strong>Client</strong><span>Portrait session</span></div>
               <div className="photo-doc-row"><strong>Currency</strong><span>Your default currency</span></div>
-              <div className="photo-doc-row"><strong>Terms</strong><span>Deposit, delivery, usage rights</span></div>
+              <div className="photo-doc-row"><strong>Details</strong><span>Scope, delivery notes, payment terms</span></div>
               <div className="photo-stage-rail">
                 <span>Quote</span>
-                <span>Deposit</span>
+                <span>Invoice</span>
                 <span>Shoot</span>
                 <span>Delivery</span>
-                <span>Final payment</span>
+                <span>Payment recorded</span>
               </div>
             </div>
           </div>
@@ -512,7 +513,7 @@ export default function ForPhotographersPage() {
         <div className="photo-container-narrow">
           <h2 className="photo-section-title">Most client-management tools are built around one market's assumptions.</h2>
           <p className="photo-section-copy">
-            Many generic client-management tools default to USD-first templates, card-first workflows, and one region's contract norms — because that's the market they were originally built for. If your business runs on a different currency, different payment habits, or different contract norms, you end up adapting your business to the tool instead of the other way around.
+            Many generic client-management tools default to USD-first templates and one region's workflow assumptions. If your business runs on a different currency or different payment habits, you end up adapting your business to the tool instead of the other way around.
           </p>
           <div className="assumption-table">
             <div className="assumption-row">
@@ -559,7 +560,7 @@ export default function ForPhotographersPage() {
           <div>
             <h2 className="photo-section-title">Built by a photographer, for photographers.</h2>
             <p className="photo-section-copy">
-              Corvioz started from a simple frustration: most quoting and invoicing tools are built around one market's assumptions about currency, contracts, and payments. Corvioz was built around the actual sequence of booking, shooting, and getting paid — deposit first, delivery next, balance on completion — not a generic template for unrelated service businesses in general.
+              Corvioz started from a simple frustration: most quoting and invoicing tools are built around one market's assumptions about currency and payments. Corvioz was built around the actual sequence of inquiry, quote, delivery, invoice, and recorded payment status — not a generic template for unrelated service businesses.
             </p>
           </div>
         </div>
@@ -617,17 +618,7 @@ export default function ForPhotographersPage() {
         </div>
       </section>
 
-      <footer className="photo-footer">
-        <div className="photo-footer-inner">
-          <p>Corvioz helps independent photographers organize quotes, invoices, client records, deposits, delivery terms, and final payment tracking.</p>
-          <nav aria-label="For photographers footer links">
-            <a href="/privacy">Privacy Policy</a>
-            <a href="/terms">Terms of Service</a>
-            <a href="/security">Security & Data</a>
-            <a href="mailto:support@corvioz.com">support@corvioz.com</a>
-          </nav>
-        </div>
-      </footer>
+      <SharedFooter />
     </main>
   );
 }

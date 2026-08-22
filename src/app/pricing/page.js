@@ -318,7 +318,7 @@ export default function PricingPage() {
   const proCompPeriod = isYearly ? "/ year" : "/ month";
 
   return (
-    <div className="pricing-assembly-page">
+    <div className="pricing-assembly-page public-reconciliation-v2">
       {/* 1. GLOBAL SHARED PUBLIC HEADER */}
       <PublicHeader route="/pricing" />
 

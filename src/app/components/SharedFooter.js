@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 const columns = [
-  ['Product', [['How It Works', '/how-it-works'], ['For Photographers', '/for-photographers'], ['Pricing', '/pricing'], ['Security', '/security']]],
+  ['Product', [['How It Works', '/#how-corvioz-works'], ['For Photographers', '/for-photographers'], ['Pricing', '/pricing'], ['Security', '/security']]],
   ['Resources', [['Blog', '/blog'], ['Client Document Guide', '/blog/invoice-vs-quote-vs-receipt'], ['Photographer Template', '/invoice-template/photographer'], ['Help Center', '/help']]],
   ['Legal', [['Privacy Policy', '/privacy'], ['Terms of Service', '/terms'], ['Refund Policy', '/refund-policy'], ['support@corvioz.com', 'mailto:support@corvioz.com']]],
 ];

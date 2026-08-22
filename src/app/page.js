@@ -17,50 +17,46 @@ const REVIEW_SAFE_PRICING_PLANS = [
   {
     id: 'free',
     name: 'Free',
-    description: 'For testing the core quote, document, and profile workflow.',
+    description: 'For getting started with quotes and invoices.',
     price_monthly: 0,
     price_yearly: 0,
     features: [
-      'Draft quotes and client documents',
-      'Basic profile setup',
-      'Watermarked PDF preview',
+      '5 combined new Quotes + Invoices per billing cycle',
+      'Branded PDF',
+      'No Client Portal, Client Approval, or Proposal',
     ],
   },
   {
     id: 'starter',
     name: 'Starter',
-    description: 'For independent professionals who need a simple, repeatable client delivery dashboard.',
+    description: 'For independent professionals who need a clean, repeatable workflow.',
     price_monthly: 9,
     price_yearly: 7,
     features: [
-      'Client-ready quotes',
-      'Invoice and quote workflow',
-      'Basic client delivery controls',
+      '30 combined new Quotes + Invoices per billing cycle',
+      'Clean PDF',
+      'No Client Portal, Client Approval, or Proposal',
     ],
   },
   {
     id: 'pro',
     name: 'Pro',
-    description: 'For working professionals managing multiple client projects.',
+    description: 'For working professionals managing client projects end to end.',
     price_monthly: 19,
     price_yearly: 16,
     features: [
-      'Unlimited quotes and Public Profiles',
-      'Clean PDF export without watermark',
-      'Client links and stronger delivery controls',
+      'Unlimited combined new Quotes + Invoices',
+      'Clean PDF',
+      'Client Portal with Quote Approval',
     ],
   },
   {
     id: 'studio',
     name: 'Studio',
-    description: 'For small studios that need broader client management.',
-    price_monthly: 29,
-    price_yearly: 24,
-    features: [
-      'Studio client areas',
-      'Reusable brand and delivery controls',
-      'Priority workflow support',
-    ],
+    description: 'For studios that need a broader workflow in the future.',
+    price_monthly: 0,
+    price_yearly: 0,
+    features: [],
   },
 ];
 
@@ -78,8 +74,6 @@ function normalizePlansForReview(rawPlans) {
     const apiPlan = uniquePlansMap.get(fallbackPlan.id);
     const apiMonthly = Number(apiPlan?.price_monthly ?? fallbackPlan.price_monthly);
     const apiYearly = Number(apiPlan?.price_yearly ?? fallbackPlan.price_yearly);
-    const useFallbackStudioPrice = fallbackPlan.id === 'studio' && (apiMonthly <= 0 || apiYearly <= 0);
-
     return {
       ...fallbackPlan,
       ...(apiPlan || {}),
@@ -87,8 +81,8 @@ function normalizePlansForReview(rawPlans) {
         && apiPlan.features.length > 0
         ? apiPlan.features
         : fallbackPlan.features,
-      price_monthly: useFallbackStudioPrice ? fallbackPlan.price_monthly : apiMonthly,
-      price_yearly: useFallbackStudioPrice ? fallbackPlan.price_yearly : apiYearly,
+      price_monthly: apiMonthly,
+      price_yearly: apiYearly,
     };
   });
 }
@@ -208,7 +202,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="landing-page">
+    <main className="landing-page public-reconciliation-v2">
       <PublicHeader
         className="navbar landing-nav landing-nav--editorial"
         surfaceId="home-global-control-surface"
@@ -216,6 +210,7 @@ export default function Home() {
         showThemeToggle={false}
         navLinks={[
           { label: 'How It Works', href: '#how-corvioz-works' },
+          { label: 'For Photographers', href: '/for-photographers' },
           { label: 'Why Corvioz', href: '#why-corvioz' },
           { label: 'Pricing', href: '#pricing' },
           {
@@ -234,7 +229,6 @@ export default function Home() {
           variant: 'secondary',
           onClick: () => trackEvent('cta_click', { cta_name: 'Sign in', position: 'navbar' }),
         }}
-        primaryAction={null}
       />
 
       <header className="landing-hero landing-hero--editorial animate-fade-in">

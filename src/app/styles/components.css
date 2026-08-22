@@ -722,6 +722,38 @@ html[data-theme="dark"] .blog-card-footer.group:hover .blog-card-cta,
 html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   color: var(--gray-50);
 }
+
+/* Public V2 authority: visual-only composition treatment. Product handlers,
+   pricing API truth, and authenticated routes remain in their source files. */
+.public-reconciliation-v2 .landing-hero--editorial {
+  background:
+    radial-gradient(circle at 78% 16%, rgba(79, 70, 229, 0.12), transparent 30%),
+    linear-gradient(180deg, var(--gray-50) 0%, var(--bg-page) 100%);
+}
+
+.public-reconciliation-v2 .hero-title,
+.public-reconciliation-v2 .photo-hero h1,
+.public-reconciliation-v2 .pricing-hero-title {
+  letter-spacing: -0.055em;
+}
+
+.public-reconciliation-v2 .section-product-preview,
+.public-reconciliation-v2 .photo-section,
+.public-reconciliation-v2 .pricing-cards-section {
+  position: relative;
+}
+
+.public-reconciliation-v2 .section-product-preview::before,
+.public-reconciliation-v2 .photo-section::before,
+.public-reconciliation-v2 .pricing-cards-section::before {
+  background: var(--border);
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 0 auto var(--space-8);
+  max-width: 1120px;
+  opacity: 0.7;
+}
 .blog-card-cta-arrow {
   display: inline-block;
   transition: transform 200ms ease;
