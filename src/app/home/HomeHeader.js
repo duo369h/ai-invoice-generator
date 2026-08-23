@@ -74,24 +74,6 @@ export default function HomeHeader() {
           color: #ffffff;
         }
 
-        .home-public-header .public-v2-mobile-menu button[aria-controls*="mobile-how"]::after,
-        .home-public-header .public-v2-mobile-menu button[aria-controls*="mobile-resources"]::after {
-          content: '';
-          width: 8px;
-          height: 8px;
-          flex: 0 0 8px;
-          margin-left: auto;
-          border-right: 1.5px solid currentColor;
-          border-bottom: 1.5px solid currentColor;
-          transform: rotate(45deg) translate(-1px, -1px);
-          transform-origin: center;
-          transition: transform 180ms ease;
-        }
-
-        .home-public-header .public-v2-mobile-menu button[aria-controls*="mobile-how"][aria-expanded="true"]::after,
-        .home-public-header .public-v2-mobile-menu button[aria-controls*="mobile-resources"][aria-expanded="true"]::after {
-          transform: rotate(225deg) translate(-1px, -1px);
-        }
       `}</style>
       <PublicHeader
         route="/"
