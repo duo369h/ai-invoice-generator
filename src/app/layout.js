@@ -18,7 +18,7 @@ export const metadata = {
     template: "%s | Corvioz",
   },
   description:
-    "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
+    "Corvioz helps photographers organize quotes, invoices, client records, and recorded payment status in one focused dashboard.",
   keywords: [
     "photography business dashboard",
     "photographer quote generator",
@@ -48,7 +48,7 @@ export const metadata = {
   openGraph: {
     title: "Corvioz | Photography Business Dashboard",
     description:
-      "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
+      "Corvioz helps photographers organize quotes, invoices, client records, and recorded payment status in one focused dashboard.",
     url: siteUrl,
     siteName: "Corvioz",
     locale: "en_US",
@@ -66,7 +66,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Corvioz | Photography Business Dashboard",
     description:
-      "Corvioz helps photographers manage quotes, invoices, client records, deposits, delivery, and final payments in one focused dashboard.",
+      "Corvioz helps photographers organize quotes, invoices, client records, and recorded payment status in one focused dashboard.",
     images: ['/twitter-image.png'],
   },
   robots: {
