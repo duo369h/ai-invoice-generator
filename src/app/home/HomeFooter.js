@@ -12,7 +12,7 @@ export default function HomeFooter() {
           </div>
           <div className="footer-nav-col">
             <h3 className="footer-col-label">Product</h3>
-            <ul className="footer-link-list"><li><Link href="/#how-corvioz-works" className="footer-link">How It Works</Link></li><li><Link href="/for-photographers" className="footer-link">For Photographers</Link></li><li><Link href="/pricing" className="footer-link">Pricing</Link></li><li><Link href="/security" className="footer-link">Security</Link></li></ul>
+            <ul className="footer-link-list"><li><Link href="/how-it-works" className="footer-link">How It Works</Link></li><li><Link href="/for-photographers" className="footer-link">For Photographers</Link></li><li><Link href="/pricing" className="footer-link">Pricing</Link></li><li><Link href="/security" className="footer-link">Security</Link></li></ul>
           </div>
           <div className="footer-nav-col">
             <h3 className="footer-col-label">Resources</h3>

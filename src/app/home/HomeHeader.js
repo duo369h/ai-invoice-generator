@@ -5,9 +5,9 @@ const CREATE_QUOTE_URL = '/signup?redirect=%2Fdashboard%3Ftool%3Dquote%26mode%3D
 const HOME_NAV_LINKS = [
   {
     label: 'How It Works',
-    href: '/#how-corvioz-works',
+    href: '/how-it-works',
     children: [
-      { label: 'Workflow', href: '/#how-corvioz-works' },
+      { label: 'Workflow', href: '/how-it-works' },
       { label: 'Features', href: '/#features' },
       { label: 'Client Journey', href: '/#client-journey' },
     ],
