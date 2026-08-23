@@ -5321,5 +5321,5 @@ export default function ForPhotographersV1() {
 
     return () => { upperMotionDisposed = true; closeMobile(); cleanups.forEach((cleanup) => cleanup?.()); };
   }, []);
-  return <div data-photographers-v1 ref={rootRef}><PublicHeader route="/for-photographers" /><style>{styles}</style><div dangerouslySetInnerHTML={{ __html: markup }} /></div>;
+  return <><PublicHeader route="/for-photographers" /><div data-photographers-v1 ref={rootRef}><style>{styles}</style><div dangerouslySetInnerHTML={{ __html: markup }} /></div></>;
 }
