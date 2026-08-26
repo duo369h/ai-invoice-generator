@@ -17,6 +17,43 @@ import { enumValue, validateObject, validateQuotePayload, validationResponse } f
 import { recordProductAnalyticsEvent } from "../../lib/product-analytics-server";
 import { getUserEntitlements } from "../../../../lib/entitlements";
 
+const OWNER_MUTABLE_QUOTE_STATUSES = new Set(["draft", "sent"]);
+const TERMINAL_QUOTE_STATUSES = new Set(["approved", "declined", "converted"]);
+
+function quoteStatusActorForbiddenResponse() {
+  return NextResponse.json({
+    error: "Quote status can only be changed by its authorized actor.",
+    code: "QUOTE_STATUS_ACTOR_FORBIDDEN"
+  }, { status: 403 });
+}
+
+function quoteStatusStateConflictResponse() {
+  return NextResponse.json({
+    error: "Quote status changed before this update could be applied.",
+    code: "QUOTE_STATUS_STATE_CONFLICT"
+  }, { status: 409 });
+}
+
+function hasTerminalQuoteStatusMismatch(authoritativeStatus, requestedStatus, hasObservedStatus) {
+  return hasObservedStatus
+    && TERMINAL_QUOTE_STATUSES.has(authoritativeStatus)
+    && requestedStatus !== authoritativeStatus;
+}
+
+async function conditionalQuoteUpdateFailureResponse(serviceSupabase, quoteId, userId) {
+  const { data: latestQuote, error: latestQuoteError } = await serviceSupabase
+    .from("quotes")
+    .select("status")
+    .eq("id", quoteId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (latestQuoteError) throw latestQuoteError;
+  if (!latestQuote) {
+    return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+  }
+  return quoteStatusStateConflictResponse();
+}
+
 export async function GET(request) {
   try {
     const context = await getRequestUser(request);
@@ -70,7 +107,12 @@ export async function POST(request) {
     if (!limitResult.success) {
       return NextResponse.json({ error: limitResult.error || "Too many requests" }, { status: limitResult.status || 429 });
     }
-    const body = validateQuotePayload(await request.json());
+    const rawBody = await request.json();
+    const hasObservedStatus = Object.prototype.hasOwnProperty.call(rawBody, "status")
+      && rawBody.status !== undefined
+      && rawBody.status !== null
+      && rawBody.status !== "";
+    const body = validateQuotePayload(rawBody);
 
     const {
       id,
@@ -86,6 +128,11 @@ export async function POST(request) {
       notes,
       status
     } = body;
+    const requestedStatus = status || "draft";
+
+    if (!id && !OWNER_MUTABLE_QUOTE_STATUSES.has(requestedStatus)) {
+      return quoteStatusActorForbiddenResponse();
+    }
 
     const calculatedSubtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
     const calculatedDiscountAmount = Math.round(calculatedSubtotal * (Number(discount_rate) / 100));
@@ -98,7 +145,7 @@ export async function POST(request) {
       if (id) {
         const { data: existingQuoteData, error: existingQuoteError } = await serviceSupabase
           .from("quotes")
-          .select("client_id, client_name, client_email, client_address")
+          .select("client_id, client_name, client_email, client_address, status")
           .eq("id", id)
           .eq("user_id", context.user.id)
           .maybeSingle();
@@ -107,6 +154,14 @@ export async function POST(request) {
           return NextResponse.json({ error: "Quote not found" }, { status: 404 });
         }
         existingQuote = existingQuoteData;
+
+        if (hasTerminalQuoteStatusMismatch(existingQuote.status, requestedStatus, hasObservedStatus)) {
+          return quoteStatusStateConflictResponse();
+        }
+
+        if (!TERMINAL_QUOTE_STATUSES.has(existingQuote.status) && !OWNER_MUTABLE_QUOTE_STATUSES.has(requestedStatus)) {
+          return quoteStatusActorForbiddenResponse();
+        }
       }
 
       const requestedClientId = client_id || null;
@@ -168,7 +223,7 @@ export async function POST(request) {
         total: calculatedTotal,
         currency,
         notes,
-        status,
+        status: id && TERMINAL_QUOTE_STATUSES.has(existingQuote.status) ? existingQuote.status : requestedStatus,
         updated_at: new Date().toISOString()
       };
 
@@ -184,11 +239,12 @@ export async function POST(request) {
           .update(updatePayload)
           .eq("id", id)
           .eq("user_id", context.user.id)
+          .eq("status", existingQuote.status)
           .select("*")
-          .single();
+          .maybeSingle();
         if (updateError) throw updateError;
         if (!updateData) {
-          return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+          return conditionalQuoteUpdateFailureResponse(serviceSupabase, id, context.user.id);
         }
         data = updateData;
       } else {
@@ -316,6 +372,10 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
     }
 
+    if (!OWNER_MUTABLE_QUOTE_STATUSES.has(status)) {
+      return quoteStatusActorForbiddenResponse();
+    }
+
     if (context.mode === "supabase") {
       const serviceSupabase = createServiceSupabaseClient();
       if (!serviceSupabase) {
@@ -327,10 +387,14 @@ export async function PATCH(request) {
         .update({ status, updated_at: new Date().toISOString() })
         .eq("id", id)
         .eq("user_id", context.user.id)
+        .in("status", ["draft", "sent"])
         .select("*")
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        return conditionalQuoteUpdateFailureResponse(serviceSupabase, id, context.user.id);
+      }
       await writeAuditLog(context.supabase, {
         userId: context.user.id,
         action: "quote_status_changed",
@@ -369,24 +433,6 @@ export async function PATCH(request) {
           });
         } catch (analyticsError) {
           console.error("Failed to record proposal sent:", analyticsError);
-        }
-      }
-
-      // Trigger Quote Approved email notification
-      if (status === "approved") {
-        try {
-          const { data: profile } = await context.supabase
-            .from("profiles")
-            .select("name, email")
-            .eq("id", context.user.id)
-            .maybeSingle();
-
-          if (profile?.email) {
-            const { sendQuoteApprovedEmail } = await import("../../lib/email");
-            await sendQuoteApprovedEmail(profile.email, data, profile.name || "Photographer");
-          }
-        } catch (mailErr) {
-          console.error("Failed to trigger Quote Approved email:", mailErr);
         }
       }
 

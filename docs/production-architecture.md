@@ -162,7 +162,7 @@ price_yearly NUMERIC
 | `subscription.paused` | Downgrade to `free` |
 | `subscription.resumed` | Restore plan |
 | `transaction.completed` | Activate plan (one-time or first payment) |
-| `payment.completed` | Activate plan |
+| `payment.completed` | Legacy/stale event; not processed by the current webhook handler |
 
 All other events are acknowledged (`200 OK`) but not processed.
 
@@ -207,7 +207,7 @@ Before going live, verify each of the following:
   - Confirm `pricing_plans` table is seeded with real Paddle price IDs
 - [ ] **Paddle Dashboard**:
   - Webhook URL set to `https://www.corvioz.com/api/webhooks/paddle`
-  - Events: `subscription.*`, `transaction.completed`, `payment.completed` enabled
+  - Events: `subscription.*`, `transaction.completed` enabled; `payment.completed` is legacy/stale and must not be enabled
   - `PADDLE_WEBHOOK_SECRET` copied from Paddle → Notifications → Webhook key
 - [ ] **Vercel env vars**: All vars from `.env.example` set in Vercel project settings
 - [ ] **Price IDs**: All `NEXT_PUBLIC_PADDLE_*_PRICE_ID` vars set to live Paddle price IDs

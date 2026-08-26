@@ -1708,6 +1708,12 @@ body.mobile-nav-locked {
     width: 100%;
     padding-right: 0;
   }
+  .pricing-assembly-page .footer-trust-strip > span,
+  .pricing-assembly-page .footer-trust-strip > a {
+    flex: 0 0 auto;
+    width: 100%;
+    padding-right: 0;
+  }
   .footer-trust-sep {
     display: none;
   }
@@ -1715,6 +1721,15 @@ body.mobile-nav-locked {
 
 /* Below 680px: Cards Stack Vertically (True Mobile Stack Breakpoint) */
 @media (max-width: 680px) {
+  .toggle-row {
+    position: sticky;
+    top: 64px;
+    z-index: 90;
+    padding: 8px 0;
+    margin-top: 0;
+    margin-bottom: 24px;
+    background: var(--bg-page);
+  }
   .a3-cards-cluster {
     flex-direction: column;
     align-items: center;

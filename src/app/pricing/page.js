@@ -8,6 +8,7 @@ import SharedFooter from "../components/SharedFooter";
 import { createBrowserSupabaseClient } from "../lib/supabase-client";
 import { loadPaddleScript } from "../lib/paddle-client";
 import { saveSelectedPlan } from "../lib/intent-store";
+import { getPricingViewModel } from "./viewModel";
 import "./pricing.css";
 
 const CREATE_QUOTE_URL = "/signup?redirect=%2Fdashboard%3Ftool%3Dquote%26mode%3Dcreate%26flow%3Dfirst-quote";
@@ -16,7 +17,7 @@ const FAQ_DATA = [
   {
     id: "faq-ans-1",
     question: "What counts as a document?",
-    answer: "Each new quote or invoice you create in your workspace counts as one document toward your plan's allowance (5 per cycle on Free, 30 per billing cycle on Starter, and Unlimited on Pro)."
+    answer: "Each new quote or invoice you create in your workspace counts as one document toward your plan's allowance (5 per billing cycle on Free, 30 per billing cycle on Starter, and Unlimited on Pro)."
   },
   {
     id: "faq-ans-2",
@@ -36,7 +37,7 @@ const FAQ_DATA = [
   {
     id: "faq-ans-5",
     question: "What changes when I move to Pro?",
-    answer: "Pro adds unlimited new documents, Client Portal, and client approval."
+    answer: "Pro adds unlimited new documents, Client Portal, and quote approval."
   },
   {
     id: "faq-ans-6",
@@ -64,6 +65,7 @@ export default function PricingPage() {
   const [entryAnimating, setEntryAnimating] = useState(true);
   const [priceAnimClass, setPriceAnimClass] = useState("");
   const [session, setSession] = useState(null);
+  const [pricingPlans, setPricingPlans] = useState([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const cardsClusterRef = useRef(null);
@@ -85,6 +87,25 @@ export default function PricingPage() {
     } catch (err) {
       console.warn("Auth check failed:", err);
     }
+  }, []);
+
+  // Pricing plans are read from the canonical runtime endpoint.
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/pricing")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (isMounted && payload?.success && Array.isArray(payload.plans)) {
+          setPricingPlans(payload.plans);
+        }
+      })
+      .catch((err) => {
+        console.warn("Pricing plans unavailable:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Update sliding toggle indicator
@@ -259,15 +280,8 @@ export default function PricingPage() {
 
     setCheckoutLoading(true);
     try {
-      const isYearly = cadence === "yearly";
-      const starterPriceId = isYearly
-        ? process.env.NEXT_PUBLIC_PADDLE_STARTER_YEARLY_PRICE_ID
-        : process.env.NEXT_PUBLIC_PADDLE_STARTER_PRICE_ID;
-      const proPriceId = isYearly
-        ? process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID
-        : (process.env.NEXT_PUBLIC_PADDLE_PRO_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID);
-
-      const targetPriceId = planId === "starter" ? starterPriceId : proPriceId;
+      const targetCard = pricingVm.cards.find((card) => card.id === planId);
+      const targetPriceId = targetCard?.priceId || "";
 
       const env = process.env.NEXT_PUBLIC_PADDLE_ENV;
       const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
@@ -308,14 +322,32 @@ export default function PricingPage() {
     }
   };
 
-  const isYearly = cadence === "yearly";
-  const starterPrice = isYearly ? "$90" : "$9";
-  const starterPeriod = isYearly ? "/ yr" : "/ mo";
-  const starterCompPeriod = isYearly ? "/ year" : "/ month";
-
-  const proPrice = isYearly ? "$190" : "$19";
-  const proPeriod = isYearly ? "/ yr" : "/ mo";
-  const proCompPeriod = isYearly ? "/ year" : "/ month";
+  const pricingVm = getPricingViewModel({
+    plans: pricingPlans,
+    session,
+    userPlan: null,
+    isAuthenticated: Boolean(session),
+    subLoading: false,
+    billingPeriod: cadence
+  });
+  const getCardRuntime = (vm) => {
+    if (!vm) return { displayPrice: "—", priceId: "" };
+    const price = vm.price;
+    const priceId = vm.priceMeta?.priceId || "";
+    return {
+      displayPrice: "$" + price,
+      priceId
+    };
+  };
+  const freePrice = getCardRuntime(pricingVm.cards.find((card) => card.id === "free")).displayPrice;
+  const starterRuntime = getCardRuntime(pricingVm.cards.find((card) => card.id === "starter"));
+  const proRuntime = getCardRuntime(pricingVm.cards.find((card) => card.id === "pro"));
+  const starterPrice = starterRuntime.displayPrice;
+  const starterPeriod = cadence === "yearly" ? "/ yr" : "/ mo";
+  const starterCompPeriod = cadence === "yearly" ? "/ year" : "/ month";
+  const proPrice = proRuntime.displayPrice;
+  const proPeriod = cadence === "yearly" ? "/ yr" : "/ mo";
+  const proCompPeriod = cadence === "yearly" ? "/ year" : "/ month";
 
   return (
     <div className="pricing-assembly-page">
@@ -386,7 +418,7 @@ export default function PricingPage() {
                 <div className="a3-card-header">
                   <span className="a3-plan-name">Free</span>
                   <div className="a3-price-wrap">
-                    <span className="a3-price-figure">$0</span>
+                    <span className="a3-price-figure">{freePrice}</span>
                   </div>
                 </div>
                 <div className="a3-statement">A real place to begin.</div>
@@ -398,12 +430,13 @@ export default function PricingPage() {
                   </div>
                   <div className="metric-caption-row">
                     <span className="metric-label-primary">new documents</span>
-                    <span className="metric-label-secondary">each cycle</span>
+                    <span className="metric-label-secondary">per billing cycle</span>
                   </div>
                 </div>
                 <div className="a3-sub-divider" aria-hidden="true" />
                 <div className="a3-capabilities-stack">
                   <div className="cap-line">Quotes and invoices</div>
+                  <div className="cap-line cap-secondary">Up to 50 stored documents</div>
                   <div className="cap-line cap-secondary">PDF exports with Corvioz branding</div>
                 </div>
                 <div className="a3-card-action">
@@ -508,7 +541,7 @@ export default function PricingPage() {
                 <div className="a3-sub-divider pro-sub-divider" aria-hidden="true" />
                 <div className="a3-capabilities-stack">
                   <div className="cap-line">Everything in Starter</div>
-                  <div className="cap-line cap-strong pro-cap-strong">Client Portal with client approval</div>
+                  <div className="cap-line cap-strong pro-cap-strong">Client Portal with quote approval</div>
                 </div>
                 <div className="a3-card-action">
                   <button
@@ -562,7 +595,7 @@ export default function PricingPage() {
                     <th scope="col" className="ledger-th col-feature col-feature-open" />
                     <th scope="col" className="ledger-th col-plan">
                       <span className="plan-th-name">Free</span>
-                      <span className="plan-th-price">$0</span>
+                      <span className="plan-th-price">{freePrice}</span>
                     </th>
                     <th scope="col" className="ledger-th col-plan">
                       <span className="plan-th-name">Starter</span>
@@ -594,7 +627,7 @@ export default function PricingPage() {
                     <th scope="row" className="ledger-cell col-feature"><span className="feature-title">New documents</span></th>
                     <td className="ledger-cell col-plan">
                       <span className="metric-cell-figure">5</span>
-                      <span className="metric-cell-unit">per cycle</span>
+                      <span className="metric-cell-unit">per billing cycle</span>
                     </td>
                     <td className="ledger-cell col-plan">
                       <span className="metric-cell-figure">30</span>
@@ -656,7 +689,7 @@ export default function PricingPage() {
                     onMouseEnter={() => setHoveredRow("approval")}
                     onMouseLeave={() => setHoveredRow(null)}
                   >
-                    <th scope="row" className="ledger-cell col-feature">Client approval</th>
+                    <th scope="row" className="ledger-cell col-feature">Quote approval</th>
                     <td className="ledger-cell col-plan">
                       <span className="val-dash" aria-hidden="true">&mdash;</span>
                       <span className="sr-only">Not included</span>
@@ -686,7 +719,7 @@ export default function PricingPage() {
                   <div className="mobile-dim-row m-metric-row">
                     <div className="m-dim-name">New documents</div>
                     <div className="m-plan-values">
-                      <div className="m-val-col"><span className="m-plan-tag">Free</span><span className="m-val m-metric-val">5 <span className="m-sub">per cycle</span></span></div>
+                      <div className="m-val-col"><span className="m-plan-tag">Free</span><span className="m-val m-metric-val">5 <span className="m-sub">per billing cycle</span></span></div>
                       <div className="m-val-col"><span className="m-plan-tag">Starter</span><span className="m-val m-metric-val">30 <span className="m-sub">per billing cycle</span></span></div>
                       <div className="m-val-col m-val-pro"><span className="m-plan-tag pro-tag">Pro</span><span className="m-val m-metric-val m-metric-pro">Unlimited</span></div>
                     </div>
@@ -734,7 +767,7 @@ export default function PricingPage() {
                     </div>
                   </div>
                   <div className="mobile-dim-row">
-                    <div className="m-dim-name">Client approval</div>
+                    <div className="m-dim-name">Quote approval</div>
                     <div className="m-plan-values">
                       <div className="m-val-col">
                         <span className="m-plan-tag">Free</span>

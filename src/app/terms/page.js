@@ -66,7 +66,7 @@ export default function TermsOfService() {
                 5. Pricing
               </h2>
               <p>
-                Corvioz offers a Free tier and paid plans (Pro and Studio). Current plan pricing and features are always listed on the{' '}
+                Corvioz offers a Free tier and paid plans (Starter and Pro). Studio is currently listed as coming soon. Current plan pricing and features are always listed on the{' '}
                 <a href="/pricing" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Pricing page</a>.
                 Paid plan checkout is handled securely by Paddle where enabled. Roadmap features may be listed as coming soon, but they are not part of the current V1 launch scope. We reserve the right to alter features and terms with reasonable prior notice.
               </p>

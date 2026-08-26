@@ -1236,7 +1236,8 @@ export default function StudioSpace({
             </div>
           </div>
           <button
-            onClick={onUpgrade}
+            type="button"
+            disabled
             className="btn btn-primary"
             style={{
               padding: '8px 16px',
@@ -1246,11 +1247,12 @@ export default function StudioSpace({
               border: 'none',
               borderRadius: '8px',
               color: '#fff',
-              cursor: 'pointer',
+              cursor: 'not-allowed',
+              opacity: 0.8,
               boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
             }}
           >
-            Unlock Studio Plan
+            Studio — Coming Soon
           </button>
         </div>
       )}

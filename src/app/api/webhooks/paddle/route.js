@@ -56,8 +56,22 @@ function resolvePlanFromPriceId(priceId) {
     return 'studio';
   }
 
+  const canonicalProMonthlyId = process.env.NEXT_PUBLIC_PADDLE_PRO_MONTHLY_PRICE_ID?.trim() || '';
+  const legacyProMonthlyId = process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID?.trim() || '';
+  const hasConflictingProMonthlyIds =
+    Boolean(canonicalProMonthlyId) &&
+    Boolean(legacyProMonthlyId) &&
+    canonicalProMonthlyId !== legacyProMonthlyId;
+
+  if (hasConflictingProMonthlyIds) {
+    console.error('[Paddle Webhook] Conflicting Pro monthly price IDs - refusing monthly resolution.');
+  }
+
+  const proMonthlyId = hasConflictingProMonthlyIds
+    ? null
+    : (canonicalProMonthlyId || legacyProMonthlyId);
   const proIds = [
-    process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID,
+    proMonthlyId,
     process.env.NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID,
   ].filter(Boolean);
 
@@ -151,7 +165,6 @@ export async function POST(request) {
       'subscription.paused',
       'subscription.resumed',
       'transaction.completed',
-      'payment.completed',
     ];
 
     if (!handledEvents.includes(eventType)) {
@@ -163,18 +176,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Supabase admin client not initialized' }, { status: 500 });
     }
 
-    const { data: existingEvent, error: findEventError } = await supabase
-      .from('billing_events')
-      .select('id')
-      .eq('event_id', payload.event_id)
-      .maybeSingle();
-
-    if (findEventError) {
-      console.warn('Paddle idempotency lookup failed:', findEventError.message);
-    }
-
-    if (existingEvent) {
-      return NextResponse.json({ received: true, duplicate: true });
+    if (!payload.event_id) {
+      return NextResponse.json({ error: 'Missing event_id' }, { status: 400 });
     }
 
     const resolvedUserId = await resolveUserId(supabase, data, payload);
@@ -182,107 +185,70 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Could not resolve user_id' }, { status: 400 });
     }
 
-    const status = data.status || 'active';
-    const isCancellationEvent = ['subscription.canceled', 'subscription.paused'].includes(eventType);
-    const isActiveStatus =
-      ['active', 'trialing'].includes(status) ||
-      eventType === 'transaction.completed' ||
-      eventType === 'payment.completed';
+    // Paddle transaction.completed is the settlement signal for checkout.
+    // Never persist Paddle's terminal transaction status as subscription status.
+    const status = eventType === 'transaction.completed'
+      ? 'active'
+      : eventType === 'subscription.paused'
+        ? 'paused'
+        : eventType === 'subscription.resumed'
+          ? 'active'
+          : (data.status || 'active');
+    const isDowngradeEvent =
+      ['subscription.canceled', 'subscription.paused'].includes(eventType) ||
+      ['canceled', 'paused', 'past_due', 'incomplete', 'unpaid'].includes(status);
     const priceId = extractPriceId(data);
-    const plan = isCancellationEvent ? 'free' : resolvePlanFromPriceId(priceId);
+    const plan = isDowngradeEvent ? 'free' : resolvePlanFromPriceId(priceId);
 
-    if (!isCancellationEvent && !plan) {
+    if (!isDowngradeEvent && !plan) {
       return NextResponse.json({ error: 'Unknown Paddle price ID' }, { status: 400 });
     }
 
-    const targetPlan = (isCancellationEvent || !isActiveStatus) ? 'free' : plan;
+    const targetPlan = isDowngradeEvent ? 'free' : plan;
     const customerId = data.customer_id || data.customer?.id || '';
     const subId = data.subscription_id || data.id || '';
-    const periodStart = data.current_period_active_from || data.current_period_start;
-    const periodEnd = data.current_period_active_to || data.current_period_end;
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        plan: targetPlan,
-        paddle_customer_id: customerId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', resolvedUserId);
-
-    if (profileError) throw profileError;
-
-    const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('id')
-      .eq('user_id', resolvedUserId)
-      .maybeSingle();
-
-    const subPayload = {
-      paddle_subscription_id: subId,
-      price_id: priceId,
-      paddle_price_id: priceId,
-      plan: targetPlan,
-      status,
-      current_period_start: periodStart ? new Date(periodStart).toISOString() : null,
-      current_period_end: periodEnd ? new Date(periodEnd).toISOString() : null,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (existingSub) {
-      const { error } = await supabase
-        .from('subscriptions')
-        .update(subPayload)
-        .eq('id', existingSub.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('subscriptions')
-        .insert({ user_id: resolvedUserId, ...subPayload });
-      if (error) throw error;
-    }
+    const periodStart =
+      data.current_billing_period?.starts_at ||
+      data.current_period_active_from ||
+      data.current_period_start;
+    const periodEnd =
+      data.current_billing_period?.ends_at ||
+      data.current_period_active_to ||
+      data.current_period_end;
+    const billingInterval =
+      data.billing_cycle?.interval === 'month'
+        ? 'monthly'
+        : data.billing_cycle?.interval === 'year'
+          ? 'yearly'
+          : null;
 
     const entitlementsPayload = getUserEntitlements(targetPlan);
-    const { data: existingEnt } = await supabase
-      .from('entitlements')
-      .select('id')
-      .eq('user_id', resolvedUserId)
-      .maybeSingle();
-
-    const entPayload = {
-      plan: targetPlan,
-      ...entitlementsPayload,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (existingEnt) {
-      const { error } = await supabase
-        .from('entitlements')
-        .update(entPayload)
-        .eq('id', existingEnt.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('entitlements')
-        .insert({ user_id: resolvedUserId, ...entPayload });
-      if (error) throw error;
+    const occurredAtValue = payload.occurred_at || data.occurred_at || data.updated_at;
+    const occurredAt = occurredAtValue ? new Date(occurredAtValue) : new Date();
+    if (Number.isNaN(occurredAt.getTime())) {
+      return NextResponse.json({ error: 'Invalid occurred_at' }, { status: 400 });
     }
 
-    const { error: logError } = await supabase
-      .from('billing_events')
-      .insert({
-        event_type: eventType,
-        event_id: payload.event_id,
-        user_id: resolvedUserId,
-        payload,
-        created_at: new Date().toISOString(),
-      });
+    const { data: result, error: applyError } = await supabase.rpc('apply_paddle_webhook_event', {
+      p_event_id: payload.event_id,
+      p_event_type: eventType,
+      p_user_id: resolvedUserId,
+      p_customer_id: customerId,
+      p_subscription_id: subId,
+      p_price_id: priceId,
+      p_plan: targetPlan,
+      p_status: status,
+      p_billing_interval: billingInterval,
+      p_period_start: periodStart || null,
+      p_period_end: periodEnd || null,
+      p_occurred_at: occurredAt.toISOString(),
+      p_payload: payload,
+      ...Object.fromEntries(Object.entries(entitlementsPayload).map(([key, value]) => [`p_${key}`, value])),
+    });
 
-    if (logError) {
-      console.error('Failed to log Paddle billing event:', logError.message);
-    }
+    if (applyError) throw applyError;
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true, ...result });
   } catch (err) {
     console.error('Error handling Paddle webhook:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });

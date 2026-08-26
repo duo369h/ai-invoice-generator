@@ -353,7 +353,11 @@ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, p
     p_quote_payload: payload
   });
 
-  if (rpcError) {
+  // A successful atomic insert is authoritative when the RPC adapter returns
+  // both the inserted row and a post-return error. Never turn a persisted
+  // document into a false quota rejection; only an error without a row is a
+  // creation failure.
+  if (rpcError && !rpcData) {
     if (rpcError.message && rpcError.message.includes("CLIENT_NOT_OWNED")) {
       const ownershipErr = new Error("Client does not belong to the authenticated user.");
       ownershipErr.code = "CLIENT_NOT_OWNED";
@@ -394,7 +398,10 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
     p_invoice_payload: payload
   });
 
-  if (rpcError) {
+  // Keep the Quote/Invoice boundary symmetric: a returned document row means
+  // the atomic creation succeeded, even if the RPC adapter also reports a
+  // post-return error. Quota rejection is only valid when no row is returned.
+  if (rpcError && !rpcData) {
     if (rpcError.message && rpcError.message.includes("CLIENT_NOT_OWNED")) {
       const ownershipErr = new Error("Client does not belong to the authenticated user.");
       ownershipErr.code = "CLIENT_NOT_OWNED";

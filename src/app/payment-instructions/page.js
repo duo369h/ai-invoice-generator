@@ -16,7 +16,7 @@ export default function PaymentInstructionsPage() {
     {
       num: '01',
       title: 'Select Pro',
-      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited client documents, AI-assisted quotes, client portals, PDF exports, organized review status, and custom branding. See the current price on the Pricing page.',
+      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited Quote + Invoice creation, Client Portal, clean PDF exports, quote approval, and organized review status. See the current price on the Pricing page.',
     },
     {
       num: '02',

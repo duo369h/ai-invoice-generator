@@ -121,7 +121,7 @@ const getAgencyMetrics = (industrySlug) => {
   } else if (['marketer', 'copywriter', 'consultant'].includes(industrySlug)) {
     return [
       { value: '3.4x', label: 'Average Funnel ROI', desc: 'Direct-response conversions and paid media optimizations.' },
-      { value: '$12M+', label: 'Revenue Scoped', desc: 'Attributed commercial value across all active CRM leads.' },
+      { value: '$12M+', label: 'Revenue Scoped', desc: 'Attributed commercial value across active client inquiries.' },
       { value: '98.7%', label: 'Retention Rate', desc: 'Long-term client partnerships and recurring operations.' }
     ];
   } else {
@@ -1663,7 +1663,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                   ) : (
                     <div>
                       <p style={{ fontSize: '0.8rem', color: themeStyles.textMuted, lineHeight: '1.5' }}>
-                        Your details have been successfully saved in our CRM system. Our engineering team will review the requirements and follow up within {responseTime || '24 hours'}.
+                        Your details have been successfully saved as a client inquiry. Our engineering team will review the requirements and follow up within {responseTime || '24 hours'}.
                       </p>
                     </div>
                   )}
@@ -2275,7 +2275,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                   </div>
                   <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)' }}>Inquiry Successfully Sent</h4>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-                    Thank you! Your details have been routed directly to my CRM pipeline. I'll get back to you shortly.
+                    Thank you! Your details have been saved to my client inquiry records. I will get back to you shortly.
                   </p>
                 </div>
               ) : (
@@ -2329,7 +2329,7 @@ export default function ProfileCardClient({ profile: initialProfile = null, faqI
                     disabled={isSubmitting}
                     style={{ width: '100%', padding: '12px', fontWeight: 700, fontSize: '0.9rem' }}
                   >
-                    {isSubmitting ? 'Sending inquiry...' : 'Send Inquiry to CRM'}
+                    {isSubmitting ? 'Sending inquiry...' : 'Send Inquiry'}
                   </button>
                 </form>
               )}

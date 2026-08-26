@@ -77,6 +77,83 @@ import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
+const TERMINAL_QUOTE_STATUSES = new Set(['approved', 'declined', 'converted']);
+
+export function createRecordPaymentAttemptStore(storage, createUuid) {
+  const prefix = 'corvioz:record-payment-attempt:';
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const unavailableMessage = 'Unable to persist a retry-safe Record Payment attempt.';
+
+  if (!storage
+    || typeof storage.getItem !== 'function'
+    || typeof storage.setItem !== 'function'
+    || typeof storage.removeItem !== 'function'
+    || typeof createUuid !== 'function') {
+    throw new Error(unavailableMessage);
+  }
+
+  const scopeFor = ({ invoiceId, currency, amountCents }) => {
+    const normalizedCurrency = String(currency || 'USD').trim().toUpperCase();
+    if (!invoiceId || !normalizedCurrency || !Number.isSafeInteger(amountCents) || amountCents <= 0) {
+      throw new Error(unavailableMessage);
+    }
+    return `${prefix}${invoiceId}:${normalizedCurrency}:${amountCents}`;
+  };
+
+  const getOrCreate = ({ invoiceId, currency, amountCents }) => {
+    const storageKey = scopeFor({ invoiceId, currency, amountCents });
+    let idempotencyKey;
+    try {
+      idempotencyKey = storage.getItem(storageKey);
+    } catch {
+      throw new Error(unavailableMessage);
+    }
+
+    if (idempotencyKey !== null) {
+      if (!uuidPattern.test(idempotencyKey)) throw new Error(unavailableMessage);
+      return { storageKey, idempotencyKey };
+    }
+
+    idempotencyKey = createUuid();
+    if (!uuidPattern.test(idempotencyKey)) throw new Error(unavailableMessage);
+    try {
+      storage.setItem(storageKey, idempotencyKey);
+      if (storage.getItem(storageKey) !== idempotencyKey) throw new Error(unavailableMessage);
+    } catch {
+      throw new Error(unavailableMessage);
+    }
+    return { storageKey, idempotencyKey };
+  };
+
+  const clear = (storageKey) => {
+    try {
+      storage.removeItem(storageKey);
+      if (storage.getItem(storageKey) !== null) throw new Error(unavailableMessage);
+    } catch {
+      throw new Error(unavailableMessage);
+    }
+  };
+
+  const shouldClearAfterResponse = (response) => {
+    if (response?.ok) return true;
+    const status = Number(response?.status);
+    return Number.isInteger(status) && status >= 400 && status < 500 && status !== 408;
+  };
+
+  return { getOrCreate, clear, shouldClearAfterResponse };
+}
+
+function getRecordPaymentAttemptStore() {
+  if (typeof window === 'undefined') {
+    throw new Error('Unable to persist a retry-safe Record Payment attempt.');
+  }
+  return createRecordPaymentAttemptStore(window.sessionStorage, () => {
+    if (typeof globalThis.crypto?.randomUUID !== 'function') {
+      throw new Error('Unable to persist a retry-safe Record Payment attempt.');
+    }
+    return globalThis.crypto.randomUUID();
+  });
+}
 
 const REVENUE_ENTRY_ROUTE_TARGETS = {
   '/dashboard': '/dashboard?tool=quote',
@@ -1964,15 +2041,22 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     setIsRecordingPayment(true);
     try {
-      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${invoice.id}-${Date.now()}`;
+      const attemptStore = getRecordPaymentAttemptStore();
+      const paymentAttempt = attemptStore.getOrCreate({
+        invoiceId: invoice.id,
+        currency: invoice.currency || 'USD',
+        amountCents,
+      });
+      const { idempotencyKey } = paymentAttempt;
       const response = await fetch(`/api/invoices/${invoice.id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ amount_cents: amountCents, currency: invoice.currency || 'USD', idempotency_key: idempotencyKey })
       });
       const result = await response.json().catch(() => ({}));
+      if (attemptStore.shouldClearAfterResponse(response)) {
+        attemptStore.clear(paymentAttempt.storageKey);
+      }
       if (!response.ok) throw new Error(result.error || 'Unable to record payment.');
       await fetchData(session?.access_token);
       triggerToast(`Payment recorded. State: ${result.payment_status || 'updated'}.`, 'success');
@@ -2689,15 +2773,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       if (userPlan === 'pro' && currentClientCount >= 1) {
         setModalProps({
-          title: "Upgrade to Client Growth Pack",
-          description: "Scale your freelance business with client areas, templates, and customized brand kits.",
-          lockedFeatureValue: "Client areas (up to 3)",
+          title: "Studio is coming soon",
+          description: "Additional multi-client workspace capacity is planned for Studio and is not available for purchase yet.",
+          lockedFeatureValue: "Additional client workspace capacity",
           limit: "client_limit",
           source: "client_creation_gate",
-          targetPlan: "studio"
+          targetPlan: "support"
         });
         setActiveModal('upgrade');
-        setFormError('Client limit reached. Upgrade to Client Growth Pack to manage multiple clients.');
+        setFormError('Additional multi-client workspace capacity is coming soon.');
         return;
       }
 
@@ -3158,6 +3242,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const isStudioMode = activeClientsCount >= 3 || activeInvoicesCount >= 5 || hasOverdueInvoices;
   const businessModeBadge = isStudioMode ? 'Business Mode' : 'Photographer Mode';
+  const SHOW_DEFERRED_BRAND_KIT = false;
 
   if (isSigningOut) {
     return (
@@ -4383,12 +4468,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       </div>
                       <div className="input-group" style={{ marginBottom: '20px' }}>
                         <label className="input-label">Quote Status</label>
-                        <select className="form-select" value={qStatus} onChange={e => setQStatus(e.target.value)}>
-                          <option value="draft">Draft</option>
-                          <option value="sent">Sent</option>
-                          <option value="approved">Approved</option>
-                          <option value="declined">Declined</option>
-                        </select>
+                        {TERMINAL_QUOTE_STATUSES.has(qStatus) ? (
+                          <div className="form-input" aria-label="Client/system status (read-only)">
+                            {qStatus}
+                          </div>
+                        ) : (
+                          <select className="form-select" value={qStatus} onChange={e => setQStatus(e.target.value)}>
+                            <option value="draft">Draft</option>
+                            <option value="sent">Sent</option>
+                          </select>
+                        )}
                       </div>
 
                       {/* Calculations */}
@@ -4630,12 +4719,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           triggerToast('Batch export generated successfully. Files compiled for document review.', 'success');
                         } else {
                           setModalProps({
-                            title: "Upgrade to Studio",
-                            description: "Generate and export invoices in batches, customize client areas, and set up your freelance brand kit.",
+                            title: "Batch export is coming soon",
+                            description: "Batch invoice export is planned for Studio and is not available for purchase yet.",
                             lockedFeatureValue: "Batch Invoice PDF Export",
                             limit: "batch_export",
                             source: "batch_export_gate",
-                            targetPlan: "studio"
+                            targetPlan: "support"
                           });
                           setActiveModal('upgrade');
                         }
@@ -5323,11 +5412,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                   Level Up Your Business Profile
                                 </div>
                                 <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
-                                  Upgrade to remove PDF export limits (Pro) or customize client-portal views (Growth) to impress your clients.
+                                  Upgrade to Pro for clean PDF exports, Client Portal, and quote approval.
                                 </p>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <Link
-                                    href="/pricing?checkout=pro"
+                                    href="/pricing"
                                     onClick={() => trackEvent('upgrade_trigger_clicked', { plan: 'free', target_plan: 'pro', offer_type: 'soft_banner', cta_text: 'Get Pro' })}
                                     style={{
                                       flex: 1,
@@ -5359,7 +5448,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                       textDecoration: 'none'
                                     }}
                                   >
-                                    Get Growth
+                                    See pricing
                                   </Link>
                                 </div>
                               </div>
@@ -5664,7 +5753,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   )}
                 </div>
                 
-                {/* Brand Kit Card */}
+                {/* Brand Kit Card — deferred until the Studio tier is available. */}
+                {SHOW_DEFERRED_BRAND_KIT && (
                 <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -5686,12 +5776,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         triggerToast('Brand assets settings loaded. Ready to apply custom typography and logo.', 'success');
                       } else {
                         setModalProps({
-                          title: "Upgrade to Studio",
-                          description: "Scale your freelance business with customized brand kits (logos, colors, styles), client areas, and batch operations.",
+                          title: "Brand Kit is coming soon",
+                          description: "Custom brand kits are planned for Studio and are not available for purchase yet.",
                           lockedFeatureValue: "Brand Kit & Logo Customization",
                           limit: "brand_kit",
                           source: "brand_kit_gate",
-                          targetPlan: "studio"
+                          targetPlan: "support"
                         });
                         setActiveModal('upgrade');
                       }
@@ -5702,6 +5792,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     Configure Brand Kit
                   </button>
                 </div>
+                )}
 
                 {/* Profile Details Card */}
                 <div id="profile-attributes-card" className="card" style={{ padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
@@ -6086,7 +6177,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               onUpgrade={() => {
                 setModalProps({
                   source: 'studio_preview_banner',
-                  explanation: 'Upgrade to the Studio Plan to unlock expanded client management and full communication automation.',
+                  explanation: 'Studio is a coming-soon preview for future multi-client operations and is not available for purchase yet.',
                 });
                 setActiveModal('pricing_upsell');
               }}
@@ -7079,7 +7170,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               Congratulations on creating your first client profile! You are moving from ad-hoc tasks to an organized photography business.
             </p>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 20px 0', lineHeight: 1.4, textAlign: 'center' }}>
-              To support this growth, the <strong>Pro Plan</strong> unlocks custom branding, signature approvals, and structured tracking to help you establish a premium client experience.
+              To support this growth, the <strong>Pro Plan</strong> adds clean PDF exports, Client Portal, quote approval, and clearer client records.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -7157,18 +7248,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               >
                 Explore Preview
               </button>
-              <Link
-                href="/pricing?checkout=studio"
-                onClick={() => {
-                  setShowStudioPreviewModal(false);
-                  saveSelectedPlan('studio', 'studio_preview_modal');
-                  trackUpgradeClick('studio_preview_modal', 'studio');
-                }}
+              <button
+                type="button"
+                disabled
                 className="btn btn-primary"
-                style={{ flex: 1, textAlign: 'center', textDecoration: 'none', padding: '10px 0', fontSize: '0.82rem', fontWeight: 700, background: 'var(--primary, #4F46E5)', color: '#fff' }}
+                style={{ flex: 1, padding: '10px 0', fontSize: '0.82rem', fontWeight: 700, background: 'var(--surface-muted, #374151)', color: 'var(--text-muted, #9ca3af)', border: '1px solid var(--border)', cursor: 'not-allowed', opacity: 0.8 }}
               >
-                Upgrade to Studio
-              </Link>
+                Studio — Coming Soon
+              </button>
             </div>
           </div>
         </div>
@@ -7201,7 +7288,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 textAlign: 'left'
               }}>
                 <span>Pro</span>
-                <span>Pro users get client approval tracking and signature capture.</span>
+                <span>Pro users get quote approval tracking and client-ready delivery records.</span>
               </div>
             )}
 

@@ -18,6 +18,8 @@ import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { handleUpgradeCheckout } from '../pricing/controller';
 import { saveSelectedPlan } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
+import { recordFunnelStep } from '../../core/growth/growthTracker';
+import { getPricingViewModel } from '../../core/pricing/pricingViewModel';
 import { CorviozKernel } from 'lib/kernel/corviozKernel';
 
 const themeStyles = {
@@ -46,6 +48,7 @@ function CheckoutContent() {
   const router = useRouter();
   const planId = searchParams.get('plan') || 'pro';
   const intent = searchParams.get('intent') || 'medium';
+  const billingPeriod = searchParams.get('billingPeriod') === 'yearly' ? 'yearly' : 'monthly';
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +107,12 @@ function CheckoutContent() {
   }, []);
 
   useEffect(() => {
+    if (planId === 'studio') {
+      router.replace('/pricing#studio-coming-soon');
+    }
+  }, [planId, router]);
+
+  useEffect(() => {
     if (mounted) {
       setUi(CorviozKernel.compute('checkout', { activePlan: planId }));
     }
@@ -121,6 +130,7 @@ function CheckoutContent() {
   // Trigger Checkout immediately
   useEffect(() => {
     if (loading) return;
+    if (planId === 'studio') return;
 
     // Track checkout funnel start
     sendEvent('CHECKOUT_STARTED', { plan: planId, intent, planId: planId });
@@ -128,8 +138,8 @@ function CheckoutContent() {
     if (!session) {
       console.log('[CHECKOUT] Redirecting unauthenticated user to signup for plan:', planId);
       sendEvent('SIGNUP_STARTED', { plan: planId, planId: planId });
-      saveSelectedPlan(planId, `/checkout?plan=${planId}&intent=${intent}`);
-      router.push(`/signup?redirect=/checkout&plan=${planId}&intent=${intent}`);
+      saveSelectedPlan(planId, `/checkout?plan=${planId}&intent=${intent}&billingPeriod=${billingPeriod}`);
+      router.push(`/signup?redirect=/checkout&plan=${planId}&intent=${intent}&billingPeriod=${billingPeriod}`);
       return;
     }
 
@@ -145,13 +155,27 @@ function CheckoutContent() {
 
         const data = await res.json();
         const plans = data.plans || [];
+        const pricingViewModel = getPricingViewModel({
+          plans,
+          session,
+          userPlan: null,
+          isAuthenticated: true,
+          subLoading: false,
+          billingPeriod,
+        });
+        const selectedCard = pricingViewModel.cards.find((card) => card.id === planId);
+        const priceId = selectedCard?.priceMeta?.priceId;
+
+        if (!priceId) {
+          setError('The selected billing option is not available. Please return to pricing and try again.');
+          return;
+        }
 
         recordFunnelStep('conversion', { plan: planId, source: 'checkout_trigger' });
         await handleUpgradeCheckout({
           planId,
-          billingPeriod: 'monthly',
+          priceId,
           session,
-          plans,
           searchParams,
           setCheckoutLoading: () => {}
         });
@@ -162,7 +186,7 @@ function CheckoutContent() {
     };
 
     triggerCheckout();
-  }, [session, loading, planId, intent, router, searchParams, showModal]);
+  }, [session, loading, planId, intent, billingPeriod, router, searchParams, showModal]);
 
   const activeTheme = ui.pricing_variant;
   const activeStyle = themeStyles[activeTheme] || themeStyles.starter;
@@ -172,6 +196,18 @@ function CheckoutContent() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)' }}>
         <p style={{ color: 'var(--text-muted)' }}>Loading account details...</p>
+      </div>
+    );
+  }
+
+  if (planId === 'studio') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)', padding: '20px' }}>
+        <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '40px', border: '1px solid var(--border)', background: 'var(--bg-card)', borderRadius: '24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '12px' }}>Studio — Coming Soon</h2>
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '24px' }}>Studio is being shaped for future multi-client operations and is not available for purchase yet.</p>
+          <button type="button" className="btn btn-secondary" onClick={() => router.replace('/pricing#studio-coming-soon')}>Return to pricing</button>
+        </div>
       </div>
     );
   }

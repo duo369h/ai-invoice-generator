@@ -123,37 +123,23 @@ export function PricingUpsellModal({
             </Link>
           </Card>
 
-          {/* Studio Plan */}
+          {/* Studio — deferred and not purchasable in the current release */}
           <Card style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid var(--border)' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{getPlanVal('studio', 'name', 'Studio')} — Scale</h4>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                  <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)' }}>${getPlanVal('studio', 'price_monthly', 29)}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/mo</span>
-                </div>
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '-4px', marginBottom: '12px', textAlign: 'right', fontWeight: 600 }}>
-                or ${getPlanVal('studio', 'price_yearly', 24)}/mo billed annually
+                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Studio — Coming Soon</h4>
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                {getPricingAnchorCopy('studio')}
+                Studio is being shaped for future multi-client operations and is not available for purchase yet.
               </p>
               
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Everything in Pro</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Custom domain white-labeling</li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.Check size={14} style={{ color: 'var(--success)' }} /> Client follow-up reminders</li>
-              </ul>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '12px 0' }}>
+                No checkout is available for this tier yet.
+              </div>
             </div>
-            <Link 
-              href="/pricing?checkout=agency"
-              onClick={() => handlePlanSelect('agency')}
-              className="btn btn-secondary"
-              style={{ width: '100%', textAlign: 'center', textDecoration: 'none' }}
-            >
-              Scale client management
-            </Link>
+            <span className="btn btn-secondary" aria-disabled="true" style={{ width: '100%', textAlign: 'center', opacity: 0.65, cursor: 'not-allowed' }}>
+              Not available yet
+            </span>
           </Card>
         </div>
 

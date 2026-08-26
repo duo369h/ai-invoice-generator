@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT NOT NULL,
   name TEXT DEFAULT '',
   avatar_url TEXT DEFAULT '',
-  plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio')),
+  plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'agency', 'studio')),
   paddle_customer_id TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -35,10 +35,6 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   invoice_number TEXT NOT NULL,
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'sent', 'paid', 'overdue', 'approved')),
-  invoice_kind TEXT NOT NULL DEFAULT 'standard' CHECK (invoice_kind IN ('standard', 'deposit', 'milestone', 'final')),
-  payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partial', 'paid', 'overdue')),
-  amount_paid_cents INTEGER NOT NULL DEFAULT 0,
-  amount_due_cents INTEGER NOT NULL DEFAULT 0,
   doc_type TEXT DEFAULT 'invoice' CHECK (doc_type IN ('invoice', 'receipt', 'quote')),
   client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
   -- Client (flat copy for printing)
@@ -77,9 +73,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   paddle_price_id TEXT DEFAULT '',
   price_id TEXT DEFAULT '', -- backward compatibility
   status TEXT DEFAULT 'active',
-  plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio')),
-  billing_interval TEXT CHECK (billing_interval IN ('monthly', 'yearly')),
-  latest_event_occurred_at TIMESTAMPTZ,
+  plan TEXT DEFAULT 'free',
   current_period_start TIMESTAMPTZ,
   current_period_end TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -300,30 +294,6 @@ CREATE TABLE IF NOT EXISTS public.quotes (
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES public.quotes(id) ON DELETE SET NULL;
 ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS payment_link TEXT DEFAULT '';
 
-CREATE TABLE IF NOT EXISTS public.invoice_payments (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
-  currency TEXT NOT NULL DEFAULT 'USD',
-  status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
-  source TEXT NOT NULL CHECK (source IN ('manual', 'portal', 'legacy_backfill')),
-  received_at TIMESTAMPTZ,
-  idempotency_key TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-ALTER TABLE public.invoice_payments ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.invoice_payments FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON TABLE public.invoice_payments TO authenticated;
-
-DROP POLICY IF EXISTS "Users can view own invoice payments" ON public.invoice_payments;
-CREATE POLICY "Users can view own invoice payments"
-  ON public.invoice_payments
-  FOR SELECT
-  TO authenticated
-  USING ((SELECT auth.uid()) = user_id);
-
 -- Alter card profiles for production profile persistence
 ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '';
 ALTER TABLE public.card_profiles ADD COLUMN IF NOT EXISTS cover_banner TEXT DEFAULT '';
@@ -438,7 +408,7 @@ CREATE INDEX IF NOT EXISTS idx_quotes_user_id ON public.quotes(user_id);
 -- Production hardening: plan values
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_plan_check;
 ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio'));
+  ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('free', 'pro', 'agency', 'studio'));
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS paddle_subscription_id TEXT DEFAULT '';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
@@ -478,26 +448,17 @@ $$;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS paddle_customer_id TEXT DEFAULT '';
 ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS paddle_subscription_id TEXT DEFAULT '';
 ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS price_id TEXT DEFAULT '';
-ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS billing_interval TEXT;
-ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS latest_event_occurred_at TIMESTAMPTZ;
 ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_check;
 ALTER TABLE public.subscriptions
-  ADD CONSTRAINT subscriptions_plan_check CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio'));
+  ADD CONSTRAINT subscriptions_plan_check CHECK (plan IN ('free', 'pro', 'agency', 'studio'));
 ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_status_check;
 ALTER TABLE public.subscriptions
-  ADD CONSTRAINT subscriptions_status_check CHECK (status IN ('active', 'canceled', 'past_due', 'paused', 'trialing', 'incomplete', 'unpaid'));
-ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_billing_interval_check;
-ALTER TABLE public.subscriptions
-  ADD CONSTRAINT subscriptions_billing_interval_check CHECK (billing_interval IN ('monthly', 'yearly') OR billing_interval IS NULL);
+  ADD CONSTRAINT subscriptions_status_check CHECK (status IN ('active', 'canceled', 'past_due', 'trialing', 'incomplete', 'unpaid'));
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_paddle_customer_id ON public.profiles(paddle_customer_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_paddle_subscription_id ON public.subscriptions(paddle_subscription_id);
-CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_user_id_unique ON public.subscriptions(user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_paddle_subscription_id_unique
-  ON public.subscriptions(paddle_subscription_id)
-  WHERE NULLIF(BTRIM(paddle_subscription_id), '') IS NOT NULL;
 
 -- Production hardening: public profile read, owner-only writes
 ALTER TABLE public.card_profiles DROP CONSTRAINT IF EXISTS card_profiles_username_format;
@@ -747,37 +708,14 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS time_to_first_client_respon
 CREATE TABLE IF NOT EXISTS public.entitlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio')),
-  invoice BOOLEAN NOT NULL DEFAULT false,
-  quote BOOLEAN NOT NULL DEFAULT false,
-  export_pdf BOOLEAN NOT NULL DEFAULT false,
-  pdf_branding TEXT NOT NULL DEFAULT 'branded' CHECK (pdf_branding IN ('branded', 'clean')),
-  client_portal BOOLEAN NOT NULL DEFAULT false,
-  client_approval BOOLEAN NOT NULL DEFAULT false,
-  approval_scope TEXT NOT NULL DEFAULT 'none' CHECK (approval_scope IN ('none', 'quotes_only')),
+  plan TEXT NOT NULL DEFAULT 'free',
+  export_pdf BOOLEAN DEFAULT false,
+  client_portal BOOLEAN DEFAULT false,
   crm BOOLEAN DEFAULT false,
   automation BOOLEAN DEFAULT false,
-  advanced_invoicing BOOLEAN NOT NULL DEFAULT false,
-  unlimited_invoices BOOLEAN NOT NULL DEFAULT false,
+  advanced_invoicing BOOLEAN DEFAULT false,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS invoice BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS quote BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS pdf_branding TEXT NOT NULL DEFAULT 'branded';
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS client_approval BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS approval_scope TEXT NOT NULL DEFAULT 'none';
-ALTER TABLE public.entitlements ADD COLUMN IF NOT EXISTS unlimited_invoices BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.entitlements DROP CONSTRAINT IF EXISTS entitlements_plan_check;
-ALTER TABLE public.entitlements ADD CONSTRAINT entitlements_plan_check
-  CHECK (plan IN ('free', 'starter', 'pro', 'agency', 'studio'));
-ALTER TABLE public.entitlements DROP CONSTRAINT IF EXISTS entitlements_pdf_branding_check;
-ALTER TABLE public.entitlements ADD CONSTRAINT entitlements_pdf_branding_check
-  CHECK (pdf_branding IN ('branded', 'clean'));
-ALTER TABLE public.entitlements DROP CONSTRAINT IF EXISTS entitlements_approval_scope_check;
-ALTER TABLE public.entitlements ADD CONSTRAINT entitlements_approval_scope_check
-  CHECK (approval_scope IN ('none', 'quotes_only'));
-CREATE UNIQUE INDEX IF NOT EXISTS entitlements_user_id_unique ON public.entitlements(user_id);
 
 CREATE TABLE IF NOT EXISTS public.billing_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -785,17 +723,8 @@ CREATE TABLE IF NOT EXISTS public.billing_events (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   event_type TEXT,
   payload JSONB,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  applied BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE public.billing_events ADD COLUMN IF NOT EXISTS occurred_at TIMESTAMPTZ;
-ALTER TABLE public.billing_events ADD COLUMN IF NOT EXISTS applied BOOLEAN;
-ALTER TABLE public.billing_events ALTER COLUMN occurred_at SET DEFAULT NOW();
-ALTER TABLE public.billing_events ALTER COLUMN occurred_at SET NOT NULL;
-ALTER TABLE public.billing_events ALTER COLUMN applied SET DEFAULT true;
-ALTER TABLE public.billing_events ALTER COLUMN applied SET NOT NULL;
 
 ALTER TABLE public.entitlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.billing_events ENABLE ROW LEVEL SECURITY;
@@ -984,3 +913,825 @@ GRANT ALL PRIVILEGES ON public.revenue_outcomes TO service_role;
 CREATE INDEX IF NOT EXISTS idx_revenue_outcomes_user_id ON public.revenue_outcomes(user_id);
 CREATE INDEX IF NOT EXISTS idx_revenue_outcomes_strategy ON public.revenue_outcomes(user_id, strategy_used);
 CREATE INDEX IF NOT EXISTS idx_revenue_outcomes_outcome ON public.revenue_outcomes(user_id, outcome);
+
+-- Canonical baseline import: supabase/migration-analytics-events.sql
+-- Corvioz Real Behavior Capture Layer
+-- Sprint C Phase 2.6
+-- Migration: Create analytics_events table
+--
+-- Run this in Supabase Dashboard → SQL Editor
+
+CREATE TABLE IF NOT EXISTS public.analytics_events (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event       TEXT NOT NULL,
+  user_id     UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  session_id  TEXT,
+  metadata    JSONB,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index on event name for aggregation queries
+CREATE INDEX IF NOT EXISTS idx_analytics_events_event
+  ON public.analytics_events (event);
+
+-- Index on user_id for per-user funnel queries
+CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id
+  ON public.analytics_events (user_id);
+
+-- Index on session_id for session-level replay
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id
+  ON public.analytics_events (session_id);
+
+-- Index on created_at for time-range queries
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at
+  ON public.analytics_events (created_at DESC);
+
+-- Row Level Security: service role can read/write; anon can insert only
+ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous/authenticated inserts (browser-side capture)
+CREATE POLICY "analytics_insert_any" ON public.analytics_events
+  FOR INSERT
+  WITH CHECK (true);
+
+-- Only service role reads (no user can read raw events table)
+CREATE POLICY "analytics_read_service_only" ON public.analytics_events
+  FOR SELECT
+  USING (auth.role() = 'service_role');
+
+-- Canonical baseline import: supabase/migration-first-revenue-loops.sql
+-- =====================================================================
+-- HISTORICAL ARCHIVE ONLY
+-- DO NOT RUN AGAINST PRODUCTION
+-- DO NOT SYNTHESIZE MIGRATION HISTORY
+-- =====================================================================
+--
+-- Provenance
+--   Original file : supabase/migration-first-revenue-loops.sql
+--   Recovered from: /Users/duo/Documents/想做个网站/corvioz/supabase/
+--                   (byte-identical second copy also found in
+--                    Desktop/Corvioz-SAFE-03B0-20260725-045031/source-snapshot/)
+--   SHA-256       : b7adb16da995812534321e8a908cfac34bc91c8ed3d0bf94eab187ab9cdec7ec
+--   Original mtime: 2026-07-10 21:26
+--   Status in Git : NEVER committed on any ref (verified via
+--                   `git log --all -- supabase/*first-revenue*` -> empty)
+--
+-- Why this file is being archived
+--   The objects it creates ALREADY EXIST in production
+--   (project fgortrxozlbzxbkerejz) but were applied out-of-band, so
+--   supabase_migrations.schema_migrations contains NO row for them.
+--   This file is restored to Git purely to close that source-history gap.
+--
+-- Verification performed (SAFE-03B2H-A, read-only)
+--   - table columns 1-6, PK, both FKs (ON DELETE RESTRICT / CASCADE),
+--     both UNIQUE constraints, both partial indexes: EXACT MATCH
+--   - RLS enabled, 0 policies, owner postgres: MATCH
+--   - table grants: postgres + service_role only; anon/authenticated none: MATCH
+--   - claim_first_revenue_quote production body: EXACT MATCH to this file
+--   - all functions SECURITY INVOKER with SET search_path=public: MATCH
+--   - function EXECUTE granted only to postgres + service_role: MATCH
+--
+-- KNOWN DIVERGENCE FROM CURRENT PRODUCTION (expected, do not "fix" here)
+--   1. Production first_revenue_loops additionally has columns
+--        stage, first_payment_received_at, completed_at
+--      plus constraint first_revenue_loops_stage_check.
+--      Those come from migration-first-revenue-loop-payment-completion.sql,
+--      which IS already registered as 20260711192505.
+--   2. Production claim_first_revenue_invoice_draft is the LATER version from
+--      that same payment-completion migration (its body writes `stage`).
+--      The definition below is the ORIGINAL, superseded version. That is
+--      correct for a historical archive and must NOT be edited to match today.
+--
+-- WHY RE-RUNNING IS UNSAFE
+--   a) The cutover backfill below inserts legacy_blocked_at = NOW() for every
+--      free-plan profile that owns any quote or invoice. At original apply time
+--      that targeted pre-existing users only. Today 15 of 16 loop rows already
+--      hold a quote_id, so any free user who has since created a document but
+--      has no loop row yet would be PERMANENTLY blocked from the free
+--      first-revenue loop. ON CONFLICT DO NOTHING protects existing rows only.
+--   b) It also REVOKEs INSERT/UPDATE/DELETE on public.quotes and public.invoices
+--      from `authenticated` — a permission change whose blast radius extends
+--      well beyond this table.
+--
+-- Handling rules for the next stage
+--   - Commit as documentation of history only.
+--   - Do NOT execute against any environment.
+--   - Do NOT insert a matching row into supabase_migrations.schema_migrations.
+--   - If a runnable equivalent is ever needed, author a separate, idempotent,
+--     backfill-free migration and review it independently.
+-- =====================================================================
+
+-- Pass 4.1A: one server-owned free revenue-preparation loop per user.
+-- Apply with a Supabase migration runner; this file is intentionally additive.
+
+CREATE TABLE IF NOT EXISTS public.first_revenue_loops (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  quote_id UUID UNIQUE REFERENCES public.quotes(id) ON DELETE RESTRICT,
+  invoice_id UUID UNIQUE REFERENCES public.invoices(id) ON DELETE RESTRICT,
+  legacy_blocked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_first_revenue_loops_quote_id
+  ON public.first_revenue_loops(quote_id)
+  WHERE quote_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_first_revenue_loops_invoice_id
+  ON public.first_revenue_loops(invoice_id)
+  WHERE invoice_id IS NOT NULL;
+
+ALTER TABLE public.first_revenue_loops ENABLE ROW LEVEL SECURITY;
+
+-- Quote writes go through the authenticated API and its service-role client.
+-- This prevents direct client writes from bypassing the atomic free-user claim.
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.quotes FROM authenticated;
+GRANT SELECT ON TABLE public.quotes TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.invoices FROM authenticated;
+GRANT SELECT ON TABLE public.invoices TO authenticated;
+
+REVOKE ALL ON TABLE public.first_revenue_loops FROM anon, authenticated;
+REVOKE ALL ON TABLE public.first_revenue_loops FROM PUBLIC;
+GRANT ALL ON TABLE public.first_revenue_loops TO service_role;
+
+-- Historical Free users who have already created business documents do not receive
+-- a new free loop after this cutover. New users and users with no prior documents
+-- remain eligible until a claim binds their first Quote.
+INSERT INTO public.first_revenue_loops (user_id, legacy_blocked_at)
+SELECT profiles.id, NOW()
+FROM public.profiles AS profiles
+WHERE profiles.plan = 'free'
+  AND (
+    EXISTS (SELECT 1 FROM public.quotes WHERE quotes.user_id = profiles.id)
+    OR EXISTS (SELECT 1 FROM public.invoices WHERE invoices.user_id = profiles.id)
+  )
+ON CONFLICT (user_id) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.claim_first_revenue_quote(
+  p_user_id UUID,
+  p_quote_id UUID
+)
+RETURNS public.first_revenue_loops
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  loop_row public.first_revenue_loops;
+BEGIN
+  PERFORM 1
+  FROM public.quotes
+  WHERE id = p_quote_id
+    AND user_id = p_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'first_revenue_quote_not_owned';
+  END IF;
+
+  INSERT INTO public.first_revenue_loops (user_id)
+  VALUES (p_user_id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  SELECT *
+  INTO loop_row
+  FROM public.first_revenue_loops
+  WHERE user_id = p_user_id
+  FOR UPDATE;
+
+  IF loop_row.legacy_blocked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'first_revenue_loop_legacy_blocked';
+  END IF;
+
+  IF loop_row.quote_id IS NULL THEN
+    UPDATE public.first_revenue_loops
+    SET quote_id = p_quote_id,
+        updated_at = NOW()
+    WHERE user_id = p_user_id
+    RETURNING * INTO loop_row;
+  ELSIF loop_row.quote_id <> p_quote_id THEN
+    RAISE EXCEPTION 'first_revenue_quote_already_claimed';
+  END IF;
+
+  RETURN loop_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_first_revenue_quote(
+  p_user_id UUID,
+  p_quote JSONB
+)
+RETURNS public.quotes
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  loop_row public.first_revenue_loops;
+  quote_row public.quotes;
+BEGIN
+  INSERT INTO public.first_revenue_loops (user_id)
+  VALUES (p_user_id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  SELECT *
+  INTO loop_row
+  FROM public.first_revenue_loops
+  WHERE user_id = p_user_id
+  FOR UPDATE;
+
+  IF loop_row.legacy_blocked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'first_revenue_loop_legacy_blocked';
+  END IF;
+
+  IF loop_row.quote_id IS NOT NULL THEN
+    RAISE EXCEPTION 'first_revenue_quote_already_claimed';
+  END IF;
+
+  INSERT INTO public.quotes (
+    user_id,
+    quote_number,
+    client_name,
+    client_email,
+    client_address,
+    items,
+    subtotal,
+    discount_rate,
+    discount_amount,
+    tax_rate,
+    tax_amount,
+    total,
+    currency,
+    notes,
+    status,
+    updated_at
+  ) VALUES (
+    p_user_id,
+    p_quote->>'quote_number',
+    p_quote->>'client_name',
+    COALESCE(p_quote->>'client_email', ''),
+    COALESCE(p_quote->>'client_address', ''),
+    COALESCE(p_quote->'items', '[]'::jsonb),
+    COALESCE((p_quote->>'subtotal')::INTEGER, 0),
+    COALESCE((p_quote->>'discount_rate')::NUMERIC, 0),
+    COALESCE((p_quote->>'discount_amount')::INTEGER, 0),
+    COALESCE((p_quote->>'tax_rate')::NUMERIC, 0),
+    COALESCE((p_quote->>'tax_amount')::INTEGER, 0),
+    COALESCE((p_quote->>'total')::INTEGER, 0),
+    COALESCE(NULLIF(p_quote->>'currency', ''), 'USD'),
+    COALESCE(p_quote->>'notes', ''),
+    'draft',
+    NOW()
+  )
+  RETURNING * INTO quote_row;
+
+  UPDATE public.first_revenue_loops
+  SET quote_id = quote_row.id,
+      updated_at = NOW()
+  WHERE user_id = p_user_id;
+
+  RETURN quote_row;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.claim_first_revenue_invoice_draft(UUID, UUID, UUID);
+
+CREATE OR REPLACE FUNCTION public.claim_first_revenue_invoice_draft(
+  p_user_id UUID,
+  p_quote_id UUID,
+  p_invoice JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  loop_row public.first_revenue_loops;
+  invoice_row public.invoices;
+BEGIN
+  SELECT *
+  INTO loop_row
+  FROM public.first_revenue_loops
+  WHERE user_id = p_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR loop_row.legacy_blocked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'first_revenue_loop_unavailable';
+  END IF;
+
+  IF loop_row.quote_id IS DISTINCT FROM p_quote_id THEN
+    RAISE EXCEPTION 'first_revenue_quote_mismatch';
+  END IF;
+
+  IF loop_row.invoice_id IS NOT NULL THEN
+    SELECT *
+    INTO invoice_row
+    FROM public.invoices
+    WHERE id = loop_row.invoice_id
+      AND user_id = p_user_id
+      AND quote_id = p_quote_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'first_revenue_invoice_mismatch';
+    END IF;
+
+    RETURN jsonb_build_object('invoice', to_jsonb(invoice_row), 'created', false);
+  END IF;
+
+  PERFORM 1
+  FROM public.quotes
+  WHERE id = p_quote_id
+    AND user_id = p_user_id
+    AND status = 'approved'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'first_revenue_quote_not_approved';
+  END IF;
+
+  INSERT INTO public.invoices (
+    user_id,
+    invoice_number,
+    status,
+    doc_type,
+    client_id,
+    quote_id,
+    payment_link,
+    client_name,
+    client_email,
+    client_address,
+    business_name,
+    business_email,
+    business_address,
+    logo_url,
+    currency,
+    items,
+    subtotal,
+    discount_rate,
+    discount_amount,
+    tax_rate,
+    tax_amount,
+    total,
+    invoice_date,
+    due_date,
+    payment_terms,
+    notes,
+    updated_at
+  ) VALUES (
+    p_user_id,
+    p_invoice->>'invoice_number',
+    'draft',
+    'invoice',
+    NULLIF(p_invoice->>'client_id', '')::UUID,
+    p_quote_id,
+    COALESCE(p_invoice->>'payment_link', ''),
+    p_invoice->>'client_name',
+    COALESCE(p_invoice->>'client_email', ''),
+    COALESCE(p_invoice->>'client_address', ''),
+    COALESCE(p_invoice->>'business_name', ''),
+    COALESCE(p_invoice->>'business_email', ''),
+    COALESCE(p_invoice->>'business_address', ''),
+    COALESCE(p_invoice->>'logo_url', ''),
+    COALESCE(NULLIF(p_invoice->>'currency', ''), 'USD'),
+    COALESCE(p_invoice->'items', '[]'::jsonb),
+    COALESCE((p_invoice->>'subtotal')::INTEGER, 0),
+    COALESCE((p_invoice->>'discount_rate')::NUMERIC, 0),
+    COALESCE((p_invoice->>'discount_amount')::INTEGER, 0),
+    COALESCE((p_invoice->>'tax_rate')::NUMERIC, 0),
+    COALESCE((p_invoice->>'tax_amount')::INTEGER, 0),
+    COALESCE((p_invoice->>'total')::INTEGER, 0),
+    COALESCE(NULLIF(p_invoice->>'invoice_date', '')::DATE, CURRENT_DATE),
+    NULLIF(p_invoice->>'due_date', '')::DATE,
+    COALESCE(NULLIF(p_invoice->>'payment_terms', ''), 'Net 30'),
+    COALESCE(p_invoice->>'notes', ''),
+    NOW()
+  )
+  RETURNING * INTO invoice_row;
+
+  UPDATE public.first_revenue_loops
+  SET invoice_id = invoice_row.id,
+      updated_at = NOW()
+  WHERE user_id = p_user_id;
+
+  UPDATE public.quotes
+  SET status = 'converted',
+      updated_at = NOW()
+  WHERE id = p_quote_id
+    AND user_id = p_user_id
+    AND status = 'approved';
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'first_revenue_quote_not_approved';
+  END IF;
+
+  RETURN jsonb_build_object('invoice', to_jsonb(invoice_row), 'created', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_first_revenue_quote(UUID, UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.create_first_revenue_quote(UUID, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.claim_first_revenue_invoice_draft(UUID, UUID, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_first_revenue_quote(UUID, UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.create_first_revenue_quote(UUID, JSONB) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_first_revenue_invoice_draft(UUID, UUID, JSONB) TO service_role;
+
+-- Canonical baseline import: supabase/migration-invoice-payment-foundation.sql
+-- =====================================================================
+-- HISTORICAL SOURCE ARCHIVE
+-- ALREADY APPLIED TO PRODUCTION
+-- DO NOT RUN MANUALLY
+-- DO NOT ALTER OR SYNTHESIZE MIGRATION HISTORY
+-- =====================================================================
+--
+-- Production migration record
+--   version : 20260711181554
+--   name    : invoice_payment_foundation
+--   registered in supabase_migrations.schema_migrations : YES
+--   statements : 1  (entire file stored verbatim as a single statement)
+--
+-- Original body SHA-256 (this file minus this header):
+--   629e85fe9f1263ab73effa8840b3d94f13569ccf803bed1ea7c37c575d154511
+--
+-- Candidate source (4 byte-identical independent copies):
+--   1. dirty workspace  supabase/migration-invoice-payment-foundation.sql
+--   2. Desktop Corvioz-SAFE-03B0-20260725-045031/source-snapshot/supabase/
+--   3. Desktop Corvioz-SAFE-03B2H-A-20260725-151250/candidates/C3__...
+--   4. Git object store, on 7 refs/codex/turn-diffs/checkpoints/* refs
+--      (never committed on any branch or tag)
+--
+-- Statement comparison conclusion: EXACT MATCH.
+--   The SHA-256 of supabase_migrations.schema_migrations.statements[1] for
+--   version 20260711181554, computed server-side, is byte-for-byte identical
+--   to the SHA-256 of this file's body. There is exactly one statement, so no
+--   statement splitting was performed and no dollar-quote parsing ambiguity
+--   arises. This is a direct binding between the stored executed SQL and this
+--   source text, not a structural inference.
+--
+-- Superseded by later migrations:
+--   record_invoice_payment(...)            -> REPLACED by 20260711192505.
+--   claim_first_revenue_invoice_draft(...) -> REPLACED by 20260711192505.
+--   Production currently runs the 20260711192505 versions of BOTH functions.
+--   Re-running this file would REGRESS both to their superseded definitions,
+--   removing first_revenue_loops stage/completion tracking.
+--
+-- Why this must never be re-run:
+--   1. Function regression (above) — the most serious hazard.
+--   2. The INSERT ... SELECT legacy_backfill block writes payment-ledger rows
+--      derived from invoices.status='paid'. The partial unique index on
+--      (invoice_id, source) WHERE source='legacy_backfill' plus ON CONFLICT DO
+--      NOTHING prevents duplicate legacy_backfill rows, but any invoice whose
+--      payment was recorded through record_invoice_payment (source 'manual' or
+--      'portal') and which also carries legacy status='paid' would receive an
+--      ADDITIONAL full-total legacy_backfill row, double-counting the payment
+--      and inflating amount_paid_cents on the next settlement recompute.
+--   3. The UPDATE public.invoices backfill re-derives payment_status,
+--      amount_paid_cents and amount_due_cents from the legacy status column.
+--      It currently matches 0 rows, but that is a data-state accident, not a
+--      structural guarantee.
+--
+-- Archived for provenance only. To change production schema, author a new
+-- forward migration against the CURRENT state.
+-- =====================================================================
+
+-- Pass 4 Beta Sprint 1: additive invoice payment foundation.
+
+ALTER TABLE public.invoices
+  ADD COLUMN IF NOT EXISTS invoice_kind TEXT NOT NULL DEFAULT 'standard',
+  ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid',
+  ADD COLUMN IF NOT EXISTS amount_paid_cents INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS amount_due_cents INTEGER NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoices_invoice_kind_check') THEN
+    ALTER TABLE public.invoices
+      ADD CONSTRAINT invoices_invoice_kind_check
+      CHECK (invoice_kind IN ('standard', 'deposit', 'milestone', 'final'));
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoices_payment_status_check') THEN
+    ALTER TABLE public.invoices
+      ADD CONSTRAINT invoices_payment_status_check
+      CHECK (payment_status IN ('unpaid', 'partial', 'paid', 'overdue'));
+  END IF;
+END
+$$;
+
+UPDATE public.invoices
+SET
+  invoice_kind = COALESCE(NULLIF(invoice_kind, ''), 'standard'),
+  amount_paid_cents = CASE WHEN status = 'paid' THEN total ELSE 0 END,
+  amount_due_cents = CASE WHEN status = 'paid' THEN 0 ELSE total END,
+  payment_status = CASE
+    WHEN status = 'paid' THEN 'paid'
+    WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE THEN 'overdue'
+    ELSE 'unpaid'
+  END
+WHERE amount_paid_cents = 0
+  AND amount_due_cents = 0
+  AND payment_status = 'unpaid';
+
+CREATE TABLE IF NOT EXISTS public.invoice_payments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded')),
+  source TEXT NOT NULL CHECK (source IN ('manual', 'portal', 'legacy_backfill')),
+  received_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice_id ON public.invoice_payments(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_payments_user_id ON public.invoice_payments(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_payments_legacy_backfill
+  ON public.invoice_payments(invoice_id, source)
+  WHERE source = 'legacy_backfill';
+
+INSERT INTO public.invoice_payments (
+  invoice_id, user_id, amount_cents, currency, status, source, received_at
+)
+SELECT id, user_id, total, currency, 'succeeded', 'legacy_backfill', updated_at
+FROM public.invoices
+WHERE status = 'paid'
+  AND total > 0
+ON CONFLICT DO NOTHING;
+
+ALTER TABLE public.invoice_payments ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.invoice_payments FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE public.invoice_payments TO authenticated;
+
+DROP POLICY IF EXISTS "Users can view own invoice payments" ON public.invoice_payments;
+CREATE POLICY "Users can view own invoice payments"
+  ON public.invoice_payments
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE OR REPLACE FUNCTION public.record_invoice_payment(
+  p_user_id UUID,
+  p_invoice_id UUID,
+  p_amount_cents INTEGER,
+  p_currency TEXT,
+  p_source TEXT DEFAULT 'manual',
+  p_received_at TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS public.invoices
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  invoice_row public.invoices;
+  total_paid INTEGER;
+BEGIN
+  IF p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
+    RAISE EXCEPTION 'invoice_payment_amount_invalid';
+  END IF;
+
+  IF p_source NOT IN ('manual', 'portal', 'legacy_backfill') THEN
+    RAISE EXCEPTION 'invoice_payment_source_invalid';
+  END IF;
+
+  SELECT * INTO invoice_row
+  FROM public.invoices
+  WHERE id = p_invoice_id AND user_id = p_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'invoice_not_found';
+  END IF;
+
+  IF UPPER(COALESCE(p_currency, '')) <> UPPER(invoice_row.currency) THEN
+    RAISE EXCEPTION 'invoice_payment_currency_mismatch';
+  END IF;
+
+  INSERT INTO public.invoice_payments (
+    invoice_id, user_id, amount_cents, currency, status, source, received_at
+  ) VALUES (
+    p_invoice_id, p_user_id, p_amount_cents, UPPER(p_currency), 'succeeded', p_source, COALESCE(p_received_at, NOW())
+  );
+
+  SELECT COALESCE(SUM(amount_cents), 0) INTO total_paid
+  FROM public.invoice_payments
+  WHERE invoice_id = p_invoice_id AND status = 'succeeded';
+
+  UPDATE public.invoices
+  SET
+    amount_paid_cents = total_paid,
+    amount_due_cents = GREATEST(total - total_paid, 0),
+    payment_status = CASE
+      WHEN total_paid >= total THEN 'paid'
+      WHEN total_paid > 0 THEN 'partial'
+      WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE THEN 'overdue'
+      ELSE 'unpaid'
+    END,
+    updated_at = NOW()
+  WHERE id = p_invoice_id AND user_id = p_user_id
+  RETURNING * INTO invoice_row;
+
+  RETURN invoice_row;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.record_invoice_payment(UUID, UUID, INTEGER, TEXT, TEXT, TIMESTAMPTZ) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_invoice_payment(UUID, UUID, INTEGER, TEXT, TEXT, TIMESTAMPTZ) TO service_role;
+
+-- Keep the existing first-revenue anchor, but never mutate an approved Quote to converted.
+CREATE OR REPLACE FUNCTION public.claim_first_revenue_invoice_draft(
+  p_user_id UUID,
+  p_quote_id UUID,
+  p_invoice JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  loop_row public.first_revenue_loops;
+  invoice_row public.invoices;
+BEGIN
+  SELECT * INTO loop_row
+  FROM public.first_revenue_loops
+  WHERE user_id = p_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR loop_row.legacy_blocked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'first_revenue_loop_unavailable';
+  END IF;
+  IF loop_row.quote_id IS DISTINCT FROM p_quote_id THEN
+    RAISE EXCEPTION 'first_revenue_quote_mismatch';
+  END IF;
+
+  IF loop_row.invoice_id IS NOT NULL THEN
+    SELECT * INTO invoice_row
+    FROM public.invoices
+    WHERE id = loop_row.invoice_id AND user_id = p_user_id AND quote_id = p_quote_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'first_revenue_invoice_mismatch';
+    END IF;
+    RETURN jsonb_build_object('invoice', to_jsonb(invoice_row), 'created', false);
+  END IF;
+
+  PERFORM 1 FROM public.quotes
+  WHERE id = p_quote_id AND user_id = p_user_id AND status = 'approved'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'first_revenue_quote_not_approved';
+  END IF;
+
+  INSERT INTO public.invoices (
+    user_id, invoice_number, status, doc_type, invoice_kind, payment_status,
+    amount_paid_cents, amount_due_cents, client_id, quote_id, payment_link,
+    client_name, client_email, client_address, business_name, business_email,
+    business_address, logo_url, currency, items, subtotal, discount_rate,
+    discount_amount, tax_rate, tax_amount, total, invoice_date, due_date,
+    payment_terms, notes, updated_at
+  ) VALUES (
+    p_user_id, p_invoice->>'invoice_number', 'draft', 'invoice',
+    COALESCE(NULLIF(p_invoice->>'invoice_kind', ''), 'deposit'), 'unpaid', 0,
+    COALESCE((p_invoice->>'total')::INTEGER, 0),
+    NULLIF(p_invoice->>'client_id', '')::UUID, p_quote_id,
+    COALESCE(p_invoice->>'payment_link', ''), p_invoice->>'client_name',
+    COALESCE(p_invoice->>'client_email', ''), COALESCE(p_invoice->>'client_address', ''),
+    COALESCE(p_invoice->>'business_name', ''), COALESCE(p_invoice->>'business_email', ''),
+    COALESCE(p_invoice->>'business_address', ''), COALESCE(p_invoice->>'logo_url', ''),
+    COALESCE(NULLIF(p_invoice->>'currency', ''), 'USD'),
+    COALESCE(p_invoice->'items', '[]'::jsonb), COALESCE((p_invoice->>'subtotal')::INTEGER, 0),
+    COALESCE((p_invoice->>'discount_rate')::NUMERIC, 0), COALESCE((p_invoice->>'discount_amount')::INTEGER, 0),
+    COALESCE((p_invoice->>'tax_rate')::NUMERIC, 0), COALESCE((p_invoice->>'tax_amount')::INTEGER, 0),
+    COALESCE((p_invoice->>'total')::INTEGER, 0),
+    COALESCE(NULLIF(p_invoice->>'invoice_date', '')::DATE, CURRENT_DATE),
+    NULLIF(p_invoice->>'due_date', '')::DATE, COALESCE(NULLIF(p_invoice->>'payment_terms', ''), 'Net 30'),
+    COALESCE(p_invoice->>'notes', ''), NOW()
+  ) RETURNING * INTO invoice_row;
+
+  UPDATE public.first_revenue_loops
+  SET invoice_id = invoice_row.id, updated_at = NOW()
+  WHERE user_id = p_user_id;
+
+  RETURN jsonb_build_object('invoice', to_jsonb(invoice_row), 'created', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_first_revenue_invoice_draft(UUID, UUID, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_first_revenue_invoice_draft(UUID, UUID, JSONB) TO service_role;
+
+-- Canonical baseline import: supabase/migration-invoice-payments-service-role-permissions.sql
+-- =====================================================================
+-- HISTORICAL SOURCE ARCHIVE
+-- ALREADY APPLIED TO PRODUCTION
+-- DO NOT RUN MANUALLY
+-- DO NOT ALTER OR SYNTHESIZE MIGRATION HISTORY
+-- =====================================================================
+--
+-- Production migration record
+--   version : 20260711183628
+--   name    : invoice_payments_service_role_permissions
+--   registered in supabase_migrations.schema_migrations : YES
+--   statements : 1  (entire file stored verbatim as a single statement)
+--
+-- Original body SHA-256 (this file minus this header):
+--   3586012c91d22c67058d0374911533072a24a5692a20187305555aa558368959
+--
+-- Candidate source (3 byte-identical independent copies):
+--   1. dirty workspace  supabase/migration-invoice-payments-service-role-permissions.sql
+--   2. Desktop Corvioz-SAFE-03B0-20260725-045031/source-snapshot/supabase/
+--   3. Git object store, on 7 refs/codex/turn-diffs/checkpoints/* refs
+--      (never committed on any branch or tag)
+--
+-- Statement comparison conclusion: EXACT MATCH.
+--   The SHA-256 of supabase_migrations.schema_migrations.statements[1] for
+--   version 20260711183628, computed server-side, is byte-for-byte identical
+--   to the SHA-256 of this file's body.
+--
+-- Superseded by later migrations: NONE.
+--   This migration changes no function body and creates no object. It is a
+--   pure table-privilege migration. Its effect is still fully present in
+--   production: invoice_payments grants are exactly
+--     service_role = INSERT + SELECT, authenticated = SELECT only,
+--     anon = no privileges at all.
+--
+-- Re-run assessment:
+--   Structurally this file IS idempotent — it contains only REVOKE and GRANT,
+--   no DDL, no DML, no CREATE OR REPLACE FUNCTION. Unlike the other two
+--   migrations in this set, re-running it would not corrupt data or regress a
+--   function. It is nonetheless archived as HISTORICAL ONLY and should not be
+--   run: production already matches its intent exactly, so execution would be
+--   a no-op that only adds risk of being run out of order or against the wrong
+--   environment.
+--
+-- Archived for provenance only. To change production privileges, author a new
+-- forward migration against the CURRENT state.
+-- =====================================================================
+
+-- Pass 4 payment settlement: preserve invoker RPC while granting its server role
+-- the minimum ledger privileges required for insert and aggregate reads.
+
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.invoice_payments FROM anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.invoice_payments TO service_role;
+
+-- Canonical baseline import: supabase/migration-ga4-activation-event-claims.sql
+CREATE TABLE IF NOT EXISTS public.analytics_activation_claims (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event TEXT NOT NULL CHECK (event IN ('first_quote_created', 'first_invoice_created')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, event)
+);
+
+ALTER TABLE public.analytics_activation_claims ENABLE ROW LEVEL SECURITY;
+
+-- Canonical baseline import: supabase/migration-revenue-events.sql
+-- Migration: Create public.revenue_events table for Autonomous Revenue Loop System (v3)
+
+CREATE TABLE IF NOT EXISTS public.revenue_events (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_name TEXT NOT NULL,
+  session_id TEXT DEFAULT '',
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  page_path TEXT DEFAULT '',
+  trigger_type TEXT DEFAULT '',
+  target_plan TEXT DEFAULT '',
+  offer_type TEXT DEFAULT '',
+  properties JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.revenue_events ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'revenue_events' AND policyname = 'Service role can manage revenue events'
+  ) THEN
+    CREATE POLICY "Service role can manage revenue events"
+      ON public.revenue_events FOR ALL
+      USING (auth.role() = 'service_role')
+      WITH CHECK (auth.role() = 'service_role');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'revenue_events' AND policyname = 'Authenticated users can view own revenue events'
+  ) THEN
+    CREATE POLICY "Authenticated users can view own revenue events"
+      ON public.revenue_events FOR SELECT
+      USING (auth.uid() = user_id);
+  END IF;
+END
+$$;
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_revenue_events_event_name ON public.revenue_events(event_name);
+CREATE INDEX IF NOT EXISTS idx_revenue_events_user_id ON public.revenue_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_events_created_at ON public.revenue_events(created_at);
+
+-- Grants
+GRANT ALL PRIVILEGES ON public.revenue_events TO service_role;
+GRANT SELECT ON public.revenue_events TO authenticated;

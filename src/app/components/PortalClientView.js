@@ -693,7 +693,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                       <div className={`timeline-node ${['sent', 'approved', 'declined', 'converted'].includes(status) ? 'completed' : 'current'}`} />
                       <div className="timeline-content">
                         <span className="timeline-title">Submitted for Approval</span>
-                        <span className="timeline-desc">Sent to client for signature</span>
+                        <span className="timeline-desc">Sent to client for review</span>
                       </div>
                     </div>
 
@@ -701,7 +701,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                       <div className={`timeline-node ${quoteAccepted || status === 'declined' ? 'completed' : (status === 'sent' ? 'current' : '')}`} style={status === 'declined' ? { borderColor: 'var(--danger)', backgroundColor: 'var(--danger-glow)' } : undefined} />
                       <div className="timeline-content">
                         <span className="timeline-title">{status === 'declined' ? 'Declined' : 'Approved'}</span>
-                        <span className="timeline-desc">{quoteAccepted ? (status === 'converted' ? 'Accepted & converted to invoice' : 'Accepted & ready for invoicing') : (status === 'declined' ? 'Declined by client' : 'Waiting for client signature')}</span>
+                        <span className="timeline-desc">{quoteAccepted ? (status === 'converted' ? 'Accepted & converted to invoice' : 'Accepted & ready for invoicing') : (status === 'declined' ? 'Declined by client' : 'Waiting for client approval')}</span>
                       </div>
                     </div>
                   </>
@@ -975,7 +975,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
 
         </div>
 
-        {/* Portal Footer Branding Signature */}
+        {/* Portal Footer Branding */}
         {ownerPlan === 'free' && (
           <footer style={{ 
             marginTop: '48px', 

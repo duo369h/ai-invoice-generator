@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import assert from 'assert';
+import * as ts from 'typescript';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,29 +17,18 @@ global.mockDecision = {
 
 // 2. Transpile TS to ESM JS
 function transpile(tsContent) {
-  let js = tsContent;
-  js = js.replace(/export interface [\s\S]*?\n\}/g, '');
-  js = js.replace(/export type [\s\S]*?;/g, '');
-  js = js.replace(/userPlan\?\s*:\s*string\s*\|\s*null/g, 'userPlan = null');
-  js = js.replace(/plan\?\s*:\s*string\s*\|\s*null/g, 'plan = null');
-  js = js.replace(/:\s*PricingViewModelInput/g, '');
-  js = js.replace(/:\s*Promise<.*?>\s*\{/g, ' {');
-  js = js.replace(/:\s*PricingViewModelOutput\s*\{/g, ' {');
-  js = js.replace(/:\s*Entitlements\s*\{/g, ' {');
-  js = js.replace(/:\s*boolean\s*\{/g, ' {');
-  js = js.replace(/:\s*string\s*\[\s*\]/g, '');
-  js = js.replace(/:\s*string/g, '');
-  js = js.replace(/:\s*number/g, '');
-  js = js.replace(/:\s*boolean/g, '');
-  js = js.replace(/:\s*any/g, '');
-  js = js.replace(/\s+as\s+any/g, '');
-  js = js.replace(/\s+as\s+const/g, '');
-  js = js.replace(/\s+as\s+keyof\s+Entitlements/g, '');
-  js = js.replace(/as const;/g, ';');
+  let js = ts.transpileModule(tsContent, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
   js = js.replace(/from\s+'(\.\/.*?)'/g, "from '$1.mjs'");
   js = js.replace(/from\s+'(\.\.\/.*?)'/g, "from '$1.mjs'");
   js = js.replace(/from\s+'\.\.\/execution\/unifiedDecisionEngine\.mjs'/g, "from './unifiedDecisionEngine.mjs'");
   js = js.replace(/from\s+'\.\.\/execution\/uiTranslator\.mjs'/g, "from './uiTranslator.mjs'");
+  js = js.replace(/from\s+'\.\.\/src\/core\/state\/planStateAdapter\.mjs'/g, "from './planStateAdapter.mjs'");
+  js = js.replace(/from\s+'\.\.\/src\/core\/telemetry\/decisionTelemetry\.mjs'/g, "from './decisionTelemetry.mjs'");
   return js;
 }
 
@@ -54,6 +44,16 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.resolve(tmpDir, './uiTranslator.mjs'),
   `export function translateDecision() { return { highlightPlan: null, banner: 'none' }; }`,
+  'utf8'
+);
+fs.writeFileSync(
+  path.resolve(tmpDir, './planStateAdapter.mjs'),
+  `export function shadowValidatePlanRead() { return null; }`,
+  'utf8'
+);
+fs.writeFileSync(
+  path.resolve(tmpDir, './decisionTelemetry.mjs'),
+  `export function recordDecisionTelemetry() { return null; }`,
   'utf8'
 );
 
@@ -72,10 +72,40 @@ async function runTests() {
   const { getUserEntitlements } = await import('./tmp-pricing-test/entitlements.mjs');
 
   const plans = [
-    { id: 'free', name: 'Free', price_monthly: 0, price_yearly: 0 },
-    { id: 'starter', name: 'Starter', price_monthly: 9, price_yearly: 7 },
-    { id: 'pro', name: 'Pro', price_monthly: 19, price_yearly: 15 },
-    { id: 'studio', name: 'Studio', price_monthly: 0, price_yearly: 0 }
+    {
+      id: 'free',
+      name: 'Free',
+      description: 'For trying Corvioz with the client work you already have.',
+      price_monthly: 0,
+      price_yearly: 0,
+      features: ['Quotes and invoices', '5 new documents each cycle', 'PDF exports with Corvioz branding'],
+    },
+    {
+      id: 'starter',
+      name: 'Starter',
+      description: 'For regular client work, with more room and clean documents.',
+      price_monthly: 9,
+      price_yearly: 90,
+      features: ['Quotes and invoices', '30 new documents each billing cycle', 'Clean PDF exports'],
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      description: 'For unlimited work and a client experience that lives in Corvioz too.',
+      price_monthly: 19,
+      price_yearly: 190,
+      features: ['Everything in Starter', 'Unlimited new documents', 'Client Portal with client approval'],
+    },
+    {
+      id: 'studio',
+      name: 'Studio',
+      status: 'coming_soon',
+      active: false,
+      description: 'Future roadmap tier',
+      price_monthly: null,
+      price_yearly: null,
+      features: [],
+    },
   ];
 
   const vm = getPricingViewModel({
@@ -84,6 +114,7 @@ async function runTests() {
     userPlan: 'free',
     isAuthenticated: false,
     subLoading: false
+    ,billingPeriod: 'monthly'
   });
 
   const cards = vm.cards;
@@ -91,31 +122,38 @@ async function runTests() {
 
   const freeCard = cards.find(c => c.id === 'free');
   assert(freeCard.name === 'Free', 'Free tier name');
-  assert(freeCard.identity === 'Try', 'Free tier identity');
+  assert(freeCard.identity === 'Free', 'Free tier identity');
+  assert(freeCard.outcome === 'For trying Corvioz with the client work you already have.', 'Free tier outcome');
+  assert(freeCard.features.includes('5 new documents each cycle'), 'Free tier document quota');
 
   const starterCard = cards.find(c => c.id === 'starter');
   assert(starterCard.name === 'Starter', 'Starter tier name');
   assert(starterCard.identity === 'Starter', 'Starter tier identity');
-  assert(starterCard.outcome === 'Get paid faster', 'Starter tier outcome');
-  assert(starterCard.features.includes('Auto-fill client details on future documents'), 'Starter has auto-fill details');
+  assert(starterCard.outcome === 'For regular client work, with more room and clean documents.', 'Starter tier outcome');
+  assert(starterCard.features.includes('30 new documents each billing cycle'), 'Starter has current document quota');
+  assert(starterCard.features.includes('Clean PDF exports'), 'Starter has clean PDFs');
 
   const proCard = cards.find(c => c.id === 'pro');
   assert(proCard.name === 'Pro', 'Pro tier name');
   assert(proCard.identity === 'Pro', 'Pro tier identity');
-  assert(proCard.outcome === 'Never miss a payment', 'Pro tier outcome');
-  assert(proCard.features.includes('Qualify and capture prospective client inquiries'), 'Pro has lead capture');
+  assert(proCard.outcome === 'For unlimited work and a client experience that lives in Corvioz too.', 'Pro tier outcome');
+  assert(proCard.features.includes('Unlimited new documents'), 'Pro has unlimited new documents');
+  assert(proCard.features.includes('Client Portal with client approval'), 'Pro has client approval');
 
   const studioCard = cards.find(c => c.id === 'studio');
   assert(studioCard.name === 'Studio', 'Studio tier name');
   assert(studioCard.identity === 'Studio', 'Studio tier identity');
-  assert(studioCard.outcome === 'Scale client operations', 'Studio tier outcome');
+  assert(studioCard.outcome === 'Future roadmap tier', 'Studio tier outcome');
+  assert(studioCard.priceMonthly === 0, 'Studio has no monthly purchase price');
 
   // Verify entitlements mapping
   const starterEnt = getUserEntitlements('starter');
-  assert(starterEnt.export_pdf === false, 'Starter plan has export PDF disabled');
+  assert(starterEnt.export_pdf === true, 'Starter plan has clean PDF export');
+  assert(starterEnt.approval_scope === 'none', 'Starter has no quote approval');
 
   const proEnt = getUserEntitlements('pro');
   assert(proEnt.export_pdf === true, 'Pro plan has export PDF enabled');
+  assert(proEnt.approval_scope === 'quotes_only', 'Pro approval is quote-only');
 
   console.log('✅ Corvioz Pricing Flow & Entitlements Verification PASSED.');
   

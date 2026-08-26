@@ -27,7 +27,7 @@ export default function ClientPortalPage() {
           {[
             {
               title: 'Internal Clients',
-              body: 'Your CRM-style client records live inside the dashboard under Clients.',
+              body: 'Your client records live inside the dashboard under Clients.',
             },
             {
               title: 'External Portal',

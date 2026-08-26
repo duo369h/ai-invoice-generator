@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep local 127.0.0.1 browser verification on the same trusted dev origin
+  // as localhost so client hydration and the pricing runtime fetch execute.
+  allowedDevOrigins: ['127.0.0.1'],
   serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
   outputFileTracingIncludes: {
     '/api/pdf/export': ['./node_modules/@sparticuz/chromium/bin/**/*'],
