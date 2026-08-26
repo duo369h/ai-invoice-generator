@@ -73,10 +73,12 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
       if (isInvalidPaddleValue(priceId)) {
         throw new Error(`CRITICAL PADDLE ERROR: Production price ID is missing or contains placeholder for plan "${planId}".`);
       }
+    } else if (!env || !['sandbox', 'production'].includes(env) || isInvalidPaddleValue(token) || isInvalidPaddleValue(priceId)) {
+      throw new Error('Paddle Sandbox checkout configuration is missing or contains a placeholder.');
     }
 
-    const activeEnv = isProd ? env : (env || 'sandbox');
-    const activeToken = isProd ? token : (token || 'test_token_placeholder');
+    const activeEnv = env;
+    const activeToken = token;
 
     paddle.Environment.set(activeEnv);
     

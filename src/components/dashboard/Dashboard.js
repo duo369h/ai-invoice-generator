@@ -1026,6 +1026,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invQuoteId, setInvQuoteId] = useState(null);
   const [invBillingType, setInvBillingType] = useState('standard');
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [recordPaymentInvoice, setRecordPaymentInvoice] = useState(null);
+  const [recordPaymentAmount, setRecordPaymentAmount] = useState('');
+  const [recordPaymentError, setRecordPaymentError] = useState('');
 
   // Client editor state
   const [newClientName, setNewClientName] = useState('');
@@ -2028,17 +2031,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceView('edit');
   };
 
-  const handleRecordPayment = async (invoice) => {
-    const entered = typeof window !== 'undefined'
-      ? window.prompt(`Amount received (${invoice.currency || 'USD'})`, ((invoice.amount_due_cents ?? invoice.total ?? 0) / 100).toFixed(2))
-      : null;
-    if (entered === null) return;
+  const openRecordPaymentModal = (invoice) => {
+    const amountDueCents = Number(invoice?.amount_due_cents ?? invoice?.total ?? 0);
+    const safeAmountDueCents = Number.isSafeInteger(amountDueCents) && amountDueCents > 0 ? amountDueCents : 0;
+    setRecordPaymentInvoice(invoice);
+    setRecordPaymentAmount(safeAmountDueCents > 0 ? (safeAmountDueCents / 100).toFixed(2) : '');
+    setRecordPaymentError('');
+  };
+
+  const closeRecordPaymentModal = () => {
+    if (isRecordingPayment) return;
+    setRecordPaymentInvoice(null);
+    setRecordPaymentAmount('');
+    setRecordPaymentError('');
+  };
+
+  const handleRecordPayment = async (invoice, entered = recordPaymentAmount) => {
     const amountCents = Math.round(Number(entered) * 100);
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
-      triggerToast('Enter a positive payment amount.', 'error');
-      return;
+      setRecordPaymentError('Enter a positive payment amount.');
+      return false;
     }
 
+    setRecordPaymentError('');
     setIsRecordingPayment(true);
     try {
       const attemptStore = getRecordPaymentAttemptStore();
@@ -2059,9 +2074,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
       if (!response.ok) throw new Error(result.error || 'Unable to record payment.');
       await fetchData(session?.access_token);
+      setRecordPaymentInvoice(null);
+      setRecordPaymentAmount('');
       triggerToast(`Payment recorded. State: ${result.payment_status || 'updated'}.`, 'success');
+      return true;
     } catch (error) {
-      triggerToast(error.message || 'Unable to record payment.', 'error');
+      setRecordPaymentError(error.message || 'Unable to record payment.');
+      return false;
     } finally {
       setIsRecordingPayment(false);
     }
@@ -4839,7 +4858,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 </button>
                                 {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
                                   <button
-                                    onClick={() => handleRecordPayment(inv)}
+                                    onClick={() => openRecordPaymentModal(inv)}
                                     disabled={isRecordingPayment}
                                     className="btn btn-primary btn-sm"
                                   >
@@ -4974,7 +4993,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-secondary">Exit to dashboard</button>
                         <button
                           type="button"
-                          onClick={() => handleRecordPayment(invoices.find((invoice) => invoice.id === invId) || { id: invId, currency: invCurrency, total: 0 })}
+                          onClick={() => openRecordPaymentModal(invoices.find((invoice) => invoice.id === invId) || { id: invId, currency: invCurrency, total: 0 })}
                           className="btn btn-primary"
                           style={{ fontWeight: 800 }}
                         >
@@ -6928,6 +6947,79 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               >
                 {feedbackSubmitting ? 'Sending...' : 'Send Feedback'}
               </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {recordPaymentInvoice && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="record-payment-title"
+          data-testid="record-payment-modal"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+        >
+          <form
+            className="card animate-fade-in"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleRecordPayment(recordPaymentInvoice);
+            }}
+            style={{ maxWidth: '460px', width: '100%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 id="record-payment-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Record Payment</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '8px 0 0', lineHeight: 1.45 }}>
+                  Record funds already received. Corvioz does not process or collect this payment.
+                </p>
+              </div>
+              <button type="button" onClick={closeRecordPaymentModal} disabled={isRecordingPayment} aria-label="Close record payment dialog" style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: isRecordingPayment ? 'not-allowed' : 'pointer', background: 'none', border: 'none' }}>&times;</button>
+            </div>
+
+            <label htmlFor="record-payment-amount" style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-soft)' }}>
+              Amount received ({recordPaymentInvoice.currency || 'USD'})
+              <input
+                id="record-payment-amount"
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={recordPaymentAmount}
+                onChange={(event) => {
+                  setRecordPaymentAmount(event.target.value);
+                  setRecordPaymentError('');
+                }}
+                autoFocus
+                required
+                disabled={isRecordingPayment}
+                style={{ width: '100%', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-page)', color: 'var(--text-main)', fontSize: '1rem' }}
+              />
+            </label>
+
+            {recordPaymentError && (
+              <div role="alert" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '8px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', fontSize: '0.82rem', fontWeight: 650 }}>
+                {recordPaymentError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button type="button" onClick={closeRecordPaymentModal} disabled={isRecordingPayment} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
+              <button type="submit" disabled={isRecordingPayment} className="btn btn-primary" style={{ flex: 1 }}>{isRecordingPayment ? 'Recording...' : 'Record payment'}</button>
             </div>
           </form>
         </div>

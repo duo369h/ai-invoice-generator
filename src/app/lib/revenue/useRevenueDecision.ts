@@ -120,6 +120,10 @@ export interface UIDecision {
   ga4Event?: GA4EventPayload | null;
   /** Where the GA4 decision event is emitted */
   ga4Delivery?: 'server' | 'client' | 'none';
+  /** False when the UI is continuing without a control-plane decision. */
+  evaluationAvailable?: boolean;
+  /** True means every protected write must still be authorized server-side. */
+  serverAuthorityRequired?: boolean;
   /** v5.98 revenue psychology signals for explainable, non-dark-pattern prompts */
   psychology: RevenuePsychologySignal;
   /** Backend trigger map for analytics and UI placement */
@@ -269,6 +273,39 @@ function buildFallbackExplanation(raw: Record<string, unknown>, input: RevenueDe
     summary: String(rawExplanation.summary || raw.reason || 'This decision is based on your usage pattern.'),
     factors: factors.length > 0 ? factors : ['Based on your behavior in this session.'],
     intent_score: Number.isFinite(intentScore) ? Math.max(0, Math.min(100, intentScore)) : 0,
+  };
+}
+
+/**
+ * A control-plane failure is a UI-only fallback. It may keep a harmless UI
+ * action responsive, but it is never an authorization decision: protected
+ * API routes must still enforce plan, quota, and ownership server-side.
+ */
+export function buildApiUnavailableDecision(input: RevenueDecisionInput, reason = 'Decision service unavailable.'): UIDecision {
+  return {
+    shouldProceed: true,
+    showModal: false,
+    modalType: null,
+    redirectUrl: null,
+    backendAction: 'allow',
+    uiAction: 'allow',
+    uiBackendSyncWarning: null,
+    reason,
+    decisionId: null,
+    shadowMode: true,
+    reasonChain: ['api_error', 'ui_only_fallback', 'server_authority_fail_closed'],
+    intentContributionScore: input.intent_score ?? 0,
+    pricingTriggerAttribution: null,
+    showExplanation: false,
+    explanation: null,
+    intentBreakdown: buildIntentBreakdown(input),
+    ga4Event: null,
+    ga4Delivery: 'none',
+    evaluationAvailable: false,
+    serverAuthorityRequired: true,
+    psychology: defaultPsychology(),
+    paywallTriggerMap: {},
+    smartFriction: buildSmartFriction(defaultPsychology(), input),
   };
 }
 
@@ -599,58 +636,11 @@ export function useRevenueDecision(options?: { mode?: 'live' | 'demo' | 'preview
 
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
-          // Request was cancelled — return a safe allow
-          return {
-            shouldProceed: true,
-            showModal: false,
-            modalType: null,
-            redirectUrl: null,
-            backendAction: 'allow',
-            uiAction: 'allow',
-            uiBackendSyncWarning: null,
-            reason: 'Request cancelled.',
-            decisionId: null,
-            shadowMode: true,
-            reasonChain: ['request_cancelled'],
-            intentContributionScore: input.intent_score ?? 0,
-            pricingTriggerAttribution: null,
-            showExplanation: false,
-            explanation: null,
-            intentBreakdown: buildIntentBreakdown(input),
-            ga4Event: null,
-            ga4Delivery: 'none',
-            psychology: defaultPsychology(),
-            paywallTriggerMap: {},
-            smartFriction: buildSmartFriction(defaultPsychology(), input),
-          };
+          return buildApiUnavailableDecision(input, 'Request cancelled; no authorization decision was made.');
         }
 
-        console.error('[useRevenueDecision] API call failed, falling back to allow:', err);
-
-        // ── Graceful fallback: always allow on API error ──────────────────
-        return {
-          shouldProceed: true,
-          showModal: false,
-          modalType: null,
-          redirectUrl: null,
-          backendAction: 'allow',
-          uiAction: 'allow',
-          uiBackendSyncWarning: null,
-          reason: 'API error: safety fallback allow.',
-          decisionId: null,
-          shadowMode: true,
-          reasonChain: ['api_error', 'safety_fallback_allow'],
-          intentContributionScore: input.intent_score ?? 0,
-          pricingTriggerAttribution: null,
-          showExplanation: false,
-          explanation: null,
-          intentBreakdown: buildIntentBreakdown(input),
-          ga4Event: null,
-          ga4Delivery: 'none',
-          psychology: defaultPsychology(),
-          paywallTriggerMap: {},
-          smartFriction: buildSmartFriction(defaultPsychology(), input),
-        };
+        console.warn('[useRevenueDecision] Control plane unavailable; continuing as a UI-only fallback while server authority remains fail-closed.', err);
+        return buildApiUnavailableDecision(input);
       }
     },
     [mode],
