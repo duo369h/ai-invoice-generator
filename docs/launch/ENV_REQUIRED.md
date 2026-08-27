@@ -25,13 +25,14 @@
 
 ## Paddle Billing Variables
 
-Paddle billing is a production requirement before paid subscription checkout can be launched. Sprint 1 contains placeholders only; no Paddle checkout route is implemented in this package.
+Paddle billing is a production requirement before paid subscription checkout can be launched. The current first-release runtime uses Paddle.js client-side checkout and the `/api/webhooks/paddle` signing-secret path. It does not make a server-side Paddle API request.
 
 | Variable | Required Before Paid Launch | Purpose |
 | --- | --- | --- |
-| `PADDLE_API_KEY` | Yes | Server API key for Paddle operations. |
+| `PADDLE_API_KEY` | No for first-release runtime; reserved | Keep server-only if a future Paddle API/ops script is introduced. No executable first-release source path reads it. |
 | `PADDLE_WEBHOOK_SECRET` | Yes | Webhook verification secret. |
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Yes | Browser checkout client token. |
+| `NEXT_PUBLIC_VERCEL_ENV` | Yes | Explicit client-visible deployment authority: `production` for Production and `preview` for Preview. Do not substitute `NODE_ENV`. |
 | `NEXT_PUBLIC_PADDLE_ENV` | Yes | `production` or `sandbox`, depending on Paddle environment. |
 | `NEXT_PUBLIC_PADDLE_PRO_PRICE_ID` | Yes | Pro plan price identifier. |
 | `NEXT_PUBLIC_PADDLE_AGENCY_PRICE_ID` | Optional/Future | Agency plan price identifier if agency billing is enabled later. |

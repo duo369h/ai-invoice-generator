@@ -185,9 +185,17 @@ See [`.env.example`](../.env.example) for the full list. Critical billing vars:
 ```bash
 PADDLE_WEBHOOK_SECRET           # Required in production — webhook signature key
 NEXT_PUBLIC_PADDLE_CLIENT_TOKEN # Required — Paddle.js initializer token
+NEXT_PUBLIC_VERCEL_ENV          # Required client-visible deployment authority: preview | production
 NEXT_PUBLIC_PADDLE_ENV          # 'sandbox' | 'production'
 
+# Not required by the current first-release executable runtime. Reserve for a
+# future server-side Paddle API or operations script; never expose to clients.
+PADDLE_API_KEY
+
 # Price IDs (copy from Paddle Dashboard → Catalog → Prices)
+NEXT_PUBLIC_PADDLE_STARTER_PRICE_ID
+NEXT_PUBLIC_PADDLE_STARTER_YEARLY_PRICE_ID
+NEXT_PUBLIC_PADDLE_PRO_MONTHLY_PRICE_ID
 NEXT_PUBLIC_PADDLE_PRO_PRICE_ID
 NEXT_PUBLIC_PADDLE_PRO_YEARLY_PRICE_ID
 NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID
@@ -211,6 +219,7 @@ Before going live, verify each of the following:
   - `PADDLE_WEBHOOK_SECRET` copied from Paddle → Notifications → Webhook key
 - [ ] **Vercel env vars**: All vars from `.env.example` set in Vercel project settings
 - [ ] **Price IDs**: All `NEXT_PUBLIC_PADDLE_*_PRICE_ID` vars set to live Paddle price IDs
+- [ ] **Paddle API key**: Not required for the current first-release runtime; add only when a separately reviewed server-side API/ops script exists
 - [ ] **RLS policies**: Confirm `entitlements`, `subscriptions`, `billing_events` tables have RLS enabled and correct policies
 - [ ] **E2E test**: Run `node scripts/revenue-funnel-verify.js` with sandbox credentials
 

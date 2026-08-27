@@ -2,7 +2,7 @@
  * Pricing Page Controller Delegation — Corvioz v5.7
  */
 
-import { loadPaddleScript } from '@/app/lib/paddle-client';
+import { loadPaddleScript, resolvePaddleEnvironment, validatePaddleClientToken } from '@/app/lib/paddle-client';
 import { trackEvent } from '@/app/lib/analytics';
 import { saveSelectedPlan } from '@/app/lib/intent-store';
 
@@ -59,27 +59,10 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
 
     const triggerSource = searchParams?.get('source') || 'pricing_page';
 
-    const env = process.env.NEXT_PUBLIC_PADDLE_ENV;
-    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-    const isPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
-    const isProductionBuild = process.env.NODE_ENV === 'production' && !isPreview;
-
-    if (isPreview) {
-      if (env !== 'sandbox' || isInvalidPaddleValue(token) || isInvalidPaddleValue(priceId)) {
-        throw new Error('Paddle Preview Sandbox checkout configuration is missing or misconfigured.');
-      }
-    } else if (isProductionBuild) {
-      if (!env || env !== 'production') {
-        throw new Error('CRITICAL PADDLE ERROR: Production environment is missing or misconfigured (NEXT_PUBLIC_PADDLE_ENV must be "production").');
-      }
-      if (isInvalidPaddleValue(token)) {
-        throw new Error('CRITICAL PADDLE ERROR: Production client token is missing or contains placeholder.');
-      }
-      if (isInvalidPaddleValue(priceId)) {
-        throw new Error(`CRITICAL PADDLE ERROR: Production price ID is missing or contains placeholder for plan "${planId}".`);
-      }
-    } else if (!env || !['sandbox', 'production'].includes(env) || isInvalidPaddleValue(token) || isInvalidPaddleValue(priceId)) {
-      throw new Error('Paddle Sandbox checkout configuration is missing or contains a placeholder.');
+    const env = resolvePaddleEnvironment();
+    const token = validatePaddleClientToken(process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, env);
+    if (isInvalidPaddleValue(priceId)) {
+      throw new Error(`Paddle price ID is missing or contains a placeholder for plan "${planId}".`);
     }
 
     const activeEnv = env;

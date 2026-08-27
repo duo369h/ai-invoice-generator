@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import PublicHeader from "../components/PublicHeader";
 import SharedFooter from "../components/SharedFooter";
 import { createBrowserSupabaseClient } from "../lib/supabase-client";
-import { loadPaddleScript } from "../lib/paddle-client";
+import { loadPaddleScript, resolvePaddleEnvironment, validatePaddleClientToken } from "../lib/paddle-client";
 import { saveSelectedPlan } from "../lib/intent-store";
 import { getPricingViewModel } from "./viewModel";
 import "./pricing.css";
@@ -281,12 +281,12 @@ export default function PricingPage() {
     setCheckoutLoading(true);
     try {
       const targetCard = pricingVm.cards.find((card) => card.id === planId);
-      const targetPriceId = targetCard?.priceId || "";
+      const targetPriceId = targetCard?.priceMeta?.priceId || "";
 
-      const env = process.env.NEXT_PUBLIC_PADDLE_ENV;
-      const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+      const env = resolvePaddleEnvironment();
+      const token = validatePaddleClientToken(process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, env);
 
-      if (!token || !env || !targetPriceId || targetPriceId.includes("placeholder")) {
+      if (!targetPriceId || targetPriceId.includes("placeholder")) {
         alert("Checkout is temporarily unavailable while payment configurations are being finalized. Please check back shortly.");
         setCheckoutLoading(false);
         return;

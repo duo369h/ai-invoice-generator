@@ -417,7 +417,9 @@ async function runAll() {
     const pageJs = fs.readFileSync("src/app/pricing/page.js", "utf8");
     assert.ok(!pageJs.includes('NEXT_PUBLIC_PADDLE_ENV || "sandbox"'), "Must not have silent sandbox fallback");
     assert.ok(!pageJs.includes('NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "test_token"'), "Must not have silent test_token fallback");
-    assert.ok(pageJs.includes("!token || !env || !targetPriceId"), "Must explicitly require token, env, and priceId");
+    assert.ok(pageJs.includes("resolvePaddleEnvironment()"), "Must use the single Paddle environment authority");
+    assert.ok(pageJs.includes("validatePaddleClientToken("), "Must validate the token class for the resolved environment");
+    assert.ok(pageJs.includes("targetCard?.priceMeta?.priceId"), "Must use the view-model priceMeta price ID authority");
   });
 
 
