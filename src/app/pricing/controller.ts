@@ -59,11 +59,16 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
 
     const triggerSource = searchParams?.get('source') || 'pricing_page';
 
-    const isProd = process.env.NODE_ENV === 'production';
     const env = process.env.NEXT_PUBLIC_PADDLE_ENV;
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+    const isPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
+    const isProductionBuild = process.env.NODE_ENV === 'production' && !isPreview;
 
-    if (isProd) {
+    if (isPreview) {
+      if (env !== 'sandbox' || isInvalidPaddleValue(token) || isInvalidPaddleValue(priceId)) {
+        throw new Error('Paddle Preview Sandbox checkout configuration is missing or misconfigured.');
+      }
+    } else if (isProductionBuild) {
       if (!env || env !== 'production') {
         throw new Error('CRITICAL PADDLE ERROR: Production environment is missing or misconfigured (NEXT_PUBLIC_PADDLE_ENV must be "production").');
       }

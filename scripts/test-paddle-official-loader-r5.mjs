@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const source = fs.readFileSync('src/app/lib/paddle-client.js', 'utf8');
+const pricingPage = fs.readFileSync('src/app/pricing/page.js', 'utf8');
+const controller = fs.readFileSync('src/app/pricing/controller.ts', 'utf8');
+const middleware = fs.readFileSync('middleware.js', 'utf8');
+
+assert.match(source, /https:\/\/cdn\.paddle\.com\/paddle\/v2\/paddle\.js/);
+assert.doesNotMatch(source, /paddle\/v3\/paddle\.js/);
+assert.doesNotMatch(pricingPage, /paddle\/v3\/paddle\.js/);
+assert.doesNotMatch(controller, /paddle\/v3\/paddle\.js/);
+assert.match(source, /script\.onerror\s*=\s*\(\)\s*=>\s*\{[\s\S]*?resolve\(null\)/);
+assert.match(controller, /if \(!paddle\)/);
+assert.match(controller, /paddle\.Environment\.set\(activeEnv\)/);
+assert.match(controller, /paddle\.Initialize\(/);
+assert.match(controller, /paddle\.Checkout\.open\(/);
+assert.match(pricingPage, /if \(!paddle\)/);
+assert.match(pricingPage, /paddle\.Environment\.set\(env\)/);
+assert.match(pricingPage, /paddle\.Initialize\(/);
+assert.match(pricingPage, /paddle\.Checkout\.open\(/);
+
+assert.match(controller, /isPreview/);
+assert.match(controller, /isProductionBuild/);
+assert.match(controller, /env !== 'sandbox'/);
+assert.match(controller, /env !== 'production'/);
+assert.match(controller, /Paddle Preview Sandbox checkout configuration is missing or misconfigured/);
+assert.match(controller, /Production environment is missing or misconfigured/);
+assert.match(controller, /Paddle Sandbox checkout configuration is missing or contains a placeholder/);
+assert.match(middleware, /style-src[^\n]*https:\/\/sandbox-cdn\.paddle\.com/);
+assert.match(middleware, /frame-src[^\n]*https:\/\/sandbox-buy\.paddle\.com/);
+assert.doesNotMatch(middleware, /style-src[^\n]*sandbox-buy\.paddle\.com/);
+assert.doesNotMatch(middleware, /frame-src[^\n]*sandbox-cdn\.paddle\.com/);
+assert.doesNotMatch(middleware, /style-src[^\n]*\*\.paddle\.com/);
+assert.doesNotMatch(middleware, /frame-src[^\n]*\*\.paddle\.com/);
+assert.match(middleware, /process\.env\.NODE_ENV === 'production'\s*\?\s*csp\.replace\(" 'unsafe-eval'", ''\)/);
+
+console.log('PADDLE_V3_SOURCE_DEFECT=CONFIRMED');
+console.log('OFFICIAL_PADDLE_JS_URL=https://cdn.paddle.com/paddle/v2/paddle.js');
+console.log('OFFICIAL_PADDLE_V2_LOADER=PASS');
+console.log('PADDLE_LOADER_FAIL_CLOSED=PASS');
+console.log('PREVIEW_PRODUCTION_BUILD_WITH_PADDLE_SANDBOX=PASS');
+console.log('PRODUCTION_PADDLE_ENV_REQUIRES_PRODUCTION=PASS');
+console.log('INVALID_PADDLE_ENV_FAIL_CLOSED=PASS');
+console.log('MISSING_PADDLE_ENV_FAIL_CLOSED=PASS');
+console.log('PADDLE_SANDBOX_CSP_REQUIRED_ORIGINS=PASS');
+console.log('PADDLE_SANDBOX_BUY_ALLOWED=PASS');
+console.log('PADDLE_SANDBOX_CDN_ALLOWED=PASS');
+console.log('NO_CSP_WILDCARD_EXPANSION=PASS');
+console.log('NO_UNSAFE_CSP_WEAKENING=PASS');

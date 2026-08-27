@@ -4,7 +4,7 @@ export function loadPaddleScript() {
     if (window.Paddle) return resolve(window.Paddle);
 
     const script = document.createElement('script');
-    script.src = 'https://cdn.paddle.com/paddle/v3/paddle.js';
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
     script.async = true;
     script.onload = () => {
       resolve(window.Paddle);
