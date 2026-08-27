@@ -1,0 +1,8 @@
+project_id = "corvioz-r11-promotion"
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
+sql_paths = []

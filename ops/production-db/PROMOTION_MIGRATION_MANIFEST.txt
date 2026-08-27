@@ -1,0 +1,35 @@
+CORVIOZ_PRODUCTION_DB_EXECUTION_HARNESS_CLOSURE_R11
+AUTHORITY_RELEASE_COMMIT=ac8a6bb26c6cf02c1c30f16970bd1656d07f80c4
+PRODUCTION_PROJECT_REF=fgortrxozlbzxbkerejz
+R9_ACCEPTED_SQL_SHA256=57233b26b3302dfa8731420fd983d2777efb891109240aacb921e105aac4f396
+CLI_LOCAL_FILE_COUNT=15
+CLI_HISTORY_MARKER_COUNT=11
+CLI_EXECUTABLE_COUNT=4
+BASELINE_MARKER_PRESENT=NO
+ORIGINAL_R2_MARKER_PRESENT=NO
+R3_MARKER_PRESENT=NO
+
+EXECUTABLE MIGRATIONS
+20260815000000_document_usage_engine_v2.sql
+20260815134423_document_usage_engine_v2_hardening.sql
+20260826004100_paddle_checkout_source_schema_closure_r1.sql
+20260827000100_production_promotion_reconciliation_r9.sql
+
+HISTORY MARKERS
+20260710202115_history_marker.sql
+20260711181554_history_marker.sql
+20260711183628_history_marker.sql
+20260711192505_history_marker.sql
+20260725213909_history_marker.sql
+20260729135940_history_marker.sql
+20260815142927_history_marker.sql
+20260821174436_history_marker.sql
+20260821185325_history_marker.sql
+20260821190820_history_marker.sql
+20260821191944_history_marker.sql
+
+The markers are CLI synchronization artifacts only. Each contains the exact
+already-applied Production timestamp, a HISTORY_MARKER_DO_NOT_EXECUTE comment,
+and SELECT 1; only. They do not contain historical migration bodies. R2/R3
+repair markers are generated temporarily by the final script only after
+post-verification PASS, then removed.
