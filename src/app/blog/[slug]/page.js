@@ -2,7 +2,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PublicHeader from '../../components/PublicHeader';
 import SharedFooter from '../../components/SharedFooter';
-import { getSiteUrl } from '../../lib/config';
+import {
+  getCanonicalSiteUrl,
+  CANONICAL_OG_IMAGE_URL,
+  CANONICAL_TWITTER_IMAGE_URL,
+} from '../../lib/config';
 import { blogSeoSlugs, getBlogPost } from '../../lib/blog-data';
 
 export function generateStaticParams() {
@@ -30,6 +34,7 @@ export async function generateMetadata({ params }) {
     keywords: post.keywords,
     alternates: { canonical },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title: post.title,
       description: post.description,
       type: 'article',
@@ -38,6 +43,7 @@ export async function generateMetadata({ params }) {
       authors: [post.author],
     },
     twitter: {
+      images: [CANONICAL_TWITTER_IMAGE_URL],
       card: 'summary_large_image',
       title: post.title,
       description: post.description,
@@ -70,7 +76,7 @@ function renderSection(section) {
 export default async function BlogPostPage({ params }) {
   const { slug } = await params;
   const post = getBlogPost(slug);
-  const baseUrl = getSiteUrl();
+  const baseUrl = getCanonicalSiteUrl();
 
   if (!post) {
     notFound();

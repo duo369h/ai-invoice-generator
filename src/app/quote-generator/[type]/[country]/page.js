@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import MatrixCountryPage from '../../../components/MatrixCountryPage';
 import { buildMatrixCountryPage, matrixCountryParams } from '../../../lib/seo-data';
-import { getSiteUrl } from '../../../lib/config';
+import { getCanonicalSiteUrl, CANONICAL_OG_IMAGE_URL } from '../../../lib/config';
 
 export const dynamicParams = true;
 
@@ -22,6 +22,7 @@ export async function generateMetadata({ params }) {
       follow: true,
     },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title: page.title,
       description: page.description,
       url: page.canonicalPath,
@@ -34,5 +35,5 @@ export default async function QuoteMatrixCountryPage({ params }) {
   const page = buildMatrixCountryPage('quote', await params);
   if (!page) notFound();
 
-  return <MatrixCountryPage page={page} siteUrl={getSiteUrl()} />;
+  return <MatrixCountryPage page={page} siteUrl={getCanonicalSiteUrl()} />;
 }

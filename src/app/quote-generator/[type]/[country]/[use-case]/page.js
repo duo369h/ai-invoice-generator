@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import MatrixSeoPage from '../../../../components/MatrixSeoPage';
 import { buildMatrixSeoPage, matrixSeoParams } from '../../../../lib/seo-data';
-import { getSiteUrl } from '../../../../lib/config';
+import { getCanonicalSiteUrl, CANONICAL_OG_IMAGE_URL } from '../../../../lib/config';
 
 export const dynamicParams = true;
 
@@ -22,6 +22,7 @@ export async function generateMetadata({ params }) {
       follow: true,
     },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title: page.title,
       description: page.description,
       url: page.canonicalPath,
@@ -34,5 +35,5 @@ export default async function QuoteMatrixSeoPage({ params }) {
   const page = buildMatrixSeoPage('quote', await params);
   if (!page) notFound();
 
-  return <MatrixSeoPage page={page} siteUrl={getSiteUrl()} />;
+  return <MatrixSeoPage page={page} siteUrl={getCanonicalSiteUrl()} />;
 }

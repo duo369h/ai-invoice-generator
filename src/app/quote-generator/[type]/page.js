@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import ProgrammaticSeoPage from '../../components/ProgrammaticSeoPage';
 import { buildProgrammaticSeoPage, programmaticSeoSlugs } from '../../lib/seo-data';
-import { getSiteUrl } from '../../lib/config';
+import { getCanonicalSiteUrl, CANONICAL_OG_IMAGE_URL } from '../../lib/config';
 
 export const dynamicParams = true;
 
@@ -23,6 +23,7 @@ export async function generateMetadata({ params }) {
       follow: true,
     },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title: page.title,
       description: page.description,
       url: page.canonicalPath,
@@ -36,5 +37,5 @@ export default async function QuoteProgrammaticSeoPage({ params }) {
   const page = buildProgrammaticSeoPage('quote', type);
   if (!page) notFound();
 
-  return <ProgrammaticSeoPage page={page} siteUrl={getSiteUrl()} />;
+  return <ProgrammaticSeoPage page={page} siteUrl={getCanonicalSiteUrl()} />;
 }

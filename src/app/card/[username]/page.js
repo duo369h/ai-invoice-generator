@@ -1,6 +1,7 @@
 import ProfileCardClient from '../../components/ProfileCardClient';
 import { buildProfileFaqItems, isPublicIndexableProfile } from '../../lib/seo-data';
 import { createPublicSupabaseClient } from '../../lib/supabase';
+import { CANONICAL_OG_IMAGE_URL, CANONICAL_TWITTER_IMAGE_URL } from '../../lib/config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -118,6 +119,7 @@ export async function generateMetadata({ params }) {
     ],
     alternates: { canonical: `/card/${safeUsername || username}` },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title,
       description,
       type: 'profile',
@@ -125,6 +127,7 @@ export async function generateMetadata({ params }) {
       username: safeUsername,
     },
     twitter: {
+      images: [CANONICAL_TWITTER_IMAGE_URL],
       card: 'summary_large_image',
       title,
       description,

@@ -1,4 +1,4 @@
-import { getSiteUrl } from '../lib/config';
+import { getCanonicalSiteUrl } from '../lib/config';
 import { blogPosts } from '../lib/blog-data';
 
 function escapeXml(value) {
@@ -11,7 +11,7 @@ function escapeXml(value) {
 }
 
 export function GET() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getCanonicalSiteUrl();
   const items = blogPosts.map((post) => `
     <item>
       <title>${escapeXml(post.title)}</title>

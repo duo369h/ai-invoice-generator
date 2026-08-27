@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { Button } from '../components/UIComponents';
 import SharedFooter from '../components/SharedFooter';
 import PublicHeader from '../components/PublicHeader';
+import { CANONICAL_OG_IMAGE_URL } from '../lib/config';
 
 export const metadata = {
   title: 'Corvioz Photographer Directory | Find Photography Services',
   description: 'Explore the Corvioz freelance directory. Find verified brand designers, Next.js developers, marketing specialists, fractional CMOs, and copywriters in the US & Canada.',
   alternates: { canonical: '/freelancers' },
   openGraph: {
+    images: [CANONICAL_OG_IMAGE_URL],
     title: 'Corvioz Photographer Directory | Find Photography Services',
     description: 'Explore the Corvioz freelance directory. Find verified brand designers, Next.js developers, and marketing specialists.',
     url: '/freelancers',

@@ -2,10 +2,11 @@ import Link from 'next/link';
 import SharedFooter from './SharedFooter';
 import SeoEntryCta from './SeoEntryCta';
 import PublicHeader from './PublicHeader';
-import { getSiteUrl } from '../lib/config';
+import { getCanonicalSiteUrl } from '../lib/config';
 
 function buildJsonLd(page) {
-  const canonicalUrl = `${getSiteUrl()}${page.path}`;
+  const canonicalSiteUrl = getCanonicalSiteUrl();
+  const canonicalUrl = `${canonicalSiteUrl}${page.path}`;
   const webPageSchema = {
     '@context': 'https://schema.org',
     '@type': page.schemaType || 'WebPage',
@@ -15,9 +16,9 @@ function buildJsonLd(page) {
     isPartOf: {
       '@type': 'WebSite',
       name: 'Corvioz',
-      url: getSiteUrl(),
+      url: canonicalSiteUrl,
     },
-    primaryImageOfPage: `${getSiteUrl()}/og-image.png`,
+    primaryImageOfPage: `${canonicalSiteUrl}/og-image.png`,
   };
 
   const faqSchema = {
@@ -39,7 +40,7 @@ function buildJsonLd(page) {
     name: 'Corvioz',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
-    url: getSiteUrl(),
+    url: canonicalSiteUrl,
     description: 'Create Public Profiles, quotes, invoices, and Client Portal links for your photography business.',
     offers: {
       '@type': 'Offer',

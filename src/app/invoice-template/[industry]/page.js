@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import TemplateSeoPage from '../../components/TemplateSeoPage';
 import TemplateViewTracker from '../../components/TemplateViewTracker';
 import { buildTemplatePageData, getTemplateIndustry, templateIndustrySlugs } from '../../lib/seo-data';
+import { CANONICAL_OG_IMAGE_URL } from '../../lib/config';
 
 export function generateStaticParams() {
   return templateIndustrySlugs.map((industry) => ({ industry }));
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }) {
     description: page.description,
     alternates: { canonical: `/invoice-template/${slug}` },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title: page.seoTitle,
       description: page.description,
       url: `/invoice-template/${slug}`,

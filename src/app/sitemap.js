@@ -2,7 +2,7 @@ import { readdirSync, statSync } from "fs";
 import path from "path";
 import { coreMoneyPagePaths, matrixSeoPaths, programmaticSeoPaths, templateIndustrySlugs } from "./lib/seo-data";
 import { blogSeoSlugs } from "./lib/blog-data";
-import { getSiteUrl } from "./lib/config";
+import { getCanonicalSiteUrl } from "./lib/config";
 
 const APP_DIR = path.join(process.cwd(), "src/app");
 const EXCLUDED_STATIC_SEGMENTS = new Set([
@@ -72,7 +72,7 @@ function toSitemapEntry(baseUrl, route, priority = 0.7, changeFrequency = "weekl
 }
 
 export default function sitemap() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getCanonicalSiteUrl();
   const staticPublicRoutes = discoverStaticPublicRoutes();
 
   const templateUrls = templateIndustrySlugs.flatMap((industry) => [

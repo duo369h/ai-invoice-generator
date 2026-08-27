@@ -1,6 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import FreelancersDirectory from '../page';
+import { CANONICAL_OG_IMAGE_URL } from '../../lib/config';
 
 const allowedCategories = {
   designers: 'Designer',
@@ -42,6 +43,7 @@ export async function generateMetadata({ params }) {
     description,
     alternates: { canonical: canonicalPath },
     openGraph: {
+      images: [CANONICAL_OG_IMAGE_URL],
       title,
       description,
       url: canonicalPath,

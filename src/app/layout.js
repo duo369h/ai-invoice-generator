@@ -4,13 +4,19 @@ import "./styles/utilities.css";
 import "./styles/components.css";
 import "./styles/layouts.css";
 import "./styles/public-shell.css";
-import { getSiteUrl } from "./lib/config";
+import {
+  getCanonicalSiteUrl,
+  CANONICAL_OG_IMAGE_URL,
+  CANONICAL_TWITTER_IMAGE_URL,
+} from "./lib/config";
 import AnalyticsProvider from "./components/AnalyticsProvider";
 import BetaGrowthShell from "./components/BetaGrowthShell";
 import DevDebugOverlay from "../components/DevDebugOverlay";
 import { UI_GATE } from "../core/ui/runtime/UI_GATE";
 
-const siteUrl = getSiteUrl();
+const canonicalSiteUrl = getCanonicalSiteUrl();
+const canonicalOgImageUrl = CANONICAL_OG_IMAGE_URL;
+const canonicalTwitterImageUrl = CANONICAL_TWITTER_IMAGE_URL;
 
 export const metadata = {
   title: {
@@ -30,11 +36,11 @@ export const metadata = {
   ],
   authors: [{ name: "Corvioz Team" }],
   creator: "Corvioz",
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(canonicalSiteUrl),
   alternates: {
     canonical: './',
     types: {
-      'application/rss+xml': `${siteUrl}/rss.xml`,
+      'application/rss+xml': `${canonicalSiteUrl}/rss.xml`,
     },
   },
   icons: {
@@ -49,13 +55,13 @@ export const metadata = {
     title: "Corvioz | Photography Business Dashboard",
     description:
       "Corvioz helps photographers organize quotes, invoices, client records, and recorded payment status in one focused dashboard.",
-    url: siteUrl,
+    url: canonicalSiteUrl,
     siteName: "Corvioz",
     locale: "en_US",
     type: "website",
     images: [
       {
-        url: '/og-image.png',
+        url: canonicalOgImageUrl,
         width: 1200,
         height: 630,
         alt: 'Corvioz dashboard preview',
@@ -67,7 +73,7 @@ export const metadata = {
     title: "Corvioz | Photography Business Dashboard",
     description:
       "Corvioz helps photographers organize quotes, invoices, client records, and recorded payment status in one focused dashboard.",
-    images: ['/twitter-image.png'],
+    images: [canonicalTwitterImageUrl],
   },
   robots: {
     index: true,

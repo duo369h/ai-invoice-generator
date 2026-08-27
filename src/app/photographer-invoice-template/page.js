@@ -1,4 +1,5 @@
 import SeoEntryLandingPage from '../components/SeoEntryLandingPage';
+import { CANONICAL_OG_IMAGE_URL, CANONICAL_TWITTER_IMAGE_URL } from '../lib/config';
 
 const page = {
   path: '/photographer-invoice-template',
@@ -94,12 +95,14 @@ export const metadata = {
   alternates: { canonical: page.path },
   robots: { index: true, follow: true },
   openGraph: {
+    images: [CANONICAL_OG_IMAGE_URL],
     title: page.seoTitle,
     description: page.description,
     url: page.path,
     type: 'website',
   },
   twitter: {
+    images: [CANONICAL_TWITTER_IMAGE_URL],
     card: 'summary_large_image',
     title: page.seoTitle,
     description: page.description,

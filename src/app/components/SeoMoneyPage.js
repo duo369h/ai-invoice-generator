@@ -2,10 +2,10 @@ import Link from 'next/link';
 import FaqAccordion from './FaqAccordion';
 import SharedFooter from './SharedFooter';
 import PublicHeader from './PublicHeader';
-import { getSiteUrl } from '../lib/config';
+import { getCanonicalSiteUrl } from '../lib/config';
 
 export default function SeoMoneyPage({ page }) {
-  const canonicalUrl = `${getSiteUrl()}/${page.slug}`;
+  const canonicalUrl = `${getCanonicalSiteUrl()}/${page.slug}`;
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',

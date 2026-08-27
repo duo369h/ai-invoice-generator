@@ -1,7 +1,7 @@
-import { getSiteUrl } from "./lib/config";
+import { getCanonicalSiteUrl } from "./lib/config";
 
 export default function robots() {
-  const baseUrl = getSiteUrl();
+  const baseUrl = getCanonicalSiteUrl();
 
   return {
     rules: [
