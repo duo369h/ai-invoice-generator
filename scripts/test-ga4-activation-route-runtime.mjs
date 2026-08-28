@@ -45,12 +45,13 @@ async function testRoute(name, route, payload, eventName, listShape) {
   assert.equal((name === 'quotes' ? data : data.data).id, persisted.id, `${name} returns persisted data`);
   assert.equal((name === 'quotes' ? data : data.data).activation_event, undefined, `${name} keeps activation out of product response`);
   assert.equal((name === 'quotes' ? data : data.data).activation_claimed, undefined, `${name} keeps claim state out of product response`);
-  assert.deepEqual(getRouteRuntimeCalls(), [`persist:${name}`], `${name} persistence route never claims activation`);
+  const atomicRpcName = name === 'quotes' ? 'check_and_create_quote' : 'check_and_create_invoice';
+  assert.deepEqual(getRouteRuntimeCalls(), [`persist:${atomicRpcName}`], `${name} persistence route never claims activation`);
 
   configureRouteRuntime({ context: context(), persisted: null, persistenceError: { message: 'database failed' } });
   response = await route.POST(request(`http://localhost/api/${name}`, payload()));
   assert.equal(response.status, 500, `${name} preserves the existing persistence failure response`);
-  assert.deepEqual(getRouteRuntimeCalls(), [`persist:${name}`], `${name} does not claim after persistence failure`);
+  assert.deepEqual(getRouteRuntimeCalls(), [`persist:${atomicRpcName}`], `${name} does not claim after persistence failure`);
 }
 
 await testRoute('quotes', quoteRoute, quotePayload, 'first_quote_created', { data: [{ id: 'quotes-list' }] });

@@ -105,6 +105,10 @@ export async function getSupabaseQuota() {
   if (runtime.config.logSideEffects) call('quota:invoice');
   return runtime.config.quota || { invoicesAllowed: true };
 }
+export async function getDocumentQuota() {
+  if (runtime.config.logSideEffects) call('quota:document');
+  return runtime.config.quota || { documentsAllowed: true };
+}
 export function mapSupabaseInvoice(data) { return { ...data, mapped: true }; }
 export async function incrementSupabaseInvoiceUsage() {
   if (runtime.config.logSideEffects) call('usage:invoice:increment');
@@ -147,6 +151,56 @@ export async function claimFirstActivationEvent({ eventName }) {
   call('claim_insert:analytics_activation_claims');
   if (runtime.config.claim === 'throw') throw new Error('claim service unavailable');
   return { claimed: runtime.config.claim === 'granted' };
+}
+
+function atomicCreationError(kind, error, plan) {
+  const message = error?.message || 'Unknown database error';
+  if (message.includes('CLIENT_NOT_OWNED')) {
+    const ownershipError = new Error('Client does not belong to the authenticated user.');
+    ownershipError.code = 'CLIENT_NOT_OWNED';
+    ownershipError.status = 403;
+    return ownershipError;
+  }
+  if (message.includes('QUOTA_EXCEEDED')) {
+    const limit = String(plan || '').toLowerCase() === 'starter' ? 30 : 5;
+    const quotaError = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
+    quotaError.code = 'QUOTA_EXCEEDED';
+    quotaError.status = 403;
+    return quotaError;
+  }
+  const databaseError = new Error(`Atomic ${kind} creation failed: ${message}`);
+  databaseError.code = 'DATABASE_ERROR';
+  databaseError.status = 500;
+  return databaseError;
+}
+
+async function createDocumentWithAtomicQuota(kind, supabaseClient, userId, plan, payload) {
+  const rpcName = kind === 'quote' ? 'check_and_create_quote' : 'check_and_create_invoice';
+  const payloadName = kind === 'quote' ? 'p_quote_payload' : 'p_invoice_payload';
+  const { data, error } = await supabaseClient.rpc(rpcName, {
+    p_user_id: userId,
+    [payloadName]: payload,
+  });
+  if (error && !data) throw atomicCreationError(kind, error, plan);
+  if (!data) {
+    const missingDataError = new Error(`Atomic ${kind} creation returned no document record.`);
+    missingDataError.code = 'DATABASE_ERROR';
+    missingDataError.status = 500;
+    throw missingDataError;
+  }
+  const normalizedPlan = String(plan || 'free').toLowerCase();
+  const documentsLimit = ['pro', 'agency', 'studio'].includes(normalizedPlan)
+    ? Infinity
+    : normalizedPlan === 'starter' ? 30 : 5;
+  return { data, quota: { documentsAllowed: true, documentsLimit } };
+}
+
+export function createQuoteWithAtomicQuota(supabaseClient, userId, plan, payload) {
+  return createDocumentWithAtomicQuota('quote', supabaseClient, userId, plan, payload);
+}
+
+export function createInvoiceWithAtomicQuota(supabaseClient, userId, plan, payload) {
+  return createDocumentWithAtomicQuota('invoice', supabaseClient, userId, plan, payload);
 }
 
 function createClient(kind) {
