@@ -86,7 +86,7 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
 
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
-      locale: 'en',
+      settings: { locale: 'en' },
       customer: {
         email: session.user.email,
       },

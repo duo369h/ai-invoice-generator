@@ -311,7 +311,7 @@ export default function PricingPage() {
 
       paddle.Checkout.open({
         items: [{ priceId: targetPriceId, quantity: 1 }],
-        locale: "en",
+        settings: { locale: "en" },
         customer: { email: session.user?.email },
         customData: { user_id: session.user?.id }
       });
