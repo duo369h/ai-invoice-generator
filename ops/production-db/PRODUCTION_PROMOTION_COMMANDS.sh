@@ -5,7 +5,7 @@ set -euo pipefail
 # The reviewed 15-file promotion workdir is immutable during normal execution.
 # R12_REHEARSAL=YES is disposable-only and is never Production evidence.
 EXPECTED_PROJECT_REF="fgortrxozlbzxbkerejz"
-EXPECTED_RELEASE_COMMIT="ac8a6bb26c6cf02c1c30f16970bd1656d07f80c4"
+EXPECTED_RELEASE_COMMIT="39462eace7eb7791e8eed91a65a6d27597211855"
 EXPECTED_SESSION_POOLER_HOST="aws-1-us-east-1.pooler.supabase.com"
 EXPECTED_PRODUCTION_SCHEMA_FINGERPRINT="4b9c2aa33c27a224aac82c83835da615"
 PROMOTION_ROOT="${PROMOTION_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
