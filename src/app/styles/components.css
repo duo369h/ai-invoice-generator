@@ -4392,14 +4392,26 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e2defe;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border, #cbd3df);
   border-radius: 9px;
-  color: var(--primary, #635bce);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
+  color: #445064;
+  background: var(--bg-card, #fff);
+  box-sizing: border-box;
+  flex: 0 0 30px;
+}
+
+.dashboard-sidebar-mark img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  filter: grayscale(1) saturate(0) brightness(0.56);
+}
+
+.dashboard-sidebar-mark:hover {
+  background: #f8fafc;
+  border-color: #aeb9c8;
 }
 
 .dashboard-sidebar-toggle {

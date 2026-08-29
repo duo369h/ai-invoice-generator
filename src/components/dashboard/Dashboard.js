@@ -3457,7 +3457,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           {/* Logo */}
           <div className="dashboard-sidebar-logo" style={{ marginBottom: '24px' }}>
             <Logo className="dashboard-sidebar-wordmark" size={20} style={{ fontSize: '1.1rem' }} />
-            <span className="dashboard-sidebar-mark" aria-hidden="true">C</span>
+            <span className="dashboard-sidebar-mark" aria-label="Corvioz" role="img">
+              <img src="/brand/corvioz-icon-small.svg" alt="" aria-hidden="true" />
+            </span>
             <button
               type="button"
               className="dashboard-sidebar-toggle"
