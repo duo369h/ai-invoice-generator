@@ -9,6 +9,12 @@ import { createBrowserSupabaseClient } from "../lib/supabase-client";
 import { loadPaddleScript, resolvePaddleEnvironment, validatePaddleClientToken } from "../lib/paddle-client";
 import { saveSelectedPlan } from "../lib/intent-store";
 import { getPricingViewModel } from "./viewModel";
+import {
+  PRICING_AUTH_STATUS,
+  getPricingCheckoutAction,
+  isPricingPaidCtaDisabled,
+  resolvePricingAuthStatus,
+} from "./auth-state.mjs";
 import "./pricing.css";
 
 const CREATE_QUOTE_URL = "/signup?redirect=%2Fdashboard%3Ftool%3Dquote%26mode%3Dcreate%26flow%3Dfirst-quote";
@@ -65,6 +71,7 @@ export default function PricingPage() {
   const [entryAnimating, setEntryAnimating] = useState(true);
   const [priceAnimClass, setPriceAnimClass] = useState("");
   const [session, setSession] = useState(null);
+  const [authStatus, setAuthStatus] = useState(PRICING_AUTH_STATUS.LOADING);
   const [pricingPlans, setPricingPlans] = useState([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
@@ -75,18 +82,43 @@ export default function PricingPage() {
   const labelYearlyRef = useRef(null);
   const faqContainersRef = useRef([]);
 
-  // Auth session check
+  // Keep unresolved auth separate from a resolved unauthenticated session.
   useEffect(() => {
+    let isMounted = true;
+
+    const setAuthError = (err) => {
+      if (!isMounted) return;
+      if (err) console.warn("Auth check failed:", err);
+      setSession(null);
+      setAuthStatus(PRICING_AUTH_STATUS.ERROR);
+    };
+
     try {
       const supabase = createBrowserSupabaseClient();
-      if (supabase) {
-        supabase.auth.getSession().then(({ data }) => {
-          setSession(data?.session || null);
-        });
+      if (!supabase) {
+        setAuthError(new Error("Auth client unavailable"));
+        return () => {
+          isMounted = false;
+        };
       }
+
+      supabase.auth.getSession().then(({ data, error }) => {
+        if (!isMounted) return;
+        if (error) {
+          setAuthError(error);
+          return;
+        }
+        const resolvedSession = data?.session || null;
+        setSession(resolvedSession);
+        setAuthStatus(resolvePricingAuthStatus(resolvedSession));
+      }).catch(setAuthError);
     } catch (err) {
-      console.warn("Auth check failed:", err);
+      setAuthError(err);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Pricing plans are read from the canonical runtime endpoint.
@@ -267,12 +299,18 @@ export default function PricingPage() {
 
   // Handle Checkout / Upgrade Trigger
   const handlePlanAction = async (planId) => {
-    if (planId === "free") {
+    const action = getPricingCheckoutAction({ planId, authStatus, session });
+
+    if (action === "free") {
       router.push(CREATE_QUOTE_URL);
       return;
     }
 
-    if (!session) {
+    if (action === "wait" || action === "blocked" || action === "invalid") {
+      return;
+    }
+
+    if (action === "signup") {
       saveSelectedPlan(planId, "/pricing");
       router.push(`/signup?redirect=/pricing&plan=${planId}`);
       return;
@@ -349,6 +387,7 @@ export default function PricingPage() {
   const proPrice = proRuntime.displayPrice;
   const proPeriod = cadence === "yearly" ? "/ yr" : "/ mo";
   const proCompPeriod = cadence === "yearly" ? "/ year" : "/ month";
+  const paidPlanCtaDisabled = isPricingPaidCtaDisabled(authStatus, checkoutLoading);
 
   return (
     <div className="pricing-assembly-page">
@@ -495,7 +534,7 @@ export default function PricingPage() {
                     className="a3-btn a3-btn-secondary"
                     onClick={() => handlePlanAction("starter")}
                     data-intent="choose-starter"
-                    disabled={checkoutLoading}
+                    disabled={paidPlanCtaDisabled}
                   >
                     Choose Starter
                   </button>
@@ -550,7 +589,7 @@ export default function PricingPage() {
                     className="a3-btn a3-btn-primary"
                     onClick={() => handlePlanAction("pro")}
                     data-intent="choose-pro"
-                    disabled={checkoutLoading}
+                    disabled={paidPlanCtaDisabled}
                   >
                     Choose Pro
                   </button>

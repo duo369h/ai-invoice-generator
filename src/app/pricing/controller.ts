@@ -5,11 +5,13 @@
 import { loadPaddleScript, resolvePaddleEnvironment, validatePaddleClientToken } from '@/app/lib/paddle-client';
 import { trackEvent } from '@/app/lib/analytics';
 import { saveSelectedPlan } from '@/app/lib/intent-store';
+import { getPricingCheckoutAction } from './auth-state.mjs';
 
 export interface CheckoutContext {
   planId: string;
   priceId: string;
   session: any;
+  authStatus: 'loading' | 'authenticated' | 'unauthenticated' | 'error';
   searchParams: any;
   setCheckoutLoading: (loading: boolean) => void;
 }
@@ -25,12 +27,15 @@ const CHECKOUT_PLAN_IDS = ['starter', 'pro'] as const;
  * Triggers Paddle checkout opening or redirects anonymous users to sign up.
  */
 export async function handleUpgradeCheckout(context: CheckoutContext): Promise<void> {
-  const { planId, priceId, session, searchParams, setCheckoutLoading } = context;
+  const { planId, priceId, session, authStatus, searchParams, setCheckoutLoading } = context;
 
   if (!CHECKOUT_PLAN_IDS.includes(planId as any)) {
     console.error(`Invalid checkout plan "${planId}". Only starter and pro are purchasable.`);
     return;
   }
+
+  const action = getPricingCheckoutAction({ planId, authStatus, session });
+  if (action === 'wait' || action === 'blocked') return;
 
   // 1. Log select event
   trackEvent('pricing_select_plan', {
@@ -39,7 +44,7 @@ export async function handleUpgradeCheckout(context: CheckoutContext): Promise<v
   });
 
   // 2. Unauthenticated user handling
-  if (!session) {
+  if (action === 'signup') {
     if (typeof window !== 'undefined') {
       saveSelectedPlan(planId, window.location.pathname);
       window.location.href = `/signup?redirect=/pricing&plan=${planId}`;

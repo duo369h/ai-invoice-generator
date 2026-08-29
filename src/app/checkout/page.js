@@ -16,6 +16,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '../lib/supabase-client';
 import { handleUpgradeCheckout } from '../pricing/controller';
+import { PRICING_AUTH_STATUS, resolvePricingAuthStatus } from '../pricing/auth-state.mjs';
 import { saveSelectedPlan } from '../lib/intent-store';
 import { sendEvent } from '../../core/analytics/eventRouter';
 import { recordFunnelStep } from '../../core/growth/growthTracker';
@@ -51,6 +52,7 @@ function CheckoutContent() {
   const billingPeriod = searchParams.get('billingPeriod') === 'yearly' ? 'yearly' : 'monthly';
 
   const [session, setSession] = useState(null);
+  const [authStatus, setAuthStatus] = useState(PRICING_AUTH_STATUS.LOADING);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(true);
@@ -76,13 +78,33 @@ function CheckoutContent() {
       return;
     }
 
-    const supabase = createBrowserSupabaseClient();
-    if (supabase) {
-      supabase.auth.getSession().then(({ data }) => {
-        setSession(data.session || null);
+    try {
+      const supabase = createBrowserSupabaseClient();
+      if (!supabase) {
+        setAuthStatus(PRICING_AUTH_STATUS.ERROR);
+        setLoading(false);
+        return;
+      }
+
+      supabase.auth.getSession().then(({ data, error }) => {
+        if (error) {
+          setSession(null);
+          setAuthStatus(PRICING_AUTH_STATUS.ERROR);
+        } else {
+          const resolvedSession = data?.session || null;
+          setSession(resolvedSession);
+          setAuthStatus(resolvePricingAuthStatus(resolvedSession));
+        }
+        setLoading(false);
+      }).catch(() => {
+        setSession(null);
+        setAuthStatus(PRICING_AUTH_STATUS.ERROR);
         setLoading(false);
       });
-    } else {
+    } catch (err) {
+      console.warn('[CHECKOUT] Auth session lookup failed:', err);
+      setSession(null);
+      setAuthStatus(PRICING_AUTH_STATUS.ERROR);
       setLoading(false);
     }
   }, []);
@@ -129,8 +151,13 @@ function CheckoutContent() {
 
   // Trigger Checkout immediately
   useEffect(() => {
-    if (loading) return;
+    if (loading || authStatus === PRICING_AUTH_STATUS.LOADING) return;
     if (planId === 'studio') return;
+
+    if (authStatus === PRICING_AUTH_STATUS.ERROR) {
+      Promise.resolve().then(() => setError('Unable to resolve your account session. Please try again.'));
+      return;
+    }
 
     // Track checkout funnel start
     sendEvent('CHECKOUT_STARTED', { plan: planId, intent, planId: planId });
@@ -176,6 +203,7 @@ function CheckoutContent() {
           planId,
           priceId,
           session,
+          authStatus,
           searchParams,
           setCheckoutLoading: () => {}
         });
@@ -186,7 +214,7 @@ function CheckoutContent() {
     };
 
     triggerCheckout();
-  }, [session, loading, planId, intent, billingPeriod, router, searchParams, showModal]);
+  }, [session, authStatus, loading, planId, intent, billingPeriod, router, searchParams, showModal]);
 
   const activeTheme = ui.pricing_variant;
   const activeStyle = themeStyles[activeTheme] || themeStyles.starter;
