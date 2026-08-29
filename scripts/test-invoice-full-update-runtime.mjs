@@ -6,6 +6,7 @@ import {
   getRouteRuntimeAuditLogs,
   getRouteRuntimeCalls,
   getRouteRuntimeInserts,
+  getRouteRuntimeRpcCalls,
   getRouteRuntimeUpdates,
 } from './test-support/route-runtime-mocks.mjs';
 
@@ -91,13 +92,18 @@ async function runUpdate(invoice, payload = {}, config = {}) {
     operation: 'create',
     logSideEffects: true,
     context: context(),
+    entitlements: { invoice: true, client_portal: true },
     persisted: { ...baseInvoice, id: 'invoice-created', invoice_number: 'INV-CREATED' },
   });
   const response = await invoiceRoute.POST(postRequest(basePayload));
   const body = await response.json();
   assert.equal(response.status, 201, 'a request without id retains create HTTP 201');
   assert.equal(body.data.id, 'invoice-created');
-  assert.equal(getRouteRuntimeInserts().length, 1, 'create inserts exactly once');
+  assert.equal(getRouteRuntimeInserts().length, 0, 'atomic create does not use a direct table insert');
+  const createRpcCalls = getRouteRuntimeRpcCalls().filter(({ name }) => name === 'check_and_create_invoice');
+  assert.equal(createRpcCalls.length, 1, 'create invokes the invoice atomic creation RPC exactly once');
+  assert.equal(createRpcCalls[0].args.p_user_id, user.id, 'atomic create is scoped to the authenticated owner');
+  assert.equal(createRpcCalls[0].args.p_invoice_payload.user_id, user.id, 'atomic create payload preserves the authenticated owner');
   assert.equal(getRouteRuntimeUpdates().length, 0, 'create performs no update');
   assert.ok(getRouteRuntimeCalls().includes('usage:invoice:increment'), 'create increments Invoice usage');
   assert.ok(getRouteRuntimeCalls().includes('portal-token:create'), 'create creates a portal token');

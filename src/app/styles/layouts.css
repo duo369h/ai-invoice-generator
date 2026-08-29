@@ -1052,6 +1052,28 @@
 }
 
 @media (max-width: 768px) {
+  .dashboard-sandbox-banner {
+    flex-wrap: wrap;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .dashboard-sandbox-banner > div:first-child {
+    min-width: 0;
+    flex: 1 1 240px;
+  }
+
+  .dashboard-sandbox-banner > div:last-child {
+    flex: 1 1 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-sandbox-banner > div:last-child > a,
+  .dashboard-sandbox-banner > div:last-child > button {
+    max-width: 100%;
+  }
+
   .trust-stats-grid {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1064,6 +1086,7 @@
   
   .dashboard-layout {
     flex-direction: column !important;
+    overflow-x: clip;
   }
   .dashboard-sidebar-aside {
     width: 100% !important;
@@ -1081,6 +1104,7 @@
     flex-direction: column;
     gap: 12px;
     width: 100%;
+    min-width: 0;
     flex: none !important;
     overflow: visible !important;
   }
@@ -1089,6 +1113,8 @@
   }
   .dashboard-sidebar-aside nav {
     flex-direction: row !important;
+    width: 100%;
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     max-width: 100%;

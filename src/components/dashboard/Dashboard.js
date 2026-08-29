@@ -72,6 +72,7 @@ import {
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
 import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
+import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -309,11 +310,7 @@ const getInitialDashboardTool = (routeTool = null) => {
 };
 
 const getDashboardTabForTool = (tool) => {
-  if (tool === 'invoice') return 'invoices';
-  if (tool === 'client') return 'clients';
-  if (tool === 'profile') return 'profile';
-  if (['studio', 'portfolio', 'brand', 'reports', 'automation'].includes(tool)) return tool;
-  return 'quotes';
+  return getWave1DashboardTabForTool(tool);
 };
 
 const shouldOpenQuoteCreateFromRoute = (tool) => {
@@ -530,6 +527,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const sessionRef = useRef(null);
   const [supabaseClient, setSupabaseClient] = useState(undefined);
   const [authChecked, setAuthChecked] = useState(previewMode);
+  const [dashboardDataError, setDashboardDataError] = useState(null);
   
   const {
     user,
@@ -595,6 +593,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // Real-time decision engine and intelligence scoring removed from UI
 
   const [pricingPlans, setPricingPlans] = useState([]);
+
+  useEffect(() => {
+    if (previewMode || typeof window === 'undefined') return undefined;
+
+    const syncDashboardTabFromLocation = () => {
+      const tool = new URLSearchParams(window.location.search).get('tool');
+      setActiveTab(getDashboardTabForTool(tool));
+    };
+
+    window.addEventListener('popstate', syncDashboardTabFromLocation);
+    return () => window.removeEventListener('popstate', syncDashboardTabFromLocation);
+  }, [previewMode]);
 
   useEffect(() => {
     let active = true;
@@ -1333,16 +1343,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const clearDashboardData = useCallback(() => {
     invalidateDashboardData();
+    setDashboardDataError(null);
     setUser({});
     setLeads([]);
     setQuotes([]);
     setInvoices([]);
     setClients([]);
     setCardProfile(null);
-  }, [invalidateDashboardData, setUser, setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
+  }, [invalidateDashboardData, setDashboardDataError, setUser, setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
+      { id: 'overview', label: 'Overview' },
       { id: 'quotes', label: 'Quotes' },
       { id: 'invoices', label: 'Invoices' },
       { id: 'clients', label: 'Clients' },
@@ -1359,6 +1371,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     let resolvedTab = tab;
     const validTabs = [
+      { id: 'overview', label: 'Overview' },
       { id: 'quotes', label: 'Quotes' },
       { id: 'invoices', label: 'Invoices' },
       { id: 'clients', label: 'Clients' },
@@ -1367,13 +1380,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     const validTabIds = validTabs.map(t => t.id);
 
     if (!validTabIds.includes(tab)) {
-      resolvedTab = validTabIds[0] || 'quotes';
+      resolvedTab = validTabIds[0] || 'overview';
     }
     trackEvent('dashboard_tab_click', { tab: resolvedTab, source });
     setActiveTab(resolvedTab);
+    if (!previewMode && pathname === '/dashboard' && typeof window !== 'undefined') {
+      const nextRoute = getDashboardRouteForTab(resolvedTab);
+      const currentRoute = `${window.location.pathname}${window.location.search}`;
+      if (currentRoute !== nextRoute) router.push(nextRoute);
+    }
     setFormError('');
     setFormSuccess('');
-  }, [kernelUi, invoiceFlowLocked, activeTab, invoiceView, triggerToast]);
+  }, [activeTab, invoiceFlowLocked, invoiceView, pathname, previewMode, router, triggerToast]);
 
   const renderPaidLockState = (title, description, targetPlan = 'pro') => {
     if (isEntitlementLoading) {
@@ -1577,7 +1595,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const client = createBrowserSupabaseClient();
       setSupabaseClient(client);
       if (!client) {
-        fetchData().finally(() => setAuthChecked(true));
+        fetchData().then((snapshot) => {
+          setDashboardDataError(snapshot?.error || null);
+        }).finally(() => setAuthChecked(true));
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -1607,6 +1627,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         trackEvent('login_success', { provider: nextSession.user?.app_metadata?.provider || 'unknown', user_id: nextSession.user?.id });
         const dashboardSnapshot = await fetchData(nextSession.access_token);
         if (cancelled) return;
+        setDashboardDataError(dashboardSnapshot?.error || null);
         if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated && !isFirstQuoteFlowRoute()) {
           router.replace('/onboarding');
           return;
@@ -1655,6 +1676,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
         const dashboardSnapshot = await fetchData(nextSession.access_token);
         if (cancelled) return;
+        setDashboardDataError(dashboardSnapshot?.error || null);
         if (dashboardSnapshot?.user && !dashboardSnapshot.user.hasActivated && !isFirstQuoteFlowRoute()) {
           router.replace('/onboarding');
           return;
@@ -3358,7 +3380,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }}
     >
       {isSandboxMode && (
-        <div style={{
+        <div className="dashboard-sandbox-banner" style={{
           background: 'var(--warning-glow)',
           borderBottom: '1px solid var(--warning-border)',
           padding: '10px 24px',
@@ -3829,6 +3851,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 totalPaid,
                 activeProfile: getActiveProfile(),
                 isLoading: isRefreshing,
+                error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
                 isFree,
                 exportCount,
                 businessModeBadge,
@@ -3843,6 +3866,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 createFirstInvoice: initFirstValueInvoice,
                 configureProfile: () => handleDashboardTabChange('profile', 'overview_quick_action'),
                 openQuotes: () => handleDashboardTabChange('quotes', 'overview'),
+                openInvoices: () => handleDashboardTabChange('invoices', 'overview'),
+                retryDashboard: async () => {
+                  setDashboardDataError(null);
+                  const snapshot = await fetchData(session?.access_token);
+                  setDashboardDataError(snapshot?.error || null);
+                },
                 viewProfile: () => {
                   const profile = getActiveProfile();
                   if (profile?.username && typeof window !== 'undefined') {

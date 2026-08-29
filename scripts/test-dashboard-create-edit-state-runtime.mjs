@@ -58,6 +58,7 @@ const dashboardFunctions = {
   resetInvoiceCreateState: extractConstArrow('resetInvoiceCreateState'),
   initCreateQuote: extractConstArrow('initCreateQuote'),
   openInvoiceBuilder: extractConstArrow('openInvoiceBuilder'),
+  openInvoiceDraft: extractConstArrow('openInvoiceDraft'),
   initCreateInvoice: extractConstArrow('initCreateInvoice'),
   handleRestorePendingInvoiceDraft: extractConstArrow('handleRestorePendingInvoiceDraft'),
   handleAiQuoteGeneration: extractConstArrow('handleAiQuoteGeneration'),
@@ -75,6 +76,7 @@ const dashboardFunctions = {
 function createDashboardHarness() {
   const factory = new Function('functions', `
     let invId = '';
+    let pendingSendRetryInvoiceId = '';
     let qId = '';
     let invNumber = '';
     let qNumber = '';
@@ -100,6 +102,7 @@ function createDashboardHarness() {
     let qClientName = '';
     let qClientEmail = '';
     let qClientAddress = '';
+    let qClientId = '';
     let qItems = [];
     let qTaxRate = 0;
     let qDiscountRate = 0;
@@ -113,6 +116,8 @@ function createDashboardHarness() {
     let qClientNameTouched = false;
     let qClientEmailTouched = false;
     let qSubmitAttempted = false;
+    let canCreateFirstRevenueInvoiceDraft = false;
+    let firstRevenueLoop = null;
     let suggestedActionDoc = null;
     let pendingSuggestedActionDoc = null;
     let formError = '';
@@ -122,6 +127,7 @@ function createDashboardHarness() {
     let pendingInvoiceDraft = null;
     let showDraftRestorePrompt = false;
     let aiParsedData = null;
+    let convertedInvoice = null;
     let isParsingLead = null;
     let session = { access_token: 'access-token' };
     const invoices = [];
@@ -130,6 +136,7 @@ function createDashboardHarness() {
     const user = { id: 'user-1' };
     const isDemo = false;
     const isPreview = false;
+    const mode = 'live';
     const previewMode = false;
     const isSandboxMode = false;
     const savedInvoices = [];
@@ -138,6 +145,7 @@ function createDashboardHarness() {
     const events = [];
 
     const setInvId = (value) => { invId = value; };
+    const setPendingSendRetryInvoiceId = (value) => { pendingSendRetryInvoiceId = value; };
     const setQId = (value) => { qId = value; };
     const setInvNumber = (value) => { invNumber = value; };
     const setQNumber = (value) => { qNumber = value; };
@@ -163,6 +171,7 @@ function createDashboardHarness() {
     const setQClientName = (value) => { qClientName = value; };
     const setQClientEmail = (value) => { qClientEmail = value; };
     const setQClientAddress = (value) => { qClientAddress = value; };
+    const setQClientId = (value) => { qClientId = value; };
     const setQItems = (value) => { qItems = value; };
     const setQTaxRate = (value) => { qTaxRate = value; };
     const setQDiscountRate = (value) => { qDiscountRate = value; };
@@ -193,7 +202,9 @@ function createDashboardHarness() {
     const getAuthHeaders = (token) => token ? { Authorization: 'Bearer ' + token } : {};
     const fetchData = async () => {};
     const saveLead = async () => ({ success: true });
-    const fetch = async () => ({ ok: true, json: async () => ({ parsed_data: aiParsedData }) });
+    const fetch = async (url) => url.includes('/invoice-draft')
+      ? ({ ok: true, json: async () => ({ invoice: convertedInvoice }) })
+      : ({ ok: true, json: async () => ({ parsed_data: aiParsedData }) });
     const generateRandomNumberString = (prefix) => prefix + '-NEW';
     const getTodayString = () => '2026-07-16';
     const getFutureDateString = () => '2026-08-15';
@@ -223,6 +234,7 @@ function createDashboardHarness() {
     ${dashboardFunctions.resetInvoiceCreateState}
     ${dashboardFunctions.initCreateQuote}
     ${dashboardFunctions.openInvoiceBuilder}
+    ${dashboardFunctions.openInvoiceDraft}
     ${dashboardFunctions.initCreateInvoice}
     ${dashboardFunctions.handleRestorePendingInvoiceDraft}
     ${dashboardFunctions.handleAiQuoteGeneration}
@@ -254,6 +266,7 @@ function createDashboardHarness() {
       setPendingInvoiceDraft: (draft) => { pendingInvoiceDraft = draft; },
       setSession: (value) => { session = value; },
       setAiParsedData: (value) => { aiParsedData = value; },
+      setConvertedInvoice: (value) => { convertedInvoice = value; },
       seedInvoiceEditor: (state) => {
         invId = state.id;
         invNumber = state.number || 'INV-OLD';
@@ -524,8 +537,22 @@ await verifySpecializedCreate('AI Quote authenticated create', async () => {
 await verifySpecializedCreate('Quote to Invoice conversion', async () => {
   const harness = createDashboardHarness();
   harness.seedInvoiceEditor({ id: 'old-invoice-id', quoteId: 'unrelated-old-quote', billingType: 'recurring', paymentLink: 'https://old.example/pay' });
+  harness.setConvertedInvoice({
+    id: 'converted-invoice-id',
+    invoice_number: 'INV-CONVERTED',
+    client_name: 'Converted client',
+    client_email: 'converted@example.com',
+    client_address: 'Converted address',
+    currency: 'GBP',
+    notes: 'Converted notes',
+    items: [{ description: 'Converted work', quantity: 1, unit_price: 50000 }],
+    tax_rate: 12,
+    discount_rate: 3,
+    payment_link: '',
+  });
   harness.convertQuoteToInvoice({
     id: 'current-quote-id',
+    status: 'approved',
     client_name: 'Converted client',
     client_email: 'converted@example.com',
     client_address: 'Converted address',
@@ -536,7 +563,7 @@ await verifySpecializedCreate('Quote to Invoice conversion', async () => {
     discount_rate: 3,
   });
   await flush();
-  assert.equal(harness.getInvoice().id, '');
+  assert.equal(harness.getInvoice().id, 'converted-invoice-id');
   assert.equal(harness.getInvoice().quoteId, 'current-quote-id');
   assert.equal(harness.getInvoice().clientName, 'Converted client');
   assert.deepEqual(harness.getInvoice().items, [{ description: 'Converted work', quantity: 1, unitPrice: 500 }]);
@@ -544,10 +571,13 @@ await verifySpecializedCreate('Quote to Invoice conversion', async () => {
   assert.equal(harness.getInvoice().taxRate, 12);
   assert.equal(harness.getInvoice().discountRate, 3);
   assert.equal(harness.getInvoice().paymentLink, '');
-  assert.equal(harness.getInvoice().billingType, 'standard');
-  assert.equal(harness.getInvoice().status, 'pending');
+  assert.equal(harness.getInvoice().billingType, 'recurring', 'server-backed quote conversion preserves the existing billing type because the current draft response has no billing_type field');
+  assert.equal(harness.getInvoice().status, 'draft', 'server-backed quote conversion opens the returned invoice as a draft');
   assert.equal(harness.getInvoice().stage, 'create');
-  await saveCreatedInvoice(harness);
+  await harness.saveInvoice();
+  await flush();
+  assert.equal(harness.savedInvoices.at(-1)?.id, 'converted-invoice-id', 'saving the server-created draft remains an update');
+  assert.equal(harness.claims.length, 0, 'updating the converted draft does not claim a new first Invoice');
 });
 
 if (specializedFailures.length > 0) {

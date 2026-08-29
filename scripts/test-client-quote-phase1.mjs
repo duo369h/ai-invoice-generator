@@ -46,6 +46,7 @@ function makeDb() {
       order() { return this; },
       async maybeSingle() {
         const row = state[table].find((item) => matches(item, this.filters)) || null;
+        if (row && this.updatePayload) Object.assign(row, this.updatePayload);
         return { data: row, error: null };
       },
       async single() {

@@ -102,13 +102,15 @@ const invoicesPost = extractHandler(invoicesRoute, 'POST');
 const invoicesPatch = extractHandler(invoicesRoute, 'PATCH');
 const invoicesDelete = extractHandler(invoicesRoute, 'DELETE');
 const invoicesGet = extractHandler(invoicesRoute, 'GET');
-const quotesDelete = extractHandler(quotesRoute, 'DELETE');
 
 check('handler extraction: invoices POST located', invoicesPost.length > 0);
 check('handler extraction: invoices PATCH located', invoicesPatch.length > 0);
 check('handler extraction: invoices DELETE located', invoicesDelete.length > 0);
 check('handler extraction: invoices GET located', invoicesGet.length > 0);
-check('handler extraction: quotes DELETE located', quotesDelete.length > 0);
+check(
+  'Quote DELETE handler is absent from the current route contract',
+  !quotesRoute.includes('export async function DELETE(')
+);
 
 // ---------------------------------------------------------------------------
 // 1. The three invoice writes use a service-role client
@@ -122,8 +124,8 @@ check(
   invoicesPost.includes('createServiceSupabaseClient()')
 );
 check(
-  '1b. invoices POST INSERT is issued on serviceSupabase (not context.supabase)',
-  /await serviceSupabase\s*\n?\s*\.from\('invoices'\)\s*\n?\s*\.insert\(/.test(invoicesPost)
+  '1b. invoices POST uses the atomic creation helper with the service-role client',
+  /createInvoiceWithAtomicQuota\(serviceSupabase,\s*context\.user\.id,\s*profile\.plan,\s*payload\)/.test(invoicesPost)
 );
 check(
   '1c. invoices PATCH creates a service-role client',
@@ -146,20 +148,9 @@ check(
   /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase-service'/s.test(invoicesRoute)
 );
 
-// ---------------------------------------------------------------------------
-// 2. The quote DELETE uses a service-role client
-// ---------------------------------------------------------------------------
 check(
-  '2a. quotes DELETE creates a service-role client',
-  quotesDelete.includes('createServiceSupabaseClient()')
-);
-check(
-  '2b. quotes DELETE is issued on serviceSupabase (not context.supabase)',
-  /await serviceSupabase\s*\n?\s*\.from\('quotes'\)\s*\n?\s*\.delete\(\)/.test(quotesDelete)
-);
-check(
-  '2c. quotes route imports createServiceSupabaseClient from the server helper',
-  /import\s*\{[^}]*createServiceSupabaseClient[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/supabase-service'/s.test(quotesRoute)
+  '2. quotes route does not claim an obsolete DELETE service-role contract',
+  !quotesRoute.includes('createServiceSupabaseClient()') || !quotesRoute.includes('export async function DELETE(')
 );
 
 // ---------------------------------------------------------------------------
@@ -169,7 +160,6 @@ for (const [label, handler] of [
   ['invoices POST', invoicesPost],
   ['invoices PATCH', invoicesPatch],
   ['invoices DELETE', invoicesDelete],
-  ['quotes DELETE', quotesDelete],
 ]) {
   const authIndex = handler.indexOf('await getRequestUser(request)');
   const guardIndex = handler.indexOf('requestContextResponse(context');
@@ -218,18 +208,9 @@ check(
   '7b. invoice DELETE chain filters on the owner user_id',
   invoiceDeleteChain.includes(".eq('user_id', context.user.id)")
 );
-const quoteDeleteChain = extractMutationChain(quotesDelete, 'quotes', '.delete()');
 check(
-  '8a. quote DELETE chain filters on the quote id',
-  quoteDeleteChain.includes(".eq('id', id)")
-);
-check(
-  '8b. quote DELETE chain filters on the owner user_id',
-  quoteDeleteChain.includes(".eq('user_id', context.user.id)")
-);
-check(
-  '8c. invoice INSERT chain does not carry a user_id equality filter (ownership is in the payload)',
-  invoiceInsertChain.length > 0 && !invoiceInsertChain.includes(".eq('user_id'")
+  '8. invoice POST has no direct table insert fallback; ownership stays in the atomic RPC payload',
+  invoiceInsertChain.length === 0 && invoicesPost.includes('createInvoiceWithAtomicQuota')
 );
 
 // ---------------------------------------------------------------------------
@@ -244,22 +225,13 @@ check(
   /if \(!deletedInvoice\) \{[\s\S]{0,120}?settledInvoiceConflictResponse\(\)/.test(invoicesDelete)
 );
 check(
-  '9c. quote DELETE checks the deleted row before reporting success',
-  /if \(!deletedQuote\) \{[\s\S]{0,160}?Quote not found[\s\S]{0,80}?status: 404/.test(quotesDelete)
-);
-check(
   '9d. invoice DELETE selects the id back so the affected row is observable',
   invoiceDeleteChain.includes(".select('id')") && invoiceDeleteChain.includes('.maybeSingle()')
-);
-check(
-  '9e. quote DELETE selects the id back so the affected row is observable',
-  quoteDeleteChain.includes(".select('id')") && quoteDeleteChain.includes('.maybeSingle()')
 );
 check(
   '9f. not-found responses are identical for missing and other-owner rows (no existence disclosure)',
   invoicesPatch.includes("'Invoice not found'")
     && invoicesDelete.includes("'Invoice not found'")
-    && quotesDelete.includes("'Quote not found'")
 );
 
 // ---------------------------------------------------------------------------
@@ -292,13 +264,13 @@ for (const column of ['payment_status', 'amount_paid_cents', 'amount_due_cents']
     !new RegExp(`${column}\\s*:`).test(invoiceUpdateChain)
   );
   check(
-    `11b. invoices POST never assigns ${column} anywhere in the insert payload`,
-    !new RegExp(`${column}\\s*:`).test(invoicesPost)
+    `11b. invoices POST assigns server-controlled ${column} in the atomic payload`,
+    new RegExp(`${column}\\s*:`).test(invoicesPost)
   );
 }
 check(
-  '11c. invoices POST does not destructure any payment column from the request body',
-  !/const\s*\{[^}]*\b(payment_status|amount_paid_cents|amount_due_cents)\b[^}]*\}\s*=\s*body/s.test(invoicesPost)
+  '11c. invoices POST does not copy request payment fields into the atomic payload',
+  !/payment_status:\s*payment_status|amount_paid_cents:\s*amount_paid_cents|amount_due_cents:\s*amount_due_cents/.test(invoicesPost)
 );
 
 // ---------------------------------------------------------------------------
@@ -384,7 +356,6 @@ const ownerFilter = ".eq('user_id', context.user.id)";
 for (const [label, chain] of [
   ['invoice UPDATE', invoiceUpdateChain],
   ['invoice DELETE', invoiceDeleteChain],
-  ['quote DELETE', quoteDeleteChain],
 ]) {
   const withoutOwnerFilter = chain.split(ownerFilter).join('');
   check(

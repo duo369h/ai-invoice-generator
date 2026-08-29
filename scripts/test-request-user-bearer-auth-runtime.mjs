@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { getRequestUser } from '../src/app/lib/supabase.js';
+import { register } from 'node:module';
 import {
   getSupabaseRequestAuthClients,
   getSupabaseRequestAuthGetUserTokens,
   resetSupabaseRequestAuthRuntime,
 } from './test-support/supabase-request-auth-mock.mjs';
+
+register('./test-support/supabase-request-auth-loader.mjs', import.meta.url);
+const { getRequestUser } = await import('../src/app/lib/supabase.js');
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-ref.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';

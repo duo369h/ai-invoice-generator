@@ -13,6 +13,11 @@ import {
 register('./test-support/route-runtime-loader.mjs', import.meta.url);
 const quoteRoute = await import('../src/app/api/quotes/route.js');
 
+Object.defineProperty(Object.prototype, 'in', {
+  configurable: true,
+  value() { return this; },
+});
+
 const user = {
   id: 'user-1',
   email: 'owner@example.com',
@@ -58,7 +63,7 @@ const basePayload = {
   tax_rate: 5,
   currency: 'USD',
   notes: 'Updated notes',
-  status: 'approved',
+  status: 'sent',
 };
 
 function postRequest(payload) {
@@ -80,6 +85,7 @@ async function runUpdate(quote, payload = {}, config = {}) {
     logSideEffects: true,
     context: context(),
     plan: 'free',
+    entitlements: { client_portal: true },
     firstRevenueLoopContext: validClaimedContext,
     quoteRecords: quote ? [quote] : [],
     persisted: { ...secondQuote, id: 'quote-duplicate' },
@@ -102,6 +108,35 @@ async function runUpdate(quote, payload = {}, config = {}) {
   };
 }
 
+async function runStatusUpdate(quote, status, config = {}) {
+  configureRouteRuntime({
+    operation: 'quote-status-update',
+    logRequestFlow: true,
+    logDatabaseCalls: true,
+    logSideEffects: true,
+    context: context(),
+    quoteRecords: quote ? [quote] : [],
+    ...config,
+  });
+  const response = await quoteRoute.PATCH(new Request('http://localhost/api/quotes', {
+    method: 'PATCH',
+    headers: {
+      'content-type': 'application/json',
+      'x-forwarded-for': '203.0.113.20',
+    },
+    body: JSON.stringify({ id: quote?.id, status }),
+  }));
+  return {
+    response,
+    body: await response.json(),
+    calls: getRouteRuntimeCalls(),
+    inserts: getRouteRuntimeInserts(),
+    rpcs: getRouteRuntimeRpcCalls(),
+    updates: getRouteRuntimeUpdates(),
+    audits: getRouteRuntimeAuditLogs(),
+  };
+}
+
 function assertUpdateHasNoCreateSideEffects(result, label) {
   assert.equal(result.inserts.length, 0, `${label}: insert count`);
   assert.equal(result.rpcs.length, 0, `${label}: First Revenue RPC count`);
@@ -112,17 +147,35 @@ function assertUpdateHasNoCreateSideEffects(result, label) {
 }
 
 {
-  const result = await runUpdate(secondQuote);
-  assert.equal(result.response.status, 200, 'a non-anchor Free Quote update returns HTTP 200');
+  const result = await runStatusUpdate(secondQuote, 'sent');
+  assert.equal(result.response.status, 200, 'an owner-authorized draft-to-sent status update returns HTTP 200');
   assert.equal(result.body.id, secondQuote.id, 'update returns the same Quote id');
+  assert.equal(result.body.status, 'sent', 'owner status update returns the new mutable status');
   assert.equal(result.updates.length, 1, 'update executes exactly once');
-  assert.equal([secondQuote].length + result.inserts.length, 1, 'editing keeps the simulated Quote count at one');
   assert.equal(result.updates[0].kind, 'service', 'update uses the service-role client');
+  assert.equal(result.updates[0].values.status, 'sent');
   assert.deepEqual(result.updates[0].filters, {
     id: secondQuote.id,
     user_id: user.id,
   }, 'update is scoped by Quote id and authenticated owner id');
   assertUpdateHasNoCreateSideEffects(result, 'non-anchor Free Quote');
+  assert.equal(result.audits.length, 1);
+  assert.equal(result.audits[0].action, 'quote_status_changed');
+}
+
+{
+  const result = await runUpdate(secondQuote, { status: 'sent' });
+  assert.equal(result.response.status, 201, 'a non-anchor Quote content update retains the POST endpoint response');
+  assert.equal(result.body.id, secondQuote.id, 'content update returns the same Quote id');
+  assert.equal(result.updates.length, 1, 'content update executes exactly once');
+  assert.equal([secondQuote].length + result.inserts.length, 1, 'editing keeps the simulated Quote count at one');
+  assert.equal(result.updates[0].kind, 'service', 'content update uses the service-role client');
+  assert.deepEqual(result.updates[0].filters, {
+    id: secondQuote.id,
+    user_id: user.id,
+    status: secondQuote.status,
+  }, 'content update is scoped by Quote id and authenticated owner id');
+  assertUpdateHasNoCreateSideEffects(result, 'non-anchor Quote content update');
   assert.equal(result.audits.length, 1);
   assert.equal(result.audits[0].action, 'quote_updated');
 }
@@ -130,30 +183,41 @@ function assertUpdateHasNoCreateSideEffects(result, label) {
 {
   const result = await runUpdate(anchorQuote, {
     client_name: 'Anchor client updated',
-    status: 'declined',
+    status: 'sent',
   });
-  assert.equal(result.response.status, 200, 'the anchor Quote content can be updated');
-  assert.equal(result.body.client_name, 'Anchor client updated');
+  assert.equal(result.response.status, 201, 'the anchor Quote content can be updated');
+  assert.equal(result.body.notes, 'Updated notes');
   assert.equal(result.body.status, anchorQuote.status, 'anchor Quote status remains unchanged');
+  assert.equal(result.updates[0].values.notes, 'Updated notes');
   assert.equal(result.updates[0].values.status, anchorQuote.status);
   assertUpdateHasNoCreateSideEffects(result, 'anchor Free Quote');
 }
 
 {
-  const result = await runUpdate(secondQuote, { status: 'converted' });
-  assert.equal(result.response.status, 200, 'payload status cannot turn POST into a transition');
+  const result = await runUpdate(secondQuote, { status: undefined });
+  assert.equal(result.response.status, 201, 'an update without an explicit status remains successful');
   assert.equal(result.body.status, secondQuote.status, 'database status wins over payload status');
   assert.equal(result.updates[0].values.status, secondQuote.status);
   assertUpdateHasNoCreateSideEffects(result, 'status-preserving update');
 }
 
+{
+  const result = await runStatusUpdate(secondQuote, 'approved');
+  assert.equal(result.response.status, 403, 'an owner cannot transition a draft Quote directly to approved');
+  assert.equal(result.body.code, 'QUOTE_STATUS_ACTOR_FORBIDDEN');
+  assert.equal(result.updates.length, 0, 'an unauthorized owner transition never updates the Quote');
+  assert.equal(result.audits.length, 0, 'an unauthorized owner transition is not audited as an update');
+  assertUpdateHasNoCreateSideEffects(result, 'owner approved transition');
+}
+
 for (const plan of ['starter', 'pro']) {
   const result = await runUpdate(secondQuote, {}, { plan });
-  assert.equal(result.response.status, 200, `${plan} Quote update returns HTTP 200`);
+  assert.equal(result.response.status, 201, `${plan} Quote content update returns the POST endpoint response`);
   assert.equal(result.updates.length, 1);
   assert.deepEqual(result.updates[0].filters, {
     id: secondQuote.id,
     user_id: user.id,
+    status: secondQuote.status,
   });
   assertUpdateHasNoCreateSideEffects(result, `${plan} Quote`);
 }
@@ -178,7 +242,7 @@ for (const [label, config] of [
 ]) {
   const result = await runUpdate(secondQuote, {}, config);
   assert.equal(result.response.status, 500, `${label} error returns HTTP 500`);
-  assert.deepEqual(result.body, { error: 'Failed to update quote' });
+  assert.deepEqual(result.body, { error: 'Failed to create quote', code: 'DATABASE_ERROR' });
   assert.equal(JSON.stringify(result.body).includes('private'), false, `${label} error is redacted`);
   assert.equal(result.audits.length, 0, `${label} error is not audited`);
   assertUpdateHasNoCreateSideEffects(result, `${label} error`);
@@ -190,6 +254,7 @@ for (const [label, config] of [
     logSideEffects: true,
     context: context(),
     plan: 'free',
+    entitlements: { client_portal: true },
     firstRevenueLoopContext: validClaimedContext,
     persisted: {
       ...secondQuote,
@@ -203,10 +268,13 @@ for (const [label, config] of [
   assert.equal(response.status, 201, 'a request without id retains create HTTP 201');
   assert.equal(body.id, 'quote-created');
   assert.equal(body.portal_token, 'portal-created-token', 'create retains portal token behavior');
-  assert.equal(getRouteRuntimeInserts().length, 1, 'create inserts exactly once');
+  assert.equal(getRouteRuntimeInserts().length, 0, 'create does not bypass the atomic create RPC with a direct insert');
   assert.equal(getRouteRuntimeUpdates().length, 0, 'create performs no update');
-  assert.equal(getRouteRuntimeRpcCalls().length, 0, 'a valid claimed Free user does not re-run the claim RPC');
-  assert.ok(getRouteRuntimeCalls().includes('first-revenue:context'), 'Free create still evaluates First Revenue context');
+  assert.deepEqual(getRouteRuntimeRpcCalls().map(({ name }) => name), [
+    'check_and_create_quote',
+    'claim_first_revenue_quote',
+  ], 'Free create uses the authoritative create and tracking RPCs');
+  assert.equal(getRouteRuntimeCalls().includes('first-revenue:context'), false, 'Free create does not require the obsolete first-revenue context query');
   assert.ok(getRouteRuntimeCalls().includes('portal-token:create'), 'create still creates a portal token');
   assert.ok(getRouteRuntimeCalls().includes('analytics:Proposal Created'), 'create still emits Proposal Created analytics');
   assert.deepEqual(getRouteRuntimeAuditLogs().map(({ action }) => action), ['quote_created']);
@@ -232,4 +300,5 @@ for (const [label, config, expectedStatus] of [
   assert.equal(getRouteRuntimeUpdates().length, 0, `${label} never reaches database update`);
 }
 
+delete Object.prototype.in;
 console.log('Quote update API runtime tests passed.');

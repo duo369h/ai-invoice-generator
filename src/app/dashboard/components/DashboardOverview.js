@@ -3,6 +3,11 @@ import Link from 'next/link';
 import { color, dashboardTokens } from '../../design-system/tokens';
 import { getDashboardUI } from '../../../core/ui/GET_DASHBOARD_UI.ts';
 import { RevenueDecisionCard } from './RevenueDecisionCard';
+import {
+  buildRecentDocuments,
+  getDashboardQuickActions,
+  getDashboardSurfaceState,
+} from '../../../components/dashboard/dashboardWave1.mjs';
 
 const cardStyle = {
   padding: dashboardTokens.cardPadding,
@@ -615,157 +620,163 @@ function renderSection(section, actionHandlers) {
   return <Component ui={section.props} actionHandlers={actionHandlers} />;
 }
 
-export default function DashboardOverview({
-  data = {},
-  actionHandlers = {},
-}) {
+function formatStatus(status) {
+  if (!status) return 'Status unavailable';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function formatTotal(document) {
+  if (!Number.isFinite(Number(document.total))) return 'Total unavailable';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: document.currency || 'USD',
+  }).format(Number(document.total) / 100);
+}
+
+function Wave1QuickActions({ actionHandlers }) {
+  return (
+    <section className="dashboard-wave1-card" data-testid="dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-title">
+      <div className="dashboard-wave1-section-heading">
+        <div>
+          <p className="dashboard-wave1-eyebrow">Start core work</p>
+          <h2 id="dashboard-quick-actions-title">Quick actions</h2>
+        </div>
+        <span className="dashboard-wave1-hint">Use the existing document workflow</span>
+      </div>
+      <div className="dashboard-wave1-actions">
+        {getDashboardQuickActions().map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            data-testid={`${action.id}-action`}
+            className="dashboard-wave1-action"
+            onClick={() => resolveAction(actionHandlers, action.id, 'overview_quick_action')}
+          >
+            <span>
+              <strong>{action.label}</strong>
+              <small>{action.description}</small>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
+  return (
+    <section className="dashboard-wave1-card" data-testid="recent-documents" aria-labelledby="recent-documents-title">
+      <div className="dashboard-wave1-section-heading">
+        <div>
+          <p className="dashboard-wave1-eyebrow">Continue where you left off</p>
+          <h2 id="recent-documents-title">Recent Documents</h2>
+        </div>
+        {state === 'ready' && <span className="dashboard-wave1-hint">{documents.length} shown</span>}
+      </div>
+
+      {state === 'loading' && (
+        <div className="dashboard-wave1-state" role="status" data-testid="dashboard-loading-state">
+          <span className="dashboard-wave1-spinner" aria-hidden="true" />
+          <strong>Loading recent documents</strong>
+          <p>We are retrieving your latest quotes and invoices.</p>
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div className="dashboard-wave1-state" role="alert" data-testid="dashboard-error-state">
+          <strong>Recent documents are temporarily unavailable</strong>
+          <p>Refresh to try again. Your existing document workflows are unchanged.</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
+            Try again
+          </button>
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div className="dashboard-wave1-state" data-testid="dashboard-empty-state">
+          <strong>No documents yet</strong>
+          <p>Create a quote or invoice to start your client workflow.</p>
+          <div className="dashboard-wave1-empty-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => resolveAction(actionHandlers, 'createQuote', 'overview_empty_state')}>
+              Create Quote
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'createInvoice', 'overview_empty_state')}>
+              Create Invoice
+            </button>
+          </div>
+        </div>
+      )}
+
+      {state === 'ready' && (
+        <>
+          {error && (
+            <p className="dashboard-wave1-inline-error" role="alert">
+              Some data could not be refreshed. Showing the latest available documents.
+            </p>
+          )}
+          <div className="dashboard-wave1-document-list">
+            {documents.map((document) => {
+              const isQuote = document.type === 'quote';
+              const openAction = isQuote ? 'openQuotes' : 'openInvoices';
+              const typeLabel = isQuote ? 'Quote' : 'Invoice';
+              return (
+                <article className="dashboard-wave1-document" key={`${document.type}-${document.id}`} data-testid={`recent-document-${document.type}`}>
+                  <div className="dashboard-wave1-document-main">
+                    <span className="dashboard-wave1-type">{typeLabel}</span>
+                    <h3>{document.number || `${typeLabel} number unavailable`}</h3>
+                    <p>{document.clientName || 'Client not provided'}</p>
+                  </div>
+                  <div className="dashboard-wave1-document-meta">
+                    <span className={`dashboard-wave1-status dashboard-wave1-status-${document.status || 'unavailable'}`}>
+                      {formatStatus(document.status)}
+                    </span>
+                    <strong>{formatTotal(document)}</strong>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, openAction)}>
+                      Open {typeLabel}s
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
   const ui = getDashboardUI(data);
-  const rawSections = ui.sections || [];
-  const allowedSectionTypes = [
-    'HEADER',
-    'EMPTY_STATE',
-    'REVENUE_DECISION',
-    'ACTIONS',
-    'ACTIVITY',
-    'ONBOARDING'
-  ];
-  const sections = [];
-  for (const s of rawSections) {
-    if (allowedSectionTypes.includes(s.type)) {
-      if (s.type === 'EMPTY_STATE') {
-        sections.push({
-          ...s,
-          props: {
-            ...s.props,
-            title: "Create your first Quote",
-            description: "Prepare a clear milestone-based quote for your client. Once accepted, turn it into an invoice in one click.",
-            actionLabel: "Create your first Quote",
-            action: "createQuote",
-            outcome: "Win clients with professional pricing",
-            previewLines: [
-              { label: "Phase 1: Design Drafts", amount: "$1,200.00" },
-              { label: "Phase 2: Development", amount: "$2,000.00" },
-            ],
-            previewTotal: "$3,200.00",
-          }
-        });
-      } else {
-        sections.push(s);
-      }
-    }
-  }
+  const quotes = Array.isArray(data.quotes) ? data.quotes : [];
+  const invoices = Array.isArray(data.invoices) ? data.invoices : [];
+  const state = getDashboardSurfaceState({
+    isLoading: Boolean(data.isLoading),
+    error: data.error,
+    quotes,
+    invoices,
+  });
+  const documents = buildRecentDocuments({ quotes, invoices });
 
-  const enhancedActionHandlers = {
-    ...actionHandlers,
-    onAcceptDecision: async (payload) => {
-      let strategy_used = "BALANCED";
-      if (payload.selectedOption === "HIGH") strategy_used = "MAX_REVENUE";
-      if (payload.selectedOption === "FAST") strategy_used = "FAST_DEAL";
-
-      const latestQuote = data['quotes']?.[0] || {};
-      const proposal_id = latestQuote.id;
-
-      if (!proposal_id) {
-        console.warn("[Outcome Recording] Skipped POST: No active quote/proposal ID available.");
-        if (actionHandlers.onAcceptDecision) {
-          actionHandlers.onAcceptDecision(payload);
-        }
-        return;
-      }
-
-      try {
-        const response = await fetch("/api/revenue/outcomes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            proposal_id,
-            strategy_used,
-            price_offered: payload.finalPrice,
-            outcome: "PENDING",
-            client_type: latestQuote.client_type || "startup",
-            service_type: latestQuote.service_type || "web_design",
-            urgency: latestQuote.urgency || "medium",
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Outcomes POST failed with status ${response.status}`);
-        }
-      } catch (err) {
-        console.error("Error saving loop decision:", err);
-      }
-
-      if (actionHandlers.onAcceptDecision) {
-        actionHandlers.onAcceptDecision(payload);
-      }
-    },
-    onModifyDecision: async (payload) => {
-      const latestQuote = data['quotes']?.[0] || {};
-      const proposal_id = latestQuote.id;
-
-      if (!proposal_id) {
-        console.warn("[Outcome Recording] Skipped POST on modify: No active quote/proposal ID available.");
-        if (actionHandlers.onModifyDecision) {
-          actionHandlers.onModifyDecision(payload);
-        }
-        return;
-      }
-
-      try {
-        const response = await fetch("/api/revenue/outcomes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            proposal_id,
-            strategy_used: "BALANCED",
-            price_offered: payload.finalPrice,
-            outcome: "PENDING",
-            client_type: latestQuote.client_type || "startup",
-            service_type: latestQuote.service_type || "web_design",
-            urgency: latestQuote.urgency || "medium",
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Outcomes custom POST failed with status ${response.status}`);
-        }
-      } catch (err) {
-        console.error("Error saving custom decision:", err);
-      }
-
-      if (actionHandlers.onModifyDecision) {
-        actionHandlers.onModifyDecision(payload);
-      }
-    },
-    onRejectDecision: async (payload) => {
-      if (actionHandlers.onRejectDecision) {
-        actionHandlers.onRejectDecision(payload);
-      }
-    }
-  };
+  // Keep the existing UI graph contract observable without allowing legacy
+  // insight/metric sections to displace the Wave 1 work surface.
+  void SECTION_REGISTRY;
+  void renderSection;
 
   return (
-    <div className="animate-fade-in dashboard-overview" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-      {sections.map(section => {
-        const rendered = renderSection(section, enhancedActionHandlers);
-        if (!rendered) return null;
-
-        const isTop = section?.uiDecision?.placement === 'TOP';
-        const isHigh = section?.uiDecision?.urgency === 'HIGH';
-
-        const wrapperStyle = {
-          borderLeft: isHigh ? '4px solid #ef4444' : isTop ? '3px solid var(--primary, #6366f1)' : 'none',
-          boxShadow: isHigh ? '0 10px 15px -3px rgba(239, 68, 68, 0.1), 0 4px 6px -2px rgba(239, 68, 68, 0.05)' : 'none',
-          paddingLeft: isHigh || isTop ? '12px' : '0',
-          transition: 'all 0.3s ease',
-        };
-
-        return (
-          <div key={section.id} style={wrapperStyle}>
-            {rendered}
-          </div>
-        );
-      })}
+    <div className="animate-fade-in dashboard-overview dashboard-wave1-overview" data-testid="dashboard-overview" data-ui-graph-ready={Array.isArray(ui?.sections) ? 'true' : 'false'}>
+      <header className="dashboard-wave1-header">
+        <p className="dashboard-wave1-eyebrow">Dashboard / Overview</p>
+        <h1>Overview</h1>
+        <p>Keep your next client document moving.</p>
+      </header>
+      <Wave1QuickActions actionHandlers={actionHandlers} />
+      <Wave1RecentDocuments
+        documents={documents}
+        state={state}
+        actionHandlers={actionHandlers}
+        error={data.error}
+      />
     </div>
   );
 }
