@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import GlobalHeaderControlCluster from '../../components/layout/GlobalHeaderControlCluster';
+import { usePublicAuthState } from '../../hooks/usePublicAuthState';
+import { resolvePublicHeaderActions } from './publicHeaderAuth';
 
 const DEFAULT_NAV_LINKS = [
   { label: 'How It Works', href: '/#how-corvioz-works' },
@@ -31,6 +33,13 @@ export default function PublicHeader({
   logoSize,
   showThemeToggle = false,
 }) {
+  const authState = usePublicAuthState();
+  const resolvedActions = resolvePublicHeaderActions({
+    authState,
+    accountAction,
+    primaryAction,
+  });
+
   return (
     <nav className={`${className} public-v2-navbar`} data-public-header="v2">
       <Link href="/" className="public-v2-logo" aria-label="Corvioz home">
@@ -40,8 +49,8 @@ export default function PublicHeader({
         surfaceId={surfaceId || `public-header-${route}`}
         route={route}
         navLinks={navLinks}
-        accountAction={accountAction}
-        primaryAction={primaryAction}
+        accountAction={resolvedActions.accountAction}
+        primaryAction={resolvedActions.primaryAction}
         showThemeToggle={showThemeToggle}
         variant="publicV2"
       />
