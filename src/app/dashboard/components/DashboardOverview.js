@@ -638,10 +638,8 @@ function Wave1QuickActions({ actionHandlers }) {
     <section className="dashboard-wave1-card" data-testid="dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-title">
       <div className="dashboard-wave1-section-heading">
         <div>
-          <p className="dashboard-wave1-eyebrow">Start core work</p>
           <h2 id="dashboard-quick-actions-title">Quick actions</h2>
         </div>
-        <span className="dashboard-wave1-hint">Use the existing document workflow</span>
       </div>
       <div className="dashboard-wave1-actions">
         {getDashboardQuickActions().map((action) => (
@@ -669,7 +667,6 @@ function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
     <section className="dashboard-wave1-card" data-testid="recent-documents" aria-labelledby="recent-documents-title">
       <div className="dashboard-wave1-section-heading">
         <div>
-          <p className="dashboard-wave1-eyebrow">Continue where you left off</p>
           <h2 id="recent-documents-title">Recent Documents</h2>
         </div>
         {state === 'ready' && <span className="dashboard-wave1-hint">{documents.length} shown</span>}

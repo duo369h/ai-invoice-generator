@@ -1291,6 +1291,40 @@
     font-size: 0.95rem !important;
   }
 }
+
+/* R40 shell override: layouts.css loads after component styles. */
+.dashboard-sidebar-aside.dashboard-sidebar-collapsed {
+  width: 76px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.dashboard-sidebar-aside.dashboard-sidebar-collapsed .dashboard-sidebar-wordmark {
+  display: none !important;
+}
+
+.dashboard-sidebar-aside.dashboard-sidebar-collapsed .dashboard-sidebar-feedback {
+  display: none !important;
+  overflow: hidden;
+  font-size: 0 !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+@media (max-width: 768px) {
+  .dashboard-sidebar-aside.dashboard-sidebar-collapsed {
+    width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .dashboard-sidebar-aside.dashboard-sidebar-collapsed .dashboard-sidebar-feedback {
+    display: flex !important;
+    font-size: 0.72rem !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
 /* Success Moment Banner Layout */
 .success-moment-banner {
   position: fixed;

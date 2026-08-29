@@ -78,6 +78,7 @@ import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRout
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
+const DASHBOARD_SIDEBAR_STORAGE_KEY = 'corvioz_dashboard_sidebar_collapsed';
 const TERMINAL_QUOTE_STATUSES = new Set(['approved', 'declined', 'converted']);
 
 export function createRecordPaymentAttemptStore(storage, createUuid) {
@@ -875,6 +876,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [formSuccess, setFormSuccess] = useState('');
   const [toast, setToast] = useState(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isSigningOutRef = useRef(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
@@ -883,6 +885,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackError, setFeedbackError] = useState('');
   const feedbackBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      setSidebarCollapsed(window.localStorage.getItem(DASHBOARD_SIDEBAR_STORAGE_KEY) === 'true');
+    } catch {
+      // A restricted storage context should not prevent Dashboard rendering.
+    }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(DASHBOARD_SIDEBAR_STORAGE_KEY, String(next));
+        } catch {
+          // Persistence is an enhancement; the control remains fully usable.
+        }
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!feedbackModalOpen) return;
@@ -3424,14 +3449,27 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         </div>
 
       )}
-      <div className="dashboard-layout" style={{ flex: 1 }}>
+      <div className={`dashboard-layout${sidebarCollapsed ? ' dashboard-sidebar-layout-collapsed' : ''}`} style={{ flex: 1 }}>
 
       {/* Sidebar navigation */}
-      <aside className="dashboard-sidebar-aside">
+      <aside className={`dashboard-sidebar-aside${sidebarCollapsed ? ' dashboard-sidebar-collapsed' : ''}`}>
         <div>
           {/* Logo */}
-          <div className="dashboard-sidebar-logo" style={{ marginBottom: '32px' }}>
-            <Logo size={20} style={{ fontSize: '1.1rem' }} />
+          <div className="dashboard-sidebar-logo" style={{ marginBottom: '24px' }}>
+            <Logo className="dashboard-sidebar-wordmark" size={20} style={{ fontSize: '1.1rem' }} />
+            <span className="dashboard-sidebar-mark" aria-hidden="true">C</span>
+            <button
+              type="button"
+              className="dashboard-sidebar-toggle"
+              data-testid="dashboard-sidebar-collapse"
+              aria-expanded={!sidebarCollapsed}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={toggleSidebar}
+            >
+              <Icons.ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+              <span className="dashboard-sidebar-toggle-label">{sidebarCollapsed ? 'Expand' : 'Collapse'}</span>
+            </button>
           </div>
 
           {/* Navigation Links */}
@@ -3455,6 +3493,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   {tab.sectionBefore && <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />}
                   <button
                     onClick={() => handleDashboardTabChange(tab.id, 'sidebar')}
+                    aria-label={tab.label}
+                    title={sidebarCollapsed ? tab.label : undefined}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -3478,6 +3518,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {IconComponent && (
                         <span
+                          className="dashboard-sidebar-nav-icon"
                           aria-hidden="true"
                           style={{
                             width: 18,
@@ -3493,7 +3534,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <IconComponent size={18} strokeWidth={iconStrokeWidth} />
                         </span>
                       )}
-                      <span style={{ transition: 'color 0.25s' }}>{tab.label}</span>
+                      <span className="dashboard-sidebar-label" style={{ transition: 'color 0.25s' }}>{tab.label}</span>
                     </div>
                   </button>
                 </React.Fragment>
@@ -3529,13 +3570,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               }}
             >
               <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
-              Client Portal
+              <span className="dashboard-sidebar-label">Client Portal</span>
             </Link>
 
             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
             <button
               type="button"
               onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
+              aria-label="Settings"
+              title={sidebarCollapsed ? 'Settings' : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3554,30 +3597,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               }}
             >
               <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDashboardTabChange('profile', 'sidebar_account')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'var(--transition)'
-              }}
-            >
-              <Icons.portal size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              Account
+              <span className="dashboard-sidebar-label">Settings</span>
             </button>
           </nav>
         </div>
@@ -3591,6 +3611,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setAccountMenuOpen((open) => !open)}
+                  aria-label="Account"
+                  title={sidebarCollapsed ? 'Account' : undefined}
                   aria-haspopup="menu"
                   aria-expanded={accountMenuOpen}
                   style={{
@@ -3615,7 +3637,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   >
                     {Icons.account && <Icons.account size={18} strokeWidth={2} />}
                   </span>
-                  <span>Account</span>
+                  <span className="dashboard-sidebar-label">Account</span>
                 </button>
               ) : (
                 <Link href="/auth" className="btn btn-secondary btn-sm" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
@@ -3673,8 +3695,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             )}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>Plan Status:</span>
+            <div className="dashboard-sidebar-plan-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span className="dashboard-sidebar-plan-label">Plan</span>
               <span style={{ 
                 background: isEntitlementLoading || isFree ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
                 color: isEntitlementLoading || isFree ? 'var(--text-muted)' : 'var(--success)',
@@ -3720,6 +3742,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <button
               ref={feedbackBtnRef}
               type="button"
+              className="dashboard-sidebar-feedback"
               onClick={openFeedbackModal}
               style={{
                 display: 'flex',
