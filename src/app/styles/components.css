@@ -4409,11 +4409,6 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   filter: grayscale(1) saturate(0) brightness(0.56);
 }
 
-.dashboard-sidebar-mark:hover {
-  background: #f8fafc;
-  border-color: #aeb9c8;
-}
-
 .dashboard-sidebar-toggle {
   display: inline-flex;
   align-items: center;
