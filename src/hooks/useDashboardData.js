@@ -160,7 +160,9 @@ export async function loadDashboardResources({
   setQuotes,
   setCardProfile,
   setQuotesError = () => {},
+  setInvoicesError = () => {},
   onQuotesSettled = () => {},
+  onInvoicesSettled = () => {},
   consoleImpl = console,
 }) {
   const authHeaders = getAuthHeaders(token);
@@ -247,6 +249,15 @@ export async function loadDashboardResources({
   const invoicesTask = consumeListResource({
     resultTask: resourceTasks.invoices,
     setData: setInvoices,
+  }).then((result) => {
+    if (result.status === 'success') {
+      setInvoicesError(null);
+    } else {
+      setInvoicesError(result.error || new Error(`Failed to fetch invoices${result.httpStatus ? ` (${result.httpStatus})` : ''}`));
+    }
+    return result;
+  }).finally(() => {
+    onInvoicesSettled();
   });
   const clientsTask = consumeListResource({
     resultTask: resourceTasks.clients,
@@ -307,12 +318,15 @@ export function useDashboardData(mode, session = null) {
   const [clients, setClients] = useState(() => (isLive ? [] : MOCK_CLIENTS));
   const [cardProfile, setCardProfile] = useState(() => (isLive ? null : MOCK_PROFILE));
   const [quotesError, setQuotesError] = useState(null);
+  const [invoicesError, setInvoicesError] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(isLive);
   const [isQuotesLoading, setIsQuotesLoading] = useState(isLive);
+  const [isInvoicesLoading, setIsInvoicesLoading] = useState(isLive);
   const isInitialLoadRef = useRef(isLive);
+  const isInvoiceInitialLoadRef = useRef(isLive);
   const dashboardLoadVersionRef = useRef(0);
 
   const getAuthHeaders = useCallback((token) => {
@@ -321,6 +335,10 @@ export function useDashboardData(mode, session = null) {
 
   const fetchData = useCallback(async (token) => {
     if (!isLive) return;
+    const invoiceLoadingSetter = typeof setIsInvoicesLoading === 'function' ? setIsInvoicesLoading : () => {};
+    const invoiceInitialLoadState = typeof isInvoiceInitialLoadRef === 'object' && isInvoiceInitialLoadRef
+      ? isInvoiceInitialLoadRef
+      : { current: false };
     const loadVersion = dashboardLoadVersionRef.current + 1;
     dashboardLoadVersionRef.current = loadVersion;
     const setIfCurrent = (setter) => (value) => {
@@ -333,16 +351,24 @@ export function useDashboardData(mode, session = null) {
       setIsRefreshing(false);
       setIsInitialLoad(false);
       setIsQuotesLoading(false);
+      invoiceLoadingSetter(false);
       if (typeof setQuotesError === 'function') setQuotesError(null);
+      if (typeof setInvoicesError === 'function') setInvoicesError(null);
       return { user: null, error: 'no_session' };
     }
 
     setIsRefreshing(true);
     if (isInitialLoadRef.current) setIsQuotesLoading(true);
+    if (invoiceInitialLoadState.current) invoiceLoadingSetter(true);
     const finishQuotesInitialLoad = () => {
       if (dashboardLoadVersionRef.current !== loadVersion) return;
       isInitialLoadRef.current = false;
       setIsQuotesLoading(false);
+    };
+    const finishInvoicesInitialLoad = () => {
+      if (dashboardLoadVersionRef.current !== loadVersion) return;
+      invoiceInitialLoadState.current = false;
+      invoiceLoadingSetter(false);
     };
 
     try {
@@ -356,13 +382,16 @@ export function useDashboardData(mode, session = null) {
         setLeads: setIfCurrent(setLeads),
         setQuotes: setIfCurrent(setQuotes),
         setQuotesError: setIfCurrent(typeof setQuotesError === 'function' ? setQuotesError : () => {}),
+        setInvoicesError: setIfCurrent(typeof setInvoicesError === 'function' ? setInvoicesError : () => {}),
         setCardProfile: setIfCurrent(setCardProfile),
         onQuotesSettled: finishQuotesInitialLoad,
+        onInvoicesSettled: finishInvoicesInitialLoad,
         consoleImpl: console,
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       finishQuotesInitialLoad();
+      finishInvoicesInitialLoad();
       return { user: null, error };
     } finally {
       if (dashboardLoadVersionRef.current === loadVersion) {
@@ -379,11 +408,15 @@ export function useDashboardData(mode, session = null) {
   } = {}) => {
     dashboardLoadVersionRef.current += 1;
     isInitialLoadRef.current = resetQuotesInitialLoad;
+    if (typeof isInvoiceInitialLoadRef === 'object' && isInvoiceInitialLoadRef) {
+      isInvoiceInitialLoadRef.current = resetQuotesInitialLoad;
+    }
     if (!updateState) return;
     setIsLoading(false);
     setIsRefreshing(false);
     setIsInitialLoad(false);
     setIsQuotesLoading(false);
+    if (typeof setIsInvoicesLoading === 'function') setIsInvoicesLoading(false);
   }, []);
 
   // Reset demo back to baseline mock data
@@ -598,6 +631,7 @@ export function useDashboardData(mode, session = null) {
     setQuotes,
     quotesError,
     setQuotesError,
+    invoicesError,
     invoices,
     setInvoices,
     clients,
@@ -607,6 +641,7 @@ export function useDashboardData(mode, session = null) {
     isLoading,
     isRefreshing,
     isQuotesLoading,
+    isInvoicesLoading,
     invalidateDashboardData,
     fetchData,
     resetDemoData,

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { resolveInvoicePaymentReadModel } from '../../../core/revenue/invoicePaymentState.js';
+import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from '../../../components/dashboard/clientDocumentContinuity.mjs';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
@@ -58,6 +60,10 @@ export default function StudioSpace({
   setQClientEmail,
   setQClientAddress,
   handleDashboardTabChange,
+  isQuoteDataLoading = false,
+  isInvoiceDataLoading = false,
+  quoteDataError = null,
+  invoiceDataError = null,
 }) {
   const [activeSubTab, setActiveSubTab] = useState('dashboard'); // dashboard, pipeline, directory, overdue, reminders, brand-system
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -220,8 +226,14 @@ export default function StudioSpace({
 
   // Parse clients list with document totals and stats
   const clientProfiles = clients.map(cli => {
-    const clientInvoices = invoices.filter(inv => inv.client_name === cli.name || inv.client_id === cli.id);
-    const clientQuotes = quotes.filter(q => q.client_name === cli.name);
+    const clientDocuments = getClientDocumentContinuity({
+      client: cli,
+      quotes,
+      invoices,
+      limit: Number.MAX_SAFE_INTEGER,
+    });
+    const clientInvoices = clientDocuments.invoices;
+    const clientQuotes = clientDocuments.quotes;
 
     const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid');
     const ltv = paidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0) / 100;
@@ -483,9 +495,15 @@ export default function StudioSpace({
     return match.event_name.replace(/_/g, ' ');
   };
 
-  const getClientPressureStatus = (clientName, clientId) => {
-    const clientInvoices = invoices.filter(inv => inv.client_name === clientName || inv.client_id === clientId);
-    const clientQuotes = quotes.filter(q => q.client_name === clientName);
+  const getClientPressureStatus = (clientId) => {
+    const clientDocuments = getClientDocumentContinuity({
+      client: { id: clientId },
+      quotes,
+      invoices,
+      limit: Number.MAX_SAFE_INTEGER,
+    });
+    const clientInvoices = clientDocuments.invoices;
+    const clientQuotes = clientDocuments.quotes;
 
     const hasOverdue = clientInvoices.some(inv => {
       if (inv.status === 'paid' || !inv.due_date) return false;
@@ -527,8 +545,21 @@ export default function StudioSpace({
     const client = clientProfiles.find(c => c.id === clientId);
     if (!client) return null;
 
-    const clientInvoices = invoices.filter(inv => inv.client_name === client.name || inv.client_id === client.id);
-    const clientQuotes = quotes.filter(q => q.client_name === client.name);
+    const clientDocuments = getClientDocumentContinuity({
+      client,
+      quotes,
+      invoices,
+      quoteResourceState: isQuoteDataLoading ? 'loading' : quoteDataError ? 'error' : 'ready',
+      invoiceResourceState: isInvoiceDataLoading ? 'loading' : invoiceDataError ? 'error' : 'ready',
+      quoteError: quoteDataError,
+      invoiceError: invoiceDataError,
+    });
+    const clientInvoices = clientDocuments.invoices;
+    const clientQuotes = clientDocuments.quotes;
+    const formatDocumentDate = (document) => {
+      const timestamp = getEffectiveDocumentTimestamp(document);
+      return timestamp === null ? '' : ` · ${new Date(timestamp).toLocaleDateString()}`;
+    };
 
     return (
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -708,11 +739,11 @@ export default function StudioSpace({
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'grid', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
                     <span>Invoices generated:</span>
-                    <strong style={{ color: 'var(--text-main)' }}>{clientInvoices.length}</strong>
+                    <strong style={{ color: 'var(--text-main)' }}>{client.invoicesCount}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
                     <span>Quotes submitted:</span>
-                    <strong style={{ color: 'var(--text-main)' }}>{clientQuotes.length}</strong>
+                    <strong style={{ color: 'var(--text-main)' }}>{client.quotesCount}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
                     <span>Active SLA standard:</span>
@@ -723,6 +754,112 @@ export default function StudioSpace({
                     <strong style={{ color: 'var(--text-main)' }}>{clientMeta.timezone}</strong>
                   </div>
                 </div>
+
+                <section
+                  aria-labelledby="client-documents-heading"
+                  data-testid="client-documents-section"
+                  style={{ borderTop: '1px solid var(--border)', paddingTop: '18px' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '12px' }}>
+                    <h3 id="client-documents-heading" style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Documents</h3>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Linked documents</span>
+                  </div>
+
+                  {clientDocuments.state === 'loading' && (
+                    <p role="status" style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Loading linked documents…</p>
+                  )}
+                  {clientDocuments.state !== 'loading' && clientDocuments.combinedEmptyEligible && (
+                    <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>{clientDocuments.emptyMessage}</p>
+                  )}
+
+                  {clientDocuments.state !== 'loading' && !clientDocuments.combinedEmptyEligible && (
+                    <div style={{ display: 'grid', gap: '14px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '0.78rem', fontWeight: 800, margin: '0 0 8px', color: 'var(--text-main)' }}>Quotes</h4>
+                        {clientDocuments.quoteUnavailable ? (
+                          <p role="alert" style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>Quote documents unavailable.</p>
+                        ) : clientDocuments.quoteStale ? (
+                          <>
+                            <p role="status" style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'var(--warning)' }}>Quote data is retained; refresh is unavailable.</p>
+                            <div style={{ display: 'grid', gap: '7px' }}>
+                              {clientQuotes.map((quote) => (
+                                <div key={quote.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px', alignItems: 'start', fontSize: '0.76rem' }}>
+                                  <div style={{ minWidth: 0 }}>
+                                    <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{quote.quote_number || quote.id}</strong>
+                                    <span style={{ color: 'var(--text-muted)' }}>{quote.status || '—'}{formatDocumentDate(quote)}</span>
+                                  </div>
+                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(quote.currency)}{(Number(quote.total || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              ))}
+                              {clientDocuments.moreQuotes > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreQuotes} more quotes</span>}
+                            </div>
+                          </>
+                        ) : clientDocuments.quoteEmptyEligible ? (
+                          <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>{clientDocuments.quoteEmptyMessage}</p>
+                        ) : (
+                          <div style={{ display: 'grid', gap: '7px' }}>
+                            {clientQuotes.map((quote) => (
+                              <div key={quote.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px', alignItems: 'start', fontSize: '0.76rem' }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{quote.quote_number || quote.id}</strong>
+                                  <span style={{ color: 'var(--text-muted)' }}>{quote.status || '—'}{formatDocumentDate(quote)}</span>
+                                </div>
+                                <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(quote.currency)}{(Number(quote.total || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            ))}
+                            {clientDocuments.moreQuotes > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreQuotes} more quotes</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 style={{ fontSize: '0.78rem', fontWeight: 800, margin: '0 0 8px', color: 'var(--text-main)' }}>Invoices</h4>
+                        {clientDocuments.invoiceUnavailable ? (
+                          <p role="alert" style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>Invoice documents unavailable.</p>
+                        ) : clientDocuments.invoiceStale ? (
+                          <>
+                            <p role="status" style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'var(--warning)' }}>Invoice data is retained; refresh is unavailable.</p>
+                            <div style={{ display: 'grid', gap: '7px' }}>
+                              {clientInvoices.map((invoice) => {
+                                const paymentReadModel = resolveInvoicePaymentReadModel(invoice);
+                                const amountCents = paymentReadModel.amount_due_cents ?? invoice.total ?? 0;
+                                return (
+                                  <div key={invoice.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px', alignItems: 'start', fontSize: '0.76rem' }}>
+                                    <div style={{ minWidth: 0 }}>
+                                      <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{invoice.invoice_number || invoice.id}</strong>
+                                      <span style={{ color: 'var(--text-muted)' }}>{paymentReadModel.payment_status || invoice.status || '—'}{formatDocumentDate(invoice)}</span>
+                                    </div>
+                                    <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(invoice.currency)}{(Number(amountCents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                );
+                              })}
+                              {clientDocuments.moreInvoices > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreInvoices} more invoices</span>}
+                            </div>
+                          </>
+                        ) : clientDocuments.invoiceEmptyEligible ? (
+                          <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-muted)' }}>{clientDocuments.invoiceEmptyMessage}</p>
+                        ) : (
+                          <div style={{ display: 'grid', gap: '7px' }}>
+                            {clientInvoices.map((invoice) => {
+                              const paymentReadModel = resolveInvoicePaymentReadModel(invoice);
+                              const amountCents = paymentReadModel.amount_due_cents ?? invoice.total ?? 0;
+                              return (
+                                <div key={invoice.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px', alignItems: 'start', fontSize: '0.76rem' }}>
+                                  <div style={{ minWidth: 0 }}>
+                                    <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{invoice.invoice_number || invoice.id}</strong>
+                                    <span style={{ color: 'var(--text-muted)' }}>{paymentReadModel.payment_status || invoice.status || '—'}{formatDocumentDate(invoice)}</span>
+                                  </div>
+                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(invoice.currency)}{(Number(amountCents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              );
+                            })}
+                            {clientDocuments.moreInvoices > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreInvoices} more invoices</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </section>
               </div>
             </div>
           )}
@@ -1459,7 +1596,7 @@ export default function StudioSpace({
                       </div>
                     ) : (
                       clientProfiles.map(cli => {
-                        const pressure = getClientPressureStatus(cli.name, cli.id);
+                        const pressure = getClientPressureStatus(cli.id);
                         return (
                           <div key={cli.id} style={{ padding: '10px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>

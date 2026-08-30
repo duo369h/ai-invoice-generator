@@ -490,6 +490,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setQuotes,
     quotesError,
     setQuotesError,
+    invoicesError,
     invoices,
     setInvoices,
     clients,
@@ -499,6 +500,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     isLoading,
     isRefreshing,
     isQuotesLoading,
+    isInvoicesLoading,
     invalidateDashboardData,
     fetchData,
     resetDemoData,
@@ -5586,6 +5588,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               setQClientEmail={setQClientEmail}
               setQClientAddress={setQClientAddress}
               handleDashboardTabChange={handleDashboardTabChange}
+              isQuoteDataLoading={isQuotesLoading}
+              isInvoiceDataLoading={isInvoicesLoading}
+              quoteDataError={quotesError}
+              invoiceDataError={invoicesError}
             />
           ) : (
             <div className="animate-fade-in">
