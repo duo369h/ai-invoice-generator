@@ -74,6 +74,7 @@ import {
 import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
 import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
 import { deserializeQuoteNotes as deserializeInvoiceNotes } from './quoteNotes.mjs';
+import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -81,6 +82,105 @@ const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
 const DASHBOARD_SIDEBAR_STORAGE_KEY = 'corvioz_dashboard_sidebar_collapsed';
 const TERMINAL_QUOTE_STATUSES = new Set(['approved', 'declined', 'converted']);
+
+function ClientDocumentsPanel({
+  client,
+  quotes,
+  invoices,
+  isQuotesLoading,
+  isInvoicesLoading,
+  quotesError,
+  invoicesError,
+  controlId,
+  panelId,
+}) {
+  const clientDocuments = getClientDocumentContinuity({
+    client,
+    quotes,
+    invoices,
+    quoteResourceState: isQuotesLoading ? 'loading' : quotesError ? 'error' : 'ready',
+    invoiceResourceState: isInvoicesLoading ? 'loading' : invoicesError ? 'error' : 'ready',
+    quoteError: quotesError,
+    invoiceError: invoicesError,
+  });
+
+  const formatDocumentDate = (document) => {
+    const timestamp = getEffectiveDocumentTimestamp(document);
+    return timestamp === null ? '' : new Date(timestamp).toLocaleDateString();
+  };
+
+  const renderDocuments = (documents, type) => documents.map((document) => {
+    const reference = type === 'quote'
+      ? document.quote_number || document.id
+      : document.invoice_number || document.id;
+    const status = type === 'quote'
+      ? document.status || '—'
+      : document.payment_status || document.status || '—';
+    const date = formatDocumentDate(document);
+    return (
+      <li
+        key={document.id || reference}
+        style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '9px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}
+      >
+        <span style={{ overflowWrap: 'anywhere', color: 'var(--text-main)', fontWeight: 650 }}>{reference}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{status}{date ? ` · ${date}` : ''}</span>
+      </li>
+    );
+  });
+
+  const renderResource = ({ label, documents, more, unavailable, stale, emptyEligible, emptyMessage, loading }) => (
+    <div style={{ minWidth: 0 }}>
+      <h5 style={{ margin: '0 0 6px', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</h5>
+      {loading && <p role="status" style={{ margin: '0 0 6px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Loading {label.toLowerCase()}…</p>}
+      {unavailable && <p role="alert" style={{ margin: '0 0 6px', color: 'var(--danger-text)', fontSize: '0.82rem' }}>{label} unavailable.</p>}
+      {stale && <p role="status" style={{ margin: '0 0 6px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{label} data is retained but may be stale.</p>}
+      {emptyEligible && <p style={{ margin: '0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{emptyMessage}</p>}
+      {documents.length > 0 && (
+        <>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{renderDocuments(documents, label === 'Quotes' ? 'quote' : 'invoice')}</ul>
+          {more > 0 && <p style={{ margin: '7px 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>+ {more} more {label.toLowerCase()}</p>}
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <section
+      id={panelId}
+      data-testid={panelId}
+      aria-labelledby={controlId}
+      style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', background: 'var(--background)', border: '1px solid var(--border)', overflow: 'hidden' }}
+    >
+      <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>Documents</h4>
+      {clientDocuments.combinedEmptyEligible ? (
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{clientDocuments.emptyMessage}</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
+          {renderResource({
+            label: 'Quotes',
+            documents: clientDocuments.quotes,
+            more: clientDocuments.moreQuotes,
+            unavailable: clientDocuments.quoteUnavailable,
+            stale: clientDocuments.quoteStale,
+            emptyEligible: clientDocuments.quoteEmptyEligible,
+            emptyMessage: clientDocuments.quoteEmptyMessage,
+            loading: clientDocuments.quoteState === 'loading',
+          })}
+          {renderResource({
+            label: 'Invoices',
+            documents: clientDocuments.invoices,
+            more: clientDocuments.moreInvoices,
+            unavailable: clientDocuments.invoiceUnavailable,
+            stale: clientDocuments.invoiceStale,
+            emptyEligible: clientDocuments.invoiceEmptyEligible,
+            emptyMessage: clientDocuments.invoiceEmptyMessage,
+            loading: clientDocuments.invoiceState === 'loading',
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export function createRecordPaymentAttemptStore(storage, createUuid) {
   const prefix = 'corvioz:record-payment-attempt:';
@@ -474,6 +574,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [activeTab, setActiveTab] = useState(() => {
     return getDashboardTabForTool(initialTool);
   }); // overview, leads, quotes, invoices, clients, profile
+  const [expandedClientDocumentsId, setExpandedClientDocumentsId] = useState(null);
   
   const [session, setSession] = useState(null);
   const sessionRef = useRef(null);
@@ -5597,7 +5698,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div className="animate-fade-in">
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.02em' }}>Client Directory</h1>
 
-            <div className="dashboard-grid-2fr-1fr">
+            <div className="dashboard-grid-2fr-1fr" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))' }}>
               {/* Directory List */}
               <div>
                 {getActiveClients().length === 0 ? (
@@ -5618,31 +5719,65 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {getActiveClients().map((cli) => (
-                      <div key={cli.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                        <div>
-                          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{cli.name}</h3>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '2px' }}>{cli.email}</p>
-                          {cli.address && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>{cli.address}</p>}
+                    {getActiveClients().map((cli) => {
+                      const isDocumentsExpanded = expandedClientDocumentsId === cli.id;
+                      const documentsControlId = `client-documents-toggle-${cli.id}`;
+                      const documentsPanelId = `client-documents-panel-${cli.id}`;
+                      return (
+                        <div key={cli.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', overflowWrap: 'anywhere' }}>{cli.name}</h3>
+                              <p style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '2px', overflowWrap: 'anywhere' }}>{cli.email}</p>
+                              {cli.address && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', overflowWrap: 'anywhere' }}>{cli.address}</p>}
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <button
+                                id={documentsControlId}
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                aria-expanded={isDocumentsExpanded}
+                                aria-controls={documentsPanelId}
+                                aria-label={`${isDocumentsExpanded ? 'Hide' : 'View'} documents for ${cli.name}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setExpandedClientDocumentsId(isDocumentsExpanded ? null : cli.id);
+                                }}
+                              >
+                                {isDocumentsExpanded ? 'Hide documents' : 'View documents'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  initCreateInvoice();
+                                  setInvClientName(cli.name);
+                                  setInvClientEmail(cli.email || '');
+                                  setInvClientAddress(cli.address || '');
+                                  trackEvent('quick_action_click', { action: 'bill_client' });
+                                  handleDashboardTabChange('invoices', 'client_bill');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Bill
+                              </button>
+                              <button onClick={() => handleDeleteClient(cli.id)} style={{ color: 'var(--danger)', fontSize: '0.85rem', padding: '0 8px', cursor: 'pointer' }}>Delete</button>
+                            </div>
+                          </div>
+                          {isDocumentsExpanded && (
+                            <ClientDocumentsPanel
+                              client={cli}
+                              quotes={quotes}
+                              invoices={invoices}
+                              isQuotesLoading={isQuotesLoading}
+                              isInvoicesLoading={isInvoicesLoading}
+                              quotesError={quotesError}
+                              invoicesError={invoicesError}
+                              controlId={documentsControlId}
+                              panelId={documentsPanelId}
+                            />
+                          )}
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button
-                            onClick={() => {
-                              initCreateInvoice();
-                              setInvClientName(cli.name);
-                              setInvClientEmail(cli.email || '');
-                              setInvClientAddress(cli.address || '');
-                              trackEvent('quick_action_click', { action: 'bill_client' });
-                              handleDashboardTabChange('invoices', 'client_bill');
-                            }}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            Bill
-                          </button>
-                          <button onClick={() => handleDeleteClient(cli.id)} style={{ color: 'var(--danger)', fontSize: '0.85rem', padding: '0 8px', cursor: 'pointer' }}>Delete</button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

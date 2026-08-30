@@ -1,8 +1,22 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import http from 'node:http';
+import net from 'node:net';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { getClientDocumentContinuity } from '../src/components/dashboard/clientDocumentContinuity.mjs';
 
 const hookSource = readFileSync(new URL('../src/hooks/useDashboardData.js', import.meta.url), 'utf8');
+const dependencyRoot = process.env.CORVIOZ_NODE_MODULES_ROOT || process.cwd();
+const sharedRequire = createRequire(path.join(dependencyRoot, 'package.json'));
+const { chromium } = sharedRequire('playwright');
+const nextCli = sharedRequire.resolve('next/dist/bin/next');
+assert.equal(
+  dependencyRoot,
+  process.env.CORVIOZ_NODE_MODULES_ROOT || process.cwd(),
+  'dependency resolution defaults to the current worktree and honors only an explicit override',
+);
 
 function matchingBrace(source, openIndex) {
   let depth = 0;
@@ -190,6 +204,279 @@ async function runRealLoadingLifecycleChecks() {
   assert.equal(quoteFailureProjection.quoteEmptyEligible, false, 'Quote HTTP failure cannot become successful empty');
 }
 
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function base64Url(value) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function createBrowserSession() {
+  const user = {
+    id: 'client-directory-user',
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'client-directory@example.com',
+    app_metadata: { provider: 'email' },
+    user_metadata: {},
+  };
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+  const accessToken = [
+    base64Url({ alg: 'none', typ: 'JWT' }),
+    base64Url({ ...user, exp: expiresAt }),
+    'client-directory-test-signature',
+  ].join('.');
+  return {
+    access_token: accessToken,
+    refresh_token: 'client-directory-test-refresh-token',
+    expires_in: 3600,
+    expires_at: expiresAt,
+    token_type: 'bearer',
+    user,
+  };
+}
+
+function sendJson(responseObject, status, body) {
+  responseObject.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-supabase-api-version',
+  });
+  responseObject.end(JSON.stringify(body));
+}
+
+async function getFreePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close((error) => (error ? reject(error) : resolve(port)));
+    });
+  });
+}
+
+async function startMockSupabase() {
+  const server = http.createServer((request, responseObject) => {
+    const requestUrl = new URL(request.url, 'http://127.0.0.1');
+    if (request.method === 'GET' && requestUrl.pathname === '/auth/v1/user') {
+      sendJson(responseObject, 200, createBrowserSession().user);
+      return;
+    }
+    if (request.method === 'GET' && requestUrl.pathname === '/rest/v1/entitlements') {
+      sendJson(responseObject, 200, [{
+        user_id: 'client-directory-user',
+        invoice: true,
+        export_pdf: false,
+        client_portal: false,
+        crm: false,
+        automation: false,
+        advanced_invoicing: false,
+      }]);
+      return;
+    }
+    sendJson(responseObject, 404, { error: 'unhandled mock request' });
+  });
+  const port = await getFreePort();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${port}`,
+    close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
+  };
+}
+
+async function startNextTestServer(mockSupabaseUrl) {
+  const port = await getFreePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const child = spawn(process.execPath, [nextCli, 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      NODE_PATH: path.join(dependencyRoot, 'node_modules'),
+      NEXT_PUBLIC_SUPABASE_URL: mockSupabaseUrl,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'client-directory-test-anon-key',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let serverOutput = '';
+  child.stdout.on('data', (chunk) => { serverOutput += chunk.toString(); });
+  child.stderr.on('data', (chunk) => { serverOutput += chunk.toString(); });
+  const deadline = Date.now() + 60_000;
+  try {
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null) throw new Error(`Next test server exited with ${child.exitCode}`);
+      try {
+        const healthResponse = await fetch(`${baseUrl}/auth`);
+        if (healthResponse.ok) return { baseUrl, close: () => closeNextTestServer(child) };
+      } catch (_) {
+        // The local server is still starting.
+      }
+      await delay(250);
+    }
+    throw new Error('Timed out waiting for Next test server');
+  } catch (error) {
+    child.kill('SIGTERM');
+    throw new Error(`${error.message}\n${serverOutput}`);
+  }
+}
+
+async function closeNextTestServer(child) {
+  if (child.exitCode !== null) return;
+  child.kill('SIGTERM');
+  await Promise.race([
+    new Promise((resolve) => child.once('exit', resolve)),
+    delay(5_000),
+  ]);
+  if (child.exitCode === null) child.kill('SIGKILL');
+}
+
+function normalClientApiBody(pathname) {
+  if (pathname === '/api/user') {
+    return {
+      id: 'client-directory-user',
+      email: 'client-directory@example.com',
+      name: 'Client Directory Test',
+      plan: 'free',
+      hasActivated: true,
+      auth_mode: 'supabase',
+      quota: {},
+    };
+  }
+  if (pathname === '/api/clients') {
+    return {
+      data: [
+        { id: 'client-a', name: 'Same Name', email: 'same@example.com', address: 'Long Client Address' },
+        { id: 'client-b', name: 'Other Client', email: 'other@example.com', address: '' },
+        { id: 'client-empty', name: 'Empty Client', email: 'empty@example.com', address: '' },
+      ],
+    };
+  }
+  if (pathname === '/api/quotes') {
+    return {
+      data: [
+        { id: 'q-canonical', quote_number: 'QT-CANONICAL-001-WITH-A-VERY-LONG-REFERENCE-FOR-NARROW-SCREENS', client_id: 'client-a', client_name: 'Same Name', status: 'sent', created_at: '2026-08-01T10:00:00Z' },
+        { id: 'q-other-client', quote_number: 'QT-OTHER-CLIENT', client_id: 'client-b', client_name: 'Same Name', status: 'draft', created_at: '2026-08-02T10:00:00Z' },
+        { id: 'q-same-name', quote_number: 'QT-SAME-NAME', client_id: null, client_name: 'Same Name', status: 'draft', created_at: '2026-08-03T10:00:00Z' },
+      ],
+    };
+  }
+  if (pathname === '/api/invoices') {
+    return {
+      data: [
+        { id: 'i-canonical', invoice_number: 'INV-CANONICAL-001-WITH-A-VERY-LONG-REFERENCE-FOR-NARROW-SCREENS', client_id: 'client-a', client_name: 'Same Name', status: 'sent', total: 12000, created_at: '2026-08-01T11:00:00Z' },
+        { id: 'i-other-client', invoice_number: 'INV-OTHER-CLIENT', client_id: 'client-b', client_name: 'Same Name', status: 'sent', total: 13000, created_at: '2026-08-02T11:00:00Z' },
+        { id: 'i-same-name', invoice_number: 'INV-SAME-NAME', client_id: null, client_name: 'Same Name', status: 'sent', total: 14000, created_at: '2026-08-03T11:00:00Z' },
+      ],
+    };
+  }
+  if (pathname === '/api/card-profile') return { id: 'client-directory-profile' };
+  return { data: [] };
+}
+
+async function runNormalClientDirectoryRuntimeChecks() {
+  const mockSupabase = await startMockSupabase();
+  const nextServer = await startNextTestServer(mockSupabase.url);
+  const browser = await chromium.launch({ headless: true });
+  const session = createBrowserSession();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  const pageErrors = [];
+  try {
+    await context.addInitScript((storedSession) => {
+      window.localStorage.setItem('corvioz_analytics_consent', 'accepted');
+      window.localStorage.setItem('sb-127-auth-token', JSON.stringify(storedSession));
+    }, session);
+    await context.addCookies([{
+      name: 'sb-127-auth-token.0',
+      value: encodeURIComponent(JSON.stringify(session)),
+      url: nextServer.baseUrl,
+    }]);
+    const requestCounts = new Map();
+    page.on('pageerror', (error) => pageErrors.push(error));
+    await page.route('**/api/**', async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      requestCounts.set(pathname, (requestCounts.get(pathname) || 0) + 1);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(normalClientApiBody(pathname)),
+      });
+    });
+
+    await page.goto(`${nextServer.baseUrl}/dashboard?tool=clients`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Client Directory', exact: true }).waitFor({ state: 'visible' });
+    const debugPanelClose = page.getByRole('button', { name: 'Close Debug Panel', exact: true });
+    if (await debugPanelClose.count() > 0) await debugPanelClose.click();
+    const auditPanelClose = page.getByText('Corvioz Verification Audit', { exact: true }).locator('..').locator('..').getByRole('button');
+    if (await auditPanelClose.count() > 0) await auditPanelClose.click();
+    assert.equal(await page.getByText('Client Area', { exact: false }).count(), 0, 'normal Clients does not expose Studio Client Area');
+    assert.equal(await page.getByRole('button', { name: 'View documents for Same Name', exact: true }).count(), 1, 'canonical Client has an explicit document control');
+    assert.equal(await page.getByTestId('client-documents-panel-client-a').count(), 0, 'documents are collapsed before activation');
+
+    const firstDocumentsButton = page.getByRole('button', { name: 'View documents for Same Name', exact: true });
+    assert.equal(await firstDocumentsButton.getAttribute('aria-expanded'), 'false', 'document control starts collapsed');
+    const firstPanelId = await firstDocumentsButton.getAttribute('aria-controls');
+    assert.equal(firstPanelId, 'client-documents-panel-client-a', 'document control points to its own panel');
+    const visualDirectory = path.join(process.cwd(), 'output', 'r46-fix3-visual');
+    mkdirSync(visualDirectory, { recursive: true });
+    const captureVisualState = async (state) => {
+      for (const [viewportName, width] of [['desktop', 1280], ['768', 768], ['390', 390]]) {
+        await page.setViewportSize({ width, height: 900 });
+        await delay(100);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+        assert.equal(overflow, false, `${state} state has no horizontal overflow at ${viewportName}px`);
+        await page.screenshot({ path: path.join(visualDirectory, `normal-clients-${state}-${viewportName}.png`), fullPage: true });
+      }
+    };
+    await captureVisualState('before');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await firstDocumentsButton.focus();
+    await firstDocumentsButton.press('Enter');
+    await page.getByTestId('client-documents-panel-client-a').waitFor({ state: 'visible' });
+    assert.equal(await page.getByText('QT-CANONICAL-001-WITH-A-VERY-LONG-REFERENCE-FOR-NARROW-SCREENS', { exact: true }).count(), 1, 'canonical matching Quote appears');
+    assert.equal(await page.getByText('INV-CANONICAL-001-WITH-A-VERY-LONG-REFERENCE-FOR-NARROW-SCREENS', { exact: true }).count(), 1, 'canonical matching Invoice appears');
+    assert.equal(await page.getByText('QT-OTHER-CLIENT', { exact: true }).count(), 0, 'other-client Quote is excluded');
+    assert.equal(await page.getByText('INV-OTHER-CLIENT', { exact: true }).count(), 0, 'other-client Invoice is excluded');
+    assert.equal(await page.getByText('QT-SAME-NAME', { exact: true }).count(), 0, 'same-name Quote without client_id is excluded');
+    assert.equal(await page.getByText('INV-SAME-NAME', { exact: true }).count(), 0, 'same-name Invoice without client_id is excluded');
+    await captureVisualState('linked');
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.getByRole('button', { name: 'View documents for Empty Client', exact: true }).click();
+    assert.equal(await page.getByTestId('client-documents-panel-client-a').count(), 0, 'only the intended Client expands');
+    const emptyPanel = page.getByTestId('client-documents-panel-client-empty');
+    await emptyPanel.waitFor({ state: 'visible' });
+    await emptyPanel.getByText('No documents are linked to this client yet.', { exact: true }).waitFor({ state: 'visible' });
+    await captureVisualState('empty');
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    let dialogMessage = null;
+    page.once('dialog', async (dialog) => {
+      dialogMessage = dialog.message();
+      await dialog.dismiss();
+    });
+    await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
+    assert.match(dialogMessage || '', /Are you sure you want to delete this client\?/i, 'Delete remains an independent action');
+    await page.getByRole('button', { name: 'Bill', exact: true }).first().click();
+    await page.getByRole('heading', { name: 'Create Document', exact: true }).waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Exit to dashboard', exact: true }).click();
+    await page.getByRole('button', { name: 'Clients', exact: true }).click();
+    await page.getByRole('heading', { name: 'Client Directory', exact: true }).waitFor({ state: 'visible' });
+    assert.deepEqual(pageErrors, [], 'normal Client Directory runtime has no page errors');
+    assert.equal(requestCounts.get('/api/quotes'), 1, 'normal surface uses the existing Quote fetch once');
+    assert.equal(requestCounts.get('/api/invoices'), 1, 'normal surface uses the existing Invoice fetch once');
+  } finally {
+    await context.close();
+    await browser.close();
+    await nextServer.close();
+    await mockSupabase.close();
+  }
+}
+
 const client = { id: 'client-a', name: 'Same Name', email: 'same@example.com' };
 const quotes = [
   { id: 'q-old', quote_number: 'QT-OLD', client_id: 'client-a', client_name: 'Same Name', client_email: 'same@example.com', total: 1000, currency: 'USD', status: 'draft', created_at: '2026-08-01T10:00:00Z' },
@@ -328,6 +615,7 @@ assert.deepEqual(
 assert.deepEqual({ client, quotes, invoices }, sourceSnapshot, 'grouping never mutates source data');
 
 await runRealLoadingLifecycleChecks();
+await runNormalClientDirectoryRuntimeChecks();
 
 const helperSource = readFileSync(new URL('../src/components/dashboard/clientDocumentContinuity.mjs', import.meta.url), 'utf8');
 const studioSource = readFileSync(new URL('../src/app/dashboard/components/StudioSpace.js', import.meta.url), 'utf8');
@@ -356,5 +644,11 @@ assert.doesNotMatch(studioSource, /new Date\(quote\.updated_at \|\| quote\.creat
 assert.doesNotMatch(studioSource, /new Date\(invoice\.updated_at \|\| invoice\.created_at\)/, 'Invoice rendering does not expose invalid updated_at as a date');
 assert.match(studioSource, /more quotes|more invoices/, 'selected Client surface discloses overflow counts');
 assert.doesNotMatch(studioSource, /onClick=\{\(.*(?:link|unlink).*\)\s*=>/, 'continuity surface does not add link or unlink actions');
+assert.match(dashboardSource, /Client Directory/, 'Dashboard retains the normal Client Directory surface');
+assert.match(dashboardSource, /ClientDocumentsPanel/, 'normal Client Directory renders the continuity panel');
+assert.match(dashboardSource, /View documents/, 'normal Client Directory exposes an explicit Documents control');
+assert.match(dashboardSource, /aria-expanded=\{isDocumentsExpanded\}/, 'Documents control exposes its expanded state');
+assert.match(dashboardSource, /setExpandedClientDocumentsId\(isDocumentsExpanded \? null : cli\.id\)/, 'only one normal Client Documents panel can be expanded');
+assert.match(dashboardSource, /activeTheme === 'studio'/, 'Studio remains an explicit separate branch');
 
 console.log('CORVIOZ_CLIENT_ID_DOCUMENT_CONTINUITY_R46_TEST=PASS');
