@@ -2041,6 +2041,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const openInvoiceDraft = (invoice, quote) => {
     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
+    const deserialized = deserializeInvoiceNotes(invoice.notes || '');
     setInvId(invoice.id);
     setInvClientId(invoice.client_id || quote.client_id || null);
     setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
@@ -2048,7 +2049,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvClientEmail(invoice.client_email || quote.client_email || '');
     setInvClientAddress(invoice.client_address || quote.client_address || '');
     setInvCurrency(invoice.currency || quote.currency || 'USD');
-    setInvNotes(invoice.notes || quote.notes || '');
+    setInvNotes(deserialized.notes || quote.notes || '');
+    setInvBillingType(deserialized.billing_type);
     setInvDate(invoice.invoice_date || getTodayString());
     setInvDueDate(invoice.due_date || getFutureDateString(30));
     setInvPaymentTerms(invoice.payment_terms || 'Net 30');
@@ -4617,6 +4619,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 key={cli.id}
                                 type="button"
                                 onClick={() => {
+                                  setQClientId(cli.id);
                                   setQClientName(cli.name);
                                   setQClientEmail(cli.email || '');
                                   setQClientAddress(cli.address || '');

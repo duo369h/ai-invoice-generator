@@ -84,6 +84,17 @@ function extractQuoteClientSelectChangeBody() {
   return dashboard.slice(open + 1, close);
 }
 
+function extractQuoteQuickSelectBody() {
+  const markerIndex = dashboard.indexOf('setQClientName(cli.name);');
+  assert.notEqual(markerIndex, -1, 'Quote Quick Select handler not found');
+  const onClick = dashboard.lastIndexOf('onClick={() => {', markerIndex);
+  assert.notEqual(onClick, -1, 'Quote Quick Select click handler not found');
+  const arrow = dashboard.indexOf('=>', onClick);
+  const open = dashboard.indexOf('{', arrow);
+  const close = matchingBrace(dashboard, open);
+  return dashboard.slice(open + 1, close);
+}
+
 const dashboardFunctions = {
   resetQuoteCreateState: extractConstArrow('resetQuoteCreateState'),
   resetInvoiceCreateState: extractConstArrow('resetInvoiceCreateState'),
@@ -104,6 +115,7 @@ const dashboardFunctions = {
   editInvoice: extractClickBody("openDocument({ documentType: 'invoice', id: inv.id })"),
   quoteClientSelectValue: extractQuoteClientSelectValueExpression(),
   quoteClientSelectChange: extractQuoteClientSelectChangeBody(),
+  quoteQuickSelect: extractQuoteQuickSelectBody(),
   studioQuoteDraft: extractSourceClickBody(studioSpace, '+ Draft Quote'),
   suggestedFollowUp: extractClickBody('Option 3: Create quote/invoice follow-up', { afterMarker: true }),
 };
@@ -262,13 +274,31 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     const generateRandomNumberString = (prefix) => prefix + '-NEW';
     const getTodayString = () => '2026-07-16';
     const getFutureDateString = () => '2026-08-15';
-    const deserializeInvoiceNotes = (notes = '') => ({
-      notes: typeof notes === 'string' ? notes : notes?.notes || '',
-      billing_type: typeof notes === 'object' && notes?.billing_type ? notes.billing_type : 'standard',
-      edit_count: 0,
-      comments: [],
-      files: [],
-    });
+    const deserializeInvoiceNotes = (notes = '') => {
+      if (notes && typeof notes === 'object') {
+        return {
+          notes: notes.notes || '',
+          billing_type: notes.billing_type || 'standard',
+          edit_count: 0,
+          comments: [],
+          files: [],
+        };
+      }
+      const marker = '\\n\\n---METADATA---\\n';
+      const markerIndex = typeof notes === 'string' ? notes.lastIndexOf(marker) : -1;
+      if (markerIndex >= 0) {
+        const publicNotes = notes.slice(0, markerIndex);
+        const metadata = JSON.parse(notes.slice(markerIndex + marker.length));
+        return {
+          notes: publicNotes,
+          billing_type: metadata.billing_type || 'standard',
+          edit_count: metadata.edit_count || 0,
+          comments: metadata.comments || [],
+          files: metadata.files || [],
+        };
+      }
+      return { notes: notes || '', billing_type: 'standard', edit_count: 0, comments: [], files: [] };
+    };
     const serializeInvoiceNotes = (notes) => notes;
     const getPhotographyQuotePresetById = () => null;
     const readFirstQuoteStartedAt = () => null;
@@ -303,6 +333,7 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     const editInvoice = (inv) => { invoices.push(inv); ${dashboardFunctions.editInvoice}};
     const quoteClientSelectValue = new Function('qClientId', 'return ' + ${JSON.stringify(dashboardFunctions.quoteClientSelectValue)});
     const handleQuoteClientSelectChange = (e) => {${dashboardFunctions.quoteClientSelectChange}};
+    const quickSelectQuoteClient = (cli) => {${dashboardFunctions.quoteQuickSelect}};
     const clickSuggestedFollowUp = () => {${dashboardFunctions.suggestedFollowUp}};
 
     return {
@@ -325,6 +356,7 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
       editQuote,
       draftQuoteForClient: (client) => {${dashboardFunctions.studioQuoteDraft}},
       selectQuoteClient: (value) => handleQuoteClientSelectChange({ target: { value } }),
+      quickSelectQuoteClient,
       getQuoteClientSelectValue: () => quoteClientSelectValue(qClientId),
       saveInvoice: handleSaveInvoice,
       saveQuote: handleSaveQuote,
@@ -628,6 +660,71 @@ await verifySpecializedCreate('Quote Client select writes canonical ids and null
   assert.equal(harness.getQuoteClientSelectValue(), '');
 });
 
+await verifySpecializedCreate('Quote Quick Select A to B to A keeps canonical ids and snapshots paired', async () => {
+  const harness = createDashboardHarness();
+  const clientA = { id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' };
+  const clientB = { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' };
+  harness.createQuote();
+
+  harness.quickSelectQuoteClient(clientA);
+  assert.deepEqual(
+    {
+      clientId: harness.getQuote().clientId,
+      clientName: harness.getQuote().clientName,
+      clientEmail: harness.getQuote().clientEmail,
+      clientAddress: harness.getQuote().clientAddress,
+    },
+    { clientId: clientA.id, clientName: clientA.name, clientEmail: clientA.email, clientAddress: clientA.address },
+  );
+  harness.quickSelectQuoteClient(clientB);
+  assert.deepEqual(
+    {
+      clientId: harness.getQuote().clientId,
+      clientName: harness.getQuote().clientName,
+      clientEmail: harness.getQuote().clientEmail,
+      clientAddress: harness.getQuote().clientAddress,
+    },
+    { clientId: clientB.id, clientName: clientB.name, clientEmail: clientB.email, clientAddress: clientB.address },
+  );
+  harness.quickSelectQuoteClient(clientA);
+  assert.deepEqual(
+    {
+      clientId: harness.getQuote().clientId,
+      clientName: harness.getQuote().clientName,
+      clientEmail: harness.getQuote().clientEmail,
+      clientAddress: harness.getQuote().clientAddress,
+    },
+    { clientId: clientA.id, clientName: clientA.name, clientEmail: clientA.email, clientAddress: clientA.address },
+  );
+
+  await saveCreatedQuote(harness);
+  assert.equal(harness.savedQuotes.at(-1)?.client_id, clientA.id);
+  assert.deepEqual(
+    {
+      name: harness.savedQuotes.at(-1)?.client_name,
+      email: harness.savedQuotes.at(-1)?.client_email,
+      address: harness.savedQuotes.at(-1)?.client_address,
+    },
+    { name: clientA.name, email: clientA.email, address: clientA.address },
+  );
+});
+
+await verifySpecializedCreate('Quote Quick Select overwrites an existing relation before save', async () => {
+  const harness = createDashboardHarness();
+  const clientB = { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' };
+  harness.editQuote({ id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', client_email: 'a@example.com', client_address: 'A address', items: [{ description: 'Existing', quantity: 1, unitPrice: 100 }] });
+  harness.quickSelectQuoteClient(clientB);
+  assert.equal(harness.getQuote().clientId, clientB.id);
+  assert.equal(harness.getQuote().clientName, clientB.name);
+  await harness.saveQuote();
+  await flush();
+  assert.equal(harness.savedQuotes.at(-1)?.id, 'quote-a');
+  assert.equal(harness.savedQuotes.at(-1)?.client_id, clientB.id);
+  assert.equal(harness.savedQuotes.at(-1)?.client_name, clientB.name);
+  assert.equal(harness.savedQuotes.at(-1)?.client_email, clientB.email);
+  assert.equal(harness.savedQuotes.at(-1)?.client_address, clientB.address);
+});
+
 await verifySpecializedCreate('Quote no-linked selection saves a null client_id', async () => {
   const harness = createDashboardHarness();
   harness.createQuote();
@@ -894,6 +991,7 @@ await verifySpecializedCreate('Quote to Invoice conversion', async () => {
     tax_rate: 12,
     discount_rate: 3,
     payment_link: '',
+    client_id: 'converted-client-id',
   });
   harness.convertQuoteToInvoice({
     id: 'current-quote-id',
@@ -916,13 +1014,38 @@ await verifySpecializedCreate('Quote to Invoice conversion', async () => {
   assert.equal(harness.getInvoice().taxRate, 12);
   assert.equal(harness.getInvoice().discountRate, 3);
   assert.equal(harness.getInvoice().paymentLink, '');
-  assert.equal(harness.getInvoice().billingType, 'recurring', 'server-backed quote conversion preserves the existing billing type because the current draft response has no billing_type field');
+  assert.equal(harness.getInvoice().billingType, 'standard', 'server-backed quote conversion with no billing authority uses the canonical default');
+  assert.equal(harness.getInvoice().clientId, 'converted-client-id');
   assert.equal(harness.getInvoice().status, 'draft', 'server-backed quote conversion opens the returned invoice as a draft');
   assert.equal(harness.getInvoice().stage, 'create');
   await harness.saveInvoice();
   await flush();
   assert.equal(harness.savedInvoices.at(-1)?.id, 'converted-invoice-id', 'saving the server-created draft remains an update');
   assert.equal(harness.claims.length, 0, 'updating the converted draft does not claim a new first Invoice');
+});
+
+await verifySpecializedCreate('Quote to Invoice conversion honors explicit billing metadata without leaking prior state', async () => {
+  const harness = createDashboardHarness();
+  harness.seedInvoiceEditor({ id: 'old-invoice-id', quoteId: 'unrelated-old-quote', billingType: 'standard' });
+  harness.setConvertedInvoice({
+    id: 'converted-invoice-id',
+    invoice_number: 'INV-CONVERTED',
+    client_id: 'converted-client-id',
+    notes: 'Converted notes\n\n---METADATA---\n{"billing_type":"recurring"}',
+    items: [{ description: 'Converted work', quantity: 1, unit_price: 50000 }],
+  });
+  harness.convertQuoteToInvoice({
+    id: 'current-quote-id',
+    status: 'approved',
+    client_id: 'quote-client-id',
+    client_name: 'Converted client',
+    items: [{ description: 'Converted work', quantity: 1, unit_price: 50000 }],
+  });
+  await flush();
+  assert.equal(harness.getInvoice().id, 'converted-invoice-id');
+  assert.equal(harness.getInvoice().quoteId, 'current-quote-id');
+  assert.equal(harness.getInvoice().clientId, 'converted-client-id');
+  assert.equal(harness.getInvoice().billingType, 'recurring');
 });
 
 if (specializedFailures.length > 0) {
