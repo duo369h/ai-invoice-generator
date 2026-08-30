@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dashboard = await readFile(resolve(root, 'src/components/dashboard/Dashboard.js'), 'utf8');
+const studioSpace = await readFile(resolve(root, 'src/app/dashboard/components/StudioSpace.js'), 'utf8');
 
 function matchingBrace(source, openIndex) {
   let depth = 0;
@@ -53,6 +54,36 @@ function extractClickBody(marker, { afterMarker = false } = {}) {
   return dashboard.slice(open + 1, close);
 }
 
+function extractSourceClickBody(source, marker) {
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Source marker not found: ${marker}`);
+  const onClick = source.lastIndexOf('onClick={() => {', markerIndex);
+  assert.notEqual(onClick, -1, `Source click handler not found for: ${marker}`);
+  const arrow = source.indexOf('=>', onClick);
+  const open = source.indexOf('{', arrow);
+  const close = matchingBrace(source, open);
+  return source.slice(open + 1, close);
+}
+
+function extractQuoteClientSelectValueExpression() {
+  const markerIndex = dashboard.indexOf('value={qClientId');
+  assert.notEqual(markerIndex, -1, 'Quote Client select value prop not found');
+  const open = dashboard.indexOf('{', markerIndex);
+  const close = matchingBrace(dashboard, open);
+  return dashboard.slice(open + 1, close);
+}
+
+function extractQuoteClientSelectChangeBody() {
+  const markerIndex = dashboard.indexOf('value={qClientId');
+  assert.notEqual(markerIndex, -1, 'Quote Client select marker not found');
+  const onChange = dashboard.indexOf('onChange={e => {', markerIndex);
+  assert.notEqual(onChange, -1, 'Quote Client select change handler not found');
+  const arrow = dashboard.indexOf('=>', onChange);
+  const open = dashboard.indexOf('{', arrow);
+  const close = matchingBrace(dashboard, open);
+  return dashboard.slice(open + 1, close);
+}
+
 const dashboardFunctions = {
   resetQuoteCreateState: extractConstArrow('resetQuoteCreateState'),
   resetInvoiceCreateState: extractConstArrow('resetInvoiceCreateState'),
@@ -70,6 +101,9 @@ const dashboardFunctions = {
   handleSaveInvoice: extractConstArrow('handleSaveInvoice'),
   editQuote: extractClickBody('setQId(q.id);'),
   editInvoice: extractClickBody('setInvId(inv.id);'),
+  quoteClientSelectValue: extractQuoteClientSelectValueExpression(),
+  quoteClientSelectChange: extractQuoteClientSelectChangeBody(),
+  studioQuoteDraft: extractSourceClickBody(studioSpace, '+ Draft Quote'),
   suggestedFollowUp: extractClickBody('Option 3: Create quote/invoice follow-up', { afterMarker: true }),
 };
 
@@ -103,7 +137,7 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     let qClientName = '';
     let qClientEmail = '';
     let qClientAddress = '';
-    let qClientId = '';
+    let qClientId = null;
     let qItems = [];
     let qTaxRate = 0;
     let qDiscountRate = 0;
@@ -133,6 +167,10 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     let session = { access_token: 'access-token' };
     const invoices = [];
     const quotes = [];
+    const clients = [
+      { id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' },
+      { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' },
+    ];
     let leads = [];
     const user = { id: 'user-1' };
     const isDemo = false;
@@ -261,6 +299,8 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     ${dashboardFunctions.handleSaveInvoice}
     const editQuote = (q) => {${dashboardFunctions.editQuote}};
     const editInvoice = (inv) => {${dashboardFunctions.editInvoice}};
+    const quoteClientSelectValue = new Function('qClientId', 'return ' + ${JSON.stringify(dashboardFunctions.quoteClientSelectValue)});
+    const handleQuoteClientSelectChange = (e) => {${dashboardFunctions.quoteClientSelectChange}};
     const clickSuggestedFollowUp = () => {${dashboardFunctions.suggestedFollowUp}};
 
     return {
@@ -281,6 +321,9 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
       cancelQuote: handleCancelQuote,
       editInvoice,
       editQuote,
+      draftQuoteForClient: (client) => {${dashboardFunctions.studioQuoteDraft}},
+      selectQuoteClient: (value) => handleQuoteClientSelectChange({ target: { value } }),
+      getQuoteClientSelectValue: () => quoteClientSelectValue(qClientId),
       saveInvoice: handleSaveInvoice,
       saveQuote: handleSaveQuote,
       restorePendingInvoiceDraft: handleRestorePendingInvoiceDraft,
@@ -316,6 +359,7 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
       },
       seedQuoteEditor: (state) => {
         qId = state.id;
+        qClientId = state.clientId ?? null;
         qNumber = state.number || 'QT-OLD';
         qClientName = state.clientName || 'Old client';
         qClientEmail = state.clientEmail || 'old@example.com';
@@ -334,11 +378,17 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
         qSubmitAttempted = state.submitAttempted ?? true;
       },
       prepareQuoteForSave: () => {
-        setQClientName('New client');
+        if (!qClientName) setQClientName('New client');
         setQItems([{ description: 'New scope', quantity: 1, unitPrice: 100 }]);
       },
+      applyQuoteClientContext: (client) => {
+        setQClientId(client.id);
+        setQClientName(client.name || '');
+        setQClientEmail(client.email || '');
+        setQClientAddress(client.address || '');
+      },
       getInvoice: () => ({ id: invId, clientId: invClientId, quoteId: invQuoteId, number: invNumber, clientName: invClientName, currency: invCurrency, items: invItems, taxRate: invTaxRate, discountRate: invDiscountRate, billingType: invBillingType, paymentLink: invPaymentLink, status: invStatus, view: invoiceView, stage: invoiceFlowStage, locked: invoiceFlowLocked, activeTab }),
-      getQuote: () => ({ id: qId, number: qNumber, clientName: qClientName, clientEmail: qClientEmail, currency: qCurrency, items: qItems, taxRate: qTaxRate, discountRate: qDiscountRate, presetId: selectedQuotePresetId, firstFlow: isFirstQuoteFlow, nameTouched: qClientNameTouched, emailTouched: qClientEmailTouched, submitAttempted: qSubmitAttempted, view: quoteView, activeTab }),
+      getQuote: () => ({ id: qId, clientId: qClientId, number: qNumber, clientName: qClientName, clientEmail: qClientEmail, clientAddress: qClientAddress, currency: qCurrency, items: qItems, taxRate: qTaxRate, discountRate: qDiscountRate, presetId: selectedQuotePresetId, firstFlow: isFirstQuoteFlow, nameTouched: qClientNameTouched, emailTouched: qClientEmailTouched, submitAttempted: qSubmitAttempted, view: quoteView, activeTab }),
       savedInvoices,
       savedQuotes,
       claims,
@@ -468,6 +518,222 @@ const verifySpecializedCreate = async (name, verify) => {
     specializedFailures.push(`${name}: ${error.message}`);
   }
 };
+
+await verifySpecializedCreate('Quote edit A to B to A preserves id relation pairing', async () => {
+  const harness = createDashboardHarness();
+  const quoteA = { id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', client_email: 'a@example.com', items: [] };
+  const quoteB = { id: 'quote-b', quote_number: 'QT-B', client_id: 'client-b', client_name: 'Client B', client_email: 'b@example.com', items: [] };
+  harness.editQuote(quoteA);
+  assert.deepEqual({ id: harness.getQuote().id, clientId: harness.getQuote().clientId }, { id: quoteA.id, clientId: quoteA.client_id });
+  harness.editQuote(quoteB);
+  assert.deepEqual({ id: harness.getQuote().id, clientId: harness.getQuote().clientId }, { id: quoteB.id, clientId: quoteB.client_id });
+  harness.editQuote(quoteA);
+  assert.deepEqual({ id: harness.getQuote().id, clientId: harness.getQuote().clientId }, { id: quoteA.id, clientId: quoteA.client_id });
+});
+
+await verifySpecializedCreate('StudioSpace seeded Quote context survives delayed access A B A', async () => {
+  const harness = createDashboardHarness({ delayAccess: true });
+  const clientA = { id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' };
+  const clientB = { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' };
+
+  harness.draftQuoteForClient(clientA);
+  assert.equal(harness.getQuote().view, 'list', 'StudioSpace Draft Quote waits for access before opening');
+  assert.equal(harness.getQuote().activeTab, 'overview', 'StudioSpace Draft Quote does not navigate before access');
+  assert.equal(harness.getQuote().clientId, null, 'StudioSpace Draft Quote does not pre-apply client context');
+  harness.allowPendingAccess();
+  assert.deepEqual(
+    { clientId: harness.getQuote().clientId, clientName: harness.getQuote().clientName, clientEmail: harness.getQuote().clientEmail, clientAddress: harness.getQuote().clientAddress },
+    { clientId: clientA.id, clientName: clientA.name, clientEmail: clientA.email, clientAddress: clientA.address },
+  );
+
+  harness.cancelQuote();
+  harness.draftQuoteForClient(clientB);
+  assert.equal(harness.getQuote().view, 'list', 'second seeded Quote also waits for access');
+  assert.equal(harness.getQuote().clientId, clientA.id, 'previous snapshot remains until the second access decision, without opening a new composer');
+  harness.allowPendingAccess();
+  assert.deepEqual(
+    { clientId: harness.getQuote().clientId, clientName: harness.getQuote().clientName },
+    { clientId: clientB.id, clientName: clientB.name },
+  );
+
+  harness.cancelQuote();
+  harness.draftQuoteForClient(clientA);
+  harness.allowPendingAccess();
+  assert.deepEqual(
+    { clientId: harness.getQuote().clientId, clientName: harness.getQuote().clientName },
+    { clientId: clientA.id, clientName: clientA.name },
+  );
+});
+
+await verifySpecializedCreate('StudioSpace seeded Quote saves canonical id and matching snapshot', async () => {
+  const harness = createDashboardHarness({ delayAccess: true });
+  const clientB = { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' };
+  harness.draftQuoteForClient(clientB);
+  harness.allowPendingAccess();
+  harness.prepareQuoteForSave();
+  await harness.saveQuote();
+  harness.allowPendingAccess();
+  await flush();
+  assert.equal(harness.savedQuotes.at(-1)?.client_id, clientB.id);
+  assert.equal(harness.savedQuotes.at(-1)?.client_name, clientB.name);
+  assert.equal(harness.savedQuotes.at(-1)?.client_email, clientB.email);
+  assert.equal(harness.savedQuotes.at(-1)?.client_address, clientB.address);
+});
+
+await verifySpecializedCreate('StudioSpace Quote access denial leaves no context or transition', async () => {
+  const harness = createDashboardHarness({ delayAccess: true, accessAllowed: false });
+  harness.draftQuoteForClient({ id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' });
+  assert.equal(harness.getQuote().view, 'list');
+  assert.equal(harness.getQuote().activeTab, 'overview');
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuote().clientName, '');
+  harness.allowPendingAccess();
+  assert.equal(harness.getQuote().view, 'list');
+  assert.equal(harness.getQuote().activeTab, 'overview');
+  assert.equal(harness.getQuote().clientId, null);
+});
+
+await verifySpecializedCreate('Generic Quote after seeded context is relation-free', async () => {
+  const harness = createDashboardHarness({ delayAccess: true });
+  harness.draftQuoteForClient({ id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' });
+  harness.allowPendingAccess();
+  harness.cancelQuote();
+  harness.createQuote();
+  harness.allowPendingAccess();
+  assert.equal(harness.getQuote().clientId, null);
+  harness.prepareQuoteForSave();
+  await harness.saveQuote();
+  harness.allowPendingAccess();
+  await flush();
+  assert.equal(harness.savedQuotes.at(-1)?.client_id, null);
+});
+
+await verifySpecializedCreate('Blank Quote presents the empty Client option without a null select value', async () => {
+  const harness = createDashboardHarness();
+  harness.createQuote();
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuoteClientSelectValue(), '', 'canonical null is adapted to the HTML empty option');
+});
+
+await verifySpecializedCreate('Quote Client select writes canonical ids and null', async () => {
+  const harness = createDashboardHarness();
+  harness.createQuote();
+  harness.selectQuoteClient('client-b');
+  assert.equal(harness.getQuote().clientId, 'client-b');
+  assert.equal(harness.getQuoteClientSelectValue(), 'client-b');
+  harness.selectQuoteClient('');
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuoteClientSelectValue(), '');
+});
+
+await verifySpecializedCreate('Quote no-linked selection saves a null client_id', async () => {
+  const harness = createDashboardHarness();
+  harness.createQuote();
+  harness.applyQuoteClientContext({ id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' });
+  harness.selectQuoteClient('');
+  await saveCreatedQuote(harness);
+  assert.equal(harness.savedQuotes.at(-1)?.client_id, null);
+});
+
+await verifySpecializedCreate('Quote edit relation selection remains deterministic across A null B null', async () => {
+  const harness = createDashboardHarness();
+  harness.editQuote({ id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', items: [] });
+  assert.equal(harness.getQuoteClientSelectValue(), 'client-a');
+  harness.selectQuoteClient('');
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuoteClientSelectValue(), '');
+  harness.selectQuoteClient('client-b');
+  assert.equal(harness.getQuote().clientId, 'client-b');
+  assert.equal(harness.getQuoteClientSelectValue(), 'client-b');
+  harness.selectQuoteClient('');
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuoteClientSelectValue(), '');
+});
+
+await verifySpecializedCreate('Quote null relation overwrites prior relation', async () => {
+  const harness = createDashboardHarness();
+  harness.editQuote({ id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', client_email: 'a@example.com', items: [] });
+  harness.editQuote({ id: 'quote-c', quote_number: 'QT-C', client_id: null, client_name: 'Client C', client_email: 'c@example.com', items: [] });
+  assert.equal(harness.getQuote().id, 'quote-c');
+  assert.equal(harness.getQuote().clientId, null);
+  assert.equal(harness.getQuoteClientSelectValue(), '', 'null relation renders the No linked Client option');
+});
+
+await verifySpecializedCreate('Blank Quote create clears prior relation', async () => {
+  const harness = createDashboardHarness();
+  harness.seedQuoteEditor({ id: 'quote-a', clientId: 'client-a' });
+  harness.createQuote();
+  assert.equal(harness.getQuote().id, '');
+  assert.equal(harness.getQuote().clientId, null);
+});
+
+await verifySpecializedCreate('Client-seeded Quote context can reapply after blank reset', async () => {
+  const harness = createDashboardHarness();
+  harness.seedQuoteEditor({ id: 'quote-a', clientId: 'client-a' });
+  harness.createQuote();
+  harness.applyQuoteClientContext({ id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' });
+  assert.equal(harness.getQuote().id, '');
+  assert.equal(harness.getQuote().clientId, 'client-b');
+  assert.equal(harness.getQuote().clientName, 'Client B');
+});
+
+await verifySpecializedCreate('Invoice edit A to B to A preserves id relation pairing', async () => {
+  const harness = createDashboardHarness();
+  const invoiceA = { id: 'invoice-a', invoice_number: 'INV-A', client_id: 'client-a', client_name: 'Client A', client_email: 'a@example.com', items: [] };
+  const invoiceB = { id: 'invoice-b', invoice_number: 'INV-B', client_id: 'client-b', client_name: 'Client B', client_email: 'b@example.com', items: [] };
+  harness.editInvoice(invoiceA);
+  assert.deepEqual({ id: harness.getInvoice().id, clientId: harness.getInvoice().clientId }, { id: invoiceA.id, clientId: invoiceA.client_id });
+  harness.editInvoice(invoiceB);
+  assert.deepEqual({ id: harness.getInvoice().id, clientId: harness.getInvoice().clientId }, { id: invoiceB.id, clientId: invoiceB.client_id });
+  harness.editInvoice(invoiceA);
+  assert.deepEqual({ id: harness.getInvoice().id, clientId: harness.getInvoice().clientId }, { id: invoiceA.id, clientId: invoiceA.client_id });
+});
+
+await verifySpecializedCreate('Invoice null relation overwrites prior relation', async () => {
+  const harness = createDashboardHarness();
+  harness.editInvoice({ id: 'invoice-a', invoice_number: 'INV-A', client_id: 'client-a', client_name: 'Client A', client_email: 'a@example.com', items: [] });
+  harness.editInvoice({ id: 'invoice-c', invoice_number: 'INV-C', client_id: null, client_name: 'Client C', client_email: 'c@example.com', items: [] });
+  assert.equal(harness.getInvoice().id, 'invoice-c');
+  assert.equal(harness.getInvoice().clientId, null);
+});
+
+await verifySpecializedCreate('Client Bill to Invoice edit does not leak relation', async () => {
+  const harness = createDashboardHarness();
+  harness.billClient({ id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' });
+  harness.editInvoice({ id: 'invoice-b', invoice_number: 'INV-B', client_id: 'client-b', client_name: 'Client B', client_email: 'b@example.com', items: [] });
+  assert.deepEqual({ id: harness.getInvoice().id, clientId: harness.getInvoice().clientId }, { id: 'invoice-b', clientId: 'client-b' });
+});
+
+await verifySpecializedCreate('Generic creates do not retain document relations', async () => {
+  const harness = createDashboardHarness();
+  harness.editInvoice({ id: 'invoice-a', invoice_number: 'INV-A', client_id: 'client-a', client_name: 'Client A', items: [] });
+  harness.createInvoice();
+  assert.equal(harness.getInvoice().id, '');
+  assert.equal(harness.getInvoice().clientId, null);
+  harness.editQuote({ id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', items: [] });
+  harness.createQuote();
+  assert.equal(harness.getQuote().id, '');
+  assert.equal(harness.getQuote().clientId, null);
+});
+
+await verifySpecializedCreate('Quote cancel residual is cleared before the next create', async () => {
+  const harness = createDashboardHarness();
+  harness.editQuote({ id: 'quote-a', quote_number: 'QT-A', client_id: 'client-a', client_name: 'Client A', items: [] });
+  harness.cancelQuote();
+  assert.equal(harness.getQuote().id, 'quote-a', 'cancel leaves qId resident until the next explicit state transition');
+  assert.equal(harness.getQuote().clientId, 'client-a');
+  harness.createQuote();
+  assert.equal(harness.getQuote().id, '');
+  assert.equal(harness.getQuote().clientId, null);
+});
+
+await verifySpecializedCreate('Names and emails never establish canonical relation', async () => {
+  const harness = createDashboardHarness();
+  harness.editInvoice({ id: 'invoice-c', invoice_number: 'INV-C', client_id: null, client_name: 'Client C', client_email: 'c@example.com', items: [] });
+  assert.equal(harness.getInvoice().clientId, null);
+  harness.editQuote({ id: 'quote-c', quote_number: 'QT-C', client_id: null, client_name: 'Client C', client_email: 'c@example.com', items: [] });
+  assert.equal(harness.getQuote().clientId, null);
+});
 
 await verifySpecializedCreate('Client Bill canonical context routing', async () => {
   const harness = createDashboardHarness({ delayAccess: true });

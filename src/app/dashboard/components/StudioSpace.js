@@ -53,10 +53,6 @@ export default function StudioSpace({
   // Quick actions / navigation
   initCreateInvoice,
   initCreateQuote,
-  setQClientName,
-  setQClientEmail,
-  setQClientAddress,
-  handleDashboardTabChange,
   isQuoteDataLoading = false,
   isInvoiceDataLoading = false,
   quoteDataError = null,
@@ -868,11 +864,15 @@ export default function StudioSpace({
                 <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Quotes &amp; Estimates</h3>
                 <button
                   onClick={() => {
-                    initCreateQuote();
-                    setQClientName(client.name);
-                    setQClientEmail(client.email || '');
-                    setQClientAddress(client.address || '');
-                    handleDashboardTabChange('quotes', 'workspace_proposal_creator');
+                    initCreateQuote({
+                      source: 'workspace_proposal_creator',
+                      clientContext: {
+                        client_id: client.id,
+                        client_name: client.name,
+                        client_email: client.email || '',
+                        client_address: client.address || '',
+                      },
+                    });
                   }}
                   className="btn btn-primary btn-sm"
                 >

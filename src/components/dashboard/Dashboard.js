@@ -1074,7 +1074,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qClientName, setQClientName] = useState('');
   const [qClientEmail, setQClientEmail] = useState('');
   const [qClientAddress, setQClientAddress] = useState('');
-  const [qClientId, setQClientId] = useState('');
+  const [qClientId, setQClientId] = useState(null);
   const [qItems, setQItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
   const [qTaxRate, setQTaxRate] = useState(0);
   const [qDiscountRate, setQDiscountRate] = useState(0);
@@ -1842,6 +1842,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const resetQuoteCreateState = () => {
     setQId('');
+    setQClientId(null);
     setQNumber(generateRandomNumberString('QT'));
     setQClientName('');
     setQClientEmail('');
@@ -3182,12 +3183,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const totalVolume = totalPaid + totalPending + totalOverdue;
 
   // Init blank Quote
-  const initCreateQuote = (source = 'quick_action') => {
-    const quoteSource = typeof source === 'string' ? source : 'quick_action';
+  const initCreateQuote = (options = 'quick_action') => {
+    const normalizedOptions = typeof options === 'string' ? { source: options } : (options || {});
+    const quoteSource = normalizedOptions.source || 'quick_action';
+    const clientContext = normalizedOptions.clientContext || null;
     trackEvent('create_quote_click', { source: quoteSource });
     trackEvent('quick_action_click', { action: 'create_quote', source: quoteSource });
     evaluateAction('create_quote', () => {
       resetQuoteCreateState();
+      if (clientContext?.client_id) {
+        setQClientId(clientContext.client_id);
+        setQClientName(clientContext.client_name || '');
+        setQClientEmail(clientContext.client_email || '');
+        setQClientAddress(clientContext.client_address || '');
+      }
       setIsFirstQuoteFlow(quoteSource === 'first_quote_onboarding');
       handleDashboardTabChange('quotes', quoteSource);
       setQuoteView('create');
@@ -4334,7 +4343,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     setQClientName(q.client_name);
                                     setQClientEmail(q.client_email || '');
                                     setQClientAddress(q.client_address || '');
-                                    setQClientId(q.client_id || '');
+                                    setQClientId(q.client_id || null);
                                     setQCurrency(q.currency || 'USD');
                                     setQNotes(q.notes || '');
                                     setQTaxRate(Number(q.tax_rate || 0));
@@ -4475,10 +4484,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <label className="input-label">Existing Client (optional)</label>
                         <select
                           className="form-input"
-                          value={qClientId}
+                          value={qClientId ?? ''}
                           onChange={e => {
                             const nextId = e.target.value;
-                            setQClientId(nextId);
+                            setQClientId(nextId === '' ? null : nextId);
                             const client = clients.find(item => item.id === nextId);
                             if (client) {
                               setQClientName(client.name || '');
@@ -4951,6 +4960,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 <button
                                   onClick={() => {
                                     setInvId(inv.id);
+                                    setInvClientId(inv.client_id || null);
                                     setInvNumber(inv.invoice_number);
                                     setInvClientName(inv.client_name);
                                     setInvClientEmail(inv.client_email || '');
@@ -5704,10 +5714,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               formSuccess={formSuccess}
               initCreateInvoice={initCreateInvoice}
               initCreateQuote={initCreateQuote}
-              setQClientName={setQClientName}
-              setQClientEmail={setQClientEmail}
-              setQClientAddress={setQClientAddress}
-              handleDashboardTabChange={handleDashboardTabChange}
               isQuoteDataLoading={isQuotesLoading}
               isInvoiceDataLoading={isInvoicesLoading}
               quoteDataError={quotesError}
