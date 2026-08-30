@@ -2357,6 +2357,15 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
     width: 100%;
     justify-content: flex-start;
   }
+
+  .dashboard-needs-attention-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-needs-attention-main {
+    align-self: stretch;
+  }
 }
 
 .badge,
@@ -4614,6 +4623,85 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
 .dashboard-wave1-action:hover > span:last-child,
 .dashboard-wave1-action:focus-visible > span:last-child {
   transform: translateX(2px);
+}
+
+.dashboard-needs-attention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-needs-attention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.dashboard-needs-attention-main {
+  min-width: 0;
+}
+
+.dashboard-needs-attention-main h3,
+.dashboard-needs-attention-main p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-needs-attention-main h3 {
+  margin-top: 3px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dashboard-needs-attention-main p {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.dashboard-needs-attention-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-needs-attention-detail strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.dashboard-needs-attention-item > .btn {
+  flex-shrink: 0;
+}
+
+.dashboard-needs-attention-empty {
+  padding: 18px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+.dashboard-needs-attention-empty strong {
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.dashboard-needs-attention-empty p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .dashboard-wave1-document {

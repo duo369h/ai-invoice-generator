@@ -5,8 +5,10 @@ import { getDashboardUI } from '../../../core/ui/GET_DASHBOARD_UI.ts';
 import { RevenueDecisionCard } from './RevenueDecisionCard';
 import {
   buildRecentDocuments,
+  buildNeedsAttention,
   getDashboardQuickActions,
   getDashboardSurfaceState,
+  getNeedsAttentionSurfaceState,
 } from '../../../components/dashboard/dashboardWave1.mjs';
 
 const cardStyle = {
@@ -662,6 +664,100 @@ function Wave1QuickActions({ actionHandlers }) {
   );
 }
 
+function formatAttentionDate(value) {
+  if (!value) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))
+    ? new Date(`${value}T00:00:00Z`)
+    : new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+function formatAttentionAmount(cents, currency = 'USD') {
+  if (!Number.isFinite(Number(cents))) return null;
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(Number(cents) / 100);
+  } catch {
+    return `${Number(cents) / 100} ${currency || 'USD'}`;
+  }
+}
+
+function Wave1NeedsAttention({ items, surfaceState, error, actionHandlers }) {
+  const needsAttentionState = getNeedsAttentionSurfaceState({
+    itemCount: items.length,
+    surfaceState,
+    error,
+  });
+
+  return (
+    <section className="dashboard-wave1-card dashboard-needs-attention" data-testid="dashboard-needs-attention" aria-labelledby="dashboard-needs-attention-title">
+      <div className="dashboard-wave1-section-heading">
+        <div>
+          <h2 id="dashboard-needs-attention-title">Needs Attention</h2>
+        </div>
+        {items.length > 0 && <span className="dashboard-wave1-hint">{items.length} to review</span>}
+      </div>
+
+      {needsAttentionState.mode === 'stale' && (
+        <p className="dashboard-wave1-inline-error" role="alert" data-testid="needs-attention-stale-state">
+          {needsAttentionState.description}
+        </p>
+      )}
+
+      {needsAttentionState.mode === 'list' || needsAttentionState.mode === 'stale' ? (
+        <div className="dashboard-needs-attention-list">
+          {items.map((item) => {
+            const isPastDue = item.title === 'Past-due balance';
+            const isPartial = item.title === 'Remaining balance';
+            return (
+              <article className="dashboard-needs-attention-item" key={`${item.documentType}-${item.id}`} data-testid="needs-attention-item">
+                <div className="dashboard-needs-attention-main">
+                  <span className="dashboard-wave1-type">{item.documentType === 'quote' ? 'Quote' : 'Invoice'}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.number || 'Document number unavailable'}{item.clientName ? ` · ${item.clientName}` : ''}</p>
+                  {(isPastDue || isPartial) && (
+                    <div className="dashboard-needs-attention-detail">
+                      {isPastDue && item.dueDate && <span>Due {formatAttentionDate(item.dueDate)}</span>}
+                      {isPastDue && item.amountDueCents !== null && <strong>Remaining {formatAttentionAmount(item.amountDueCents, item.currency)}</strong>}
+                      {isPartial && item.amountPaidCents !== null && <span>Paid {formatAttentionAmount(item.amountPaidCents, item.currency)}</span>}
+                      {isPartial && item.amountDueCents !== null && <strong>Remaining {formatAttentionAmount(item.amountDueCents, item.currency)}</strong>}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => resolveAction(actionHandlers, item.action, { id: item.documentId, documentType: item.documentType })}
+                >
+                  {item.actionLabel}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="dashboard-needs-attention-empty" data-testid={`needs-attention-${needsAttentionState.mode}-state`} role={needsAttentionState.mode === 'error' ? 'alert' : 'status'}>
+          <strong>{needsAttentionState.title}</strong>
+          {needsAttentionState.description && <p>{needsAttentionState.description}</p>}
+          {needsAttentionState.showRetry && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
   return (
     <section className="dashboard-wave1-card" data-testid="recent-documents" aria-labelledby="recent-documents-title">
@@ -754,6 +850,7 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
     invoices,
   });
   const documents = buildRecentDocuments({ quotes, invoices });
+  const needsAttention = buildNeedsAttention({ quotes, invoices });
 
   // Keep the existing UI graph contract observable without allowing legacy
   // insight/metric sections to displace the Wave 1 work surface.
@@ -768,6 +865,7 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
         <p>Keep your next client document moving.</p>
       </header>
       <Wave1QuickActions actionHandlers={actionHandlers} />
+      <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
       <Wave1RecentDocuments
         documents={documents}
         state={state}

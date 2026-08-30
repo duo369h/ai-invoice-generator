@@ -1,3 +1,9 @@
+import {
+  PAYMENT_STATUSES,
+  deriveInvoicePaymentState,
+  resolveInvoicePaymentReadModel,
+} from '../../core/revenue/invoicePaymentState.js';
+
 const DASHBOARD_TAB_BY_TOOL = {
   quote: 'quotes',
   quotes: 'quotes',
@@ -42,6 +48,155 @@ function documentStatus(record, type) {
   return value === undefined || value === null || value === '' ? null : String(value);
 }
 
+const NEEDS_ATTENTION_PRIORITY = Object.freeze({
+  past_due: 0,
+  partial: 1,
+  approved_quote: 2,
+  unpaid: 3,
+  sent_quote: 4,
+  draft_quote: 5,
+});
+
+function normalizeRecordStatus(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function attentionItem({ record, documentType, title, action, actionLabel, priority, paymentStatus = null, amountPaidCents = null, amountDueCents = null, dueDate = null }) {
+  return {
+    id: record?.id || `${documentType}-${record?.quote_number || record?.invoice_number || 'unknown'}`,
+    documentType,
+    documentId: record?.id || null,
+    number: documentType === 'quote' ? record?.quote_number || null : record?.invoice_number || null,
+    clientName: record?.client_name || null,
+    currency: record?.currency || 'USD',
+    title,
+    action,
+    actionLabel,
+    paymentStatus,
+    amountPaidCents,
+    amountDueCents,
+    dueDate,
+    _priority: priority,
+    _timestamp: timestampFor(record),
+    _tieBreaker: `${documentType}:${record?.id || record?.quote_number || record?.invoice_number || ''}`,
+  };
+}
+
+function invoiceIsPastDue(invoice, now) {
+  return deriveInvoicePaymentState(
+    { ...invoice, amount_paid_cents: 0 },
+    now
+  ).paymentStatus === PAYMENT_STATUSES.OVERDUE;
+}
+
+function stripAttentionSortFields(item) {
+  const {
+    _priority,
+    _timestamp,
+    _tieBreaker,
+    ...publicItem
+  } = item;
+  return publicItem;
+}
+
+export function buildNeedsAttention({ quotes = [], invoices = [] } = {}, now = new Date()) {
+  const quoteItems = (Array.isArray(quotes) ? quotes : []).flatMap((record) => {
+    const status = normalizeRecordStatus(record?.status);
+    if (status === 'draft') {
+      return [attentionItem({
+        record,
+        documentType: 'quote',
+        title: 'Finish and send quote',
+        action: 'openQuotes',
+        actionLabel: 'Open quote',
+        priority: NEEDS_ATTENTION_PRIORITY.draft_quote,
+      })];
+    }
+    if (status === 'sent') {
+      return [attentionItem({
+        record,
+        documentType: 'quote',
+        title: 'Awaiting client decision',
+        action: 'openQuotes',
+        actionLabel: 'Open quote',
+        priority: NEEDS_ATTENTION_PRIORITY.sent_quote,
+      })];
+    }
+    if (status === 'approved') {
+      return [attentionItem({
+        record,
+        documentType: 'quote',
+        title: 'Ready to create invoice',
+        action: 'openQuotes',
+        actionLabel: 'Open quote',
+        priority: NEEDS_ATTENTION_PRIORITY.approved_quote,
+      })];
+    }
+    return [];
+  });
+
+  const invoiceItems = (Array.isArray(invoices) ? invoices : []).flatMap((record) => {
+    if (normalizeRecordStatus(record?.status) === 'draft') return [];
+
+    const readModel = resolveInvoicePaymentReadModel(record, now);
+    const pastDue = invoiceIsPastDue(record, now) && readModel.paymentStatus !== PAYMENT_STATUSES.PAID;
+
+    if (pastDue) {
+      return [attentionItem({
+        record,
+        documentType: 'invoice',
+        title: 'Past-due balance',
+        action: 'openInvoices',
+        actionLabel: 'Open invoice',
+        priority: NEEDS_ATTENTION_PRIORITY.past_due,
+        paymentStatus: readModel.payment_status,
+        amountPaidCents: readModel.amount_paid_cents,
+        amountDueCents: readModel.amount_due_cents,
+        dueDate: record?.due_date || null,
+      })];
+    }
+
+    if (readModel.payment_status === PAYMENT_STATUSES.PARTIAL) {
+      return [attentionItem({
+        record,
+        documentType: 'invoice',
+        title: 'Remaining balance',
+        action: 'openInvoices',
+        actionLabel: 'Open invoice',
+        priority: NEEDS_ATTENTION_PRIORITY.partial,
+        paymentStatus: readModel.payment_status,
+        amountPaidCents: readModel.amount_paid_cents,
+        amountDueCents: readModel.amount_due_cents,
+        dueDate: record?.due_date || null,
+      })];
+    }
+
+    if (readModel.payment_status === PAYMENT_STATUSES.UNPAID) {
+      return [attentionItem({
+        record,
+        documentType: 'invoice',
+        title: 'Payment not recorded',
+        action: 'openInvoices',
+        actionLabel: 'Open invoice',
+        priority: NEEDS_ATTENTION_PRIORITY.unpaid,
+        paymentStatus: readModel.payment_status,
+        amountDueCents: readModel.amount_due_cents,
+        dueDate: record?.due_date || null,
+      })];
+    }
+
+    return [];
+  });
+
+  return [...quoteItems, ...invoiceItems]
+    .sort((left, right) => (
+      left._priority - right._priority
+      || right._timestamp - left._timestamp
+      || left._tieBreaker.localeCompare(right._tieBreaker)
+    ))
+    .map(stripAttentionSortFields);
+}
+
 export function buildRecentDocuments({ quotes = [], invoices = [] } = {}, limit = 6) {
   const quoteDocuments = (Array.isArray(quotes) ? quotes : []).map((record, index) => ({
     type: 'quote',
@@ -76,4 +231,52 @@ export function getDashboardSurfaceState({ isLoading = false, error = null, quot
   if (error && !hasDocuments) return 'error';
   if (isLoading && !hasDocuments) return 'loading';
   return hasDocuments ? 'ready' : 'empty';
+}
+
+export function getNeedsAttentionSurfaceState({ itemCount = 0, surfaceState = 'empty', error = null } = {}) {
+  const hasItems = Number(itemCount) > 0;
+  const hasError = Boolean(error) || surfaceState === 'error';
+
+  if (!hasItems && hasError) {
+    return {
+      mode: 'error',
+      title: "Needs Attention couldn't be loaded.",
+      description: 'Refresh to try again. Your existing document workflows are unchanged.',
+      showRetry: true,
+    };
+  }
+
+  if (!hasItems && surfaceState === 'loading') {
+    return {
+      mode: 'loading',
+      title: 'Checking your quotes and invoices…',
+      description: 'We are retrieving the latest document status.',
+      showRetry: false,
+    };
+  }
+
+  if (hasItems && hasError) {
+    return {
+      mode: 'stale',
+      title: null,
+      description: 'Some data could not be refreshed. Showing the latest available items.',
+      showRetry: false,
+    };
+  }
+
+  if (!hasItems) {
+    return {
+      mode: 'empty',
+      title: 'No quotes or invoices need attention right now.',
+      description: null,
+      showRetry: false,
+    };
+  }
+
+  return {
+    mode: 'list',
+    title: null,
+    description: null,
+    showRetry: false,
+  };
 }
