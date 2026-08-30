@@ -3,6 +3,7 @@ import {
   deriveInvoicePaymentState,
   resolveInvoicePaymentReadModel,
 } from '../../core/revenue/invoicePaymentState.js';
+import { deserializeQuoteNotes } from './quoteNotes.mjs';
 
 const DASHBOARD_TAB_BY_TOOL = {
   quote: 'quotes',
@@ -93,7 +94,7 @@ export function buildScopeSnapshot(quotes = []) {
     hasItems: sourceItems.length > 0,
     total: quote.total ?? null,
     currency: quote.currency || null,
-    notes: quote.notes || null,
+    notes: deserializeQuoteNotes(quote.notes).notes || null,
     updatedAt: parsedTimestamp(quote.updated_at) !== null
       ? quote.updated_at
       : parsedTimestamp(quote.created_at) !== null ? quote.created_at : null,
