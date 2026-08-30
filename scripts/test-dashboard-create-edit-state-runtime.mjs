@@ -73,9 +73,10 @@ const dashboardFunctions = {
   suggestedFollowUp: extractClickBody('Option 3: Create quote/invoice follow-up', { afterMarker: true }),
 };
 
-function createDashboardHarness() {
-  const factory = new Function('functions', `
+function createDashboardHarness({ delayAccess = false, accessAllowed = true } = {}) {
+  const factory = new Function('functions', 'delayAccess', 'accessAllowed', `
     let invId = '';
+    let invClientId = null;
     let pendingSendRetryInvoiceId = '';
     let qId = '';
     let invNumber = '';
@@ -143,8 +144,10 @@ function createDashboardHarness() {
     const savedQuotes = [];
     const claims = [];
     const events = [];
+    const pendingAccessDecisions = [];
 
     const setInvId = (value) => { invId = value; };
+    const setInvClientId = (value) => { invClientId = value; };
     const setPendingSendRetryInvoiceId = (value) => { pendingSendRetryInvoiceId = value; };
     const setQId = (value) => { qId = value; };
     const setInvNumber = (value) => { invNumber = value; };
@@ -195,7 +198,19 @@ function createDashboardHarness() {
     const setLeads = (value) => { leads = typeof value === 'function' ? value(leads) : value; };
     const trackEvent = (name, payload = {}) => { events.push({ name, payload }); };
     const sendEvent = (name, payload = {}) => { events.push({ name, payload }); };
-    const evaluateAction = (_name, callback) => callback?.();
+    const evaluateAction = (name, callback) => {
+      if (delayAccess) {
+        pendingAccessDecisions.push({ name, callback });
+        return Promise.resolve(true);
+      }
+      if (!accessAllowed) return Promise.resolve(false);
+      callback?.(true);
+      return Promise.resolve(true);
+    };
+    const allowPendingAccess = () => {
+      const decision = pendingAccessDecisions.shift();
+      if (accessAllowed) decision?.callback?.(true);
+    };
     const handleDashboardTabChange = (tab) => { activeTab = tab; };
     const triggerToast = () => {};
     const setTimeout = (callback) => { callback(); return 0; };
@@ -250,6 +265,16 @@ function createDashboardHarness() {
 
     return {
       createInvoice: initCreateInvoice,
+      billClient: (client) => initCreateInvoice({
+        source: 'client_bill',
+        clientContext: {
+          client_id: client.id,
+          client_name: client.name,
+          client_email: client.email,
+          client_address: client.address,
+        },
+      }),
+      allowPendingAccess,
       createQuote: initCreateQuote,
       cancelInvoice: handleCancelInvoice,
       exitInvoice: handleExitInvoiceFlow,
@@ -269,6 +294,7 @@ function createDashboardHarness() {
       setConvertedInvoice: (value) => { convertedInvoice = value; },
       seedInvoiceEditor: (state) => {
         invId = state.id;
+        invClientId = state.clientId || null;
         invNumber = state.number || 'INV-OLD';
         invClientName = state.clientName || 'Old client';
         invClientEmail = state.clientEmail || 'old@example.com';
@@ -311,7 +337,7 @@ function createDashboardHarness() {
         setQClientName('New client');
         setQItems([{ description: 'New scope', quantity: 1, unitPrice: 100 }]);
       },
-      getInvoice: () => ({ id: invId, quoteId: invQuoteId, number: invNumber, clientName: invClientName, currency: invCurrency, items: invItems, taxRate: invTaxRate, discountRate: invDiscountRate, billingType: invBillingType, paymentLink: invPaymentLink, status: invStatus, view: invoiceView, stage: invoiceFlowStage, locked: invoiceFlowLocked, activeTab }),
+      getInvoice: () => ({ id: invId, clientId: invClientId, quoteId: invQuoteId, number: invNumber, clientName: invClientName, currency: invCurrency, items: invItems, taxRate: invTaxRate, discountRate: invDiscountRate, billingType: invBillingType, paymentLink: invPaymentLink, status: invStatus, view: invoiceView, stage: invoiceFlowStage, locked: invoiceFlowLocked, activeTab }),
       getQuote: () => ({ id: qId, number: qNumber, clientName: qClientName, clientEmail: qClientEmail, currency: qCurrency, items: qItems, taxRate: qTaxRate, discountRate: qDiscountRate, presetId: selectedQuotePresetId, firstFlow: isFirstQuoteFlow, nameTouched: qClientNameTouched, emailTouched: qClientEmailTouched, submitAttempted: qSubmitAttempted, view: quoteView, activeTab }),
       savedInvoices,
       savedQuotes,
@@ -319,7 +345,7 @@ function createDashboardHarness() {
       events,
     };
   `);
-  return factory(dashboardFunctions);
+  return factory(dashboardFunctions, delayAccess, accessAllowed);
 }
 
 const flush = async () => {
@@ -442,6 +468,57 @@ const verifySpecializedCreate = async (name, verify) => {
     specializedFailures.push(`${name}: ${error.message}`);
   }
 };
+
+await verifySpecializedCreate('Client Bill canonical context routing', async () => {
+  const harness = createDashboardHarness({ delayAccess: true });
+  const clientA = { id: 'client-a', name: 'Client A', email: 'a@example.com', address: 'A address' };
+  const clientB = { id: 'client-b', name: 'Client B', email: 'b@example.com', address: 'B address' };
+
+  harness.billClient(clientA);
+  assert.equal(harness.getInvoice().activeTab, 'overview', 'Client Bill waits for access before changing tabs');
+  assert.equal(harness.getInvoice().view, 'list', 'Client Bill does not expose the Invoice Documents list while access is pending');
+  harness.allowPendingAccess();
+  assert.equal(harness.getInvoice().clientId, clientA.id);
+  assert.equal(harness.getInvoice().clientName, clientA.name);
+  harness.saveInvoice();
+  harness.allowPendingAccess();
+  await flush();
+  assert.equal(harness.savedInvoices.at(-1)?.client_id, clientA.id);
+  assert.equal(harness.savedInvoices.at(-1)?.client_email, clientA.email);
+  harness.exitInvoice();
+
+  harness.billClient(clientB);
+  harness.allowPendingAccess();
+  assert.equal(harness.getInvoice().clientId, clientB.id);
+  assert.equal(harness.getInvoice().clientName, clientB.name);
+  harness.saveInvoice();
+  harness.allowPendingAccess();
+  await flush();
+  assert.equal(harness.savedInvoices.at(-1)?.client_id, clientB.id);
+  harness.exitInvoice();
+
+  harness.billClient(clientA);
+  harness.allowPendingAccess();
+  assert.equal(harness.getInvoice().clientId, clientA.id, 'A is restored after B without stale context leakage');
+  assert.equal(harness.getInvoice().clientName, clientA.name);
+  harness.saveInvoice();
+  harness.allowPendingAccess();
+  await flush();
+  assert.equal(harness.savedInvoices.at(-1)?.client_id, clientA.id);
+
+  harness.exitInvoice();
+  harness.createInvoice();
+  harness.allowPendingAccess();
+  assert.equal(harness.getInvoice().clientId, null, 'Generic Create Invoice does not inherit Client Bill context');
+  assert.equal(harness.getInvoice().clientName, 'Acme Corporation');
+
+  const denied = createDashboardHarness({ delayAccess: true, accessAllowed: false });
+  denied.billClient(clientA);
+  denied.allowPendingAccess();
+  assert.equal(denied.getInvoice().view, 'list', 'Denied Client Bill does not open the composer');
+  assert.equal(denied.getInvoice().activeTab, 'overview', 'Denied Client Bill does not navigate to Invoice Documents');
+  assert.equal(denied.getInvoice().clientId, null, 'Denied Client Bill leaves no canonical context');
+});
 
 await verifySpecializedCreate('Pending Invoice Draft restore', async () => {
   const harness = createDashboardHarness();

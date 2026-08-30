@@ -1092,6 +1092,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Invoice Editor State
   const [invId, setInvId] = useState('');
+  const [invClientId, setInvClientId] = useState(null);
   const [pendingSendRetryInvoiceId, setPendingSendRetryInvoiceId] = useState('');
   const [invNumber, setInvNumber] = useState(() => initialTool === 'invoice' ? generateRandomNumberString('INV') : '');
   const [invClientName, setInvClientName] = useState(() => initialTool === 'invoice' ? 'Acme Corporation' : '');
@@ -1861,6 +1862,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const resetInvoiceCreateState = () => {
     setInvId('');
+    setInvClientId(null);
     setPendingSendRetryInvoiceId('');
     setInvNumber(generateRandomNumberString('INV'));
     setInvClientName('Acme Corporation');
@@ -1888,6 +1890,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     resetInvoiceCreateState();
     setInvNumber(pendingInvoiceDraft.invoice_number || generateRandomNumberString('INV'));
+    setInvClientId(pendingInvoiceDraft.client_id || null);
     setInvClientName(pendingInvoiceDraft.client_name || '');
     setInvClientEmail(pendingInvoiceDraft.client_email || '');
     setInvClientAddress(pendingInvoiceDraft.client_address || '');
@@ -1992,6 +1995,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const openInvoiceFromQuote = (quote, { firstRevenueDraft = false } = {}) => {
     setInvId('');
+    setInvClientId(quote.client_id || null);
     setInvNumber(generateRandomNumberString('INV'));
     setInvClientName(quote.client_name);
     setInvClientEmail(quote.client_email || '');
@@ -2026,6 +2030,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const openInvoiceDraft = (invoice, quote) => {
     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
     setInvId(invoice.id);
+    setInvClientId(invoice.client_id || quote.client_id || null);
     setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
     setInvClientName(invoice.client_name || quote.client_name || '');
     setInvClientEmail(invoice.client_email || quote.client_email || '');
@@ -2106,6 +2111,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       return;
     }
     setInvId(invoice.id);
+    setInvClientId(invoice.client_id || null);
     setInvNumber(invoice.invoice_number);
     setInvClientName(invoice.client_name);
     setInvClientEmail(invoice.client_email || '');
@@ -2492,6 +2498,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           });
 
           const payload = {
+            client_id: invClientId,
             client_name: invClientName.trim(),
             client_email: invClientEmail.trim(),
             client_address: invClientAddress.trim(),
@@ -2556,6 +2563,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         const payload = {
           id: invId || undefined,
+          client_id: invClientId,
           client_name: invClientName.trim(),
           client_email: invClientEmail.trim(),
           client_address: invClientAddress.trim(),
@@ -3187,16 +3195,29 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   // Init blank Invoice
-  const openInvoiceBuilder = (source = 'quick_action') => {
+  const openInvoiceBuilder = (source = 'quick_action', clientContext = null) => {
     resetInvoiceCreateState();
+    if (clientContext?.client_id) {
+      setInvClientId(clientContext.client_id);
+      setInvClientName(clientContext.client_name || '');
+      setInvClientEmail(clientContext.client_email || '');
+      setInvClientAddress(clientContext.client_address || '');
+    }
     handleDashboardTabChange('invoices', source);
     setInvoiceView('create');
   };
 
-  const initCreateInvoice = () => {
-    trackEvent('create_invoice_click', { source: 'quick_action' });
-    trackEvent('quick_action_click', { action: 'create_invoice' });
-    evaluateAction('create_invoice', openInvoiceBuilder);
+  const initCreateInvoice = (options = {}) => {
+    const normalizedOptions = typeof options === 'string' ? { source: options } : (options || {});
+    const source = normalizedOptions.source || 'quick_action';
+    const clientContext = normalizedOptions.clientContext || null;
+    trackEvent('create_invoice_click', { source });
+    trackEvent('quick_action_click', { action: 'create_invoice', source });
+    evaluateAction(
+      'create_invoice',
+      () => openInvoiceBuilder(source, clientContext),
+      clientContext?.client_id ? { client_id: clientContext.client_id } : {}
+    );
   };
 
   const initFirstValueInvoice = () => {
@@ -5176,6 +5197,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 key={cli.id}
                                 type="button"
                                 onClick={() => {
+                                  setInvClientId(cli.id);
                                   setInvClientName(cli.name);
                                   setInvClientEmail(cli.email || '');
                                   setInvClientAddress(cli.address || '');
@@ -5681,9 +5703,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               formError={formError}
               formSuccess={formSuccess}
               initCreateInvoice={initCreateInvoice}
-              setInvClientName={setInvClientName}
-              setInvClientEmail={setInvClientEmail}
-              setInvClientAddress={setInvClientAddress}
               initCreateQuote={initCreateQuote}
               setQClientName={setQClientName}
               setQClientEmail={setQClientEmail}
@@ -5748,12 +5767,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               </button>
                               <button
                                 onClick={() => {
-                                  initCreateInvoice();
-                                  setInvClientName(cli.name);
-                                  setInvClientEmail(cli.email || '');
-                                  setInvClientAddress(cli.address || '');
+                                  initCreateInvoice({
+                                    source: 'client_bill',
+                                    clientContext: {
+                                      client_id: cli.id,
+                                      client_name: cli.name,
+                                      client_email: cli.email || '',
+                                      client_address: cli.address || '',
+                                    },
+                                  });
                                   trackEvent('quick_action_click', { action: 'bill_client' });
-                                  handleDashboardTabChange('invoices', 'client_bill');
                                 }}
                                 className="btn btn-secondary btn-sm"
                               >

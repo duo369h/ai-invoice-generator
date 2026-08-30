@@ -52,9 +52,6 @@ export default function StudioSpace({
 
   // Quick actions / navigation
   initCreateInvoice,
-  setInvClientName,
-  setInvClientEmail,
-  setInvClientAddress,
   initCreateQuote,
   setQClientName,
   setQClientEmail,
@@ -935,11 +932,15 @@ export default function StudioSpace({
                 <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Invoice Documents</h3>
                 <button
                   onClick={() => {
-                    initCreateInvoice();
-                    setInvClientName(client.name);
-                    setInvClientEmail(client.email || '');
-                    setInvClientAddress(client.address || '');
-                    handleDashboardTabChange('invoices', 'workspace_invoice_creator');
+                    initCreateInvoice({
+                      source: 'workspace_invoice_creator',
+                      clientContext: {
+                        client_id: client.id,
+                        client_name: client.name,
+                        client_email: client.email || '',
+                        client_address: client.address || '',
+                      },
+                    });
                   }}
                   className="btn btn-primary btn-sm"
                 >

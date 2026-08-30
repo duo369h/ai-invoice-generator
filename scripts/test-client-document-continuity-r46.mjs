@@ -421,7 +421,7 @@ async function runNormalClientDirectoryRuntimeChecks() {
     assert.equal(await firstDocumentsButton.getAttribute('aria-expanded'), 'false', 'document control starts collapsed');
     const firstPanelId = await firstDocumentsButton.getAttribute('aria-controls');
     assert.equal(firstPanelId, 'client-documents-panel-client-a', 'document control points to its own panel');
-    const visualDirectory = path.join(process.cwd(), 'output', 'r46-fix3-visual');
+    const visualDirectory = path.join(process.cwd(), 'output', 'r46-fix5-visual');
     mkdirSync(visualDirectory, { recursive: true });
     const captureVisualState = async (state) => {
       for (const [viewportName, width] of [['desktop', 1280], ['768', 768], ['390', 390]]) {
@@ -463,6 +463,17 @@ async function runNormalClientDirectoryRuntimeChecks() {
     assert.match(dialogMessage || '', /Are you sure you want to delete this client\?/i, 'Delete remains an independent action');
     await page.getByRole('button', { name: 'Bill', exact: true }).first().click();
     await page.getByRole('heading', { name: 'Create Document', exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await page.getByRole('heading', { name: 'Invoice Documents', exact: true }).count(), 0, 'Client Bill does not render Invoice Documents as an intermediate state');
+    const invoiceFieldValues = await page.locator('input, textarea').evaluateAll((elements) => elements.map((element) => element.value));
+    assert.ok(invoiceFieldValues.includes('Same Name'), 'Client Bill initializes the clicked client name');
+    assert.ok(invoiceFieldValues.includes('same@example.com'), 'Client Bill initializes the clicked client email');
+    assert.ok(invoiceFieldValues.includes('Long Client Address'), 'Client Bill initializes the clicked client address');
+    await page.screenshot({ path: path.join(visualDirectory, 'client-bill-desktop.png'), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 900 });
+    const billOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    assert.equal(billOverflow, false, 'Client Bill composer has no horizontal overflow at 390px');
+    await page.screenshot({ path: path.join(visualDirectory, 'client-bill-390.png'), fullPage: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('button', { name: 'Exit to dashboard', exact: true }).click();
     await page.getByRole('button', { name: 'Clients', exact: true }).click();
     await page.getByRole('heading', { name: 'Client Directory', exact: true }).waitFor({ state: 'visible' });
