@@ -73,6 +73,8 @@ async function runUpdate(invoice, payload = {}, config = {}) {
     logSideEffects: true,
     context: context(),
     invoiceRecords: invoice ? [invoice] : [],
+    clientRecords: [{ id: 'client-1', user_id: user.id }],
+    quoteRecords: [{ id: 'quote-1', user_id: user.id }],
     persisted: { ...baseInvoice, id: 'invoice-duplicate' },
     ...config,
   });

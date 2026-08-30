@@ -38,10 +38,21 @@ const INVOICE_PAYMENT_GUARD_FIELDS =
 async function findOwnedInvoiceForWrite(serviceSupabase, id, userId) {
   return serviceSupabase
     .from('invoices')
-    .select(INVOICE_PAYMENT_GUARD_FIELDS)
+    .select(`${INVOICE_PAYMENT_GUARD_FIELDS},client_id,quote_id`)
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle();
+}
+
+async function isOwnedRelation(serviceSupabase, table, relationId, userId) {
+  const { data, error } = await serviceSupabase
+    .from(table)
+    .select('id')
+    .eq('id', relationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
 }
 
 function settledInvoiceConflictResponse() {
@@ -108,7 +119,10 @@ export async function POST(request) {
       return NextResponse.json({ error: limitResult.error || 'Too many requests' }, { status: limitResult.status || 429 });
     }
 
-    const body = validateInvoicePayload(await request.json());
+    const rawBody = validateObject(await request.json());
+    const body = validateInvoicePayload(rawBody);
+    const hasClientIdProperty = Object.prototype.hasOwnProperty.call(rawBody, 'client_id');
+    const hasQuoteIdProperty = Object.prototype.hasOwnProperty.call(rawBody, 'quote_id');
 
     const {
       id,
@@ -204,9 +218,39 @@ export async function POST(request) {
         return settledInvoiceConflictResponse();
       }
 
+      const explicitClientId = hasClientIdProperty && rawBody.client_id !== null && rawBody.client_id !== undefined
+        ? client_id || null
+        : null;
+      const explicitQuoteId = hasQuoteIdProperty && rawBody.quote_id !== null && rawBody.quote_id !== undefined
+        ? quote_id || null
+        : null;
+
+      if (explicitClientId) {
+        const clientOwned = await isOwnedRelation(serviceSupabase, 'clients', explicitClientId, context.user.id);
+        if (!clientOwned) {
+          return NextResponse.json({
+            error: 'Client does not belong to the authenticated user.',
+            code: 'CLIENT_NOT_OWNED'
+          }, { status: 403 });
+        }
+      }
+      if (explicitQuoteId) {
+        const quoteOwned = await isOwnedRelation(serviceSupabase, 'quotes', explicitQuoteId, context.user.id);
+        if (!quoteOwned) {
+          return NextResponse.json({
+            error: 'Quote does not belong to the authenticated user.',
+            code: 'QUOTE_NOT_OWNED'
+          }, { status: 403 });
+        }
+      }
+
+      const updatePayload = { ...editablePayload };
+      if (!hasClientIdProperty) updatePayload.client_id = existingInvoice.client_id || null;
+      if (!hasQuoteIdProperty) updatePayload.quote_id = existingInvoice.quote_id || null;
+
       const { data, error } = await serviceSupabase
         .from('invoices')
-        .update(editablePayload)
+        .update(updatePayload)
         .eq('id', id)
         .eq('user_id', context.user.id)
         .eq('payment_status', existingInvoice.payment_status)

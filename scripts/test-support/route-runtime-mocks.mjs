@@ -276,6 +276,10 @@ function matchingRecord(records, filters) {
 }
 
 function queryResult({ kind, table, operation, filters, values }) {
+  if (table === 'clients' && operation === 'select' && Array.isArray(runtime.config.clientRecords)) {
+    if (runtime.config.clientLookupError) return result(null, runtime.config.clientLookupError);
+    return result(matchingRecord(runtime.config.clientRecords, filters));
+  }
   if (table === 'quotes' && operation === 'select' && Array.isArray(runtime.config.quoteRecords)) {
     if (runtime.config.quoteLookupError) return result(null, runtime.config.quoteLookupError);
     return result(matchingRecord(runtime.config.quoteRecords, filters));
