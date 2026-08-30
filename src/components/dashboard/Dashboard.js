@@ -93,6 +93,7 @@ function ClientDocumentsPanel({
   invoicesError,
   controlId,
   panelId,
+  onOpenDocument,
 }) {
   const clientDocuments = getClientDocumentContinuity({
     client,
@@ -120,10 +121,20 @@ function ClientDocumentsPanel({
     return (
       <li
         key={document.id || reference}
-        style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '9px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '9px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}
       >
-        <span style={{ overflowWrap: 'anywhere', color: 'var(--text-main)', fontWeight: 650 }}>{reference}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{status}{date ? ` · ${date}` : ''}</span>
+        <div style={{ minWidth: 0, flex: '1 1 180px' }}>
+          <div style={{ overflowWrap: 'anywhere', color: 'var(--text-main)', fontWeight: 650 }}>{reference}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{status}{date ? ` · ${date}` : ''}</div>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          aria-label={`Open ${type === 'quote' ? 'Quote' : 'Invoice'} ${reference}`}
+          onClick={() => onOpenDocument?.({ documentType: type, id: document.id })}
+        >
+          Open
+        </button>
       </li>
     );
   });
@@ -3175,6 +3186,80 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const getActiveClients = () => clients;
   const getActiveProfile = () => cardProfile;
 
+  const openDocument = ({ documentType, id } = {}) => {
+    if (!id) return false;
+
+    if (documentType === 'quote') {
+      const quote = quotes.find((document) => document?.id === id);
+      if (!quote) return false;
+
+      const itemsParsed = Array.isArray(quote.items) ? quote.items : JSON.parse(quote.items || '[]');
+      setQId(quote.id);
+      setQNumber(quote.quote_number || '');
+      setQClientName(quote.client_name || '');
+      setQClientEmail(quote.client_email || '');
+      setQClientAddress(quote.client_address || '');
+      setQClientId(quote.client_id || null);
+      setQCurrency(quote.currency || 'USD');
+      setQNotes(quote.notes || '');
+      setQTaxRate(Number(quote.tax_rate || 0));
+      setQDiscountRate(Number(quote.discount_rate || 0));
+      setQDate(quote.created_at?.substring(0, 10) || '');
+      setQItems(itemsParsed.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+      })));
+      setQStatus(quote.status || 'draft');
+      setSelectedQuotePresetId('');
+      setIsFirstQuoteFlow(false);
+      setQClientNameTouched(false);
+      setQClientEmailTouched(false);
+      setQSubmitAttempted(false);
+      handleDashboardTabChange('quotes', 'exact_document_open');
+      setQuoteView('edit');
+      return true;
+    }
+
+    if (documentType === 'invoice') {
+      const invoice = invoices.find((document) => document?.id === id);
+      if (!invoice) return false;
+
+      const deserialized = deserializeInvoiceNotes(invoice.notes);
+      const itemsParsed = Array.isArray(invoice.items) ? invoice.items : JSON.parse(invoice.items || '[]');
+      setInvId(invoice.id);
+      setInvClientId(invoice.client_id || null);
+      setInvNumber(invoice.invoice_number || '');
+      setInvClientName(invoice.client_name || '');
+      setInvClientEmail(invoice.client_email || '');
+      setInvClientAddress(invoice.client_address || '');
+      setInvCurrency(invoice.currency || 'USD');
+      setInvNotes(deserialized.notes);
+      setInvBillingType(deserialized.billing_type);
+      setInvTaxRate(Number(invoice.tax_rate || 0));
+      setInvDiscountRate(Number(invoice.discount_rate || 0));
+      setInvDate(invoice.invoice_date || invoice.created_at?.substring(0, 10) || getTodayString());
+      setInvDueDate(invoice.due_date || getFutureDateString(30));
+      setInvPaymentTerms(invoice.payment_terms || 'Net 30');
+      setInvPaymentLink(invoice.payment_link || '');
+      setInvQuoteId(invoice.quote_id || null);
+      setInvItems(itemsParsed.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+      })));
+      setInvStatus(invoice.status || 'pending');
+      setInvoiceFlowStage('create');
+      setInvoiceFlowLocked(true);
+      setShowPaymentWaitingBanner(false);
+      handleDashboardTabChange('invoices', 'exact_document_open');
+      setInvoiceView('edit');
+      return true;
+    }
+
+    return false;
+  };
+
   // Document total computations
   const currentInvoices = getActiveInvoices();
   const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
@@ -4338,27 +4423,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                 <button
                                   onClick={() => {
-                                    setQId(q.id);
-                                    setQNumber(q.quote_number);
-                                    setQClientName(q.client_name);
-                                    setQClientEmail(q.client_email || '');
-                                    setQClientAddress(q.client_address || '');
-                                    setQClientId(q.client_id || null);
-                                    setQCurrency(q.currency || 'USD');
-                                    setQNotes(q.notes || '');
-                                    setQTaxRate(Number(q.tax_rate || 0));
-                                    setQDiscountRate(Number(q.discount_rate || 0));
-                                    const itemsParsed = Array.isArray(q.items) ? q.items : JSON.parse(q.items || '[]');
-                                    setQItems(itemsParsed.map(i => ({
-                                      description: i.description,
-                                      quantity: i.quantity,
-                                      unitPrice: i.unitPrice || (i.unit_price || 0) / 100
-                                    })));
-                                    setQStatus(q.status);
-                                    setQClientNameTouched(false);
-                                    setQClientEmailTouched(false);
-                                    setQSubmitAttempted(false);
-                                    setQuoteView('edit');
+                                    openDocument({ documentType: 'quote', id: q.id });
                                   }}
                                   className="btn btn-secondary btn-sm"
                                 >
@@ -4959,34 +5024,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => {
-                                    setInvId(inv.id);
-                                    setInvClientId(inv.client_id || null);
-                                    setInvNumber(inv.invoice_number);
-                                    setInvClientName(inv.client_name);
-                                    setInvClientEmail(inv.client_email || '');
-                                    setInvClientAddress(inv.client_address || '');
-                                    setInvCurrency(inv.currency || 'USD');
-                                    const deserialized = deserializeInvoiceNotes(inv.notes);
-                                    setInvNotes(deserialized.notes);
-                                    setInvBillingType(deserialized.billing_type);
-                                    setInvTaxRate(Number(inv.tax_rate || 0));
-                                    setInvDiscountRate(Number(inv.discount_rate || 0));
-                                    setInvDate(inv.invoice_date || getTodayString());
-                                    setInvDueDate(inv.due_date || getFutureDateString(30));
-                                    setInvPaymentTerms(inv.payment_terms || 'Net 30');
-                                    setInvPaymentLink(inv.payment_link || '');
-                                    setInvQuoteId(inv.quote_id || null);
-                                    const itemsParsed = Array.isArray(inv.items) ? inv.items : JSON.parse(inv.items || '[]');
-                                    setInvItems(itemsParsed.map(i => ({
-                                      description: i.description,
-                                      quantity: i.quantity,
-                                      unitPrice: i.unitPrice || (i.unit_price || 0) / 100
-                                    })));
-                                    setInvStatus(inv.status);
-                                    setInvoiceFlowStage('create');
-                                    setInvoiceFlowLocked(true);
-                                    setShowPaymentWaitingBanner(false);
-                                    setInvoiceView('edit');
+                                    openDocument({ documentType: 'invoice', id: inv.id });
                                   }}
                                   className="btn btn-secondary btn-sm"
                                 >
@@ -5800,6 +5838,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               isInvoicesLoading={isInvoicesLoading}
                               quotesError={quotesError}
                               invoicesError={invoicesError}
+                              onOpenDocument={openDocument}
                               controlId={documentsControlId}
                               panelId={documentsPanelId}
                             />

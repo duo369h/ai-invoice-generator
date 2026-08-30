@@ -97,10 +97,11 @@ const dashboardFunctions = {
   handleCancelQuote: extractConstArrow('handleCancelQuote'),
   handleCancelInvoice: extractConstArrow('handleCancelInvoice'),
   handleExitInvoiceFlow: extractConstArrow('handleExitInvoiceFlow'),
+  openDocument: extractConstArrow('openDocument'),
   handleSaveQuote: extractConstArrow('handleSaveQuote'),
   handleSaveInvoice: extractConstArrow('handleSaveInvoice'),
-  editQuote: extractClickBody('setQId(q.id);'),
-  editInvoice: extractClickBody('setInvId(inv.id);'),
+  editQuote: extractClickBody("openDocument({ documentType: 'quote', id: q.id })"),
+  editInvoice: extractClickBody("openDocument({ documentType: 'invoice', id: inv.id })"),
   quoteClientSelectValue: extractQuoteClientSelectValueExpression(),
   quoteClientSelectChange: extractQuoteClientSelectChangeBody(),
   studioQuoteDraft: extractSourceClickBody(studioSpace, '+ Draft Quote'),
@@ -295,10 +296,11 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     ${dashboardFunctions.handleCancelQuote}
     ${dashboardFunctions.handleCancelInvoice}
     ${dashboardFunctions.handleExitInvoiceFlow}
+    ${dashboardFunctions.openDocument}
     ${dashboardFunctions.handleSaveQuote}
     ${dashboardFunctions.handleSaveInvoice}
-    const editQuote = (q) => {${dashboardFunctions.editQuote}};
-    const editInvoice = (inv) => {${dashboardFunctions.editInvoice}};
+    const editQuote = (q) => { quotes.push(q); ${dashboardFunctions.editQuote}};
+    const editInvoice = (inv) => { invoices.push(inv); ${dashboardFunctions.editInvoice}};
     const quoteClientSelectValue = new Function('qClientId', 'return ' + ${JSON.stringify(dashboardFunctions.quoteClientSelectValue)});
     const handleQuoteClientSelectChange = (e) => {${dashboardFunctions.quoteClientSelectChange}};
     const clickSuggestedFollowUp = () => {${dashboardFunctions.suggestedFollowUp}};
