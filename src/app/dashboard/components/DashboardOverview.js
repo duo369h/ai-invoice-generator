@@ -9,6 +9,8 @@ import {
   getDashboardQuickActions,
   getDashboardSurfaceState,
   getNeedsAttentionSurfaceState,
+  buildScopeSnapshot,
+  getScopeSnapshotSurfaceState,
 } from '../../../components/dashboard/dashboardWave1.mjs';
 
 const cardStyle = {
@@ -758,6 +760,103 @@ function Wave1NeedsAttention({ items, surfaceState, error, actionHandlers }) {
   );
 }
 
+function Wave1ScopeSnapshot({ snapshot, state, actionHandlers }) {
+  const surfaceState = getScopeSnapshotSurfaceState({
+    quotes: snapshot ? [snapshot] : [],
+    isLoading: state.isLoading,
+    error: state.error,
+  });
+
+  return (
+    <section className="dashboard-wave1-card dashboard-scope-snapshot" data-testid="scope-snapshot" aria-labelledby="scope-snapshot-title">
+      <div className="dashboard-wave1-section-heading">
+        <div>
+          <h2 id="scope-snapshot-title">Scope Snapshot</h2>
+          <p className="dashboard-scope-snapshot-subtitle">Latest quote · Quote scope only</p>
+        </div>
+        {surfaceState.mode === 'ready' || surfaceState.mode === 'stale' ? <span className="dashboard-wave1-hint">Latest quote</span> : null}
+      </div>
+
+      {surfaceState.mode === 'loading' && (
+        <div className="dashboard-wave1-state" role="status" data-testid="scope-snapshot-loading-state">
+          <strong>{surfaceState.title}</strong>
+        </div>
+      )}
+
+      {surfaceState.mode === 'error' && (
+        <div className="dashboard-wave1-state" role="alert" data-testid="scope-snapshot-error-state">
+          <strong>{surfaceState.title}</strong>
+          <p>{surfaceState.description}</p>
+          {surfaceState.showRetry && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+
+      {surfaceState.mode === 'empty' && (
+        <div className="dashboard-wave1-state" data-testid="scope-snapshot-empty-state">
+          <strong>{surfaceState.title}</strong>
+        </div>
+      )}
+
+      {(surfaceState.mode === 'ready' || surfaceState.mode === 'stale') && snapshot && (
+        <>
+          {surfaceState.mode === 'stale' && (
+            <p className="dashboard-wave1-inline-error" role="alert" data-testid="scope-snapshot-stale-state">
+              {surfaceState.description}
+            </p>
+          )}
+          <div className="dashboard-scope-snapshot-meta">
+            <div>
+              <span>Quote</span>
+              <strong>{snapshot.quoteNumber || 'Quote number unavailable'}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{formatStatus(snapshot.status)}</strong>
+            </div>
+            <div className="dashboard-scope-snapshot-client">
+              <span>Client</span>
+              <strong>{snapshot.clientName || 'Client not provided'}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-scope-snapshot-items">
+            <span className="dashboard-scope-snapshot-label">Line items</span>
+            {snapshot.hasItems ? (
+              <div className="dashboard-scope-snapshot-item-list">
+                {snapshot.items.map((item, index) => (
+                  <div className="dashboard-scope-snapshot-item" key={`${item.description || 'line-item'}-${index}`}>
+                    <span>{item.description || 'Description unavailable'}</span>
+                    {item.quantity !== null && item.quantity !== undefined && <strong>× {item.quantity}</strong>}
+                  </div>
+                ))}
+                {snapshot.moreItemCount > 0 && <p className="dashboard-scope-snapshot-more">+ {snapshot.moreItemCount} more items</p>}
+              </div>
+            ) : (
+              <p className="dashboard-scope-snapshot-empty-items">No line items recorded on this quote.</p>
+            )}
+          </div>
+
+          <div className="dashboard-scope-snapshot-footer">
+            <div className="dashboard-scope-snapshot-total">
+              <span>Total</span>
+              <strong>{snapshot.currency ? formatTotal(snapshot) : 'Currency unavailable'}</strong>
+            </div>
+            {snapshot.notes && <p className="dashboard-scope-snapshot-notes">{snapshot.notes}</p>}
+            {snapshot.updatedAt && <span className="dashboard-scope-snapshot-updated">Updated {formatAttentionDate(snapshot.updatedAt)}</span>}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'openQuotes', { id: snapshot.id })}>
+              Open Quote
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
   return (
     <section className="dashboard-wave1-card" data-testid="recent-documents" aria-labelledby="recent-documents-title">
@@ -851,6 +950,8 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
   });
   const documents = buildRecentDocuments({ quotes, invoices });
   const needsAttention = buildNeedsAttention({ quotes, invoices });
+  const scopeSnapshot = buildScopeSnapshot(quotes);
+  const scopeSnapshotError = data.quoteError || data.error;
 
   // Keep the existing UI graph contract observable without allowing legacy
   // insight/metric sections to displace the Wave 1 work surface.
@@ -866,6 +967,11 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
       </header>
       <Wave1QuickActions actionHandlers={actionHandlers} />
       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
+      <Wave1ScopeSnapshot
+        snapshot={scopeSnapshot}
+        state={{ isLoading: Boolean(data.isLoading), error: scopeSnapshotError }}
+        actionHandlers={actionHandlers}
+      />
       <Wave1RecentDocuments
         documents={documents}
         state={state}

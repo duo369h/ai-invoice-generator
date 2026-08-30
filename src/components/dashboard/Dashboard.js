@@ -537,6 +537,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setLeads,
     quotes,
     setQuotes,
+    quotesError,
+    setQuotesError,
     invoices,
     setInvoices,
     clients,
@@ -1372,10 +1374,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setUser({});
     setLeads([]);
     setQuotes([]);
+    setQuotesError(null);
     setInvoices([]);
     setClients([]);
     setCardProfile(null);
-  }, [invalidateDashboardData, setDashboardDataError, setUser, setLeads, setQuotes, setInvoices, setClients, setCardProfile]);
+  }, [invalidateDashboardData, setDashboardDataError, setUser, setLeads, setQuotes, setQuotesError, setInvoices, setClients, setCardProfile]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -3877,6 +3880,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 activeProfile: getActiveProfile(),
                 isLoading: isRefreshing,
                 error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
+                quoteError: quotesError,
                 isFree,
                 exportCount,
                 businessModeBadge,

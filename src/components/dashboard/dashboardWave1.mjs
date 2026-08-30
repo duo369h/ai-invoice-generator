@@ -43,6 +43,110 @@ function timestampFor(record) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function parsedTimestamp(value) {
+  const timestamp = Date.parse(value || '');
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareTimestampDescending(left, right) {
+  const leftTimestamp = parsedTimestamp(left);
+  const rightTimestamp = parsedTimestamp(right);
+  return (rightTimestamp ?? Number.NEGATIVE_INFINITY) - (leftTimestamp ?? Number.NEGATIVE_INFINITY);
+}
+
+function compareParsedTimestampDescending(leftTimestamp, rightTimestamp) {
+  return (rightTimestamp ?? Number.NEGATIVE_INFINITY) - (leftTimestamp ?? Number.NEGATIVE_INFINITY);
+}
+
+function quoteTieBreaker(quote) {
+  return `${quote?.id || ''}\u0000${quote?.quote_number || ''}`;
+}
+
+function compareQuotesByRecency(left, right) {
+  const leftEffectiveRecency = parsedTimestamp(left?.updated_at) ?? parsedTimestamp(left?.created_at);
+  const rightEffectiveRecency = parsedTimestamp(right?.updated_at) ?? parsedTimestamp(right?.created_at);
+
+  return compareParsedTimestampDescending(leftEffectiveRecency, rightEffectiveRecency)
+    || compareTimestampDescending(left?.created_at, right?.created_at)
+    || quoteTieBreaker(left).localeCompare(quoteTieBreaker(right));
+}
+
+export function selectLatestQuote(quotes = []) {
+  return (Array.isArray(quotes) ? quotes : []).slice().sort(compareQuotesByRecency)[0] || null;
+}
+
+export function buildScopeSnapshot(quotes = []) {
+  const quote = selectLatestQuote(quotes);
+  if (!quote) return null;
+
+  const sourceItems = Array.isArray(quote.items) ? quote.items : [];
+  return {
+    id: quote.id || null,
+    quoteNumber: quote.quote_number || null,
+    status: quote.status || null,
+    clientName: quote.client_name || null,
+    items: sourceItems.slice(0, 4).map((item) => ({
+      description: item?.description ?? null,
+      quantity: item?.quantity ?? null,
+    })),
+    moreItemCount: Math.max(0, sourceItems.length - 4),
+    hasItems: sourceItems.length > 0,
+    total: quote.total ?? null,
+    currency: quote.currency || null,
+    notes: quote.notes || null,
+    updatedAt: parsedTimestamp(quote.updated_at) !== null
+      ? quote.updated_at
+      : parsedTimestamp(quote.created_at) !== null ? quote.created_at : null,
+  };
+}
+
+export function getScopeSnapshotSurfaceState({ isLoading = false, error = null, quotes = [] } = {}) {
+  const hasQuotes = Array.isArray(quotes) && quotes.length > 0;
+
+  if (hasQuotes && error) {
+    return {
+      mode: 'stale',
+      title: null,
+      description: 'Some data could not be refreshed. Showing the latest available quote.',
+      showRetry: false,
+    };
+  }
+
+  if (!hasQuotes && isLoading) {
+    return {
+      mode: 'loading',
+      title: 'Checking your latest quote…',
+      description: null,
+      showRetry: false,
+    };
+  }
+
+  if (!hasQuotes && error) {
+    return {
+      mode: 'error',
+      title: "Scope Snapshot couldn't be loaded.",
+      description: 'Refresh to try again.',
+      showRetry: true,
+    };
+  }
+
+  if (!hasQuotes) {
+    return {
+      mode: 'empty',
+      title: 'Create a quote to see a scope snapshot here.',
+      description: null,
+      showRetry: false,
+    };
+  }
+
+  return {
+    mode: 'ready',
+    title: null,
+    description: null,
+    showRetry: false,
+  };
+}
+
 function documentStatus(record, type) {
   const value = type === 'invoice' ? record?.payment_status || record?.status : record?.status;
   return value === undefined || value === null || value === '' ? null : String(value);

@@ -159,6 +159,7 @@ export async function loadDashboardResources({
   setLeads,
   setQuotes,
   setCardProfile,
+  setQuotesError = () => {},
   onQuotesSettled = () => {},
   consoleImpl = console,
 }) {
@@ -235,11 +236,11 @@ export async function loadDashboardResources({
     return { status: 'activated', user: userData };
   });
 
-  const consumeListResource = async ({ resultTask, setData }) => {
+  const consumeListResource = async ({ resultTask, setData, clearOnHttpError = true }) => {
     const [userDecision, result] = await Promise.all([userDecisionTask, resultTask]);
     if (userDecision.status !== 'activated') return result;
     if (result.status === 'success') setData(result.data);
-    else if (result.status === 'http_error') setData([]);
+    else if (result.status === 'http_error' && clearOnHttpError) setData([]);
     return result;
   };
 
@@ -258,6 +259,16 @@ export async function loadDashboardResources({
   const quotesTask = consumeListResource({
     resultTask: resourceTasks.quotes,
     setData: setQuotes,
+    clearOnHttpError: false,
+  }).then((result) => {
+    if (result.status === 'success') {
+      if (typeof setQuotesError === 'function') setQuotesError(null);
+    } else {
+      if (typeof setQuotesError === 'function') {
+        setQuotesError(result.error || new Error(`Failed to fetch quotes${result.httpStatus ? ` (${result.httpStatus})` : ''}`));
+      }
+    }
+    return result;
   }).finally(() => {
     onQuotesSettled();
   });
@@ -295,6 +306,7 @@ export function useDashboardData(mode, session = null) {
   const [invoices, setInvoices] = useState(() => (isLive ? [] : MOCK_INVOICES));
   const [clients, setClients] = useState(() => (isLive ? [] : MOCK_CLIENTS));
   const [cardProfile, setCardProfile] = useState(() => (isLive ? null : MOCK_PROFILE));
+  const [quotesError, setQuotesError] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -321,6 +333,7 @@ export function useDashboardData(mode, session = null) {
       setIsRefreshing(false);
       setIsInitialLoad(false);
       setIsQuotesLoading(false);
+      if (typeof setQuotesError === 'function') setQuotesError(null);
       return { user: null, error: 'no_session' };
     }
 
@@ -342,6 +355,7 @@ export function useDashboardData(mode, session = null) {
         setClients: setIfCurrent(setClients),
         setLeads: setIfCurrent(setLeads),
         setQuotes: setIfCurrent(setQuotes),
+        setQuotesError: setIfCurrent(typeof setQuotesError === 'function' ? setQuotesError : () => {}),
         setCardProfile: setIfCurrent(setCardProfile),
         onQuotesSettled: finishQuotesInitialLoad,
         consoleImpl: console,
@@ -582,6 +596,8 @@ export function useDashboardData(mode, session = null) {
     setLeads,
     quotes,
     setQuotes,
+    quotesError,
+    setQuotesError,
     invoices,
     setInvoices,
     clients,
