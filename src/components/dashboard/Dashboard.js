@@ -75,7 +75,7 @@ import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../
 import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
 import { deserializeQuoteNotes as deserializeInvoiceNotes } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
-import { hasRecordedInvoicePayment } from '../../core/revenue/invoicePaymentState.js';
+import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/revenue/invoicePaymentState.js';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -453,14 +453,32 @@ const serializeInvoiceNotes = (baseNotes, metadata) => {
   return `${baseNotes || ''}\n\n---METADATA---\n${JSON.stringify(metadata)}`;
 };
 
-// Render interactive invoice document status timeline
-const renderInvoiceTimeline = (status) => {
-  const stages = [
-    { key: 'created', label: 'Created', done: true, active: status === 'draft' },
-    { key: 'viewed', label: 'Sent', done: ['pending', 'sent', 'paid', 'overdue'].includes(status), active: status === 'pending' },
-    { key: 'opened', label: 'Opened', done: ['sent', 'paid', 'overdue'].includes(status), active: status === 'sent' },
-    { key: 'paid', label: 'Completed', done: status === 'paid', active: status === 'paid', overdue: status === 'overdue' }
-  ];
+// Resolve only workflow facts supported by the current invoice state.
+// Client-open activity is intentionally absent: no invoice-level open event
+// is part of the authoritative model.
+export const getInvoiceTimelineState = (invoice = {}) => {
+  const resolvedInvoice = (typeof invoice === 'string' ? { status: invoice } : invoice) || {};
+  const status = resolvedInvoice.status || 'draft';
+  const created = Boolean(resolvedInvoice?.id);
+  const paymentStatus = paymentStatusForInvoice(resolvedInvoice);
+  const sent = created && status === 'sent';
+  const completed = created && paymentStatus === 'paid';
+  const overdue = created && paymentStatus === 'overdue';
+
+  return {
+    progressWidth: sent && completed ? '80%' : (sent ? '40%' : '0%'),
+    overdue,
+    stages: [
+      { key: 'created', label: 'Created', done: created, active: status === 'draft' },
+      { key: 'sent', label: 'Sent', done: sent, active: status === 'pending' },
+      { key: 'completed', label: 'Completed', done: completed, active: sent && !completed && !overdue, overdue },
+    ],
+  };
+};
+
+// Render interactive invoice status timeline
+const renderInvoiceTimeline = (invoice) => {
+  const { stages, progressWidth, overdue } = getInvoiceTimelineState(invoice);
 
   return (
     <div style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--btn-secondary-bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -472,9 +490,9 @@ const renderInvoiceTimeline = (status) => {
           position: 'absolute',
           top: '15px',
           left: '10%',
-          width: status === 'paid' ? '80%' : (status === 'sent' || status === 'overdue' ? '53%' : (status === 'pending' ? '26%' : '0%')),
+          width: progressWidth,
           height: '2px',
-          backgroundColor: status === 'overdue' ? 'var(--danger)' : 'var(--success)',
+          backgroundColor: overdue ? 'var(--danger)' : 'var(--success)',
           zIndex: 1,
           transition: 'width 0.4s ease'
         }} />
@@ -1136,6 +1154,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const getSelectedInvoice = () => invId ? invoices.find((invoice) => invoice?.id === invId) : null;
   const isSelectedInvoiceSettled = Boolean(invId && hasRecordedInvoicePayment(getSelectedInvoice()));
+  const selectedInvoicePaymentStatus = paymentStatusForInvoice(getSelectedInvoice() || { status: invStatus });
 
   // Client editor state
   const [newClientName, setNewClientName] = useState('');
@@ -5111,7 +5130,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 </div>
 
-                {renderInvoiceFlowStepper()}
+                {!isSelectedInvoiceSettled && renderInvoiceFlowStepper()}
 
                 {invoiceView === 'create' && !session && (
                   <div style={{
@@ -5204,7 +5223,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
                 {invoiceFlowStage === 'paid' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                    {renderInvoiceTimeline('paid')}
+                    {renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus })}
                     {renderInvoiceReadonlyPreview({ compact: true })}
                     <div style={{
                       padding: '14px 16px',
@@ -5223,7 +5242,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 )}
 
-                {invoiceFlowStage === 'create' && renderInvoiceTimeline(invStatus)}
+                {invoiceFlowStage === 'create' && renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus })}
 
                 <div className="dashboard-grid-2col" style={invoiceFlowStage === 'create' ? undefined : { display: 'none' }}>
                   {/* Left Form */}
@@ -5375,7 +5394,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           fontSize: '0.85rem',
                           fontWeight: 750
                         }}>
-                          {isSelectedInvoiceSettled ? 'Read only · Recorded payment' : 'Pending until sent'}
+                          {isSelectedInvoiceSettled
+                            ? 'Read only · Recorded payment'
+                            : invStatus === 'sent'
+                              ? 'Sent'
+                              : selectedInvoicePaymentStatus === 'overdue'
+                                ? 'Overdue'
+                                : 'Pending until sent'}
                         </div>
                       </div>
 
