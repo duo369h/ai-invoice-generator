@@ -75,6 +75,7 @@ import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../
 import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
 import { deserializeQuoteNotes as deserializeInvoiceNotes } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
+import { hasRecordedInvoicePayment } from '../../core/revenue/invoicePaymentState.js';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1132,6 +1133,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [recordPaymentInvoice, setRecordPaymentInvoice] = useState(null);
   const [recordPaymentAmount, setRecordPaymentAmount] = useState('');
   const [recordPaymentError, setRecordPaymentError] = useState('');
+
+  const getSelectedInvoice = () => invId ? invoices.find((invoice) => invoice?.id === invId) : null;
+  const isSelectedInvoiceSettled = Boolean(invId && hasRecordedInvoicePayment(getSelectedInvoice()));
 
   // Client editor state
   const [newClientName, setNewClientName] = useState('');
@@ -2484,6 +2488,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // Save Invoice
   const handleSaveInvoice = async ({ advanceToSend = false, exitAfterSave = false } = {}) => {
     const performSave = async () => {
+      if (typeof isSelectedInvoiceSettled !== 'undefined' && isSelectedInvoiceSettled) {
+        setFormError('This Invoice has recorded payment and is read-only.');
+        return false;
+      }
       setFormError('');
       setFormSuccess('');
       if (!invClientName || !invClientName.trim()) {
@@ -5091,10 +5099,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <div>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                      {invoiceFlowStage === 'paid' ? 'Document Completed' : invoiceFlowStage === 'send' ? 'Send Document' : invoiceFlowStage === 'preview' ? 'Preview Document' : (invoiceView === 'create' ? 'Create Document' : `Edit Document ${invNumber}`)}
+                      {invoiceFlowStage === 'paid' ? 'Document Completed' : invoiceFlowStage === 'send' ? 'Send Document' : invoiceFlowStage === 'preview' ? 'Preview Document' : isSelectedInvoiceSettled ? `View Invoice ${invNumber}` : (invoiceView === 'create' ? 'Create Document' : `Edit Document ${invNumber}`)}
                     </h2>
                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      Create, preview, send, then mark completed when the client review is done.
+                      {isSelectedInvoiceSettled ? 'This Invoice has recorded payment and is read-only.' : 'Create, preview, send, then mark completed when the client review is done.'}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -5132,6 +5140,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 {formSuccess && (
                   <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
                     {formSuccess}
+                  </div>
+                )}
+
+                {isSelectedInvoiceSettled && invoiceFlowStage === 'create' && (
+                  <div role="status" style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 700 }}>
+                    Read only · Recorded payment
                   </div>
                 )}
 
@@ -5217,11 +5231,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div className="input-group">
                         <label className="input-label">Invoice Number</label>
-                        <input type="text" className="form-input" value={invNumber} onChange={e => setInvNumber(e.target.value)} required />
+                        <input type="text" className="form-input" value={invNumber} readOnly={isSelectedInvoiceSettled} onChange={e => setInvNumber(e.target.value)} required />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Currency</label>
-                        <select className="form-select" value={invCurrency} onChange={e => setInvCurrency(e.target.value)}>
+                        <select className="form-select" value={invCurrency} disabled={isSelectedInvoiceSettled} onChange={e => setInvCurrency(e.target.value)}>
                           <option value="USD">USD ($)</option>
                           <option value="EUR">EUR (€)</option>
                           <option value="GBP">GBP (£)</option>
@@ -5237,9 +5251,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Client Specifications</h3>
                       <div className="input-group">
                         <label className="input-label">Client Name</label>
-                        <input type="text" className="form-input" value={invClientName} onChange={e => setInvClientName(e.target.value)} required placeholder="e.g. Tony Stark" />
+                        <input type="text" className="form-input" value={invClientName} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientName(e.target.value)} required placeholder="e.g. Tony Stark" />
                       </div>
-                      {getActiveClients().length > 0 && (
+                      {!isSelectedInvoiceSettled && getActiveClients().length > 0 && (
                         <div style={{ marginBottom: '12px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Quick Select:</span>
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -5264,11 +5278,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       )}
                       <div className="input-group">
                         <label className="input-label">Client Email</label>
-                        <input type="email" className="form-input" value={invClientEmail} onChange={e => setInvClientEmail(e.target.value)} placeholder="e.g. tony@stark.com" />
+                        <input type="email" className="form-input" value={invClientEmail} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientEmail(e.target.value)} placeholder="e.g. tony@stark.com" />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Client Address</label>
-                        <input type="text" className="form-input" value={invClientAddress} onChange={e => setInvClientAddress(e.target.value)} placeholder="e.g. Malibu Malibu, CA" />
+                        <input type="text" className="form-input" value={invClientAddress} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientAddress(e.target.value)} placeholder="e.g. Malibu Malibu, CA" />
                       </div>
                     </div>
 
@@ -5278,14 +5292,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {invItems.map((item, index) => (
                           <div key={index} className="items-editor-row">
-                            <input type="text" className="form-input" placeholder="Service description" value={item.description} onChange={e => handleItemChange('invoice', index, 'description', e.target.value)} required />
-                            <input type="number" className="form-input" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange('invoice', index, 'quantity', Number(e.target.value))} required />
-                            <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} onChange={e => handleItemChange('invoice', index, 'unitPrice', Number(e.target.value))} required />
-                            <button onClick={() => removeItem('invoice', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>
+                            <input type="text" className="form-input" placeholder="Service description" value={item.description} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'description', e.target.value)} required />
+                            <input type="number" className="form-input" placeholder="Qty" value={item.quantity} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'quantity', Number(e.target.value))} required />
+                            <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'unitPrice', Number(e.target.value))} required />
+                            {!isSelectedInvoiceSettled && <button onClick={() => removeItem('invoice', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>}
                           </div>
                         ))}
                       </div>
-                      <button onClick={() => addItem('invoice')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>
+                      {!isSelectedInvoiceSettled && <button onClick={() => addItem('invoice')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>}
                     </div>
 
                     {/* Client Document Link */}
@@ -5301,6 +5315,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         className="form-input"
                         placeholder="https://example.com/client-document"
                         value={invPaymentLink}
+                        readOnly={isSelectedInvoiceSettled}
                         onChange={e => setInvPaymentLink(e.target.value)}
                       />
 	                    </div>
@@ -5315,6 +5330,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <select
                           className="form-select"
                           value={invPaymentTerms || 'Net 30'}
+                          disabled={isSelectedInvoiceSettled}
                           onChange={e => {
                             setInvPaymentTerms(e.target.value);
                             updateDueDateFromTerms(e.target.value, invDate);
@@ -5332,21 +5348,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <div className="input-group">
                           <label className="input-label">Issue Date</label>
-                          <input type="date" className="form-input" value={invDate} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} />
+                          <input type="date" className="form-input" value={invDate} disabled={isSelectedInvoiceSettled} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} />
                         </div>
                         <div className="input-group">
                           <label className="input-label">Due Date</label>
-                          <input type="date" className="form-input" value={invDueDate} onChange={e => setInvDueDate(e.target.value)} />
+                          <input type="date" className="form-input" value={invDueDate} disabled={isSelectedInvoiceSettled} onChange={e => setInvDueDate(e.target.value)} />
                         </div>
                       </div>
 
                       <div className="input-group">
                         <label className="input-label">Tax Rate (%)</label>
-                        <input type="number" className="form-input" value={invTaxRate} onChange={e => setInvTaxRate(Number(e.target.value))} />
+                        <input type="number" className="form-input" value={invTaxRate} readOnly={isSelectedInvoiceSettled} onChange={e => setInvTaxRate(Number(e.target.value))} />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Discount Rate (%)</label>
-                        <input type="number" className="form-input" value={invDiscountRate} onChange={e => setInvDiscountRate(Number(e.target.value))} />
+                        <input type="number" className="form-input" value={invDiscountRate} readOnly={isSelectedInvoiceSettled} onChange={e => setInvDiscountRate(Number(e.target.value))} />
                       </div>
                       <div className="input-group" style={{ marginBottom: '20px' }}>
                         <label className="input-label">Invoice Status</label>
@@ -5359,7 +5375,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           fontSize: '0.85rem',
                           fontWeight: 750
                         }}>
-                          Pending until sent
+                          {isSelectedInvoiceSettled ? 'Read only · Recorded payment' : 'Pending until sent'}
                         </div>
                       </div>
 
@@ -5409,28 +5425,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
                       <div className="input-group" style={{ marginTop: '20px' }}>
                         <label className="input-label">Invoice Notes</label>
-                        <textarea className="form-textarea" value={invNotes} onChange={e => setInvNotes(e.target.value)} placeholder="Document notes for the client..." />
+                        <textarea className="form-textarea" value={invNotes} readOnly={isSelectedInvoiceSettled} onChange={e => setInvNotes(e.target.value)} placeholder="Document notes for the client..." />
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-                        <button
-                          type="button"
-                          onClick={goToInvoicePreview}
-                          className="btn btn-primary"
-                          style={{ width: '100%', fontWeight: 800 }}
-                        >
-                          Continue to preview
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveInvoice({ exitAfterSave: true })}
-                          disabled={isSaving}
-                          className="btn btn-secondary"
-                          style={{ width: '100%' }}
-                        >
-                          {isSaving ? 'Saving...' : 'Save draft'}
-                        </button>
-                      </div>
+                      {!isSelectedInvoiceSettled && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                          <button
+                            type="button"
+                            onClick={goToInvoicePreview}
+                            className="btn btn-primary"
+                            style={{ width: '100%', fontWeight: 800 }}
+                          >
+                            Continue to preview
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveInvoice({ exitAfterSave: true })}
+                            disabled={isSaving}
+                            className="btn btn-secondary"
+                            style={{ width: '100%' }}
+                          >
+                            {isSaving ? 'Saving...' : 'Save draft'}
+                          </button>
+                        </div>
+                      )}
 
                       {/* PDF render target (hidden preview for html2pdf screenshot) */}
                       <div style={{ display: 'none' }}>

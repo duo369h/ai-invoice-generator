@@ -315,6 +315,37 @@ async function runBrowserChecks() {
       const values = await page.locator('input, textarea').evaluateAll((elements) => elements.map((element) => element.value));
       assert.ok(values.includes(expectedValue), `${type} row ${index} hydrates its exact record; url=${page.url()}; values=${JSON.stringify(values)}`);
       assert.doesNotMatch(page.url(), /(?:quoteId|invoiceId|documentId)=/, 'exact open remains in-session without URL persistence');
+      if (type === 'invoice') {
+        const settled = index === 1;
+        const editorControls = page.locator('input.form-input, select.form-select, textarea.form-textarea');
+        const controlStates = await editorControls.evaluateAll((elements) => elements.map((element) => ({ disabled: element.disabled, readOnly: element.readOnly })));
+        assert.equal(
+          await page.getByRole('button', { name: 'Save draft', exact: true }).count(),
+          settled ? 0 : 1,
+          settled ? 'settled Invoice has no Save draft action' : 'unpaid Invoice keeps Save draft action',
+        );
+        assert.equal(
+          await page.getByRole('button', { name: 'Continue to preview', exact: true }).count(),
+          settled ? 0 : 1,
+          settled ? 'settled Invoice has no preview mutation path' : 'unpaid Invoice keeps preview action',
+        );
+        assert.equal(
+          await page.locator('button').filter({ hasText: '+ Add Item' }).count(),
+          settled ? 0 : 1,
+          settled ? 'settled Invoice has no add-line-item control' : 'unpaid Invoice keeps add-line-item control',
+        );
+        if (settled) {
+          assert.ok(controlStates.length > 0 && controlStates.every(({ disabled, readOnly }) => disabled || readOnly), 'settled Invoice fields are all read-only or disabled');
+          assert.equal(await page.getByText('Read only · Recorded payment', { exact: true }).count(), 2, 'settled Invoice shows explicit read-only truth in banner and status');
+          await page.screenshot({ path: path.join(visualDirectory, 'settled-invoice-desktop.png'), fullPage: true });
+          await page.setViewportSize({ width: 390, height: 900 });
+          await page.screenshot({ path: path.join(visualDirectory, 'settled-invoice-390.png'), fullPage: true });
+          await page.setViewportSize({ width: 1280, height: 900 });
+        } else {
+          assert.ok(controlStates.some(({ disabled, readOnly }) => !disabled && !readOnly), 'unpaid Invoice retains an editable field');
+          await page.screenshot({ path: path.join(visualDirectory, 'unpaid-invoice-desktop.png'), fullPage: true });
+        }
+      }
       await page.getByRole('button', { name: type === 'quote' ? 'Cancel' : 'Exit to dashboard', exact: true }).click();
       if (type === 'invoice') await page.getByRole('button', { name: 'Clients', exact: true }).click();
       else await page.getByRole('button', { name: 'Clients', exact: true }).click();
@@ -332,7 +363,7 @@ async function runBrowserChecks() {
     await openAndAssert('quote', 0, 'Edit Quote QT-SAME', 'Quote B Client');
     await openAndAssert('quote', 1, 'Edit Quote QT-SAME', 'Quote A Client');
     await openAndAssert('invoice', 0, 'Edit Document INV-SAME', 'Invoice A Client');
-    await openAndAssert('invoice', 1, 'Edit Document INV-SAME', 'Invoice B Client');
+    await openAndAssert('invoice', 1, 'View Invoice INV-SAME', 'Invoice B Client');
     await openAndAssert('invoice', 0, 'Edit Document INV-SAME', 'Invoice A Client');
     await page.setViewportSize({ width: 390, height: 900 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), false, 'Client Documents exact-open surface has no horizontal overflow at 390px');
