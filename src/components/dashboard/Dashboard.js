@@ -5244,7 +5244,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
                 {invoiceFlowStage === 'create' && renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus })}
 
-                <div className="dashboard-grid-2col" style={invoiceFlowStage === 'create' ? undefined : { display: 'none' }}>
+                <div className="dashboard-grid-2col invoice-editor-grid" style={invoiceFlowStage === 'create' ? undefined : { display: 'none' }}>
                   {/* Left Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -5364,7 +5364,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           )}
                         </select>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className="invoice-summary-date-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <div className="input-group">
                           <label className="input-label">Issue Date</label>
                           <input type="date" className="form-input" value={invDate} disabled={isSelectedInvoiceSettled} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} />

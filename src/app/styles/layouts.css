@@ -1172,6 +1172,16 @@
 }
 
 @media (max-width: 640px) {
+  .invoice-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .invoice-editor-grid > *,
+  .invoice-editor-grid .items-editor-row {
+    min-width: 0;
+  }
+
   .landing-hero {
     min-height: auto;
     padding: var(--space-16) 18px var(--space-12);
@@ -1224,6 +1234,10 @@
 }
 
 @media (max-width: 480px) {
+  .invoice-summary-date-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .workflow-tabs {
     grid-template-columns: 1fr;
   }
