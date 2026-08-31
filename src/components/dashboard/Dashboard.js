@@ -1469,6 +1469,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setCardProfile(null);
   }, [invalidateDashboardData, setDashboardDataError, setUser, setLeads, setQuotes, setQuotesError, setInvoices, setClients, setCardProfile]);
 
+  const resetAccountScopedState = useCallback(() => {
+    setQuoteView('list');
+    setInvoiceView('list');
+    setInvoiceFlowStage('create');
+    setInvoiceFlowLocked(false);
+    setQId('');
+    setQClientId(null);
+    setInvId('');
+    setInvClientId(null);
+    setInvQuoteId(null);
+    setExpandedClientDocumentsId(null);
+  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
+
   const getDashboardTabs = useCallback((state) => {
     return [
       { id: 'overview', label: 'Overview' },
@@ -1778,14 +1791,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
       const authEventAction = getDashboardAuthEventAction(_event, nextSession);
       if (authEventAction === 'ignore') return;
+      const previousUserId = sessionRef.current?.user?.id || null;
+      const nextUserId = nextSession?.user?.id || null;
+      const isAccountSwitch = Boolean(previousUserId && nextUserId && previousUserId !== nextUserId);
       if (!nextSession && !sessionRef.current) {
         setAuthChecked(false);
       }
+      if (isAccountSwitch) {
+        clearDashboardData();
+        resetAccountScopedState();
+        setAuthChecked(false);
+      }
+      sessionRef.current = authEventAction === 'clear' ? null : nextSession;
       setSession(authEventAction === 'clear' ? null : nextSession);
 
       if (authEventAction === 'refresh') {
         setAnalyticsUserId(nextSession.user?.id);
-        setAuthChecked(true);
+        if (!isAccountSwitch) setAuthChecked(true);
         if (_event === 'SIGNED_IN') {
           trackDashboardViewOnce({ auth_state: 'authenticated', auth_event: _event, user_id: nextSession.user?.id });
           triggerToast('Welcome back! Successfully signed in.', 'success');
@@ -1828,7 +1850,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       listener?.subscription?.unsubscribe();
       invalidateDashboardData({ updateState: false, resetQuotesInitialLoad: true });
     };
-  }, [clearDashboardData, fetchData, invalidateDashboardData, pathname, previewMode, redirectToAuth, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
+  }, [clearDashboardData, fetchData, invalidateDashboardData, pathname, previewMode, redirectToAuth, resetAccountScopedState, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
 
   useEffect(() => {
     if (previewMode) return;
