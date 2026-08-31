@@ -1,191 +1,218 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+#!/usr/bin/env node
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * Current revenue authority verification.
+ *
+ * This test loads lib/revenue/revenueLock.ts and lib/revenue/costEstimator.ts
+ * with the repository's installed TypeScript compiler. The service client is
+ * an in-memory dependency supplied to the compiled module; no environment
+ * secrets, network, or database are used.
+ */
 
-// 1. Setup Mock Supabase Client for Testing
-global.mockPlan = 'free';
-global.mockCount = 0;
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
-const queryBuilder = {
-  select() { return this; },
-  eq() { return this; },
-  gte() { return this; },
-  is() { return this; },
-  order() { return this; },
-  limit() { return this; },
-  single() { return Promise.resolve({ data: { plan: global.mockPlan }, count: global.mockCount, error: null }); },
-  maybeSingle() { return Promise.resolve({ data: { plan: global.mockPlan }, count: global.mockCount, error: null }); },
-  then(resolve) {
-    resolve({ count: global.mockCount, data: [], error: null });
-  }
+const require = createRequire(import.meta.url);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+globalThis.fetch = () => {
+  throw new Error('network access is forbidden in verify-revenue-lock.mjs');
 };
 
-global.mockSupabaseClient = {
-  from() { return queryBuilder; }
-};
+function loadTypeScriptModule(relativePath, mocks = {}) {
+  const filename = path.join(root, relativePath);
+  const source = fs.readFileSync(filename, 'utf8');
+  const code = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: filename,
+  }).outputText;
 
-// 2. Transpile TS to ESM JS
-function transpile(tsContent) {
-  let js = tsContent;
-  
-  // Strip TypeScript interface/types
-  js = js.replace(/export interface [\s\S]*?\n\}/g, '');
-  js = js.replace(/export type [\s\S]*?;/g, '');
-  
-  // Strip type annotations
-  js = js.replace(/:\s*PromptType\b/g, '');
-  js = js.replace(/:\s*PromptExecutionResult\b/g, '');
-  js = js.replace(/:\s*RevenueLockResult\b/g, '');
-  js = js.replace(/:\s*CostEstimationResult\b/g, '');
-  js = js.replace(/:\s*Promise<[\s\S]*?>/g, '');
-  js = js.replace(/:\s*string\s*\|\s*null/g, '');
-  js = js.replace(/:\s*string/g, '');
-  js = js.replace(/:\s*number/g, '');
-  js = js.replace(/:\s*boolean/g, '');
-  js = js.replace(/as const;/g, ';');
-  js = js.replace(/,\s*PromptType\b/g, '');
-  js = js.replace(/:\s*(?:['"a-z_]+\s*\|\s*)+['"a-z_]+/gi, '');
-  
-  // Replace Supabase imports with Mock client
-  js = js.replace(
-    /import \{\s*createServiceSupabaseClient\s*\} from '..\/..\/src\/app\/lib\/supabase';/g,
-    'const createServiceSupabaseClient = () => global.mockSupabaseClient;'
-  );
-
-  // Fix imports extension for transpiled mjs files
-  js = js.replace(/from\s+'(\.\/.*?)'/g, "from '$1.mjs'");
-  js = js.replace(/from\s+'(\.\.\/.*?)'/g, "from '$1.mjs'");
-
-  return js;
-}
-
-const tmpDir = path.resolve(__dirname, './tmp-revenue-test');
-if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
-
-const filesToTranspile = [
-  { src: '../lib/prompt/architecture/promptArchitectureMap.ts', dest: './architecture/promptArchitectureMap.mjs' },
-  { src: '../lib/prompt/promptExecutor.ts', dest: './promptExecutor.mjs' },
-  { src: '../lib/revenue/revenueLock.ts', dest: './revenueLock.mjs' },
-  { src: '../lib/revenue/costEstimator.ts', dest: './costEstimator.mjs' },
-];
-
-for (const file of filesToTranspile) {
-  const srcPath = path.resolve(__dirname, file.src);
-  const destPath = path.resolve(tmpDir, file.dest);
-  const destDir = path.dirname(destPath);
-  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-  const tsContent = fs.readFileSync(srcPath, 'utf8');
-  const jsContent = transpile(tsContent);
-  fs.writeFileSync(destPath, jsContent, 'utf8');
-}
-
-async function runTests() {
-  console.log('Running Corvioz Prompt & Revenue Lock Layer Verification...');
-
-  const { PromptArchitectureMap } = await import('./tmp-revenue-test/architecture/promptArchitectureMap.mjs');
-  const { executePrompt } = await import('./tmp-revenue-test/promptExecutor.mjs');
-  const { checkRevenueLock } = await import('./tmp-revenue-test/revenueLock.mjs');
-  const { estimateCost } = await import('./tmp-revenue-test/costEstimator.mjs');
-
-  let failed = false;
-
-  const assert = (condition, message) => {
-    if (!condition) {
-      console.error(`❌ FAIL: ${message}`);
-      failed = true;
-    } else {
-      console.log(`✓ PASS: ${message}`);
-    }
+  const loadedModule = { exports: {} };
+  const localRequire = (specifier) => {
+    const mock = Object.entries(mocks).find(([needle]) => specifier.includes(needle));
+    return mock ? mock[1] : require(specifier);
   };
-
-  // --- 1. Prompt Architecture Map Tests ---
-  assert(PromptArchitectureMap.invoice.system.includes('freelancers'), 'Invoice template is correct');
-  assert(PromptArchitectureMap.quote.constraints.length === 3, 'Quote constraints has 3 items');
-  assert(PromptArchitectureMap.profile.tone === 'personal brand positioning', 'Profile tone is personal brand positioning');
-
-  // --- 2. Prompt Executor Tests ---
-  const result = executePrompt('invoice', 'User message text here');
-  assert(result.systemPrompt === PromptArchitectureMap.invoice.system, 'Executor correctly maps system prompt');
-  assert(result.userInput === 'User message text here', 'Executor preserves user input');
-  assert(result.constraints.includes('Use USD'), 'Executor maps constraints');
-
-  // --- 3. Cost Estimator Tests ---
-  const costInvoice = estimateCost('invoice', 500); // 500 chars -> low tokens
-  assert(costInvoice.costUSD === 0.02, 'Invoice estimation math is correct');
-  assert(costInvoice.riskLevel === 'low', 'Invoice has low riskLevel');
-  assert(costInvoice.recommendation === 'allow', 'Invoice recommendation is allow');
-
-  const costHigh = estimateCost('proposal', 5000); // 5000 tokens proxy -> high cost
-  assert(costHigh.costUSD > 0.08, 'High token proposal calculates correct USD cost');
-  assert(costHigh.riskLevel === 'high', 'High cost registers high riskLevel');
-  assert(costHigh.recommendation === 'block', 'High cost recommends blocking');
-
-  // --- 4. Revenue Lock Tests ---
-  // A. Anonymous Checks
-  const anonInvoice = await checkRevenueLock(null, 'invoice');
-  assert(anonInvoice.allowed === true, 'Anonymous allowed invoice parsing');
-  
-  const anonExport = await checkRevenueLock(null, 'bulk_export');
-  assert(anonExport.allowed === false, 'Anonymous blocked from bulk export');
-
-  // B. Free Tier checks
-  global.mockPlan = 'free';
-  global.mockCount = 0; // 0 logs today
-  const freeInvoice = await checkRevenueLock('user_1', 'invoice');
-  assert(freeInvoice.allowed === true, 'Free tier allowed invoice parsing');
-
-  const freeExport = await checkRevenueLock('user_1', 'bulk_export');
-  assert(freeExport.allowed === false, 'Free tier blocked from bulk export');
-  assert(freeExport.suggestedUpgrade === 'growth', 'Bulk export suggests Pro');
-
-  // C. Daily limit checks for Free tier (Proposals - max 1)
-  global.mockPlan = 'free';
-  global.mockCount = 0; // 0 proposals created today
-  const allowedProposal = await checkRevenueLock('user_1', 'proposal');
-  assert(allowedProposal.allowed === true, 'Free tier allowed proposal under limit (0/1)');
-
-  global.mockCount = 1; // 1 proposal created today
-  const blockedProposal = await checkRevenueLock('user_1', 'proposal');
-  assert(blockedProposal.allowed === false, 'Free tier blocked proposal over limit (1/1)');
-  assert(blockedProposal.suggestedUpgrade === 'pro', 'Proposal suggests Pro upgrade');
-
-  // D. Daily limit checks for Free tier (Profiles - max 1)
-  global.mockCount = 0; // 0 profiles created today
-  const allowedProfile = await checkRevenueLock('user_1', 'profile');
-  assert(allowedProfile.allowed === true, 'Free tier allowed profile under limit (0/1)');
-
-  global.mockCount = 1; // 1 profile created today
-  const blockedProfile = await checkRevenueLock('user_1', 'profile');
-  assert(blockedProfile.allowed === false, 'Free tier blocked profile over limit (1/1)');
-  assert(blockedProfile.suggestedUpgrade === 'pro', 'Profile suggests Pro upgrade');
-
-  // E. Premium tier overrides daily limit checks
-  global.mockPlan = 'growth';
-  global.mockCount = 10; // 10 profiles created today
-  const premiumProfile = await checkRevenueLock('user_1', 'profile');
-  assert(premiumProfile.allowed === true, 'Growth tier ignores daily profile generation limit');
-
-  // Cleanup temp files
-  try {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  } catch (_) {}
-
-  if (failed) {
-    console.error('❌ Corvioz Prompt & Revenue Lock Layer Verification FAILED.');
-    process.exit(1);
-  } else {
-    console.log('✅ Corvioz Prompt & Revenue Lock Layer Verification PASSED.');
-    process.exit(0);
-  }
+  const wrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', code);
+  wrapper(loadedModule.exports, localRequire, loadedModule, filename, path.dirname(filename));
+  return loadedModule.exports;
 }
 
-runTests().catch(err => {
-  console.error(err);
-  try {
-    const tmpDir = path.resolve(__dirname, './tmp-revenue-test');
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  } catch (_) {}
-  process.exit(1);
+const revenueState = {
+  serviceClientAvailable: true,
+  plan: 'free',
+  auditCounts: {
+    proposal_generated: 0,
+    card_profile_created: 0,
+  },
+  auditQueries: [],
+};
+
+function makeQuery(table) {
+  const filters = [];
+  const query = {
+    select(_columns, options) {
+      query.selectOptions = options;
+      return query;
+    },
+    eq(column, value) {
+      filters.push([column, value]);
+      return query;
+    },
+    gte(column, value) {
+      filters.push([column, value]);
+      return query;
+    },
+    async maybeSingle() {
+      assert.equal(table, 'profiles');
+      return { data: { plan: revenueState.plan }, error: null };
+    },
+    then(resolve, reject) {
+      try {
+        assert.equal(table, 'audit_logs');
+        revenueState.auditQueries.push({ filters, options: query.selectOptions });
+        const action = filters.find(([column]) => column === 'action')?.[1];
+        resolve({ count: revenueState.auditCounts[action] || 0, data: null, error: null });
+      } catch (error) {
+        reject(error);
+      }
+    },
+  };
+  return query;
+}
+
+const serviceClient = {
+  from(table) {
+    return makeQuery(table);
+  },
+};
+
+const revenueModule = loadTypeScriptModule('lib/revenue/revenueLock.ts', {
+  'supabase-service': {
+    createServiceSupabaseClient: () => (
+      revenueState.serviceClientAvailable ? serviceClient : null
+    ),
+  },
+});
+const costModule = loadTypeScriptModule('lib/revenue/costEstimator.ts');
+const { checkRevenueLock } = revenueModule;
+const { estimateCost } = costModule;
+
+function resetState({ plan = 'free', proposalCount = 0, profileCount = 0, serviceClientAvailable = true } = {}) {
+  revenueState.plan = plan;
+  revenueState.auditCounts.proposal_generated = proposalCount;
+  revenueState.auditCounts.card_profile_created = profileCount;
+  revenueState.serviceClientAvailable = serviceClientAvailable;
+  revenueState.auditQueries.length = 0;
+}
+
+async function assertRevenue(action, userId, expected) {
+  const result = await checkRevenueLock(userId, action);
+  assert.deepEqual(
+    {
+      allowed: result.allowed,
+      suggestedUpgrade: result.suggestedUpgrade,
+    },
+    expected,
+    `${userId || 'anonymous'} ${action} current revenue authority`
+  );
+  return result;
+}
+
+async function run() {
+  // Anonymous authority: invoice parsing is public; other actions require auth.
+  await assertRevenue('invoice', null, { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('proposal', null, { allowed: false, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', null, { allowed: false, suggestedUpgrade: 'pro' });
+  await assertRevenue('bulk_export', null, { allowed: false, suggestedUpgrade: 'studio' });
+
+  // Free plan: one daily proposal/profile allowance, with current suggestions.
+  resetState({ plan: 'free', proposalCount: 0, profileCount: 0 });
+  await assertRevenue('invoice', 'free-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('proposal', 'free-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'free-user', { allowed: true, suggestedUpgrade: 'starter' });
+  await assertRevenue('bulk_export', 'free-user', { allowed: false, suggestedUpgrade: 'studio' });
+
+  resetState({ plan: 'free', proposalCount: 1, profileCount: 1 });
+  await assertRevenue('proposal', 'free-user', { allowed: false, suggestedUpgrade: 'starter' });
+  await assertRevenue('profile', 'free-user', { allowed: false, suggestedUpgrade: 'starter' });
+  assert.equal(revenueState.auditQueries.length, 2, 'free daily limits use current audit-log count queries');
+  assert.equal(revenueState.auditQueries.every(({ options }) => options?.count === 'exact' && options?.head === true), true);
+
+  // Starter plan: same daily limit, with current upgrade suggestions.
+  resetState({ plan: 'starter', proposalCount: 0, profileCount: 0 });
+  await assertRevenue('invoice', 'starter-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('proposal', 'starter-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'starter-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('bulk_export', 'starter-user', { allowed: false, suggestedUpgrade: 'studio' });
+
+  resetState({ plan: 'starter', proposalCount: 1, profileCount: 1 });
+  await assertRevenue('proposal', 'starter-user', { allowed: false, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'starter-user', { allowed: false, suggestedUpgrade: 'pro' });
+
+  // Pro is unlimited for proposal/profile, but bulk export remains Studio-only.
+  resetState({ plan: 'pro', proposalCount: 99, profileCount: 99 });
+  await assertRevenue('invoice', 'pro-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('proposal', 'pro-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'pro-user', { allowed: true, suggestedUpgrade: 'starter' });
+  await assertRevenue('bulk_export', 'pro-user', { allowed: false, suggestedUpgrade: 'studio' });
+  assert.equal(revenueState.auditQueries.length, 0, 'unlimited Pro actions do not query daily audit limits');
+
+  // Studio is the current bulk-export authority and is unlimited otherwise.
+  resetState({ plan: 'studio', proposalCount: 99, profileCount: 99 });
+  await assertRevenue('invoice', 'studio-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('proposal', 'studio-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'studio-user', { allowed: true, suggestedUpgrade: 'starter' });
+  await assertRevenue('bulk_export', 'studio-user', { allowed: true, suggestedUpgrade: 'studio' });
+
+  // Service-client absence falls back to the source's free-plan defaults and
+  // never attempts a database/network access.
+  resetState({ serviceClientAvailable: false });
+  await assertRevenue('proposal', 'fallback-user', { allowed: true, suggestedUpgrade: 'pro' });
+  await assertRevenue('profile', 'fallback-user', { allowed: true, suggestedUpgrade: 'starter' });
+  await assertRevenue('bulk_export', 'fallback-user', { allowed: false, suggestedUpgrade: 'studio' });
+  assert.equal(revenueState.auditQueries.length, 0, 'missing service client skips audit-log access safely');
+
+  // Cost estimator authority: representative allow, warn, block, and both
+  // strict threshold boundaries from the current source.
+  assert.deepEqual(estimateCost('invoice', 500), {
+    costUSD: 0.02,
+    riskLevel: 'low',
+    recommendation: 'allow',
+  });
+  assert.deepEqual(estimateCost('invoice', 1000).recommendation, 'allow');
+  assert.deepEqual(estimateCost('invoice', 1001), {
+    costUSD: 0.03002,
+    riskLevel: 'medium',
+    recommendation: 'warn',
+  });
+  assert.deepEqual(estimateCost('proposal', 1500).recommendation, 'warn');
+  assert.deepEqual(estimateCost('proposal', 1501), {
+    costUSD: 0.08002,
+    riskLevel: 'high',
+    recommendation: 'block',
+  });
+  assert.deepEqual(estimateCost('bulk_export', 0), {
+    costUSD: 0.1,
+    riskLevel: 'high',
+    recommendation: 'block',
+  });
+
+  console.log('REVENUE_LOCK_CURRENT_AUTHORITY=PASS');
+  console.log('COST_ESTIMATOR_CURRENT_AUTHORITY=PASS');
+  console.log('NETWORK_ACCESS=NO');
+  console.log('DATABASE_ACCESS=NO');
+  console.log('ENV_SECRET_REQUIRED=NO');
+}
+
+run().catch((error) => {
+  console.error('REVENUE_LOCK_CURRENT_AUTHORITY=FAIL');
+  console.error(error);
+  process.exitCode = 1;
 });

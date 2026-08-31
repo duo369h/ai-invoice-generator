@@ -10,6 +10,7 @@
     "build": "node --experimental-strip-types ./src/core/entry/ENTRY_BUILD_GUARD.ts && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node scripts/verify-revenue-lock.mjs && node scripts/test-first-revenue-loop.mjs && node scripts/test-pricing-v2-suite.mjs && node scripts/test-combined-quota-boundary-r1.mjs && node scripts/test-phase2-approved-quote-invoice-draft.mjs && node scripts/test-phase3-payment-api-runtime.mjs && node scripts/test-phase3-payment-ledger-runtime.mjs && node scripts/test-invoice-payment-state.mjs && node scripts/test-paid-invoice-settled-truth-r50-fix2.mjs && node scripts/test-settled-invoice-write-guards-runtime.mjs && node scripts/test-payment-paid-write-guardrails.mjs && node scripts/test-dashboard-entitlement-runtime.mjs",
     "verify:schema": "node scripts/verify-schema.mjs",
     "verify:ui-isolation": "node scripts/verify-ui-isolation.mjs",
     "verify:growth-safety": "node scripts/verify-growth-safety.mjs",
