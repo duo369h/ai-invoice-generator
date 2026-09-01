@@ -72,8 +72,15 @@ import {
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
 import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
+import {
+  createEmptyPhotographyScope,
+  derivePhotographyVertical,
+  normalizePhotographyScope,
+  setPhotographyUsageRightsStatus,
+  updatePhotographyScopeField,
+} from '../../core/quotes/photographyQuoteScope';
 import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
-import { deserializeQuoteNotes as deserializeInvoiceNotes } from './quoteNotes.mjs';
+import { deserializeQuoteNotes as deserializeInvoiceNotes, serializeQuoteNotes as serializeInvoiceNotes } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
 import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/revenue/invoicePaymentState.js';
 
@@ -446,11 +453,6 @@ const readFirstQuoteStartedAt = () => {
   } catch (_) {
     return window.sessionStorage.getItem('corvioz_signup_started_at') || null;
   }
-};
-
-// Helpers to serialize/deserialize custom metadata in the text notes column
-const serializeInvoiceNotes = (baseNotes, metadata) => {
-  return `${baseNotes || ''}\n\n---METADATA---\n${JSON.stringify(metadata)}`;
 };
 
 // Resolve only workflow facts supported by the current invoice state.
@@ -1114,6 +1116,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qDate, setQDate] = useState(() => initialQuoteCreateMode ? new Date().toISOString().substring(0, 10) : '');
   const [qStatus, setQStatus] = useState('draft');
   const [selectedQuotePresetId, setSelectedQuotePresetId] = useState('');
+  const [quotePresetSelectionTouched, setQuotePresetSelectionTouched] = useState(false);
+  const [qPhotographyScope, setQPhotographyScope] = useState(() => createEmptyPhotographyScope());
+  const [usageRightsExpanded, setUsageRightsExpanded] = useState(false);
   const [isFirstQuoteFlow, setIsFirstQuoteFlow] = useState(initialFirstQuoteFlow);
 
   // Quote validation states
@@ -1477,11 +1482,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceFlowLocked(false);
     setQId('');
     setQClientId(null);
+    setQPhotographyScope(createEmptyPhotographyScope());
+    setSelectedQuotePresetId('');
+    setQuotePresetSelectionTouched(false);
+    setUsageRightsExpanded(false);
     setInvId('');
     setInvClientId(null);
     setInvQuoteId(null);
     setExpandedClientDocumentsId(null);
-  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
+  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -1710,6 +1719,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
       clearAnalyticsUserId();
       clearDashboardData();
+      resetAccountScopedState();
       router.replace('/auth');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -1838,6 +1848,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       } else {
         clearAnalyticsUserId();
         clearDashboardData();
+        resetAccountScopedState();
         if (!isSigningOutRef.current) {
           redirectToAuth('dashboard_session_auth_guard');
         }
@@ -1912,6 +1923,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setQDate(getTodayString());
     setQStatus('draft');
     setSelectedQuotePresetId('');
+    if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
+    if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
+    if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
     setIsFirstQuoteFlow(false);
     setQClientNameTouched(false);
     setQClientEmailTouched(false);
@@ -2059,7 +2073,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvClientEmail(quote.client_email || '');
     setInvClientAddress(quote.client_address || '');
     setInvCurrency(quote.currency || 'USD');
-    setInvNotes(quote.notes || '');
+    setInvNotes(deserializeInvoiceNotes(quote.notes || '').notes);
     setInvDate(getTodayString());
     setInvDueDate(getFutureDateString(30));
     setInvPaymentTerms('Net 30');
@@ -2088,6 +2102,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const openInvoiceDraft = (invoice, quote) => {
     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
     const deserialized = deserializeInvoiceNotes(invoice.notes || '');
+    const quotePublicNotes = deserializeInvoiceNotes(quote.notes || '').notes;
     setInvId(invoice.id);
     setInvClientId(invoice.client_id || quote.client_id || null);
     setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
@@ -2095,7 +2110,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvClientEmail(invoice.client_email || quote.client_email || '');
     setInvClientAddress(invoice.client_address || quote.client_address || '');
     setInvCurrency(invoice.currency || quote.currency || 'USD');
-    setInvNotes(deserialized.notes || quote.notes || '');
+    setInvNotes(deserialized.notes || quotePublicNotes || '');
     setInvBillingType(deserialized.billing_type);
     setInvDate(invoice.invoice_date || getTodayString());
     setInvDueDate(invoice.due_date || getFutureDateString(30));
@@ -2337,11 +2352,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setShowLeadModal(true);
   };
 
+  const updateQPhotographyScope = (field, value) => {
+    setQPhotographyScope((currentScope) => updatePhotographyScopeField(currentScope, field, value));
+  };
+
+  const handleUsageRightsStatusChange = (status) => {
+    const result = setPhotographyUsageRightsStatus(qPhotographyScope, status);
+    if (result.requiresConfirmation) {
+      const confirmed = typeof window !== 'undefined' && window.confirm(
+        'Changing Usage Rights to Not applicable will clear the existing usage details. Continue?'
+      );
+      if (!confirmed) return;
+      setQPhotographyScope(setPhotographyUsageRightsStatus(qPhotographyScope, status, { confirmClear: true }).scope);
+    } else {
+      setQPhotographyScope(result.scope);
+    }
+    setUsageRightsExpanded(status === 'specified');
+  };
+
   // Quote presets are data records so future verticals can add config without branching UI logic.
   const handleApplyQuotePreset = (presetId) => {
     const preset = getPhotographyQuotePresetById(presetId);
     if (preset) {
       setSelectedQuotePresetId(preset.id);
+      setQuotePresetSelectionTouched(true);
       setQCurrency(preset.defaultCurrency || qCurrency);
       setQItems(preset.defaultLineItems.map(item => ({ ...item })));
       setQNotes([
@@ -2361,6 +2395,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const handleSkipQuotePreset = () => {
     setSelectedQuotePresetId('');
+    setQuotePresetSelectionTouched(true);
     setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
     setQNotes('');
     triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
@@ -2401,6 +2436,44 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         return;
       }
 
+      let currentEditCount = 0;
+      let existingMetadata = {};
+      if (qId) {
+        const existingQuote = quotes.find(q => q.id === qId);
+        if (existingQuote) {
+          const existingMeta = deserializeInvoiceNotes(existingQuote.notes);
+          existingMetadata = existingMeta.metadata || {};
+          currentEditCount = (existingMeta.edit_count || 0) + 1;
+        }
+      }
+
+      const selectedQuotePreset = getPhotographyQuotePresetById(selectedQuotePresetId);
+      const presetSelectionWasTouched = typeof quotePresetSelectionTouched !== 'undefined' && quotePresetSelectionTouched;
+      const presetId = presetSelectionWasTouched
+        ? (selectedQuotePreset?.id || null)
+        : (existingMetadata.quote_preset_id ?? selectedQuotePreset?.id ?? null);
+      const presetName = presetSelectionWasTouched
+        ? (selectedQuotePreset?.name || null)
+        : (existingMetadata.quote_preset_name ?? selectedQuotePreset?.name ?? null);
+      const workflowTerms = presetSelectionWasTouched
+        ? (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : [])
+        : (existingMetadata.workflow_terms || (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []));
+      const scopeValue = typeof qPhotographyScope !== 'undefined' ? qPhotographyScope : null;
+      const normalizedScope = typeof normalizePhotographyScope === 'function' && scopeValue
+        ? normalizePhotographyScope(scopeValue)
+        : scopeValue;
+      const nextMetadata = {
+        ...existingMetadata,
+        edit_count: currentEditCount,
+        comments: existingMetadata.comments || [],
+        files: existingMetadata.files || [],
+        quote_preset_id: presetId,
+        quote_preset_name: presetName,
+        workflow_terms: workflowTerms,
+        photography_scope_v2: normalizedScope,
+      };
+      const notesWithMeta = serializeInvoiceNotes(qNotes, nextMetadata);
+
       const payload = {
         id: qId || undefined,
         client_id: qClientId || null,
@@ -2412,7 +2485,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         discount_rate: qDiscountRate,
         tax_rate: qTaxRate,
         currency: qCurrency,
-        notes: qNotes,
+        notes: notesWithMeta,
         status: qStatus
       };
 
@@ -2436,35 +2509,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       setIsSaving(true);
       try {
-        let currentEditCount = 0;
-        let existingComments = [];
-        let existingFiles = [];
-        if (qId) {
-          const existingQuote = quotes.find(q => q.id === qId);
-          if (existingQuote) {
-            const existingMeta = deserializeInvoiceNotes(existingQuote.notes);
-            currentEditCount = (existingMeta.edit_count || 0) + 1;
-            existingComments = existingMeta.comments || [];
-            existingFiles = existingMeta.files || [];
-          }
-        }
-
-        const selectedQuotePreset = getPhotographyQuotePresetById(selectedQuotePresetId);
-        const notesWithMeta = serializeInvoiceNotes(qNotes, {
-          edit_count: currentEditCount,
-          comments: existingComments,
-          files: existingFiles,
-          quote_preset_id: selectedQuotePreset?.id || null,
-          quote_preset_name: selectedQuotePreset?.name || null,
-          workflow_terms: selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []
-        });
-
-        const payloadWithMeta = {
-          ...payload,
-          notes: notesWithMeta
-        };
-
-        const res = await saveQuote(payloadWithMeta, session?.access_token);
+        const res = await saveQuote(payload, session?.access_token);
         if (res.success) {
           const savedQuoteId = res.data?.id || qId;
           if (qId) {
@@ -3282,7 +3327,17 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQClientAddress(quote.client_address || '');
       setQClientId(quote.client_id || null);
       setQCurrency(quote.currency || 'USD');
-      setQNotes(quote.notes || '');
+      const parsedQuoteNotes = deserializeInvoiceNotes(quote.notes || '');
+      const quoteScope = parsedQuoteNotes.metadata?.photography_scope_v2;
+      if (typeof setQPhotographyScope === 'function') {
+        if (quoteScope && typeof normalizePhotographyScope === 'function') {
+          setQPhotographyScope(normalizePhotographyScope(quoteScope));
+        } else if (typeof createEmptyPhotographyScope === 'function') {
+          setQPhotographyScope(createEmptyPhotographyScope());
+        }
+      }
+      if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(Boolean(quoteScope?.common?.usage_rights?.status === 'specified'));
+      setQNotes(parsedQuoteNotes.notes);
       setQTaxRate(Number(quote.tax_rate || 0));
       setQDiscountRate(Number(quote.discount_rate || 0));
       setQDate(quote.created_at?.substring(0, 10) || '');
@@ -3292,7 +3347,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
       })));
       setQStatus(quote.status || 'draft');
-      setSelectedQuotePresetId('');
+      setSelectedQuotePresetId(parsedQuoteNotes.metadata?.quote_preset_id || '');
+      if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
       setIsFirstQuoteFlow(false);
       setQClientNameTouched(false);
       setQClientEmailTouched(false);
@@ -3401,6 +3457,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleCancelQuote = () => {
+    if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
+    if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
     setQuoteView('list');
   };
 
@@ -3644,6 +3702,38 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
     );
   }
+
+  const qScopeCommon = qPhotographyScope.common;
+  const selectedQuoteVertical = derivePhotographyVertical(selectedQuotePresetId);
+  const qScopeInput = (field, label, type = 'text', placeholder = '') => (
+    <div className="input-group" key={field}>
+      <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
+      <input
+        id={`quote-scope-${field}`}
+        type={type}
+        className="form-input"
+        value={qScopeCommon[field] ?? ''}
+        onChange={(event) => updateQPhotographyScope(field, event.target.value)}
+        placeholder={placeholder}
+        min={type === 'number' ? 0 : undefined}
+        step={type === 'number' ? 1 : undefined}
+      />
+    </div>
+  );
+  const qScopeListInput = (field, label, placeholder) => (
+    <div className="input-group" key={field}>
+      <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
+      <textarea
+        id={`quote-scope-${field}`}
+        className="form-textarea"
+        value={(qScopeCommon[field] || []).join('\n')}
+        onChange={(event) => updateQPhotographyScope(field, event.target.value.split('\n'))}
+        placeholder={placeholder}
+        rows={3}
+      />
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
+    </div>
+  );
 
   return (
     <div 
@@ -4587,6 +4677,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Choose a photography quote preset
+                    {selectedQuoteVertical && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 600 }}>Vertical: {selectedQuoteVertical}</span>}
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
                     Start with a shoot type, or skip presets and build a blank quote. Presets add line items plus deposit, delivery, and usage rights notes.
@@ -4760,6 +4851,106 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <label className="input-label">Client Address</label>
                         <input type="text" className="form-input" value={qClientAddress} onChange={e => setQClientAddress(e.target.value)} placeholder="e.g. 1007 Mountain Dr, Gotham" />
                       </div>
+                    </div>
+
+                    <div className="card glass-panel" data-testid="photography-scope" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Photography Scope</h3>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Optional structured capture</span>
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.45, margin: '8px 0 18px' }}>
+                        Capture the agreed shoot details without changing Quote pricing or creating a completion gate.
+                      </p>
+
+                      <section aria-labelledby="quote-scope-shoot-heading" style={{ marginBottom: '20px' }}>
+                        <h4 id="quote-scope-shoot-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Shoot</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                          {qScopeInput('shoot_type', 'Shoot type', 'text', 'e.g. Editorial portrait')}
+                          {qScopeInput('shoot_date', 'Shoot date', 'date')}
+                          {qScopeInput('shoot_duration', 'Shoot duration (minutes)', 'number', 'e.g. 240')}
+                          {qScopeInput('primary_location', 'Primary location', 'text', 'e.g. Studio or venue')}
+                        </div>
+                      </section>
+
+                      <section aria-labelledby="quote-scope-coverage-heading" style={{ marginBottom: '20px' }}>
+                        <h4 id="quote-scope-coverage-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Coverage &amp; Deliverables</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                          {qScopeInput('coverage_expectation', 'Coverage expectation', 'text', 'e.g. Ceremony through reception')}
+                          {qScopeListInput('deliverables', 'Deliverables', 'e.g. Edited gallery')}
+                          {qScopeInput('final_image_count', 'Final image count', 'number', 'e.g. 100')}
+                          {qScopeInput('retouched_image_count', 'Retouched image count', 'number', 'e.g. 20')}
+                          {qScopeListInput('delivery_format', 'Delivery format', 'e.g. JPEG\ne.g. TIFF')}
+                        </div>
+                      </section>
+
+                      <section aria-labelledby="quote-scope-usage-heading" style={{ marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+                          <h4 id="quote-scope-usage-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Usage Rights</h4>
+                          <span data-testid="quote-scope-usage-status" style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            {qScopeCommon.usage_rights.status === 'specified' ? 'Specified' : qScopeCommon.usage_rights.status === 'not_applicable' ? 'Not applicable' : 'Not specified'}
+                          </span>
+                        </div>
+                        <div className="input-group" style={{ marginTop: '12px' }}>
+                          <label className="input-label" htmlFor="quote-scope-usage-status">Usage status</label>
+                          <select
+                            id="quote-scope-usage-status"
+                            className="form-select"
+                            value={qScopeCommon.usage_rights.status}
+                            onChange={(event) => handleUsageRightsStatusChange(event.target.value)}
+                          >
+                            <option value="unspecified">Not specified</option>
+                            <option value="specified">Specified</option>
+                            <option value="not_applicable">Not applicable</option>
+                          </select>
+                        </div>
+                        {qScopeCommon.usage_rights.status === 'specified' && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setUsageRightsExpanded((expanded) => !expanded)}
+                              aria-expanded={usageRightsExpanded}
+                              style={{ marginBottom: usageRightsExpanded ? '12px' : 0 }}
+                            >
+                              {usageRightsExpanded ? 'Hide usage details' : 'Show usage details'}
+                            </button>
+                            {usageRightsExpanded && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                                <div className="input-group">
+                                  <label className="input-label" htmlFor="quote-scope-purpose">Purpose</label>
+                                  <input id="quote-scope-purpose" type="text" className="form-input" value={qScopeCommon.usage_rights.purpose ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.purpose', event.target.value)} placeholder="e.g. Brand campaign" />
+                                </div>
+                                <div className="input-group">
+                                  <label className="input-label" htmlFor="quote-scope-media-channels">Media / channels</label>
+                                  <textarea id="quote-scope-media-channels" className="form-textarea" value={(qScopeCommon.usage_rights.media_channels || []).join('\n')} onChange={(event) => updateQPhotographyScope('usage_rights.media_channels', event.target.value.split('\n'))} placeholder="e.g. Website\ne.g. Print" rows={3} />
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
+                                </div>
+                                <div className="input-group">
+                                  <label className="input-label" htmlFor="quote-scope-territory">Territory</label>
+                                  <input id="quote-scope-territory" type="text" className="form-input" value={qScopeCommon.usage_rights.territory ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.territory', event.target.value)} placeholder="e.g. North America" />
+                                </div>
+                                <div className="input-group">
+                                  <label className="input-label" htmlFor="quote-scope-license-duration">License duration</label>
+                                  <input id="quote-scope-license-duration" type="text" className="form-input" value={qScopeCommon.usage_rights.license_duration ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.license_duration', event.target.value)} placeholder="e.g. 12 months" />
+                                </div>
+                                <div className="input-group">
+                                  <label className="input-label" htmlFor="quote-scope-exclusivity">Exclusivity</label>
+                                  <input id="quote-scope-exclusivity" type="text" className="form-input" value={qScopeCommon.usage_rights.exclusivity ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.exclusivity', event.target.value)} placeholder="e.g. Non-exclusive" />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </section>
+
+                      <section aria-labelledby="quote-scope-boundaries-heading">
+                        <h4 id="quote-scope-boundaries-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Delivery &amp; Boundaries</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                          {qScopeInput('delivery_deadline', 'Delivery deadline', 'date')}
+                          {qScopeListInput('exclusions', 'Exclusions', 'e.g. Raw files')}
+                          {qScopeListInput('assumptions', 'Assumptions', 'e.g. Client selects favorites')}
+                        </div>
+                      </section>
                     </div>
 
                     {/* Line Items */}

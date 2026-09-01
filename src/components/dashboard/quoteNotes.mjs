@@ -1,6 +1,25 @@
 // Canonical parser for the legacy notes column format used by Quotes and Invoices.
+const defaultMetadata = () => ({
+  notes: '',
+  metadata: {},
+  billing_type: 'standard',
+  edit_count: 0,
+  comments: [],
+  files: [],
+});
+
+const parsedMetadata = (notes, metadata) => ({
+  ...metadata,
+  notes,
+  metadata,
+  billing_type: metadata.billing_type || 'standard',
+  edit_count: metadata.edit_count || 0,
+  comments: metadata.comments || [],
+  files: metadata.files || [],
+});
+
 export const deserializeQuoteNotes = (fullNotes) => {
-  if (!fullNotes) return { notes: '', billing_type: 'standard', edit_count: 0, comments: [], files: [] };
+  if (!fullNotes) return defaultMetadata();
   const marker = '---METADATA---';
   const markerMatches = [...fullNotes.matchAll(/(?:^|\n\n)---METADATA---\n/g)];
   if (markerMatches.length > 0) {
@@ -22,13 +41,8 @@ export const deserializeQuoteNotes = (fullNotes) => {
           .replace(/&#39;/g, "'");
         meta = JSON.parse(decodedMeta);
       }
-      return {
-        notes: publicNotes,
-        billing_type: meta.billing_type || 'standard',
-        edit_count: meta.edit_count || 0,
-        comments: meta.comments || [],
-        files: meta.files || []
-      };
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return defaultMetadata();
+      return parsedMetadata(publicNotes, meta);
     } catch {
       // Ignore legacy/malformed metadata.
     }
@@ -37,14 +51,14 @@ export const deserializeQuoteNotes = (fullNotes) => {
   if (parts.length > 1) {
     try {
       const meta = JSON.parse(parts[1]);
-      return {
-        notes: parts[0],
-        billing_type: meta.billing_type || 'standard',
-        edit_count: meta.edit_count || 0,
-        comments: meta.comments || [],
-        files: meta.files || []
-      };
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return defaultMetadata();
+      return parsedMetadata(parts[0], meta);
     } catch (e) {}
   }
-  return { notes: fullNotes, billing_type: 'standard', edit_count: 0, comments: [], files: [] };
+  return { ...defaultMetadata(), notes: fullNotes };
+};
+
+export const serializeQuoteNotes = (baseNotes, metadata = {}) => {
+  const safeMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+  return `${baseNotes || ''}\n\n---METADATA---\n${JSON.stringify(safeMetadata)}`;
 };
