@@ -39,6 +39,31 @@ function quoteSendRequiredResponse() {
   }, { status: 409 });
 }
 
+function quoteDeleteNotFoundResponse() {
+  return NextResponse.json({ error: "Quote not found", code: "QUOTE_NOT_FOUND" }, { status: 404 });
+}
+
+function quoteDeleteStateConflictResponse() {
+  return NextResponse.json({
+    error: "Finalized or concurrently changed Quotes cannot be deleted.",
+    code: "QUOTE_DELETE_STATE_CONFLICT",
+  }, { status: 409 });
+}
+
+function quoteDeleteWorkflowLinkedResponse() {
+  return NextResponse.json({
+    error: "This Quote is linked to the first-revenue workflow and cannot be deleted.",
+    code: "QUOTE_DELETE_WORKFLOW_LINKED",
+  }, { status: 409 });
+}
+
+function quoteDeleteInvoiceLinkedResponse() {
+  return NextResponse.json({
+    error: "This Quote is linked to an Invoice and cannot be deleted.",
+    code: "QUOTE_DELETE_INVOICE_LINKED",
+  }, { status: 409 });
+}
+
 function hasTerminalQuoteStatusMismatch(authoritativeStatus, requestedStatus, hasObservedStatus) {
   return hasObservedStatus
     && TERMINAL_QUOTE_STATUSES.has(authoritativeStatus)
@@ -429,5 +454,111 @@ export async function PATCH(request) {
     if (validation) return validation;
     console.error("Error updating quote status:", error);
     return NextResponse.json({ error: "Failed to update quote status" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const ip = getIp(request);
+    const context = await getRequestUser(request);
+    const contextFailure = requestContextResponse(context, "quotes");
+    if (contextFailure) return contextFailure;
+
+    const limitResult = await rateLimitAuthenticated("invoiceApi", context.user.id);
+    if (!limitResult.success) {
+      return NextResponse.json({ error: limitResult.error || "Too many requests" }, { status: limitResult.status || 429 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Quote ID is required" }, { status: 400 });
+    }
+
+    if (context.mode === "supabase") {
+      const serviceSupabase = createServiceSupabaseClient();
+      if (!serviceSupabase) {
+        return NextResponse.json({ error: "Quote service is unavailable" }, { status: 503 });
+      }
+
+      const { data: existingQuote, error: quoteLookupError } = await serviceSupabase
+        .from("quotes")
+        .select("id, status")
+        .eq("id", id)
+        .eq("user_id", context.user.id)
+        .maybeSingle();
+      if (quoteLookupError) throw quoteLookupError;
+      if (!existingQuote) return quoteDeleteNotFoundResponse();
+
+      if (!OWNER_MUTABLE_QUOTE_STATUSES.has(existingQuote.status)) {
+        return quoteDeleteStateConflictResponse();
+      }
+
+      const { data: firstRevenueLink, error: firstRevenueLookupError } = await serviceSupabase
+        .from("first_revenue_loops")
+        .select("quote_id")
+        .eq("user_id", context.user.id)
+        .eq("quote_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (firstRevenueLookupError) throw firstRevenueLookupError;
+      if (firstRevenueLink) return quoteDeleteWorkflowLinkedResponse();
+
+      const { data: linkedInvoice, error: invoiceLookupError } = await serviceSupabase
+        .from("invoices")
+        .select("id")
+        .eq("user_id", context.user.id)
+        .eq("quote_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (invoiceLookupError) throw invoiceLookupError;
+      if (linkedInvoice) return quoteDeleteInvoiceLinkedResponse();
+
+      const { data: deletedQuote, error: deleteError } = await serviceSupabase
+        .from("quotes")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", context.user.id)
+        .eq("status", existingQuote.status)
+        .in("status", [...OWNER_MUTABLE_QUOTE_STATUSES])
+        .select("id")
+        .maybeSingle();
+
+      if (deleteError?.code === "23503") return quoteDeleteWorkflowLinkedResponse();
+      if (deleteError) throw deleteError;
+      if (!deletedQuote) return quoteDeleteStateConflictResponse();
+
+      try {
+        const { error: portalTokenCleanupError } = await serviceSupabase
+          .from("portal_tokens")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("owner_id", context.user.id)
+          .eq("resource_type", "quote")
+          .eq("resource_id", deletedQuote.id)
+          .is("revoked_at", null);
+        if (portalTokenCleanupError) throw portalTokenCleanupError;
+      } catch (portalTokenCleanupError) {
+        console.error("Failed to revoke deleted Quote portal token cleanup:", portalTokenCleanupError);
+      }
+
+      try {
+        await writeAuditLog(context.supabase, {
+          userId: context.user.id,
+          action: "quote_deleted",
+          resourceType: "quote",
+          resourceId: deletedQuote.id,
+          ip,
+        });
+      } catch (auditError) {
+        console.error("Failed to write quote deletion audit log:", auditError);
+      }
+
+      return NextResponse.json({ success: true, id: deletedQuote.id });
+    }
+
+    return authRequiredResponse("quotes");
+  } catch (error) {
+    console.error("Error deleting quote:", error);
+    return NextResponse.json({ error: "Failed to delete quote", code: "QUOTE_DELETE_FAILED" }, { status: 500 });
   }
 }

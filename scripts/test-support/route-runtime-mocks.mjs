@@ -217,7 +217,7 @@ function createClient(kind) {
 }
 
 function createQuery(kind, table) {
-  const state = { kind, table, operation: null, filters: {}, values: null };
+  const state = { kind, table, operation: null, filters: {}, inFilters: {}, values: null };
   const chain = {
     select(columns = '*') {
       if (state.operation === null) state.operation = 'select';
@@ -230,6 +230,20 @@ function createQuery(kind, table) {
       state.filters[column] = value;
       if (state.operation === 'delete' || runtime.config.logDatabaseCalls) {
         call(`eq:${table}:${column}:${value}`);
+      }
+      return chain;
+    },
+    is(column, value) {
+      state.filters[column] = value;
+      if (state.operation === 'update' || runtime.config.logDatabaseCalls) {
+        call(`is:${table}:${column}:${value}`);
+      }
+      return chain;
+    },
+    in(column, values) {
+      state.inFilters[column] = values;
+      if (state.operation === 'delete' || runtime.config.logDatabaseCalls) {
+        call(`in:${table}:${column}:${values.join(',')}`);
       }
       return chain;
     },
@@ -268,21 +282,29 @@ function createQuery(kind, table) {
   return chain;
 }
 
-function matchingRecord(records, filters) {
+function matchingRecord(records, filters, inFilters = {}) {
   if (!Array.isArray(records)) return null;
   return records.find((record) => Object.entries(filters).every(
     ([column, value]) => record[column] === value
+  ) && Object.entries(inFilters).every(
+    ([column, values]) => values.includes(record[column])
   )) || null;
 }
 
-function queryResult({ kind, table, operation, filters, values }) {
+function queryResult({ kind, table, operation, filters, inFilters, values }) {
   if (table === 'clients' && operation === 'select' && Array.isArray(runtime.config.clientRecords)) {
     if (runtime.config.clientLookupError) return result(null, runtime.config.clientLookupError);
     return result(matchingRecord(runtime.config.clientRecords, filters));
   }
   if (table === 'quotes' && operation === 'select' && Array.isArray(runtime.config.quoteRecords)) {
     if (runtime.config.quoteLookupError) return result(null, runtime.config.quoteLookupError);
-    return result(matchingRecord(runtime.config.quoteRecords, filters));
+    const record = matchingRecord(runtime.config.quoteRecords, filters);
+    const selected = record ? { ...record } : null;
+    if (record && runtime.config.concurrentQuoteStatusChange && !runtime.config.concurrentQuoteStatusChangeApplied) {
+      runtime.config.concurrentQuoteStatusChangeApplied = true;
+      record.status = runtime.config.concurrentQuoteStatusChange;
+    }
+    return result(selected);
   }
   if (table === 'quotes' && operation === 'update') {
     if (runtime.config.quoteUpdateError) return result(null, runtime.config.quoteUpdateError);
@@ -304,14 +326,35 @@ function queryResult({ kind, table, operation, filters, values }) {
   if (table === 'quotes' && operation === 'delete') {
     if (runtime.config.quoteDeleteError) return result(null, runtime.config.quoteDeleteError);
     if (Array.isArray(runtime.config.quoteRecords)) {
-      const record = runtime.config.quoteRecords.find((quote) => quote.id === filters.id);
+      const record = matchingRecord(runtime.config.quoteRecords, filters, inFilters);
       if (!record) return result(null);
-      if (filters.user_id === undefined || filters.user_id === record.user_id) {
-        return result({ id: record.id });
-      }
-      return result(null);
+      const recordIndex = runtime.config.quoteRecords.indexOf(record);
+      runtime.config.quoteRecords.splice(recordIndex, 1);
+      return result({ id: record.id });
     }
     return result(runtime.config.deletedQuote, null);
+  }
+  if (table === 'first_revenue_loops' && operation === 'select' && Array.isArray(runtime.config.firstRevenueLoopRecords)) {
+    if (runtime.config.firstRevenueLookupError) return result(null, runtime.config.firstRevenueLookupError);
+    return result(matchingRecord(runtime.config.firstRevenueLoopRecords, filters));
+  }
+  if (table === 'invoices' && operation === 'select' && Array.isArray(runtime.config.invoiceRecords)) {
+    if (runtime.config.invoiceLookupError) return result(null, runtime.config.invoiceLookupError);
+    return result(matchingRecord(runtime.config.invoiceRecords, filters));
+  }
+  if (table === 'portal_tokens' && operation === 'update') {
+    if (runtime.config.portalTokenRevokeError) return result(null, runtime.config.portalTokenRevokeError);
+    if (Array.isArray(runtime.config.portalTokenRecords)) {
+      runtime.config.portalTokenRecords.forEach((token) => {
+        if (Object.entries(filters).every(([column, value]) => token[column] === value)) {
+          Object.assign(token, values);
+        }
+      });
+    }
+    return result(null);
+  }
+  if (table === 'portal_tokens' && operation === 'select') {
+    return result(null);
   }
   if (table === 'invoices' && operation === 'delete') {
     if (runtime.config.deleteError) return result(null, runtime.config.deleteError);

@@ -4537,13 +4537,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     {isSendingQuote ? 'Sending...' : 'Send Quote'}
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => handleDeleteQuote(q.id)}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ color: 'var(--danger)' }}
-                                >
-                                  Delete
-                                </button>
+                                {(q.status === 'draft' || q.status === 'sent') && q.id !== firstRevenueLoop?.quote_id && (
+                                  <button
+                                    onClick={() => handleDeleteQuote(q.id)}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ color: 'var(--danger)' }}
+                                  >
+                                    Delete
+                                  </button>
+                                )}
                                 {q.status === 'approved' && (
                                   <button onClick={() => handleConvertQuoteToInvoice(q)} className="btn btn-primary btn-sm">
                                     Create Invoice Draft
