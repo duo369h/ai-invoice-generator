@@ -174,7 +174,7 @@ export async function recordServerGrowthEvent(supabase, {
   source = 'system',
   properties = {}
 }) {
-  const ALLOWED_EVENTS = new Set(['invoice_created', 'invoice_sent', 'invoice_paid']);
+  const ALLOWED_EVENTS = new Set(['invoice_created', 'invoice_sent', 'invoice_paid', 'quote_sent']);
   if (!ALLOWED_EVENTS.has(eventName)) {
     return;
   }

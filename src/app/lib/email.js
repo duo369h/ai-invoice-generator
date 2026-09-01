@@ -8,6 +8,25 @@ const fromSupport = process.env.RESEND_FROM_SUPPORT || 'support@corvioz.com';
 const fromBilling = process.env.RESEND_FROM_BILLING || 'billing@corvioz.com';
 const siteUrl = getSiteUrl();
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatMoney(cents, currency) {
+  const amount = Number(cents || 0) / 100;
+  const code = String(currency || 'USD').toUpperCase();
+  try {
+    return amount.toLocaleString('en-US', { style: 'currency', currency: code });
+  } catch {
+    return `${amount.toFixed(2)} ${escapeHtml(code)}`;
+  }
+}
+
 export function isEmailConfigured() {
   return Boolean(apiKey && fromSupport && fromBilling);
 }
@@ -229,6 +248,76 @@ export function getQuoteApprovedEmailHtml(quote, freelancerName) {
 }
 
 /**
+ * Quote Sent (to Client)
+ */
+export function getQuoteSentEmailHtml(quote, portalUrl, freelancerName) {
+  const clientName = escapeHtml(quote.client_name || 'Client');
+  const photographerName = escapeHtml(freelancerName || 'Photographer');
+  const quoteNumber = escapeHtml(quote.quote_number || 'Quote');
+  const currencyCode = String(quote.currency || 'USD').toUpperCase();
+  const currency = escapeHtml(currencyCode);
+  const safePortalUrl = portalUrl ? escapeHtml(portalUrl) : '';
+  const title = `Quote ${quoteNumber} from ${photographerName}`;
+  const previewText = `Quote ${quoteNumber} from ${photographerName} is ready for your review.`;
+  const itemsRows = (Array.isArray(quote.items) ? quote.items : []).map((item) => {
+    const quantity = Number(item.quantity || 1);
+    const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0);
+    const amount = Number(item.amount ?? (quantity * unitPrice));
+    return `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${escapeHtml(item.description || '')}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">${escapeHtml(quantity)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right;">${formatMoney(unitPrice, currencyCode)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right;">${formatMoney(amount, currencyCode)}</td>
+      </tr>`;
+  }).join('');
+  const discountAmount = Number(quote.discount_amount || 0);
+  const taxAmount = Number(quote.tax_amount || 0);
+  const notes = quote.notes ? `
+    <div style="background-color: rgba(79, 70, 229, 0.05); border-left: 4px solid #4F46E5; padding: 16px; border-radius: 4px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Notes and terms</strong></p>
+      <p style="margin: 0; font-size: 14px; white-space: pre-wrap;">${escapeHtml(quote.notes)}</p>
+    </div>` : '';
+
+  const bodyHtml = `
+    <h2 style="font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 16px;">Hello ${clientName},</h2>
+    <p style="margin-top: 0; margin-bottom: 16px;">
+      <strong>${photographerName}</strong> has prepared quote <strong>${quoteNumber}</strong> for your review.
+    </p>
+    ${quote.client_address ? `<p style="margin-bottom: 16px;"><strong>Client address:</strong> ${escapeHtml(quote.client_address)}</p>` : ''}
+    <table class="data-table" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+      <thead>
+        <tr style="background-color: #f9fafb;">
+          <th style="padding: 10px; text-align: left; font-size: 12px; font-weight: 600; color: #4b5563; border-bottom: 1px solid #e5e7eb;">Deliverable</th>
+          <th style="padding: 10px; text-align: center; font-size: 12px; font-weight: 600; color: #4b5563; border-bottom: 1px solid #e5e7eb; width: 55px;">Qty</th>
+          <th style="padding: 10px; text-align: right; font-size: 12px; font-weight: 600; color: #4b5563; border-bottom: 1px solid #e5e7eb; width: 100px;">Rate</th>
+          <th style="padding: 10px; text-align: right; font-size: 12px; font-weight: 600; color: #4b5563; border-bottom: 1px solid #e5e7eb; width: 100px;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsRows}
+        <tr>
+          <td colspan="3" style="padding: 12px 10px 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">Subtotal (${currency}):</td>
+          <td style="padding: 12px 10px 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">${formatMoney(quote.subtotal, currencyCode)}</td>
+        </tr>
+        ${discountAmount ? `<tr><td colspan="3" style="padding: 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">Discount (${escapeHtml(quote.discount_rate || 0)}%):</td><td style="padding: 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">-${formatMoney(discountAmount, currencyCode)}</td></tr>` : ''}
+        ${taxAmount ? `<tr><td colspan="3" style="padding: 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">Tax (${escapeHtml(quote.tax_rate || 0)}%):</td><td style="padding: 4px 10px; text-align: right; font-size: 14px; color: #4b5563;">${formatMoney(taxAmount, currencyCode)}</td></tr>` : ''}
+        <tr>
+          <td colspan="3" style="padding: 4px 10px 12px 10px; text-align: right; font-size: 15px; font-weight: 700; color: #111827;">Total (${currency}):</td>
+          <td style="padding: 4px 10px 12px 10px; text-align: right; font-size: 15px; font-weight: 700; color: #4F46E5;">${formatMoney(quote.total, currencyCode)}</td>
+        </tr>
+      </tbody>
+    </table>
+    ${notes}
+    ${safePortalUrl ? `
+      <p style="margin-bottom: 24px;">Review the quote and respond securely through your Client Portal:</p>
+      <div style="text-align: center; margin-bottom: 24px;"><a href="${safePortalUrl}" style="background-color: #4F46E5; color: #ffffff; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">Review Quote</a></div>` : `
+      <p style="margin-bottom: 0; font-size: 14px; color: #6b7280;">Please reply directly to this email if you have any questions about the quote.</p>`}
+  `;
+  return emailLayout({ title: escapeHtml(title), previewText: escapeHtml(previewText), bodyHtml });
+}
+
+/**
  * 4. Invoice Sent (to Client)
  */
 export function getInvoiceSentEmailHtml(invoice, portalUrl, freelancerName) {
@@ -320,7 +409,7 @@ export function getInvoicePaidEmailHtml(invoice, freelancerName) {
 /**
  * Production-ready server send function
  */
-async function sendMail({ type = 'transactional', from, to, subject, html }) {
+async function sendMail({ type = 'transactional', from, to, subject, html, replyTo }) {
   const logBase = emailLogBase({ type, from, to, subject });
 
   if (!to) {
@@ -337,12 +426,14 @@ async function sendMail({ type = 'transactional', from, to, subject, html }) {
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    const payload = {
       from,
       to,
       subject,
       html,
-    });
+    };
+    if (replyTo) payload.reply_to = replyTo;
+    const { data, error } = await resend.emails.send(payload);
 
     if (error) {
       console.error('[EMAIL] send_failed', { ...logBase, error: error.message });
@@ -394,6 +485,17 @@ export async function sendInvoiceSentEmail(toEmail, invoice, portalUrl, freelanc
     to: toEmail,
     subject: `New Invoice ${invoice.invoice_number} from ${freelancerName}`,
     html: getInvoiceSentEmailHtml(invoice, portalUrl, freelancerName),
+  });
+}
+
+export async function sendQuoteSentEmail(toEmail, quote, portalUrl, freelancerName, replyTo) {
+  return sendMail({
+    type: 'quote_sent',
+    from: fromBilling,
+    to: toEmail,
+    replyTo,
+    subject: `Quote ${quote.quote_number} from ${freelancerName}`,
+    html: getQuoteSentEmailHtml(quote, portalUrl, freelancerName),
   });
 }
 
@@ -473,4 +575,3 @@ export async function sendPaymentReminderEmail(toEmail, invoice, portalUrl, remi
     html: getPaymentReminderEmailHtml(invoice, portalUrl, reminderText, freelancerName),
   });
 }
-

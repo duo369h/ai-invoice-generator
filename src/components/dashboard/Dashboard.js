@@ -296,9 +296,9 @@ function FirstRevenueLoopAction({ loop, onCreateQuote, onSendQuote, onCreateInvo
       onAction: onCreateQuote,
     },
     draft: {
-      title: 'Mark your quote as sent',
-      description: 'Your quote is ready. Mark it as sent to start tracking the client decision.',
-      actionLabel: 'Mark as Sent',
+      title: 'Send your quote',
+      description: 'Your saved quote is ready to deliver to the client.',
+      actionLabel: 'Send Quote',
       onAction: onSendQuote,
     },
     sent: {
@@ -1096,6 +1096,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [showPaymentWaitingBanner, setShowPaymentWaitingBanner] = useState(false);
   const [isParsingLead, setIsParsingLead] = useState(null); // ID of lead parsing
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingQuote, setIsSendingQuote] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Quote Editor State
@@ -2127,29 +2128,56 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
+  const handleSendQuote = async (quoteOverride = null) => {
+    const quote = quoteOverride || (qId ? quotes.find((item) => item.id === qId) : null);
+    if (!quote) {
+      triggerToast('Save the Quote before sending it.', 'info');
+      return false;
+    }
+    if (quote.status !== 'draft') {
+      triggerToast('Only a saved draft Quote can be sent.', 'info');
+      return false;
+    }
+    if (!quote.client_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quote.client_email.trim())) {
+      triggerToast('Add a valid client email before sending the Quote.', 'error');
+      return false;
+    }
+
+    setIsSendingQuote(true);
+    setFormError('');
+    try {
+      const quoteResponse = await fetch(`/api/quotes/${quote.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const quoteResult = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok) throw new Error(quoteResult.error || 'Unable to send Quote.');
+
+      const sentQuote = quoteResult.data || quoteResult;
+      if (qId === quote.id) setQStatus(sentQuote.status || 'sent');
+      await fetchData(session?.access_token);
+      const recipient = sentQuote.client_email || quote.client_email;
+      setFormSuccess(`Quote sent to ${recipient}.`);
+      triggerToast(`Quote sent to ${recipient}.`, 'success');
+      return true;
+    } catch (error) {
+      console.error(error);
+      setFormError(error.message || 'Unable to send Quote.');
+      triggerToast(error.message || 'Unable to send Quote.', 'error');
+      return false;
+    } finally {
+      setIsSendingQuote(false);
+    }
+  };
+
   const handleSendFirstRevenueQuote = async () => {
-    if (!firstRevenueLoop?.can_send_quote || !firstRevenueLoop.quote_id) return;
+    if (!firstRevenueLoop?.can_send_quote || !firstRevenueLoop.quote_id) return false;
     const quote = quotes.find((item) => item.id === firstRevenueLoop.quote_id);
     if (!quote) {
       triggerToast('Your first quote is still loading. Refresh and try again.', 'error');
-      return;
+      return false;
     }
-
-    try {
-      const quoteResponse = await fetch('/api/quotes', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: quote.id, status: 'sent' })
-      });
-      const quoteData = await quoteResponse.json().catch(() => ({}));
-      if (!quoteResponse.ok) throw new Error(quoteData.error || 'Unable to mark quote as sent');
-
-      await fetchData(session?.access_token);
-      triggerToast('Quote marked as sent.', 'success');
-    } catch (error) {
-      console.error(error);
-      triggerToast(error.message || 'Unable to update quote status.', 'error');
-    }
+    return handleSendQuote(quote);
   };
 
   const handleOpenFirstRevenueInvoiceDraft = () => {
@@ -2438,6 +2466,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         const res = await saveQuote(payloadWithMeta, session?.access_token);
         if (res.success) {
+          const savedQuoteId = res.data?.id || qId;
           if (qId) {
             trackEvent('quote_edited', {
               user_id: user?.id,
@@ -2494,6 +2523,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               });
             }
           }
+          if (!qId && savedQuoteId) setQId(savedQuoteId);
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
           triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
           if (!qId && mode === 'live') {
@@ -4487,6 +4517,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 >
                                   Copy Link
                                 </button>
+                                {q.status === 'draft' && (
+                                  <button
+                                    onClick={() => handleSendQuote(q)}
+                                    disabled={isSendingQuote || !q.client_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email.trim())}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ color: 'var(--accent)' }}
+                                  >
+                                    {isSendingQuote ? 'Sending...' : 'Send Quote'}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleDeleteQuote(q.id)}
                                   className="btn btn-secondary btn-sm"
@@ -4746,15 +4786,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       </div>
                       <div className="input-group" style={{ marginBottom: '20px' }}>
                         <label className="input-label">Quote Status</label>
-                        {TERMINAL_QUOTE_STATUSES.has(qStatus) ? (
-                          <div className="form-input" aria-label="Client/system status (read-only)">
-                            {qStatus}
-                          </div>
-                        ) : (
-                          <select className="form-select" value={qStatus} onChange={e => setQStatus(e.target.value)}>
-                            <option value="draft">Draft</option>
-                            <option value="sent">Sent</option>
-                          </select>
+                        <div className="form-input" aria-label="Quote delivery status (read-only)">
+                          {qStatus === 'sent' ? 'Sent' : qStatus === 'draft' ? 'Draft' : qStatus}
+                        </div>
+                        {qStatus === 'draft' && (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                            Save the Quote, then send it to the stored client email.
+                          </span>
                         )}
                       </div>
 
@@ -4810,6 +4848,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <button onClick={handleSaveQuote} disabled={isSaving} className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }}>
                         {isSaving ? 'Saving...' : 'Save Quote'}
                       </button>
+                      {qId && qStatus === 'draft' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSendQuote()}
+                          disabled={isSendingQuote || isSaving || !qClientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim())}
+                          className="btn btn-secondary"
+                          style={{ width: '100%', marginTop: '10px', color: 'var(--accent)' }}
+                        >
+                          {isSendingQuote ? 'Sending...' : 'Send Quote'}
+                        </button>
+                      ) : !qId ? (
+                        <button type="button" disabled className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }}>
+                          Save Quote first to send
+                        </button>
+                      ) : null}
 
                       {/* PDF render target (hidden preview for html2pdf screenshot) */}
                       <div style={{ display: 'none' }}>

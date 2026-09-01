@@ -148,36 +148,20 @@ function assertUpdateHasNoCreateSideEffects(result, label) {
 
 {
   const result = await runStatusUpdate(secondQuote, 'sent');
-  assert.equal(result.response.status, 200, 'an owner-authorized draft-to-sent status update returns HTTP 200');
-  assert.equal(result.body.id, secondQuote.id, 'update returns the same Quote id');
-  assert.equal(result.body.status, 'sent', 'owner status update returns the new mutable status');
-  assert.equal(result.updates.length, 1, 'update executes exactly once');
-  assert.equal(result.updates[0].kind, 'service', 'update uses the service-role client');
-  assert.equal(result.updates[0].values.status, 'sent');
-  assert.deepEqual(result.updates[0].filters, {
-    id: secondQuote.id,
-    user_id: user.id,
-  }, 'update is scoped by Quote id and authenticated owner id');
+  assert.equal(result.response.status, 409, 'draft-to-sent status updates must use the delivery action');
+  assert.equal(result.body.code, 'QUOTE_SEND_REQUIRED');
+  assert.equal(result.updates.length, 0, 'direct sent status update never reaches the database');
   assertUpdateHasNoCreateSideEffects(result, 'non-anchor Free Quote');
-  assert.equal(result.audits.length, 1);
-  assert.equal(result.audits[0].action, 'quote_status_changed');
+  assert.equal(result.audits.length, 0);
 }
 
 {
   const result = await runUpdate(secondQuote, { status: 'sent' });
-  assert.equal(result.response.status, 201, 'a non-anchor Quote content update retains the POST endpoint response');
-  assert.equal(result.body.id, secondQuote.id, 'content update returns the same Quote id');
-  assert.equal(result.updates.length, 1, 'content update executes exactly once');
-  assert.equal([secondQuote].length + result.inserts.length, 1, 'editing keeps the simulated Quote count at one');
-  assert.equal(result.updates[0].kind, 'service', 'content update uses the service-role client');
-  assert.deepEqual(result.updates[0].filters, {
-    id: secondQuote.id,
-    user_id: user.id,
-    status: secondQuote.status,
-  }, 'content update is scoped by Quote id and authenticated owner id');
+  assert.equal(result.response.status, 409, 'content saves cannot turn a draft Quote into sent');
+  assert.equal(result.body.code, 'QUOTE_SEND_REQUIRED');
+  assert.equal(result.updates.length, 0, 'content save bypass never reaches the database');
   assertUpdateHasNoCreateSideEffects(result, 'non-anchor Quote content update');
-  assert.equal(result.audits.length, 1);
-  assert.equal(result.audits[0].action, 'quote_updated');
+  assert.equal(result.audits.length, 0);
 }
 
 {
@@ -211,7 +195,7 @@ function assertUpdateHasNoCreateSideEffects(result, label) {
 }
 
 for (const plan of ['starter', 'pro']) {
-  const result = await runUpdate(secondQuote, {}, { plan });
+  const result = await runUpdate(secondQuote, { status: 'draft' }, { plan });
   assert.equal(result.response.status, 201, `${plan} Quote content update returns the POST endpoint response`);
   assert.equal(result.updates.length, 1);
   assert.deepEqual(result.updates[0].filters, {
@@ -240,7 +224,7 @@ for (const [label, config] of [
   ['lookup', { quoteLookupError: { message: 'private lookup details' } }],
   ['persistence', { quoteUpdateError: { message: 'private update details' } }],
 ]) {
-  const result = await runUpdate(secondQuote, {}, config);
+  const result = await runUpdate(secondQuote, { status: 'draft' }, config);
   assert.equal(result.response.status, 500, `${label} error returns HTTP 500`);
   assert.deepEqual(result.body, { error: 'Failed to create quote', code: 'DATABASE_ERROR' });
   assert.equal(JSON.stringify(result.body).includes('private'), false, `${label} error is redacted`);
@@ -263,7 +247,7 @@ for (const [label, config] of [
     },
     portalToken: 'portal-created-token',
   });
-  const response = await quoteRoute.POST(postRequest(basePayload));
+  const response = await quoteRoute.POST(postRequest({ ...basePayload, status: 'draft' }));
   const body = await response.json();
   assert.equal(response.status, 201, 'a request without id retains create HTTP 201');
   assert.equal(body.id, 'quote-created');

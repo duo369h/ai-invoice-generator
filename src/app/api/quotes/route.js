@@ -8,8 +8,6 @@ import {
   createServiceSupabaseClient,
   createSupabasePortalToken,
   writeAuditLog,
-  recordServerGrowthEvent,
-  trackProfileMetric,
 } from "../../lib/supabase-service";
 import { rateLimitAuthenticated } from "../../lib/rate-limit";
 import { authRequiredResponse, getIp, requestContextResponse } from "../../lib/security";
@@ -31,6 +29,13 @@ function quoteStatusStateConflictResponse() {
   return NextResponse.json({
     error: "Quote status changed before this update could be applied.",
     code: "QUOTE_STATUS_STATE_CONFLICT"
+  }, { status: 409 });
+}
+
+function quoteSendRequiredResponse() {
+  return NextResponse.json({
+    error: "Use the Quote Send action to deliver a draft Quote before marking it sent.",
+    code: "QUOTE_SEND_REQUIRED"
   }, { status: 409 });
 }
 
@@ -133,6 +138,9 @@ export async function POST(request) {
     if (!id && !OWNER_MUTABLE_QUOTE_STATUSES.has(requestedStatus)) {
       return quoteStatusActorForbiddenResponse();
     }
+    if (requestedStatus === "sent" && !id) {
+      return quoteSendRequiredResponse();
+    }
 
     const calculatedSubtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
     const calculatedDiscountAmount = Math.round(calculatedSubtotal * (Number(discount_rate) / 100));
@@ -154,6 +162,10 @@ export async function POST(request) {
           return NextResponse.json({ error: "Quote not found" }, { status: 404 });
         }
         existingQuote = existingQuoteData;
+
+        if (requestedStatus === "sent" && existingQuote.status === "draft") {
+          return quoteSendRequiredResponse();
+        }
 
         if (hasTerminalQuoteStatusMismatch(existingQuote.status, requestedStatus, hasObservedStatus)) {
           return quoteStatusStateConflictResponse();
@@ -372,6 +384,10 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
     }
 
+    if (status === "sent") {
+      return quoteSendRequiredResponse();
+    }
+
     if (!OWNER_MUTABLE_QUOTE_STATUSES.has(status)) {
       return quoteStatusActorForbiddenResponse();
     }
@@ -402,39 +418,6 @@ export async function PATCH(request) {
         resourceId: data.id,
         ip,
       });
-
-      if (status === "sent") {
-        await trackProfileMetric(context.supabase, context.user.id, "quote_sent_timestamp");
-        await recordServerGrowthEvent(context.supabase, {
-          eventName: "quote_sent",
-          userId: context.user.id,
-          source: "user",
-          properties: {
-            quote_id: data.id,
-            quote_number: data.quote_number,
-            client_email: data.client_email
-          }
-        });
-        try {
-          await recordProductAnalyticsEvent({
-            eventName: "Proposal Sent",
-            userId: context.user.id,
-            source: "quotes_api",
-            properties: {
-              identity: context.user.id,
-              user_id: context.user.id,
-              plan: "free",
-              country: "",
-              quote_id: data.id,
-              quote_number: data.quote_number,
-              source: "quotes_api",
-              timestamp: new Date().toISOString(),
-            },
-          });
-        } catch (analyticsError) {
-          console.error("Failed to record proposal sent:", analyticsError);
-        }
-      }
 
       return NextResponse.json(data);
     }

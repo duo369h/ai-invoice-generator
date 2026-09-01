@@ -187,13 +187,13 @@ assert.doesNotMatch(dashboard, /<option value="approved">Approved<\/option>/, 'D
 assert.doesNotMatch(dashboard, /<option value="declined">Declined<\/option>/, 'Dashboard must not expose Declined as an owner-selectable status');
 assert.match(
   dashboard,
-  /TERMINAL_QUOTE_STATUSES\.has\(qStatus\)/,
-  'Dashboard must recognize terminal client/system quote states'
+  /Quote delivery status.*read-only/,
+  'Dashboard must render quote delivery status as read-only'
 );
 assert.match(
   dashboard,
-  /Client\/system status.*read-only|Client\/system state.*read-only/s,
-  'Dashboard must visibly represent historical client/system states as read-only'
+  /Quote delivery status.*read-only/s,
+  'Dashboard must visibly represent historical and delivery states as read-only'
 );
 
 assert.match(portalRoute, /entitlements\.client_approval.*approval_scope !== 'quotes_only'/s, 'signed Portal approval remains limited to the Pro quote-only approval entitlement');
