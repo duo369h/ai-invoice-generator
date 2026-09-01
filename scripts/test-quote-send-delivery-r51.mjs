@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { deserializeQuoteNotes } from '../src/components/dashboard/quoteNotes.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const routePath = path.join(root, 'src/app/api/quotes/[id]/send/route.js');
@@ -226,7 +227,12 @@ const emailExports = {};
 const emailModule = { exports: emailExports };
 new Function('exports', 'require', 'module', '__filename', '__dirname', emailCode)(
   emailExports,
-  (specifier) => specifier === './config' ? { getSiteUrl: () => 'https://corvioz.example' } : { Resend: class {} },
+  (specifier) => {
+    if (specifier === './config') return { getSiteUrl: () => 'https://corvioz.example' };
+    if (specifier.includes('quoteNotes.mjs')) return { deserializeQuoteNotes };
+    if (specifier === 'resend') return { Resend: class {} };
+    throw new Error(`Unexpected dependency: ${specifier}`);
+  },
   emailModule,
   path.join(root, 'src/app/lib/email.js'),
   path.join(root, 'src/app/lib'),

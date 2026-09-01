@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { getSiteUrl } from './config';
+import { deserializeQuoteNotes } from '../../components/dashboard/quoteNotes.mjs';
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -273,10 +274,11 @@ export function getQuoteSentEmailHtml(quote, portalUrl, freelancerName) {
   }).join('');
   const discountAmount = Number(quote.discount_amount || 0);
   const taxAmount = Number(quote.tax_amount || 0);
-  const notes = quote.notes ? `
+  const publicNotes = deserializeQuoteNotes(quote.notes).notes;
+  const notes = publicNotes ? `
     <div style="background-color: rgba(79, 70, 229, 0.05); border-left: 4px solid #4F46E5; padding: 16px; border-radius: 4px; margin-bottom: 24px;">
       <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Notes and terms</strong></p>
-      <p style="margin: 0; font-size: 14px; white-space: pre-wrap;">${escapeHtml(quote.notes)}</p>
+      <p style="margin: 0; font-size: 14px; white-space: pre-wrap;">${escapeHtml(publicNotes)}</p>
     </div>` : '';
 
   const bodyHtml = `
