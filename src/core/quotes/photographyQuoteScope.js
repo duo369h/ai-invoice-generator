@@ -32,7 +32,12 @@ const PRESET_VERTICALS = {
   'portrait-session': 'Portrait',
   'event-photography': 'Event',
   'commercial-shoot': 'Commercial',
+  'commercial-advertising': 'Commercial',
   'product-photography': 'Product',
+  'food-photography': 'Food',
+  'food-shoot': 'Food',
+  'architecture-interior': 'Architecture & Interior',
+  'architecture-shoot': 'Architecture & Interior',
 };
 
 const emptyUsageRights = () => ({

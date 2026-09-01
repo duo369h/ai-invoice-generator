@@ -300,7 +300,7 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
       return { notes: notes || '', billing_type: 'standard', edit_count: 0, comments: [], files: [] };
     };
     const serializeInvoiceNotes = (notes) => notes;
-    const getPhotographyQuotePresetById = () => null;
+    const getPhotographyWorkflowTemplateById = () => null;
     const readFirstQuoteStartedAt = () => null;
     const saveInvoice = async (payload) => {
       savedInvoices.push(payload);

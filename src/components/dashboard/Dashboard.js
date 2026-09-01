@@ -71,7 +71,11 @@ import {
   readEntryRevenueContext,
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
-import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
+import {
+  PHOTOGRAPHY_WORKFLOW_TEMPLATES,
+  getPhotographyWorkflowTemplateById,
+} from '../../core/quotes/photographyWorkflowTemplates';
+import { buildPhotographyPreSendReview } from '../../core/quotes/photographyQuoteReview';
 import {
   createEmptyPhotographyScope,
   derivePhotographyVertical,
@@ -1119,6 +1123,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [quotePresetSelectionTouched, setQuotePresetSelectionTouched] = useState(false);
   const [qPhotographyScope, setQPhotographyScope] = useState(() => createEmptyPhotographyScope());
   const [usageRightsExpanded, setUsageRightsExpanded] = useState(false);
+  const [scopeFieldsExpanded, setScopeFieldsExpanded] = useState(false);
   const [isFirstQuoteFlow, setIsFirstQuoteFlow] = useState(initialFirstQuoteFlow);
 
   // Quote validation states
@@ -1235,9 +1240,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [leadNotes, setLeadNotes] = useState('');
   const [leadReminderDate, setLeadReminderDate] = useState('');
 
-  // Quote scope helper prompt
-  const [quotePrompt, setQuotePrompt] = useState('');
-  const [isExpandingQuote, setIsExpandingQuote] = useState(false);
   // Modals
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [showActivationGuide, setShowActivationGuide] = useState(false);
@@ -1926,6 +1928,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
     if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
     if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
+    if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
     setIsFirstQuoteFlow(false);
     setQClientNameTouched(false);
     setQClientEmailTouched(false);
@@ -2370,24 +2373,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setUsageRightsExpanded(status === 'specified');
   };
 
-  // Quote presets are data records so future verticals can add config without branching UI logic.
-  const handleApplyQuotePreset = (presetId) => {
-    const preset = getPhotographyQuotePresetById(presetId);
-    if (preset) {
-      setSelectedQuotePresetId(preset.id);
+  // Templates guide Scope capture. They never write line items, rates, or terms.
+  const handleApplyQuotePreset = (templateId) => {
+    const workflowTemplate = getPhotographyWorkflowTemplateById(templateId);
+    if (workflowTemplate) {
+      setSelectedQuotePresetId(workflowTemplate.id);
       setQuotePresetSelectionTouched(true);
-      setQCurrency(preset.defaultCurrency || qCurrency);
-      setQItems(preset.defaultLineItems.map(item => ({ ...item })));
-      setQNotes([
-        `${preset.name} terms`,
-        '',
-        ...preset.defaultContractClauses.map((clause) => `- ${clause}`),
-      ].join('\n'));
-      triggerToast(`Applied "${preset.name}" quote preset.`, 'success');
+      setScopeFieldsExpanded(false);
+      triggerToast(`Applied "${workflowTemplate.label}" workflow template.`, 'success');
       sendEvent('TEMPLATE_VIEWED', {
-        template_type: 'quote_preset',
-        preset_id: preset.id,
-        preset_name: preset.name,
+        template_type: 'photography_workflow_template',
+        preset_id: workflowTemplate.id,
+        preset_name: workflowTemplate.label,
         source: isFirstQuoteFlow ? 'first_quote_onboarding' : 'quote_create',
       });
     }
@@ -2398,24 +2395,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setQuotePresetSelectionTouched(true);
     setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
     setQNotes('');
+    setScopeFieldsExpanded(false);
     triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
-  };
-
-  const handleAiScopeExpansion = () => {
-    if (!quotePrompt) return;
-    setIsExpandingQuote(true);
-
-    setTimeout(() => {
-      setQItems([
-        { description: `Shoot planning and client alignment for "${quotePrompt}"`, quantity: 1, unitPrice: 450 },
-        { description: 'Photography shoot coverage', quantity: 1, unitPrice: 1200 },
-        { description: 'Delivery, usage rights, and final image handoff', quantity: 1, unitPrice: 650 }
-      ]);
-      setQNotes(`Shoot scope prepared from: "${quotePrompt}". Include deposit terms, delivery timeline, usage rights, and final payment terms before sending.`);
-      setIsExpandingQuote(false);
-      setQuotePrompt('');
-      triggerToast('Scope helper complete. Project milestones and document details have been loaded.', 'success');
-    }, 1200);
   };
 
   // Save Quote
@@ -2447,14 +2428,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
       }
 
-      const selectedQuotePreset = getPhotographyQuotePresetById(selectedQuotePresetId);
+      const selectedQuotePreset = getPhotographyWorkflowTemplateById(selectedQuotePresetId);
       const presetSelectionWasTouched = typeof quotePresetSelectionTouched !== 'undefined' && quotePresetSelectionTouched;
       const presetId = presetSelectionWasTouched
         ? (selectedQuotePreset?.id || null)
         : (existingMetadata.quote_preset_id ?? selectedQuotePreset?.id ?? null);
       const presetName = presetSelectionWasTouched
-        ? (selectedQuotePreset?.name || null)
-        : (existingMetadata.quote_preset_name ?? selectedQuotePreset?.name ?? null);
+        ? (selectedQuotePreset?.label || null)
+        : (existingMetadata.quote_preset_name ?? selectedQuotePreset?.label ?? null);
       const workflowTerms = presetSelectionWasTouched
         ? (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : [])
         : (existingMetadata.workflow_terms || (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []));
@@ -2530,7 +2511,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               quote_number: qNumber,
               currency: qCurrency,
               quote_preset_id: selectedQuotePreset?.id || null,
-              quote_preset_name: selectedQuotePreset?.name || null,
+              quote_preset_name: selectedQuotePreset?.label || null,
               sandbox: isDemo
             });
             if (await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent })) {
@@ -2559,7 +2540,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 quote_number: qNumber,
                 quote_id: res.data?.id || qId || null,
                 preset_id: selectedQuotePreset?.id || null,
-                preset_name: selectedQuotePreset?.name || 'Blank Quote',
+                preset_name: selectedQuotePreset?.label || 'Blank Quote',
                 started_at: startedAt,
                 completed_at: completedAt,
                 delta_ms: Number.isFinite(deltaMs) ? deltaMs : null,
@@ -3337,6 +3318,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
       }
       if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(Boolean(quoteScope?.common?.usage_rights?.status === 'specified'));
+      if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
       setQNotes(parsedQuoteNotes.notes);
       setQTaxRate(Number(quote.tax_rate || 0));
       setQDiscountRate(Number(quote.discount_rate || 0));
@@ -3704,8 +3686,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }
 
   const qScopeCommon = qPhotographyScope.common;
-  const selectedQuoteVertical = derivePhotographyVertical(selectedQuotePresetId);
-  const qScopeInput = (field, label, type = 'text', placeholder = '') => (
+  const selectedWorkflowTemplate = getPhotographyWorkflowTemplateById(selectedQuotePresetId);
+  const selectedQuoteVertical = selectedWorkflowTemplate?.label || derivePhotographyVertical(selectedQuotePresetId);
+  const emphasizedScopeFields = new Set(selectedWorkflowTemplate?.scopeEmphasis || [
+    'shoot_type',
+    'shoot_date',
+    'primary_location',
+    'coverage_expectation',
+    'deliverables',
+    'delivery_deadline',
+  ]);
+  const shouldShowScopeField = (field) => scopeFieldsExpanded || emphasizedScopeFields.has(field);
+  const scopeField = (field, element) => shouldShowScopeField(field) ? element : null;
+  const qScopeInput = (field, label, type = 'text', placeholder = '', suggestions = []) => (
     <div className="input-group" key={field}>
       <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
       <input
@@ -3715,9 +3708,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         value={qScopeCommon[field] ?? ''}
         onChange={(event) => updateQPhotographyScope(field, event.target.value)}
         placeholder={placeholder}
+        list={suggestions.length > 0 ? `quote-scope-${field}-suggestions` : undefined}
         min={type === 'number' ? 0 : undefined}
         step={type === 'number' ? 1 : undefined}
       />
+      {suggestions.length > 0 && (
+        <datalist id={`quote-scope-${field}-suggestions`}>
+          {suggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+        </datalist>
+      )}
     </div>
   );
   const qScopeListInput = (field, label, placeholder) => (
@@ -3734,6 +3733,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
     </div>
   );
+  const preSendReviewFindings = buildPhotographyPreSendReview({
+    scope: qPhotographyScope,
+    templateId: selectedQuotePresetId,
+  });
+  const reviewCategoryLabels = {
+    NEEDS_ATTENTION: 'Needs attention',
+    CONFIRM: 'Confirm',
+    IMPROVE: 'Improve',
+  };
+  const reviewCategoryOrder = ['NEEDS_ATTENTION', 'CONFIRM', 'IMPROVE'];
 
   return (
     <div 
@@ -4562,7 +4571,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       Create your first quote
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      Start with Wedding Shoot, Portrait Session, Event Photography, Commercial Shoot, or Product Photography.
+                      Start with Wedding, Portrait, Event, Commercial / Advertising, Product, Food, or Architecture & Interior.
                     </p>
                   </div>
                 ) : (
@@ -4673,66 +4682,42 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 )}
 
-                {/* Quick Presets & Scope Helper */}
+                {/* Photography workflow template selector */}
                 <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Choose a photography quote preset
-                    {selectedQuoteVertical && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 600 }}>Vertical: {selectedQuoteVertical}</span>}
+                    Choose a photography workflow
+                    {selectedQuoteVertical && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 600 }}>Selected: {selectedQuoteVertical}</span>}
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Start with a shoot type, or skip presets and build a blank quote. Presets add line items plus deposit, delivery, and usage rights notes.
+                    Start with the closest match. Your Quote pricing and notes remain yours.
                   </p>
 
-                  {/* Presets Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-                    {PHOTOGRAPHY_QUOTE_PRESETS.map((preset) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                    {PHOTOGRAPHY_WORKFLOW_TEMPLATES.map((template) => (
                       <button
-                        key={preset.id}
+                        key={template.id}
                         type="button"
-                        onClick={() => handleApplyQuotePreset(preset.id)}
-                        className={selectedQuotePresetId === preset.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                        style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
+                        onClick={() => handleApplyQuotePreset(template.id)}
+                        className={selectedQuotePresetId === template.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        aria-pressed={selectedQuotePresetId === template.id}
+                        style={{ minHeight: '72px', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column', gap: '3px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.25 }}
                       >
-                        <strong>{preset.name}</strong>
-                        <span style={{ fontWeight: 500, opacity: 0.82 }}>{preset.description}</span>
+                        <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>{template.iconIdentifier === 'rings' ? '◌' : template.iconIdentifier === 'building' ? '⌂' : template.iconIdentifier === 'plate' ? '◉' : '✦'}</span>
+                        <strong>{template.label}</strong>
+                        <span style={{ fontWeight: 500, opacity: 0.82 }}>{template.shortDescription}</span>
                       </button>
                     ))}
                     <button
                       type="button"
                       onClick={handleSkipQuotePreset}
                       className={!selectedQuotePresetId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                      style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
+                      style={{ minHeight: '72px', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column', gap: '3px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.25 }}
                     >
                       <strong>Blank Quote</strong>
-                      <span style={{ fontWeight: 500, opacity: 0.82 }}>Skip presets and enter your own shoot, deposit, delivery, and usage rights details.</span>
+                      <span style={{ fontWeight: 500, opacity: 0.82 }}>Start without a workflow</span>
                     </button>
                   </div>
-
-                  {/* AI Prompt Input */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ flex: 1, position: 'relative' }}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Describe your shoot (e.g. 'portrait session with 10 retouched images and gallery delivery')..."
-                        value={quotePrompt}
-                        onChange={(e) => setQuotePrompt(e.target.value)}
-                        style={{ paddingRight: '100px' }}
-                      />
-                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Shoot Helper
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAiScopeExpansion}
-                      disabled={isExpandingQuote || !quotePrompt}
-                      className="btn btn-primary btn-sm"
-                      style={{ height: '42px', padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      {isExpandingQuote ? 'Preparing...' : 'Prepare Shoot Scope'}
-                    </button>
-                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Not sure? Choose the closest match. You can change it later.</p>
                 </div>
 
                 <div className="dashboard-grid-2col">
@@ -4865,21 +4850,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <section aria-labelledby="quote-scope-shoot-heading" style={{ marginBottom: '20px' }}>
                         <h4 id="quote-scope-shoot-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Shoot</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                          {qScopeInput('shoot_type', 'Shoot type', 'text', 'e.g. Editorial portrait')}
-                          {qScopeInput('shoot_date', 'Shoot date', 'date')}
-                          {qScopeInput('shoot_duration', 'Shoot duration (minutes)', 'number', 'e.g. 240')}
-                          {qScopeInput('primary_location', 'Primary location', 'text', 'e.g. Studio or venue')}
+                          {scopeField('shoot_type', qScopeInput('shoot_type', selectedWorkflowTemplate?.fieldPromptOverrides?.shoot_type || 'Shoot type', 'text', selectedWorkflowTemplate?.fieldExamples?.shoot_type || 'e.g. Editorial portrait', selectedWorkflowTemplate?.optionalSubtypeSuggestions || []))}
+                          {scopeField('shoot_date', qScopeInput('shoot_date', 'Shoot date', 'date'))}
+                          {scopeField('shoot_duration', qScopeInput('shoot_duration', 'Shoot duration (minutes)', 'number', 'e.g. 240'))}
+                          {scopeField('primary_location', qScopeInput('primary_location', 'Primary location', 'text', 'e.g. Studio or venue'))}
                         </div>
                       </section>
 
                       <section aria-labelledby="quote-scope-coverage-heading" style={{ marginBottom: '20px' }}>
                         <h4 id="quote-scope-coverage-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Coverage &amp; Deliverables</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                          {qScopeInput('coverage_expectation', 'Coverage expectation', 'text', 'e.g. Ceremony through reception')}
-                          {qScopeListInput('deliverables', 'Deliverables', 'e.g. Edited gallery')}
-                          {qScopeInput('final_image_count', 'Final image count', 'number', 'e.g. 100')}
-                          {qScopeInput('retouched_image_count', 'Retouched image count', 'number', 'e.g. 20')}
-                          {qScopeListInput('delivery_format', 'Delivery format', 'e.g. JPEG\ne.g. TIFF')}
+                          {scopeField('coverage_expectation', qScopeInput('coverage_expectation', selectedWorkflowTemplate?.fieldPromptOverrides?.coverage_expectation || 'Coverage expectation', 'text', selectedWorkflowTemplate?.fieldExamples?.coverage_expectation || 'e.g. Ceremony through reception'))}
+                          {scopeField('deliverables', qScopeListInput('deliverables', selectedWorkflowTemplate?.fieldPromptOverrides?.deliverables || 'Deliverables', selectedWorkflowTemplate?.fieldExamples?.deliverables || 'e.g. Edited gallery'))}
+                          {scopeField('final_image_count', qScopeInput('final_image_count', selectedWorkflowTemplate?.fieldPromptOverrides?.final_image_count || 'Final image count', 'number', 'e.g. 100'))}
+                          {scopeField('retouched_image_count', qScopeInput('retouched_image_count', 'Retouched image count', 'number', 'e.g. 20'))}
+                          {scopeField('delivery_format', qScopeListInput('delivery_format', 'Delivery format', 'e.g. JPEG\ne.g. TIFF'))}
                         </div>
                       </section>
 
@@ -4946,11 +4931,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <section aria-labelledby="quote-scope-boundaries-heading">
                         <h4 id="quote-scope-boundaries-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Delivery &amp; Boundaries</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                          {qScopeInput('delivery_deadline', 'Delivery deadline', 'date')}
-                          {qScopeListInput('exclusions', 'Exclusions', 'e.g. Raw files')}
-                          {qScopeListInput('assumptions', 'Assumptions', 'e.g. Client selects favorites')}
+                          {scopeField('delivery_deadline', qScopeInput('delivery_deadline', 'Delivery deadline', 'date'))}
+                          {scopeField('exclusions', qScopeListInput('exclusions', 'Exclusions', 'e.g. Raw files'))}
+                          {scopeField('assumptions', qScopeListInput('assumptions', 'Assumptions', 'e.g. Client selects favorites'))}
                         </div>
                       </section>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setScopeFieldsExpanded((expanded) => !expanded)}
+                        aria-expanded={scopeFieldsExpanded}
+                        style={{ marginTop: '16px' }}
+                      >
+                        {scopeFieldsExpanded ? 'Show fewer scope fields' : 'Show more scope fields'}
+                      </button>
                     </div>
 
                     {/* Line Items */}
@@ -5025,20 +5019,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <span>Total:</span>
                               <span>{getCurrencySymbol(qCurrency)}{qTotal.toFixed(2)}</span>
                             </div>
-                            {qItems.length > 0 && qSubtotal > 0 && (
-                              <div style={{ 
-                                marginTop: '12px', 
-                                padding: '10px 12px', 
-                                background: 'var(--success-glow)', 
-                                border: '1px solid var(--success)', 
-                                borderRadius: '6px',
-                                color: 'var(--success)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600
-                              }}>
-                                This quote could be valued at {getCurrencySymbol(qCurrency)}{(qSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(qCurrency)}{(qSubtotal * 1.15).toFixed(2)} range
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
@@ -5047,6 +5027,37 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <label className="input-label">Quote Notes</label>
                         <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
                       </div>
+
+                      <section data-testid="quote-pre-send-review" aria-labelledby="quote-pre-send-review-heading" style={{ marginTop: '20px', padding: '16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+                          <h3 id="quote-pre-send-review-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Review with Corvioz</h3>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Suggestions only</span>
+                        </div>
+                        {preSendReviewFindings.length === 0 ? (
+                          <p style={{ margin: '10px 0 0', color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: 1.45 }}>No structured checks need your attention yet. You remain the final authority on this Quote.</p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+                            {reviewCategoryOrder.map((category) => {
+                              const findings = preSendReviewFindings.filter((finding) => finding.category === category);
+                              if (findings.length === 0) return null;
+                              return (
+                                <div key={category}>
+                                  <h4 style={{ margin: '0 0 6px', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: category === 'NEEDS_ATTENTION' ? 'var(--danger)' : 'var(--text-muted)' }}>{reviewCategoryLabels[category]}</h4>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {findings.map((finding) => (
+                                      <div key={finding.id} style={{ padding: '10px 12px', borderRadius: '6px', background: 'var(--btn-secondary-bg)' }}>
+                                        <strong style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-main)' }}>{finding.title}</strong>
+                                        <span style={{ display: 'block', marginTop: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{finding.message}</span>
+                                        <span style={{ display: 'block', marginTop: '5px', fontSize: '0.76rem', color: 'var(--text-main)', lineHeight: 1.4 }}>Next: {finding.recommendedAction}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
 
                       <button onClick={handleSaveQuote} disabled={isSaving} className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }}>
                         {isSaving ? 'Saving...' : 'Save Quote'}
