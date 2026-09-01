@@ -924,8 +924,8 @@ function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
                       {formatStatus(document.status)}
                     </span>
                     <strong>{formatTotal(document)}</strong>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, openAction)}>
-                      Open {typeLabel}s
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, openAction, { id: document.id, documentType: isQuote ? 'quote' : 'invoice' })}>
+                      Open {typeLabel}
                     </button>
                   </div>
                 </article>

@@ -4144,8 +4144,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 createInvoice: initCreateInvoice,
                 createFirstInvoice: initFirstValueInvoice,
                 configureProfile: () => handleDashboardTabChange('profile', 'overview_quick_action'),
-                openQuotes: () => handleDashboardTabChange('quotes', 'overview'),
-                openInvoices: () => handleDashboardTabChange('invoices', 'overview'),
+                openQuotes: ({ id } = {}) => {
+                  if (id) {
+                    return openDocument({ documentType: 'quote', id });
+                  }
+                  return handleDashboardTabChange('quotes', 'overview');
+                },
+                openInvoices: ({ id } = {}) => {
+                  if (id) {
+                    return openDocument({ documentType: 'invoice', id });
+                  }
+                  return handleDashboardTabChange('invoices', 'overview');
+                },
                 retryDashboard: async () => {
                   setDashboardDataError(null);
                   const snapshot = await fetchData(session?.access_token);
