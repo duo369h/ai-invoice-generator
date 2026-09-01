@@ -5,6 +5,21 @@ import Link from 'next/link';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
+const formatDuration = (minutes) => {
+  if (!Number.isInteger(minutes) || minutes < 0) return String(minutes ?? '');
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours === 0) return `${minutes} min`;
+  if (remainingMinutes === 0) return `${hours} hr`;
+  return `${hours} hr ${remainingMinutes} min`;
+};
+
+const formatScopeValue = (item) => {
+  if (Array.isArray(item.value)) return item.value.length === 1 ? item.value[0] : item.value;
+  if (item.key === 'shoot_duration') return formatDuration(item.value);
+  return item.value;
+};
+
 export default function PortalClientView({ fetchUrl, postCommentUrl, identifier }) {
   const [doc, setDoc] = useState(null);
   const [docType, setDocType] = useState(''); // 'invoice' or 'quote'
@@ -392,6 +407,7 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
 
   // Status checks for timeline
   const isInvoice = docType === 'invoice';
+  const photographyScope = docType === 'quote' ? doc.photography_scope : null;
   const status = doc.status || 'draft';
   const quoteAccepted = ['approved', 'converted'].includes(status);
   const paymentStatus = isInvoice ? (doc.payment_status || (status === 'paid' ? 'paid' : 'unpaid')) : status;
@@ -474,6 +490,53 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
           .printable-sheet-adjustments {
             grid-template-columns: 1fr !important;
             gap: 20px !important;
+          }
+        }
+        .quote-scope {
+          margin-bottom: 32px;
+          padding: 20px 0;
+          border-top: 1px solid var(--border);
+          border-bottom: 1px solid var(--border);
+        }
+        .quote-scope-groups {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px 28px;
+        }
+        .quote-scope-group {
+          min-width: 0;
+        }
+        .quote-scope-items {
+          display: grid;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .quote-scope-item {
+          display: grid;
+          grid-template-columns: minmax(120px, 0.38fr) minmax(0, 1fr);
+          gap: 12px;
+          align-items: start;
+          font-size: 0.85rem;
+        }
+        .quote-scope-item-value {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          color: var(--text-main);
+        }
+        .quote-scope-item-list {
+          display: grid;
+          gap: 4px;
+          margin: 0;
+          padding-left: 18px;
+        }
+        @media (max-width: 640px) {
+          .quote-scope-groups {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .quote-scope-item {
+            grid-template-columns: 1fr;
+            gap: 2px;
           }
         }
         
@@ -845,6 +908,40 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                   )}
                 </div>
               </div>
+
+              {photographyScope?.hasScope && photographyScope.groups?.length > 0 && (
+                <section className="quote-scope" aria-labelledby="quote-scope-heading">
+                  <h3 id="quote-scope-heading" style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Scope
+                  </h3>
+                  <div className="quote-scope-groups">
+                    {photographyScope.groups.map((group) => (
+                      <div className="quote-scope-group" key={group.id}>
+                        <h4 style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}>
+                          {group.label}
+                        </h4>
+                        <div className="quote-scope-items">
+                          {group.items.map((item) => {
+                            const value = formatScopeValue(item);
+                            return (
+                              <div className="quote-scope-item" key={item.key}>
+                                <span style={{ color: 'var(--text-muted)' }}>{item.label}</span>
+                                <span className="quote-scope-item-value">
+                                  {Array.isArray(value) ? (
+                                    <ul className="quote-scope-item-list">
+                                      {value.map((entry) => <li key={entry}>{entry}</li>)}
+                                    </ul>
+                                  ) : value}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Items Table */}
               <div style={{ overflowX: 'auto', marginBottom: '32px' }}>

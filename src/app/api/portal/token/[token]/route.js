@@ -13,6 +13,7 @@ import {
   hasSpamSignals,
 } from '../../../../lib/security';
 import { validatePortalCommentPayload, validationResponse } from '../../../../lib/validation';
+import { projectPhotographyScopeFromQuoteNotes } from '../../../../../core/quotes/photographyQuoteScopePresentation.js';
 
 const serializeInvoiceNotes = (baseNotes, metadata) => {
   return `${baseNotes || ''}\n\n---METADATA---\n${JSON.stringify(metadata)}`;
@@ -82,7 +83,8 @@ function withQuoteMeta(quote) {
       ...quote,
       notes: meta.notes,
       comments: meta.comments,
-        files: meta.files || []
+      files: meta.files || [],
+      photography_scope: projectPhotographyScopeFromQuoteNotes(quote.notes),
     }
   };
 }
