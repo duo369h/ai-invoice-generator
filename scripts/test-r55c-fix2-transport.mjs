@@ -92,6 +92,27 @@ try {
     'SEMANTIC_REVIEW_TRUNCATED',
   );
 
+  let capturedRequest;
+  const configResult = await providerWith({
+    fetchImpl: async (url, options) => {
+      capturedRequest = { url, options, body: JSON.parse(options.body) };
+      return providerResponse({ choices: [{ finish_reason: 'stop', message: { content: '{"findings":[]}' } }] });
+    },
+  }).review(request);
+  assert.deepEqual(configResult, { findings: [] });
+  assert.equal(capturedRequest.url, 'https://api.deepseek.com/chat/completions');
+  assert.equal(capturedRequest.options.method, 'POST');
+  assert.deepEqual(capturedRequest.body.messages, [
+    { role: 'system', content: request.systemInstruction },
+    { role: 'user', content: JSON.stringify(request.input) },
+  ]);
+  assert.equal(capturedRequest.body.model, 'deepseek-v4-flash');
+  assert.equal(capturedRequest.body.reasoning_effort, 'low');
+  assert.deepEqual(capturedRequest.body.thinking, { type: 'enabled' });
+  assert.deepEqual(capturedRequest.body.response_format, { type: 'json_object' });
+  assert.equal(capturedRequest.body.stream, false);
+  assert.equal(capturedRequest.body.max_tokens, 4096);
+
   assert.equal(DEFAULT_SEMANTIC_REVIEW_TIMEOUT_MS, 30_000);
   assert.equal(getSemanticReviewRuntimeConfig({}).timeoutMs, 30_000);
   assert.equal(getSemanticReviewRuntimeConfig({ CORVIOZ_INTELLIGENCE_TIMEOUT_MS: '45000' }).timeoutMs, 45_000);

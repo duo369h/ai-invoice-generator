@@ -93,7 +93,7 @@ export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = 
             response_format: { type: 'json_object' },
             thinking: { type: 'enabled' },
             reasoning_effort: config.reasoningEffort,
-            max_tokens: 1800,
+            max_tokens: 4096,
             stream: false,
           }),
           signal: controller.signal,
