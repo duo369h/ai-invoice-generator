@@ -17,13 +17,13 @@ export function getSemanticReviewRuntimeConfig(env = process.env) {
   });
 }
 
-export function getSemanticReviewProvider({ config = getSemanticReviewRuntimeConfig(), fetchImpl = globalThis.fetch } = {}) {
+export function getSemanticReviewProvider({ config = getSemanticReviewRuntimeConfig(), fetchImpl = globalThis.fetch, onTelemetry } = {}) {
   if (config.provider !== 'deepseek') {
     const error = new Error(`Unsupported semantic review provider: ${config.provider}`);
     error.code = 'SEMANTIC_REVIEW_PROVIDER_UNSUPPORTED';
     throw error;
   }
-  return createDeepSeekSemanticReviewProvider({ config, fetchImpl });
+  return createDeepSeekSemanticReviewProvider({ config, fetchImpl, onTelemetry });
 }
 
 import { createDeepSeekSemanticReviewProvider } from './providers/deepSeekSemanticReviewProvider.js';
