@@ -1,4 +1,6 @@
 
+import { DEFAULT_SEMANTIC_REVIEW_TIMEOUT_MS } from '../semanticReviewTimeout.js';
+
 export const DEEPSEEK_API_BASE_URL = 'https://api.deepseek.com';
 
 export class SemanticProviderError extends Error {
@@ -15,7 +17,50 @@ function extractContent(payload) {
   return payload?.choices?.[0]?.message?.content;
 }
 
-export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = globalThis.fetch, timeoutMs = 12_000 } = {}) {
+function createTimeoutError() {
+  return new SemanticProviderError('DeepSeek request timed out', 'SEMANTIC_REVIEW_TIMEOUT', { retryable: true });
+}
+
+function isTimeoutAbort(error, controller, timedOut) {
+  return timedOut || (controller.signal.aborted && error?.name === 'AbortError');
+}
+
+function addSafeNumber(target, key, value) {
+  if (Number.isSafeInteger(value) && value >= 0) target[key] = value;
+}
+
+function notifyTelemetry({ onTelemetry, config, response, payload, latencyMs, success, errorCode }) {
+  if (typeof onTelemetry !== 'function') return;
+  try {
+    const telemetry = {
+      provider: 'deepseek',
+      model: config.model,
+      status: response?.status || 0,
+      latencyMs,
+      success,
+    };
+    const requestId = typeof response?.headers?.get === 'function'
+      ? response.headers.get('x-request-id') || response.headers.get('request-id')
+      : null;
+    if (typeof requestId === 'string' && requestId.trim()) telemetry.requestId = requestId;
+    if (!success) telemetry.errorCode = errorCode || 'SEMANTIC_REVIEW_PROVIDER_ERROR';
+
+    const usage = payload?.usage;
+    if (usage && typeof usage === 'object') {
+      addSafeNumber(telemetry, 'promptTokens', usage.prompt_tokens);
+      addSafeNumber(telemetry, 'completionTokens', usage.completion_tokens);
+      addSafeNumber(telemetry, 'totalTokens', usage.total_tokens);
+      addSafeNumber(telemetry, 'cacheHitTokens', usage.prompt_cache_hit_tokens);
+      addSafeNumber(telemetry, 'cacheMissTokens', usage.prompt_cache_miss_tokens);
+    }
+
+    Promise.resolve(onTelemetry(Object.freeze(telemetry))).catch(() => {});
+  } catch (_) {
+    // Telemetry is observational and must never affect the provider result.
+  }
+}
+
+export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = globalThis.fetch, timeoutMs = config.timeoutMs ?? DEFAULT_SEMANTIC_REVIEW_TIMEOUT_MS, onTelemetry } = {}) {
   return Object.freeze({
     providerId: 'deepseek',
     async review(request) {
@@ -24,9 +69,16 @@ export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = 
       if (typeof fetchImpl !== 'function') throw new SemanticProviderError('Server fetch is unavailable', 'SEMANTIC_REVIEW_FETCH_UNAVAILABLE');
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
+      const startedAt = Date.now();
+      let response;
+      let payload;
       try {
-        const response = await fetchImpl(`${DEEPSEEK_API_BASE_URL}/chat/completions`, {
+        response = await fetchImpl(`${DEEPSEEK_API_BASE_URL}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -50,9 +102,12 @@ export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = 
           const status = response.status || 0;
           throw new SemanticProviderError('DeepSeek request failed', status === 429 ? 'SEMANTIC_REVIEW_RATE_LIMITED' : 'SEMANTIC_REVIEW_PROVIDER_ERROR', { status, retryable: status === 429 || status >= 500 });
         }
-        const payload = await response.json().catch(() => {
+        try {
+          payload = await response.json();
+        } catch (error) {
+          if (isTimeoutAbort(error, controller, timedOut)) throw createTimeoutError();
           throw new SemanticProviderError('DeepSeek returned invalid JSON', 'SEMANTIC_REVIEW_INVALID_TRANSPORT');
-        });
+        }
         const choice = payload?.choices?.[0];
         if (choice?.finish_reason === 'length') throw new SemanticProviderError('DeepSeek response was truncated', 'SEMANTIC_REVIEW_TRUNCATED');
         const content = extractContent(payload);
@@ -63,10 +118,12 @@ export function createDeepSeekSemanticReviewProvider({ config = {}, fetchImpl = 
         } catch {
           throw new SemanticProviderError('DeepSeek returned malformed semantic JSON', 'SEMANTIC_REVIEW_INVALID_JSON');
         }
+        notifyTelemetry({ onTelemetry, config, response, payload, latencyMs: Date.now() - startedAt, success: true });
         return parsed;
       } catch (error) {
-        if (error?.name === 'AbortError') throw new SemanticProviderError('DeepSeek request timed out', 'SEMANTIC_REVIEW_TIMEOUT', { retryable: true });
-        throw error;
+        const normalizedError = isTimeoutAbort(error, controller, timedOut) ? createTimeoutError() : error;
+        notifyTelemetry({ onTelemetry, config, response, payload, latencyMs: Date.now() - startedAt, success: false, errorCode: normalizedError?.code });
+        throw normalizedError;
       } finally {
         clearTimeout(timeout);
       }
