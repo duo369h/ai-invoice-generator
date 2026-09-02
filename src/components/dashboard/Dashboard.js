@@ -77,6 +77,10 @@ import {
 } from '../../core/quotes/photographyWorkflowTemplates';
 import { buildPhotographyPreSendReview } from '../../core/quotes/photographyQuoteReview';
 import {
+  buildPhotographySemanticReviewInput,
+} from '../../core/intelligence/photographySemanticReviewInput';
+import { mergePhotographyReviewFindings } from '../../core/intelligence/semanticReviewContract';
+import {
   createEmptyPhotographyScope,
   derivePhotographyVertical,
   normalizePhotographyScope,
@@ -1124,6 +1128,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qPhotographyScope, setQPhotographyScope] = useState(() => createEmptyPhotographyScope());
   const [usageRightsExpanded, setUsageRightsExpanded] = useState(false);
   const [scopeFieldsExpanded, setScopeFieldsExpanded] = useState(false);
+  const [semanticReviewState, setSemanticReviewState] = useState({
+    status: 'READY',
+    inputFingerprint: null,
+    semanticFindings: [],
+  });
   const [isFirstQuoteFlow, setIsFirstQuoteFlow] = useState(initialFirstQuoteFlow);
 
   // Quote validation states
@@ -1488,11 +1497,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setSelectedQuotePresetId('');
     setQuotePresetSelectionTouched(false);
     setUsageRightsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setInvId('');
     setInvClientId(null);
     setInvQuoteId(null);
     setExpandedClientDocumentsId(null);
-  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
+  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setSemanticReviewState, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -1929,6 +1939,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
     if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
     if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setIsFirstQuoteFlow(false);
     setQClientNameTouched(false);
     setQClientEmailTouched(false);
@@ -2371,6 +2382,83 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQPhotographyScope(result.scope);
     }
     setUsageRightsExpanded(status === 'specified');
+  };
+
+  const getCurrentSemanticReviewFingerprint = useCallback(() => {
+    if (!selectedQuotePresetId) return null;
+    try {
+      return buildPhotographySemanticReviewInput({
+        templateId: selectedQuotePresetId,
+        scope: qPhotographyScope,
+        lineItems: qItems,
+        publicNotes: qNotes,
+        currency: qCurrency,
+      }).inputFingerprint;
+    } catch (_) {
+      return null;
+    }
+  }, [qPhotographyScope, qItems, qNotes, qCurrency, selectedQuotePresetId]);
+
+  const currentSemanticReviewFingerprint = getCurrentSemanticReviewFingerprint();
+
+  const handleRunSemanticReview = async () => {
+    if (!session?.access_token) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: currentSemanticReviewFingerprint, semanticFindings: [] });
+      triggerToast('Sign in to run Review with Corvioz.', 'info');
+      return;
+    }
+    if (!selectedQuotePresetId) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: null, semanticFindings: [] });
+      triggerToast('Choose a photography workflow before running semantic review.', 'info');
+      return;
+    }
+    let input;
+    try {
+      input = buildPhotographySemanticReviewInput({
+        templateId: selectedQuotePresetId,
+        scope: qPhotographyScope,
+        lineItems: qItems,
+        publicNotes: qNotes,
+        currency: qCurrency,
+      });
+    } catch (error) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: currentSemanticReviewFingerprint, semanticFindings: [] });
+      triggerToast(error.message || 'Review input needs attention.', 'error');
+      return;
+    }
+
+    setSemanticReviewState({ status: 'REVIEWING', inputFingerprint: input.inputFingerprint, semanticFindings: [] });
+    try {
+      const response = await fetch('/api/intelligence/photography-quote-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          templateId: selectedQuotePresetId,
+          scope: input.scope,
+          lineItems: input.lineItems,
+          publicNotes: input.publicNotes,
+          currency: input.currency,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Review with Corvioz is unavailable.');
+      setSemanticReviewState({
+        status: result.status || 'UNAVAILABLE_OR_ERROR',
+        inputFingerprint: result.inputFingerprint || input.inputFingerprint,
+        semanticFindings: Array.isArray(result.semanticFindings) ? result.semanticFindings : [],
+      });
+      if (result.status === 'COMPLETE') {
+        triggerToast('Review with Corvioz is complete.', 'success');
+      } else {
+        triggerToast('Semantic review is unavailable. Structured checks remain active.', 'info');
+      }
+    } catch (error) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: input.inputFingerprint, semanticFindings: [] });
+      triggerToast(error.message || 'Review with Corvioz is unavailable.', 'error');
+    }
   };
 
   // Templates guide Scope capture. They never write line items, rates, or terms.
@@ -3441,6 +3529,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const handleCancelQuote = () => {
     if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
     if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setQuoteView('list');
   };
 
@@ -3737,6 +3826,22 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     scope: qPhotographyScope,
     templateId: selectedQuotePresetId,
   });
+  const semanticReviewIsCurrent = semanticReviewState.status === 'COMPLETE'
+    && semanticReviewState.inputFingerprint === currentSemanticReviewFingerprint;
+  const semanticReviewDisplayStatus = semanticReviewState.status === 'COMPLETE' && !semanticReviewIsCurrent
+    ? 'STALE'
+    : semanticReviewState.status;
+  const reviewFindings = mergePhotographyReviewFindings({
+    deterministicFindings: preSendReviewFindings,
+    semanticFindings: semanticReviewIsCurrent ? semanticReviewState.semanticFindings : [],
+  });
+  const semanticReviewStatusCopy = {
+    READY: 'Ready to run a focused semantic review of this draft.',
+    REVIEWING: 'Reviewing the current Scope, line items and Public Notes…',
+    COMPLETE: semanticReviewIsCurrent ? 'Semantic review complete. You remain the final authority.' : 'This review is stale because the draft changed.',
+    STALE: 'The draft changed. Run Review with Corvioz again to refresh semantic findings.',
+    UNAVAILABLE_OR_ERROR: 'Semantic review is unavailable. Structured checks remain active.',
+  };
   const reviewCategoryLabels = {
     NEEDS_ATTENTION: 'Needs attention',
     CONFIRM: 'Confirm',
@@ -5033,12 +5138,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <h3 id="quote-pre-send-review-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Review with Corvioz</h3>
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Suggestions only</span>
                         </div>
-                        {preSendReviewFindings.length === 0 ? (
+                        <p aria-live="polite" style={{ margin: '10px 0 0', color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: 1.45 }}>
+                          {semanticReviewStatusCopy[semanticReviewDisplayStatus] || semanticReviewStatusCopy.READY}
+                        </p>
+                        {reviewFindings.length === 0 ? (
                           <p style={{ margin: '10px 0 0', color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: 1.45 }}>No structured checks need your attention yet. You remain the final authority on this Quote.</p>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
                             {reviewCategoryOrder.map((category) => {
-                              const findings = preSendReviewFindings.filter((finding) => finding.category === category);
+                              const findings = reviewFindings.filter((finding) => finding.category === category);
                               if (findings.length === 0) return null;
                               return (
                                 <div key={category}>
@@ -5057,6 +5165,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             })}
                           </div>
                         )}
+                        <button
+                          type="button"
+                          onClick={handleRunSemanticReview}
+                          disabled={semanticReviewState.status === 'REVIEWING'}
+                          aria-busy={semanticReviewState.status === 'REVIEWING'}
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: '100%', marginTop: '14px', color: 'var(--accent)' }}
+                        >
+                          {semanticReviewDisplayStatus === 'REVIEWING' ? 'Reviewing…' : 'Review with Corvioz'}
+                        </button>
                       </section>
 
                       <button onClick={handleSaveQuote} disabled={isSaving} className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }}>

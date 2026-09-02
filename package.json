@@ -31,7 +31,9 @@
     "test:ga4:dashboard-claim-auth": "node scripts/test-dashboard-activation-claim-auth-runtime.mjs",
     "test:ga4:request-auth": "node --experimental-loader ./scripts/test-support/supabase-request-auth-loader.mjs scripts/test-request-user-bearer-auth-runtime.mjs",
     "test:ga4:release": "npm run test:ga4:contract && npm run test:ga4:claim-helper && npm run test:ga4:claim-endpoint && npm run test:ga4:routes && npm run test:ga4:dashboard && npm run test:ga4:dashboard-claim-auth && npm run test:ga4:request-auth",
-    "test:r55b": "node scripts/test-photography-workflow-r55b.mjs"
+    "test:r55b": "node scripts/test-photography-workflow-r55b.mjs",
+    "test:r55c": "node scripts/test-r55c-semantic-intelligence.mjs && node --experimental-loader ./scripts/test-support/r55c-route-loader.mjs scripts/test-r55c-route-runtime.mjs && node scripts/test-r55c-fix1-boundary-eval.mjs",
+    "eval:r55c": "node scripts/eval-r55c-semantic-intelligence.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "149.0.0",

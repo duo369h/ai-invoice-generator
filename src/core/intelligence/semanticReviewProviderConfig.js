@@ -1,0 +1,25 @@
+export const DEFAULT_SEMANTIC_REVIEW_PROVIDER = 'deepseek';
+export const DEFAULT_SEMANTIC_REVIEW_MODEL = 'deepseek-v4-flash';
+export const DEFAULT_SEMANTIC_REVIEW_REASONING_EFFORT = 'low';
+
+export function getSemanticReviewRuntimeConfig(env = process.env) {
+  return Object.freeze({
+    provider: String(env.CORVIOZ_INTELLIGENCE_PROVIDER || DEFAULT_SEMANTIC_REVIEW_PROVIDER).trim().toLowerCase(),
+    model: String(env.CORVIOZ_INTELLIGENCE_MODEL || DEFAULT_SEMANTIC_REVIEW_MODEL).trim(),
+    reasoningEffort: ['low', 'high', 'max'].includes(env.CORVIOZ_INTELLIGENCE_REASONING_EFFORT)
+      ? env.CORVIOZ_INTELLIGENCE_REASONING_EFFORT
+      : DEFAULT_SEMANTIC_REVIEW_REASONING_EFFORT,
+    apiKeyPresent: Boolean(env.DEEPSEEK_API_KEY),
+  });
+}
+
+export function getSemanticReviewProvider({ config = getSemanticReviewRuntimeConfig(), fetchImpl = globalThis.fetch } = {}) {
+  if (config.provider !== 'deepseek') {
+    const error = new Error(`Unsupported semantic review provider: ${config.provider}`);
+    error.code = 'SEMANTIC_REVIEW_PROVIDER_UNSUPPORTED';
+    throw error;
+  }
+  return createDeepSeekSemanticReviewProvider({ config, fetchImpl });
+}
+
+import { createDeepSeekSemanticReviewProvider } from './providers/deepSeekSemanticReviewProvider.js';
