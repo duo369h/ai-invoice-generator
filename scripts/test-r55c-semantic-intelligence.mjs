@@ -61,7 +61,12 @@ assert.match(promptContract, /optional|non-core/i);
 assert.match(promptContract, /(?:absence|missing).*alone.*(?:not|insufficient)|material(?:ly)? supported.*(?:core|contradiction)/i);
 assert.match(promptContract, /(?:zero findings|findings\s*=\s*\[\]|no material issue)/i);
 assert.match(promptContract, /photographer.*final authority|final authority.*photographer/i);
-assert.equal(SEMANTIC_REVIEW_PROMPT_VERSION, 'r55d-v1');
+assert.match(promptContract, /optional|non-core[\s\S]{0,120}(?:finer|detail|preference)/i);
+assert.match(promptContract, /understandable[\s\S]{0,120}(?:deliverable|production|sub-detail)/i);
+assert.match(promptContract, /edited images[\s\S]{0,120}(?:retouch|separate|automatically)/i);
+assert.match(promptContract, /(?:optional|retouch)[\s\S]{0,120}(?:fee|charge)[\s\S]{0,80}(?:not|must not|do not|without)/i);
+assert.match(promptContract, /retouch[\s\S]{0,180}(?:core|contradict|promis|request|sold|commercial)/i);
+assert.equal(SEMANTIC_REVIEW_PROMPT_VERSION, 'r55d-v2');
 
 const semanticProvider = {
   async review() {
