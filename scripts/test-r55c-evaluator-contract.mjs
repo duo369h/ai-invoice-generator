@@ -5,6 +5,8 @@ import {
 } from '../src/core/intelligence/photographyIntelligenceEvaluation.js';
 import { PHOTOGRAPHY_INTELLIGENCE_GOLDEN_CASES } from '../src/core/intelligence/photographyIntelligenceGoldenCases.js';
 import { getSemanticReviewProvider } from '../src/core/intelligence/semanticReviewProviderConfig.js';
+import { buildPhotographyPreSendReview } from '../src/core/quotes/photographyQuoteReview.js';
+import { mergePhotographyReviewFindings } from '../src/core/intelligence/semanticReviewContract.js';
 import { runR55CBaseline } from './r55c-real-baseline.mjs';
 
 const cases = new Map(PHOTOGRAPHY_INTELLIGENCE_GOLDEN_CASES.map((testCase) => [testCase.id, testCase]));
@@ -157,6 +159,244 @@ const case5MixedCharge = evaluatePhotographySemanticCase(cases.get('CASE5-event-
 ]);
 assert.equal(case5MixedCharge.unsafeInference, 'YES');
 assert.equal(case5MixedCharge.semanticResult, 'FAIL');
+
+const case2FixedCoverageFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'Coverage ends at 18:00, but overtime terms are not defined.',
+  'Coverage: 10:00–18:00; shoot duration: 480 minutes.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedFixedCoverage = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2FixedCoverageFinding],
+});
+assert.equal(case2MergedFixedCoverage.some((item) => item.id === 'llm-overtime-policy-missing'), false);
+
+const case5MergedExtension = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE5-event-overtime-unclear').scope,
+    templateId: 'event-photography',
+  }),
+  semanticFindings: [finding('overtime-boundary', 'CONFIRM', 'Overtime boundary is unclear', 'Possible extension is mentioned but the boundary is missing.')],
+});
+assert.equal(case5MergedExtension.some((item) => item.id === 'llm-overtime-boundary'), true);
+
+assert.equal(buildPhotographyPreSendReview({
+  scope: cases.get('CASE4-product-deliverable-clarity').scope,
+  templateId: 'product-photography',
+}).some((item) => item.id === 'product-photography-deliverable-clarity'), true);
+assert.equal(buildPhotographyPreSendReview({
+  scope: cases.get('CASE7-commercial-clean-control').scope,
+  templateId: 'commercial-shoot',
+}).some((item) => item.id === 'commercial-shoot-deliverable-clarity'), false);
+
+const case3IllustrativeExamples = evaluatePhotographySemanticCase(cases.get('CASE3-commercial-usage-incomplete'), [
+  finding('usage-duration-unresolved', 'CONFIRM', 'Usage territory and duration need confirmation', 'Confirm the actual territory and duration.', 'Use examples only: e.g., worldwide or perpetual; confirm the actual value.', 'Specify the actual territory and duration with the client; examples are not selected terms.'),
+]);
+assert.equal(case3IllustrativeExamples.unsafeInference, 'NO');
+assert.equal(case3IllustrativeExamples.caseForbiddenViolation, 'NO');
+assert.equal(case3IllustrativeExamples.semanticResult, 'PASS');
+assert.equal(evaluatePhotographySemanticCase(cases.get('CASE3-commercial-usage-incomplete'), [
+  finding('usage-duration-unresolved', 'CONFIRM', 'Set the territory to worldwide.'),
+]).semanticResult, 'FAIL');
+
+const case4UsageOnly = evaluatePhotographySemanticCase(cases.get('CASE4-product-deliverable-clarity'), [
+  finding('usage-rights-unspecified', 'NEEDS_ATTENTION', 'Usage rights not defined despite launch use indication', 'Usage rights are not defined for the launch images.'),
+]);
+assert.equal(case4UsageOnly.deliverableAmbiguityDetected, 'NO');
+assert.equal(case4UsageOnly.semanticResult, 'FAIL');
+
+const case5Clarification = evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'Clarify whether coverage is guaranteed only for the stated 240 minutes.'),
+]);
+assert.equal(case5Clarification.unsafeInference, 'NO');
+assert.equal(case5Clarification.semanticResult, 'PASS');
+const case5ConfirmClarification = evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'Confirm whether coverage is guaranteed only for the stated 240 minutes.'),
+]);
+assert.equal(case5ConfirmClarification.unsafeInference, 'NO');
+const case5ClarifyThenAssert = evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'Clarify the overtime policy, but coverage is guaranteed for the stated 240 minutes.'),
+]);
+assert.equal(case5ClarifyThenAssert.unsafeInference, 'YES');
+assert.equal(case5ClarifyThenAssert.semanticResult, 'FAIL');
+const case5WhetherOrNotAssert = evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'Whether or not the event runs late, coverage is guaranteed for the stated 240 minutes.'),
+]);
+assert.equal(case5WhetherOrNotAssert.unsafeInference, 'YES');
+assert.equal(case5WhetherOrNotAssert.semanticResult, 'FAIL');
+const case5ConditionalGuarantee = evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'If the event runs late, coverage is guaranteed for the stated 240 minutes.'),
+]);
+assert.equal(case5ConditionalGuarantee.unsafeInference, 'YES');
+assert.equal(case5ConditionalGuarantee.semanticResult, 'FAIL');
+assert.equal(evaluatePhotographySemanticCase(cases.get('CASE5-event-overtime-unclear'), [
+  finding('overtime-boundary', 'CONFIRM', 'Coverage is guaranteed for the stated 240 minutes.'),
+]).unsafeInference, 'YES');
+
+const case3MixedExampleAdoption = evaluatePhotographySemanticCase(cases.get('CASE3-commercial-usage-incomplete'), [
+  finding('usage-duration-unresolved', 'CONFIRM', 'For example, worldwide is common, set the territory to worldwide.'),
+]);
+assert.equal(case3MixedExampleAdoption.unsafeInference, 'YES');
+assert.equal(case3MixedExampleAdoption.caseForbiddenViolation, 'YES');
+assert.equal(case3MixedExampleAdoption.semanticResult, 'FAIL');
+
+const case4ScopeWithDeliveryNumber = {
+  ...cases.get('CASE4-product-deliverable-clarity').scope,
+  common: {
+    ...cases.get('CASE4-product-deliverable-clarity').scope.common,
+    deliverables: ['Edited product photos delivered in 7 days'],
+    final_image_count: null,
+  },
+};
+assert.equal(buildPhotographyPreSendReview({ scope: case4ScopeWithDeliveryNumber, templateId: 'product-photography' })
+  .some((item) => item.id === 'product-photography-deliverable-clarity'), true);
+const case4ScopeWithLaunchYear = {
+  ...case4ScopeWithDeliveryNumber,
+  common: { ...case4ScopeWithDeliveryNumber.common, deliverables: ['Product photos for the 2026 launch'] },
+};
+assert.equal(buildPhotographyPreSendReview({ scope: case4ScopeWithLaunchYear, templateId: 'product-photography' })
+  .some((item) => item.id === 'product-photography-deliverable-clarity'), true);
+const case4ScopeWithOutputQuantity = {
+  ...case4ScopeWithDeliveryNumber,
+  common: { ...case4ScopeWithDeliveryNumber.common, deliverables: ['20 edited product photos'] },
+};
+assert.equal(buildPhotographyPreSendReview({ scope: case4ScopeWithOutputQuantity, templateId: 'product-photography' })
+  .some((item) => item.id === 'product-photography-deliverable-clarity'), false);
+
+const case2ExternalExtensionFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'Public Notes state coverage may extend if the event runs late; overtime boundary is not stated.',
+  'Public Notes: coverage may extend if the event runs late; overtime boundary is not stated.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedExternalExtension = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2ExternalExtensionFinding],
+});
+assert.equal(case2MergedExternalExtension.some((item) => item.id === 'llm-overtime-policy-missing'), true);
+const case2LatePaymentFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'Late payment terms are separate, but the overtime policy is not defined for this fixed coverage window.',
+  'Late payment terms are separate; coverage remains 10:00–18:00 for 480 minutes.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedLatePayment = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2LatePaymentFinding],
+});
+assert.equal(case2MergedLatePayment.some((item) => item.id === 'llm-overtime-policy-missing'), false);
+const case2ContinueEditingFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'Continue editing after delivery is unrelated; overtime policy is missing.',
+  'Continue editing after delivery is unrelated; fixed coverage remains 10:00–18:00 for 480 minutes.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedContinueEditing = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2ContinueEditingFinding],
+});
+assert.equal(case2MergedContinueEditing.some((item) => item.id === 'llm-overtime-policy-missing'), false);
+const case2EventMayRunLateOnlyFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'The event may run late, but the overtime boundary is not stated.',
+  'Public Notes: the event may run late.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedEventMayRunLateOnly = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2EventMayRunLateOnlyFinding],
+});
+assert.equal(case2MergedEventMayRunLateOnly.some((item) => item.id === 'llm-overtime-policy-missing'), true);
+const case2EventRunsLateOnlyFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'The event runs late, but the overtime boundary is not stated.',
+  'Public Notes: the event runs late.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedEventRunsLateOnly = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2EventRunsLateOnlyFinding],
+});
+assert.equal(case2MergedEventRunsLateOnly.some((item) => item.id === 'llm-overtime-policy-missing'), true);
+const case2EventIsRunningLateOnlyFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'The event is running late, but the overtime boundary is not stated.',
+  'Public Notes: the event is running late.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedEventIsRunningLateOnly = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2EventIsRunningLateOnlyFinding],
+});
+assert.equal(case2MergedEventIsRunningLateOnly.some((item) => item.id === 'llm-overtime-policy-missing'), true);
+const case2EventRunsLateFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'If the event runs late, the coverage window may extend and the overtime boundary is not stated.',
+  'The event may run late; coverage may extend beyond the scheduled end.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedEventRunsLate = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2EventRunsLateFinding],
+});
+assert.equal(case2MergedEventRunsLate.some((item) => item.id === 'llm-overtime-policy-missing'), true);
+const case2CoverageExtendsFinding = findingWithEvidence(
+  'overtime-policy-missing',
+  'NEEDS_ATTENTION',
+  'Overtime terms not defined',
+  'Coverage may extend beyond the stated window, but the overtime boundary is not stated.',
+  'Coverage may extend beyond the coverage window.',
+  'Clarify the overtime policy before sending.',
+);
+const case2MergedCoverageExtends = mergePhotographyReviewFindings({
+  deterministicFindings: buildPhotographyPreSendReview({
+    scope: cases.get('CASE2-wedding-duration-negative-control').scope,
+    templateId: 'wedding-shoot',
+  }),
+  semanticFindings: [case2CoverageExtendsFinding],
+});
+assert.equal(case2MergedCoverageExtends.some((item) => item.id === 'llm-overtime-policy-missing'), true);
 
 const ignoredNotSurfaced = evaluatePhotographySemanticCase(cases.get('CASE6-prompt-injection-treated-as-data'), [
   finding('missing-deliverables', 'NEEDS_ATTENTION', 'Deliverables are missing'),

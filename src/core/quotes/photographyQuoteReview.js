@@ -50,6 +50,50 @@ const dateIsBefore = (left, right) => Boolean(left && right && left < right);
 
 const addFinding = (findings, finding) => findings.push(createPhotographyReviewFinding(finding));
 
+const productDeliverableTemplates = new Set(['product-photography', 'food-photography', 'architecture-interior']);
+
+function hasMaterialDeliverableCommitment(common) {
+  const deliverableText = common.deliverables.join(' ');
+  const outputQuantity = /\b(?:up\s+to\s+)?\d+(?:\.\d+)?\s+(?:(?:edited|retouched|final|selected|campaign|hero|product)\s+){0,3}(?:images?|photos?|pictures?|selects?|deliverables?)\b/i.test(deliverableText)
+    || /\bclient\s+selects?\s+\d+(?:\.\d+)?\s+(?:(?:final|edited|retouched)\s+)?(?:images?|photos?|pictures?)\b/i.test(deliverableText)
+    || /\b\d+(?:\.\d+)?[-\s](?:image|photo)\s+(?:final\s+)?selection\b/i.test(deliverableText);
+  return present(common.final_image_count) || outputQuantity;
+}
+
+function hasFixedCoverageWindow(common) {
+  const match = String(common.coverage_expectation || '').match(/\b(\d{1,2}):(\d{2})\b\s*(?:to|[-–])\s*(\d{1,2}):(\d{2})\b/i);
+  if (!match || !present(common.shoot_duration)) return false;
+  const startMinutes = Number(match[1]) * 60 + Number(match[2]);
+  const endMinutes = Number(match[3]) * 60 + Number(match[4]);
+  return endMinutes > startMinutes && endMinutes - startMinutes === common.shoot_duration;
+}
+
+function hasExtensionEvidence(common) {
+  const text = JSON.stringify(common);
+  return /\bpossible\s+extension\b/i.test(text)
+    || /\b(?:event|coverage)\s+(?:may|can|could)\s+extend\b/i.test(text)
+    || /\b(?:event|coverage)\s+(?:(?:may|can|could)\s+(?:be\s+)?|is\s+)?(?:running|run|runs)\s+late\b/i.test(text)
+    || /\bcoverage\s+(?:may|can|could)\s+continue\b/i.test(text)
+    || /\bcoverage\s+continues?\s+beyond\s+(?:the\s+)?(?:scheduled\s+end|stated\s+coverage|coverage\s+window)\b/i.test(text)
+    || /\bbeyond\s+(?:the\s+)?(?:scheduled\s+end|stated\s+coverage|coverage\s+window)\b/i.test(text)
+    || /\b(?:extra\s+hours?|additional\s+coverage)\b/i.test(text)
+    || /\buncertain\s+end(?:\s+time)?\b/i.test(text);
+}
+
+function isUnsupportedFixedWindowOvertimeFinding(finding, common) {
+  const text = JSON.stringify(finding);
+  return hasFixedCoverageWindow(common)
+    && !hasExtensionEvidence(common)
+    && !hasExtensionEvidence(finding)
+    && /overtime/i.test(text)
+    && /(?:missing|unspecified|unclear|undefined|not\s+(?:stated|specified|defined)|policy|terms)/i.test(text);
+}
+
+export function filterPhotographySemanticFindings({ scope, semanticFindings = [] } = {}) {
+  const common = normalizePhotographyScope(scope).common;
+  return semanticFindings.filter((finding) => !isUnsupportedFixedWindowOvertimeFinding(finding, common));
+}
+
 export function buildPhotographyPreSendReview({ scope, templateId, maxFindings = 5 } = {}) {
   const normalizedScope = normalizePhotographyScope(scope);
   const common = normalizedScope.common;
@@ -154,9 +198,29 @@ export function buildPhotographyPreSendReview({ scope, templateId, maxFindings =
     });
   }
 
+  if (productDeliverableTemplates.has(template?.id)
+    && present(common.deliverables)
+    && !hasMaterialDeliverableCommitment(common)
+    && getPhotographyWorkflowFieldImportance(templateId, 'final_image_count') === PHOTOGRAPHY_TEMPLATE_FIELD_IMPORTANCE.CORE) {
+    addFinding(findings, {
+      id: `${template.id}-deliverable-clarity`,
+      category: 'NEEDS_ATTENTION',
+      severity: 'medium',
+      title: 'The deliverable output is not sufficiently defined',
+      message: 'The Quote names a deliverable but does not define a material output quantity or selection boundary.',
+      evidence: `Deliverables: ${common.deliverables.join('; ')}; final image count: empty`,
+      recommendedAction: 'Clarify the expected output quantity or selection boundary before sending the Quote.',
+    });
+  }
+
   const categoryOrder = { NEEDS_ATTENTION: 0, CONFIRM: 1, IMPROVE: 2 };
   const severityOrder = { high: 0, medium: 1, low: 2 };
-  return findings
+  const limitedFindings = findings
     .sort((left, right) => categoryOrder[left.category] - categoryOrder[right.category] || severityOrder[left.severity] - severityOrder[right.severity])
     .slice(0, Math.max(0, maxFindings));
+  Object.defineProperty(limitedFindings, 'photographyMaterialityContext', {
+    value: Object.freeze({ templateId, scope: normalizedScope }),
+    enumerable: false,
+  });
+  return limitedFindings;
 }

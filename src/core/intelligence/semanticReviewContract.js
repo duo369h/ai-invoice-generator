@@ -1,4 +1,7 @@
-import { createPhotographyReviewFinding } from '../quotes/photographyQuoteReview.js';
+import {
+  createPhotographyReviewFinding,
+  filterPhotographySemanticFindings,
+} from '../quotes/photographyQuoteReview.js';
 
 export const SEMANTIC_REVIEW_CAPABILITY = 'photography_pre_send_semantic_review';
 export const SEMANTIC_REVIEW_MAX_FINDINGS = 5;
@@ -26,7 +29,11 @@ function isDeterministicOverlap(semanticFinding, deterministicFindings) {
 export function mergePhotographyReviewFindings({ deterministicFindings = [], semanticFindings = [] } = {}) {
   const merged = [...deterministicFindings];
   const seen = new Set(deterministicFindings.map((finding) => `${finding.source}:${finding.id}`));
-  for (const finding of semanticFindings.slice(0, SEMANTIC_REVIEW_MAX_FINDINGS)) {
+  const context = deterministicFindings.photographyMaterialityContext;
+  const materialFindings = context
+    ? filterPhotographySemanticFindings({ scope: context.scope, semanticFindings })
+    : semanticFindings;
+  for (const finding of materialFindings.slice(0, SEMANTIC_REVIEW_MAX_FINDINGS)) {
     if (isDeterministicOverlap(finding, deterministicFindings)) continue;
     const key = `${finding.source}:${finding.id}`;
     if (seen.has(key)) continue;
