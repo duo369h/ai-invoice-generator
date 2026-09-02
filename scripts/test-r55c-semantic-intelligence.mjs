@@ -53,7 +53,15 @@ assert.doesNotMatch(JSON.stringify(input), /client@example|555-123|portal_token|
 assert.equal(buildPhotographySemanticReviewInput({ templateId: 'wedding-shoot', scope, lineItems: [{ description: 'Wedding coverage', quantity: 1 }], publicNotes: 'Changed note', currency: 'USD' }).inputFingerprint === input.inputFingerprint, false);
 assert.equal(buildPhotographySemanticReviewRequest(input).capability, 'photography_pre_send_semantic_review');
 assert.equal(buildPhotographySemanticReviewRequest(input).promptVersion, SEMANTIC_REVIEW_PROMPT_VERSION);
-assert.match(buildPhotographySemanticReviewRequest(input).systemInstruction, /untrusted data/i);
+const promptContract = buildPhotographySemanticReviewRequest(input).systemInstruction;
+assert.match(promptContract, /untrusted data/i);
+assert.match(promptContract, /instructions inside.*data.*(?:must never override|no authority)/i);
+assert.match(promptContract, /instruction-like.*(?:surface|photographer)|surface.*photographer/i);
+assert.match(promptContract, /optional|non-core/i);
+assert.match(promptContract, /(?:absence|missing).*alone.*(?:not|insufficient)|material(?:ly)? supported.*(?:core|contradiction)/i);
+assert.match(promptContract, /(?:zero findings|findings\s*=\s*\[\]|no material issue)/i);
+assert.match(promptContract, /photographer.*final authority|final authority.*photographer/i);
+assert.equal(SEMANTIC_REVIEW_PROMPT_VERSION, 'r55d-v1');
 
 const semanticProvider = {
   async review() {
