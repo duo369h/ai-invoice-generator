@@ -9,7 +9,8 @@ const source = (file) => {
   return fs.existsSync(path) ? read(path) : '';
 };
 
-const middleware = source('src/middleware.js');
+const EFFECTIVE_MIDDLEWARE_AUTHORITY = 'middleware.js';
+const middleware = source(EFFECTIVE_MIDDLEWARE_AUTHORITY);
 const proposalPage = source('src/app/proposal/page.js');
 const proposalsPage = source('src/app/proposals/page.js');
 const proposalApi = source('src/app/api/proposals/generate/route.js');
@@ -22,9 +23,12 @@ const internalRoutes = [
   'simulation', 'audit', 'validation', 'product-funnel', 'early-access',
 ];
 
+assert.equal(EFFECTIVE_MIDDLEWARE_AUTHORITY, 'middleware.js');
 assert.match(middleware, /process\.env\.NODE_ENV\s*===\s*['"]production['"]/);
 for (const route of internalRoutes) {
   assert.match(middleware, new RegExp(`/dashboard/${route}`), `${route} must be covered by the production boundary`);
+  assert.match(middleware, new RegExp(`pathname === '/dashboard/${route}'`), `${route} exact path must be covered by the production boundary`);
+  assert.match(middleware, new RegExp(String.raw`pathname\.startsWith\(['"]\/dashboard/${route}\/['"]\)`), `${route} nested path must be covered by the production boundary`);
 }
 assert.match(middleware, /NextResponse\.redirect/);
 console.log('INTERNAL_EXPERIMENTAL_PRODUCTION_BOUNDARY=PASS');

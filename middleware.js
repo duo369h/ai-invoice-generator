@@ -202,10 +202,14 @@ export async function middleware(request) {
     pathname.startsWith('/dashboard/early-access/') ||
     pathname === '/dashboard/optimization' ||
     pathname.startsWith('/dashboard/optimization/') ||
+    pathname === '/dashboard/revenue-validation' ||
+    pathname.startsWith('/dashboard/revenue-validation/') ||
     pathname === '/dashboard/simulation' ||
     pathname.startsWith('/dashboard/simulation/') ||
     pathname === '/dashboard/validation' ||
-    pathname.startsWith('/dashboard/validation/');
+    pathname.startsWith('/dashboard/validation/') ||
+    pathname === '/dashboard/product-funnel' ||
+    pathname.startsWith('/dashboard/product-funnel/');
 
   if (process.env.NODE_ENV === 'production' && isInternalDashboardRoute) {
     const url = request.nextUrl.clone();
