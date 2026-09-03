@@ -5,5 +5,5 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 export default function ProposalsPage() {
-  redirect('/dashboard?tool=quotes');
+  redirect('/dashboard?tool=proposal');
 }

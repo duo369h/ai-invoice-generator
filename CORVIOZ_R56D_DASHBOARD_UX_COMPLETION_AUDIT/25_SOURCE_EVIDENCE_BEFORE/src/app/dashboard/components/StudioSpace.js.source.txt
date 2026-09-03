@@ -1401,7 +1401,7 @@ export default function StudioSpace({
             🏢 Small Business Dashboard
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span>Client workflow workspace</span>
+            <span>Agency Operating System</span>
             {businessModeBadge && (
               <span style={{
                 fontSize: '0.7rem',

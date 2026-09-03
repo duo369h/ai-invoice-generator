@@ -58,13 +58,6 @@ function stripRevenueOutputFields(value) {
 }
 
 export async function POST(request) {
-  return NextResponse.json(
-    { error: 'This legacy document generator is unavailable.', code: 'LEGACY_SURFACE_UNAVAILABLE' },
-    { status: 410 }
-  );
-
-  // Historical implementation is retained below for source compatibility, but
-  // the current product never generates Proposal output through this route.
   try {
     const ip = getIp(request);
     const context = await getRequestUser(request);

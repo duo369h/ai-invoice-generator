@@ -166,10 +166,6 @@ function documentStatus(record, type) {
   return value === undefined || value === null || value === '' ? null : String(value);
 }
 
-function documentTieBreaker(document) {
-  return `${document.type}:${document.id || ''}:${document.number || ''}`;
-}
-
 const NEEDS_ATTENTION_PRIORITY = Object.freeze({
   past_due: 0,
   partial: 1,
@@ -329,7 +325,6 @@ export function buildRecentDocuments({ quotes = [], invoices = [] } = {}, limit 
     currency: record?.currency || 'USD',
     status: documentStatus(record, 'quote'),
     timestamp: timestampFor(record),
-    tieBreaker: null,
     source: record,
   }));
   const invoiceDocuments = (Array.isArray(invoices) ? invoices : []).map((record, index) => ({
@@ -341,18 +336,11 @@ export function buildRecentDocuments({ quotes = [], invoices = [] } = {}, limit 
     currency: record?.currency || 'USD',
     status: documentStatus(record, 'invoice'),
     timestamp: timestampFor(record),
-    tieBreaker: null,
     source: record,
   }));
 
-  const documents = [...quoteDocuments, ...invoiceDocuments].map((document) => ({
-    ...document,
-    tieBreaker: documentTieBreaker(document),
-  }));
-
-  return documents
-    .sort((left, right) => right.timestamp - left.timestamp || left.tieBreaker.localeCompare(right.tieBreaker))
-    .map(({ tieBreaker, ...document }) => document)
+  return [...quoteDocuments, ...invoiceDocuments]
+    .sort((left, right) => right.timestamp - left.timestamp)
     .slice(0, Math.max(0, limit));
 }
 
