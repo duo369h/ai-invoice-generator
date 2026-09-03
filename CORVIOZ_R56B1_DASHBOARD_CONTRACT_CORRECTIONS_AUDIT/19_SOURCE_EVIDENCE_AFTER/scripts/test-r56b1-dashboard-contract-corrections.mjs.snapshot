@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import {
+  getDashboardPdfExportDecision,
+  mapEntitlementRecord,
+} from '../src/core/state/dashboardEntitlementState.js';
+
+const require = createRequire(import.meta.url);
+const ts = require('typescript');
+const entSource = fs.readFileSync('lib/entitlements.ts', 'utf8');
+const entJs = ts.transpileModule(entSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const entModule = { exports: {} };
+new Function('exports', 'require', 'module', '__filename', '__dirname', entJs)(
+  entModule.exports,
+  (specifier) => {
+    if (specifier.includes('planStateAdapter')) return { shadowValidatePlanRead: () => {} };
+    if (specifier.includes('decisionTelemetry')) return { recordDecisionTelemetry: () => {} };
+    return {};
+  },
+  entModule,
+  'lib/entitlements.ts',
+  'lib',
+);
+const { getUserEntitlements } = entModule.exports;
+
+const dashboard = fs.readFileSync('src/components/dashboard/Dashboard.js', 'utf8');
+const studioSpace = fs.readFileSync('src/app/dashboard/components/StudioSpace.js', 'utf8');
+const clientsRoute = fs.readFileSync('src/app/api/clients/route.js', 'utf8');
+const entitlementState = fs.readFileSync('src/core/state/dashboardEntitlementState.js', 'utf8');
+const portalRoute = fs.readFileSync('src/app/api/portal/token/generate/route.js', 'utf8');
+const revenueEvaluator = fs.readFileSync('src/app/api/revenue/evaluate/route.js', 'utf8');
+const revenueDecision = fs.readFileSync('src/app/lib/revenue/control-plane/decision-engine.ts', 'utf8');
+const revenueAction = fs.readFileSync('src/hooks/useRevenueAction.js', 'utf8');
+
+const expected = {
+  free: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'branded', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
+  starter: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'clean', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
+  pro: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'clean', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
+};
+
+for (const [plan, contract] of Object.entries(expected)) {
+  const actual = getUserEntitlements(plan);
+  for (const [key, value] of Object.entries(contract)) {
+    assert.equal(actual[key], value, `${plan}.${key} must match the R56B-1 current contract`);
+  }
+  const pdfDecision = getDashboardPdfExportDecision(actual);
+  assert.equal(pdfDecision.canExportPdf, true, `${plan} PDF export must remain available`);
+  assert.equal(pdfDecision.hasCleanPdf, contract.pdf_branding === 'clean', `${plan} PDF branding must reach the generation decision`);
+}
+
+const mapped = mapEntitlementRecord({
+  export_pdf: true,
+  pdf_branding: 'clean',
+  client_portal: false,
+  client_approval: false,
+  approval_scope: 'none',
+});
+assert.equal(mapped.pdf_branding, 'clean', 'Dashboard entitlement mapping must preserve PDF branding');
+assert.equal(mapped.client_approval, false, 'Dashboard entitlement mapping must preserve approval denial');
+assert.equal(mapped.approval_scope, 'none', 'Dashboard entitlement mapping must preserve approval scope');
+const studio = getUserEntitlements('studio');
+assert.equal(studio.client_portal, false, 'Studio compatibility must not surface live Portal');
+assert.equal(studio.client_approval, false, 'Studio compatibility must not surface live Approval');
+assert.equal(studio.approval_scope, 'none', 'Studio compatibility must not surface live Approval scope');
+
+assert.doesNotMatch(dashboard, /const isPro = entitlements\.export_pdf \|\| entitlements\.client_portal/, 'Dashboard must not infer plan from unrelated capabilities');
+assert.match(dashboard, /pdf_branding|hasCleanPdf/, 'Dashboard PDF path must use PDF branding authority');
+assert.doesNotMatch(dashboard, /currentClientCount >= 0/, 'Client creation must not be blocked for every Free/Starter client');
+assert.doesNotMatch(dashboard, /userPlan === ['"]pro['"] && currentClientCount >= 1/, 'Client creation must not use an unauthorized Pro one-client gate');
+
+for (const phrase of [
+  'Client Portal',
+  'Copy Portal Link',
+  'Copy Client Portal Link',
+  'quote approval tracking',
+  'quote approval',
+  'client-ready delivery records',
+]) {
+  assert.doesNotMatch(dashboard, new RegExp(phrase, 'i'), `Dashboard must not expose current ${phrase} capability marketing`);
+  assert.doesNotMatch(studioSpace, new RegExp(phrase, 'i'), `StudioSpace must not expose current ${phrase} capability marketing`);
+}
+
+assert.doesNotMatch(clientsRoute, /requireClientEntitlement|client_portal_or_crm/, 'Client creation API must not use Portal/CRM entitlement as a current client gate');
+
+assert.match(portalRoute, /FEATURE_NOT_AVAILABLE/, 'Portal token API must fail closed with neutral unavailable semantics');
+assert.doesNotMatch(portalRoute, /requiredPlan:\s*["']pro["']/, 'Portal token API must not claim Pro unlocks Portal');
+
+for (const phrase of [
+  'free limit of 2 invoices',
+  'free limit of 1 quote',
+  'unlimited proposals',
+  'unlimited billing',
+  'Client Portal is a premium capability',
+]) {
+  assert.doesNotMatch(revenueEvaluator, new RegExp(phrase, 'i'), `Legacy revenue evaluator must not retain ${phrase}`);
+}
+assert.doesNotMatch(revenueDecision, /Export PDF without limits|unlimited invoices|unlimited proposals/i, 'Revenue decision copy must not promise unauthorized unlimited capability');
+assert.doesNotMatch(revenueAction, /professional Client Portals|Secure client approvals/i, 'Upgrade modal copy must not market Portal or Approval');
+
+console.log('R56B1 dashboard contract correction tests passed.');

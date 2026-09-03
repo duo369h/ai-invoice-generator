@@ -1,0 +1,2 @@
+ABSENT_AT_BASE=YES
+The R56B-1 Portal route runtime test was introduced on the implementation branch.

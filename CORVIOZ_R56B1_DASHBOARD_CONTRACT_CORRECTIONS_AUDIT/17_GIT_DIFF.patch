@@ -1,0 +1,1499 @@
+diff --git a/lib/entitlements.ts b/lib/entitlements.ts
+index 5699b02..0e193d6 100644
+--- a/lib/entitlements.ts
++++ b/lib/entitlements.ts
+@@ -65,20 +65,21 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+     return result;
+   }
+ 
+-  // Pro ($19 plan / $190 yearly): unlimited documents, clean PDF, Portal, and quote-only Approval.
++  // Pro ($19 plan / $190 yearly): clean PDF branding with the current core workflow.
+   if (plan === 'pro') {
+     const result: Entitlements = {
+       invoice: true,
+       quote: true,
+       export_pdf: true,
+       pdf_branding: 'clean',
+-      client_portal: true,
+-      client_approval: true,
+-      approval_scope: 'quotes_only',
++      client_portal: false,
++      client_approval: false,
++      approval_scope: 'none',
+       crm: true,
+       automation: false,
+       advanced_invoicing: true,
+-      unlimited_invoices: true,
++      // Compatibility field only. The Pro document cap is not finalized.
++      unlimited_invoices: false,
+     };
+     recordDecisionTelemetry({
+       source: 'lib/entitlements.ts:getUserEntitlements',
+@@ -97,13 +98,14 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+       quote: true,
+       export_pdf: true,
+       pdf_branding: 'clean',
+-      client_portal: true,
+-      client_approval: true,
+-      approval_scope: 'quotes_only',
++      client_portal: false,
++      client_approval: false,
++      approval_scope: 'none',
+       crm: true,
+       automation: true, // Used to gate Brand Kit & Batch operations
+       advanced_invoicing: true,
+-      unlimited_invoices: true,
++      // Compatibility field only. Studio is not a current marketed tier.
++      unlimited_invoices: false,
+     };
+     recordDecisionTelemetry({
+       source: 'lib/entitlements.ts:getUserEntitlements',
+diff --git a/scripts/test-dashboard-entitlement-runtime.mjs b/scripts/test-dashboard-entitlement-runtime.mjs
+index 9f775c0..ab53d2d 100644
+--- a/scripts/test-dashboard-entitlement-runtime.mjs
++++ b/scripts/test-dashboard-entitlement-runtime.mjs
+@@ -9,8 +9,13 @@ const session = { access_token: 'test-token' };
+ const user = (plan) => ({ id: `user-${plan}`, plan });
+ const fallback = (plan) => ({
+   invoice: true,
+-  export_pdf: plan !== 'free',
+-  client_portal: plan === 'pro' || plan === 'studio',
++  quote: true,
++  export_pdf: true,
++  pdf_branding: plan === 'free' ? 'branded' : 'clean',
++  client_portal: false,
++  client_approval: false,
++  approval_scope: 'none',
++  unlimited_invoices: false,
+   crm: plan === 'pro' || plan === 'studio',
+   automation: plan === 'studio',
+   advanced_invoicing: plan === 'pro' || plan === 'studio',
+@@ -24,11 +29,12 @@ const apiResponse = (body, ok = true) => ({ ok, json: async () => body });
+     fetchImpl: async (url, options) => {
+       assert.equal(url, '/api/user/entitlements');
+       assert.equal(options.headers.Authorization, 'Bearer test-token');
+-      return apiResponse({ entitlements: { export_pdf: true, client_portal: true, advanced_invoicing: true } });
++      return apiResponse({ entitlements: { export_pdf: true, pdf_branding: 'clean', client_portal: true, advanced_invoicing: true } });
+     },
+   });
+   assert.equal(result.status, DASHBOARD_ENTITLEMENT_STATUS.READY, 'authenticated Pro API result is READY');
+-  assert.equal(result.entitlements.client_portal, true, 'Pro API result enables client portal');
++  assert.equal(result.entitlements.client_portal, false, 'Pro API result keeps portal unavailable');
++  assert.equal(result.entitlements.pdf_branding, 'clean', 'Pro API result preserves clean PDF branding');
+ }
+ 
+ for (const [plan, portal] of [['starter', false], ['free', false]]) {
+@@ -46,7 +52,7 @@ for (const [plan, portal] of [['starter', false], ['free', false]]) {
+     fetchImpl: async () => apiResponse({ error: 'unavailable' }, false),
+   });
+   assert.equal(result.status, DASHBOARD_ENTITLEMENT_STATUS.READY, 'API outage falls back to authenticated Pro plan');
+-  assert.equal(result.entitlements.client_portal, true, 'authenticated Pro fallback enables portal');
++  assert.equal(result.entitlements.client_portal, false, 'authenticated Pro fallback keeps portal unavailable');
+ }
+ 
+ {
+@@ -65,7 +71,7 @@ for (const [plan, portal] of [['starter', false], ['free', false]]) {
+     fetchImpl: async () => apiResponse({ entitlements: { client_portal: true } }),
+   });
+   assert.equal(result.status, DASHBOARD_ENTITLEMENT_STATUS.READY, 'server truth resolves without browser Supabase');
+-  assert.equal(result.entitlements.client_portal, true, 'browser Supabase read failure cannot override server truth');
++  assert.equal(result.entitlements.client_portal, false, 'server truth keeps portal unavailable');
+ }
+ 
+ {
+diff --git a/scripts/test-pricing-v2-suite.mjs b/scripts/test-pricing-v2-suite.mjs
+index 0b247d4..1f3ded4 100644
+--- a/scripts/test-pricing-v2-suite.mjs
++++ b/scripts/test-pricing-v2-suite.mjs
+@@ -1,6 +1,9 @@
+ import assert from "node:assert";
+ import fs from "node:fs";
+-import ts from "typescript";
++import { createRequire } from "node:module";
++
++const require = createRequire(import.meta.url);
++const ts = require("typescript");
+ 
+ // 1. Transpile and load lib/entitlements.ts
+ const entSource = fs.readFileSync("lib/entitlements.ts", "utf8");
+@@ -109,15 +112,16 @@ async function runAll() {
+     });
+   });
+ 
+-  await test("Pro enables Portal and quote-only Approval with clean PDF", () => {
++  await test("Pro keeps Portal and Approval unavailable with clean PDF", () => {
+     const pro = getUserEntitlements("pro");
+     assert.strictEqual(pro.invoice, true);
+     assert.strictEqual(pro.quote, true);
+     assert.strictEqual(pro.export_pdf, true);
+     assert.strictEqual(pro.pdf_branding, "clean");
+-    assert.strictEqual(pro.client_portal, true);
+-    assert.strictEqual(pro.client_approval, true);
+-    assert.strictEqual(pro.approval_scope, "quotes_only");
++    assert.strictEqual(pro.client_portal, false);
++    assert.strictEqual(pro.client_approval, false);
++    assert.strictEqual(pro.approval_scope, "none");
++    assert.strictEqual(pro.unlimited_invoices, false);
+   });
+ 
+   console.log("\n1. Testing Unified Free Monthly Anniversary Calculation (No Drift)...");
+diff --git a/scripts/test-r56b1-client-create-runtime.mjs b/scripts/test-r56b1-client-create-runtime.mjs
+new file mode 100644
+index 0000000..3e80a75
+--- /dev/null
++++ b/scripts/test-r56b1-client-create-runtime.mjs
+@@ -0,0 +1,29 @@
++import assert from 'node:assert/strict';
++import { register } from 'node:module';
++
++register('./test-support/route-runtime-loader.mjs', import.meta.url);
++
++const { configureRouteRuntime, getRouteRuntimeCalls, getRouteRuntimeInserts } = await import('./test-support/route-runtime-mocks.mjs');
++const { POST } = await import('../src/app/api/clients/route.js');
++
++for (const plan of ['free', 'starter', 'pro']) {
++  configureRouteRuntime({
++    context: { mode: 'supabase', user: { id: `user-${plan}` } },
++    plan,
++    clientCreated: { id: `client-${plan}`, name: `${plan} client` },
++  });
++
++  const response = await POST(new Request('http://localhost/api/clients', {
++    method: 'POST',
++    headers: { 'content-type': 'application/json' },
++    body: JSON.stringify({ name: `${plan} client`, email: `${plan}@example.com` }),
++  }));
++  const body = await response.json();
++
++  assert.equal(response.status, 200, `${plan} client creation must reach the save path`);
++  assert.equal(body.id, `client-${plan}`);
++  assert.equal(getRouteRuntimeCalls().includes('persist:clients'), true, `${plan} must persist through the canonical client API`);
++  assert.equal(getRouteRuntimeInserts()[0].table, 'clients');
++}
++
++console.log('R56B1 client create runtime tests passed.');
+diff --git a/scripts/test-r56b1-dashboard-contract-corrections.mjs b/scripts/test-r56b1-dashboard-contract-corrections.mjs
+new file mode 100644
+index 0000000..1f2bd07
+--- /dev/null
++++ b/scripts/test-r56b1-dashboard-contract-corrections.mjs
+@@ -0,0 +1,103 @@
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++import { createRequire } from 'node:module';
++import {
++  getDashboardPdfExportDecision,
++  mapEntitlementRecord,
++} from '../src/core/state/dashboardEntitlementState.js';
++
++const require = createRequire(import.meta.url);
++const ts = require('typescript');
++const entSource = fs.readFileSync('lib/entitlements.ts', 'utf8');
++const entJs = ts.transpileModule(entSource, {
++  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
++}).outputText;
++const entModule = { exports: {} };
++new Function('exports', 'require', 'module', '__filename', '__dirname', entJs)(
++  entModule.exports,
++  (specifier) => {
++    if (specifier.includes('planStateAdapter')) return { shadowValidatePlanRead: () => {} };
++    if (specifier.includes('decisionTelemetry')) return { recordDecisionTelemetry: () => {} };
++    return {};
++  },
++  entModule,
++  'lib/entitlements.ts',
++  'lib',
++);
++const { getUserEntitlements } = entModule.exports;
++
++const dashboard = fs.readFileSync('src/components/dashboard/Dashboard.js', 'utf8');
++const studioSpace = fs.readFileSync('src/app/dashboard/components/StudioSpace.js', 'utf8');
++const clientsRoute = fs.readFileSync('src/app/api/clients/route.js', 'utf8');
++const entitlementState = fs.readFileSync('src/core/state/dashboardEntitlementState.js', 'utf8');
++const portalRoute = fs.readFileSync('src/app/api/portal/token/generate/route.js', 'utf8');
++const revenueEvaluator = fs.readFileSync('src/app/api/revenue/evaluate/route.js', 'utf8');
++const revenueDecision = fs.readFileSync('src/app/lib/revenue/control-plane/decision-engine.ts', 'utf8');
++const revenueAction = fs.readFileSync('src/hooks/useRevenueAction.js', 'utf8');
++
++const expected = {
++  free: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'branded', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
++  starter: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'clean', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
++  pro: { quote: true, invoice: true, export_pdf: true, pdf_branding: 'clean', client_portal: false, client_approval: false, approval_scope: 'none', unlimited_invoices: false },
++};
++
++for (const [plan, contract] of Object.entries(expected)) {
++  const actual = getUserEntitlements(plan);
++  for (const [key, value] of Object.entries(contract)) {
++    assert.equal(actual[key], value, `${plan}.${key} must match the R56B-1 current contract`);
++  }
++  const pdfDecision = getDashboardPdfExportDecision(actual);
++  assert.equal(pdfDecision.canExportPdf, true, `${plan} PDF export must remain available`);
++  assert.equal(pdfDecision.hasCleanPdf, contract.pdf_branding === 'clean', `${plan} PDF branding must reach the generation decision`);
++}
++
++const mapped = mapEntitlementRecord({
++  export_pdf: true,
++  pdf_branding: 'clean',
++  client_portal: false,
++  client_approval: false,
++  approval_scope: 'none',
++});
++assert.equal(mapped.pdf_branding, 'clean', 'Dashboard entitlement mapping must preserve PDF branding');
++assert.equal(mapped.client_approval, false, 'Dashboard entitlement mapping must preserve approval denial');
++assert.equal(mapped.approval_scope, 'none', 'Dashboard entitlement mapping must preserve approval scope');
++const studio = getUserEntitlements('studio');
++assert.equal(studio.client_portal, false, 'Studio compatibility must not surface live Portal');
++assert.equal(studio.client_approval, false, 'Studio compatibility must not surface live Approval');
++assert.equal(studio.approval_scope, 'none', 'Studio compatibility must not surface live Approval scope');
++
++assert.doesNotMatch(dashboard, /const isPro = entitlements\.export_pdf \|\| entitlements\.client_portal/, 'Dashboard must not infer plan from unrelated capabilities');
++assert.match(dashboard, /pdf_branding|hasCleanPdf/, 'Dashboard PDF path must use PDF branding authority');
++assert.doesNotMatch(dashboard, /currentClientCount >= 0/, 'Client creation must not be blocked for every Free/Starter client');
++assert.doesNotMatch(dashboard, /userPlan === ['"]pro['"] && currentClientCount >= 1/, 'Client creation must not use an unauthorized Pro one-client gate');
++
++for (const phrase of [
++  'Client Portal',
++  'Copy Portal Link',
++  'Copy Client Portal Link',
++  'quote approval tracking',
++  'quote approval',
++  'client-ready delivery records',
++]) {
++  assert.doesNotMatch(dashboard, new RegExp(phrase, 'i'), `Dashboard must not expose current ${phrase} capability marketing`);
++  assert.doesNotMatch(studioSpace, new RegExp(phrase, 'i'), `StudioSpace must not expose current ${phrase} capability marketing`);
++}
++
++assert.doesNotMatch(clientsRoute, /requireClientEntitlement|client_portal_or_crm/, 'Client creation API must not use Portal/CRM entitlement as a current client gate');
++
++assert.match(portalRoute, /FEATURE_NOT_AVAILABLE/, 'Portal token API must fail closed with neutral unavailable semantics');
++assert.doesNotMatch(portalRoute, /requiredPlan:\s*["']pro["']/, 'Portal token API must not claim Pro unlocks Portal');
++
++for (const phrase of [
++  'free limit of 2 invoices',
++  'free limit of 1 quote',
++  'unlimited proposals',
++  'unlimited billing',
++  'Client Portal is a premium capability',
++]) {
++  assert.doesNotMatch(revenueEvaluator, new RegExp(phrase, 'i'), `Legacy revenue evaluator must not retain ${phrase}`);
++}
++assert.doesNotMatch(revenueDecision, /Export PDF without limits|unlimited invoices|unlimited proposals/i, 'Revenue decision copy must not promise unauthorized unlimited capability');
++assert.doesNotMatch(revenueAction, /professional Client Portals|Secure client approvals/i, 'Upgrade modal copy must not market Portal or Approval');
++
++console.log('R56B1 dashboard contract correction tests passed.');
+diff --git a/scripts/test-r56b1-entitlements-route-runtime.mjs b/scripts/test-r56b1-entitlements-route-runtime.mjs
+new file mode 100644
+index 0000000..ea3a0ec
+--- /dev/null
++++ b/scripts/test-r56b1-entitlements-route-runtime.mjs
+@@ -0,0 +1,41 @@
++import assert from 'node:assert/strict';
++import { register } from 'node:module';
++
++register('./test-support/route-runtime-loader.mjs', import.meta.url);
++
++const { configureRouteRuntime } = await import('./test-support/route-runtime-mocks.mjs');
++const { GET } = await import('../src/app/api/user/entitlements/route.js');
++
++for (const plan of ['free', 'starter', 'pro']) {
++  configureRouteRuntime({
++    context: { mode: 'supabase', user: { id: `user-${plan}` } },
++    plan,
++    entitlementRecord: {
++      export_pdf: true,
++      pdf_branding: plan === 'free' ? 'branded' : 'clean',
++      client_portal: true,
++      client_approval: true,
++      approval_scope: 'quotes_only',
++      unlimited_invoices: true,
++    },
++  });
++
++  const response = await GET(new Request('http://localhost/api/user/entitlements'));
++  const body = await response.json();
++
++  assert.equal(response.status, 200);
++  assert.equal(body.entitlements.client_portal, false, `${plan} API contract must deny Portal`);
++  assert.equal(body.entitlements.client_approval, false, `${plan} API contract must deny Approval`);
++  assert.equal(body.entitlements.approval_scope, 'none', `${plan} API contract must deny Approval scope`);
++  assert.equal(body.entitlements.unlimited_invoices, false, `${plan} API contract must deny unlimited compatibility claims`);
++}
++
++configureRouteRuntime({
++  context: { mode: 'supabase', user: { id: 'user-feature' } },
++  entitlementRecord: { client_portal: true, client_approval: true, approval_scope: 'quotes_only', unlimited_invoices: true },
++});
++const featureResponse = await GET(new Request('http://localhost/api/user/entitlements?feature=client_portal'));
++assert.equal(featureResponse.status, 200);
++assert.deepEqual(await featureResponse.json(), { access: false });
++
++console.log('R56B1 entitlements route runtime tests passed.');
+diff --git a/scripts/test-r56b1-portal-route-runtime.mjs b/scripts/test-r56b1-portal-route-runtime.mjs
+new file mode 100644
+index 0000000..7af0bb7
+--- /dev/null
++++ b/scripts/test-r56b1-portal-route-runtime.mjs
+@@ -0,0 +1,34 @@
++import assert from 'node:assert/strict';
++import { register } from 'node:module';
++
++register('./test-support/route-runtime-loader.mjs', import.meta.url);
++
++const { configureRouteRuntime, getRouteRuntimeCalls } = await import('./test-support/route-runtime-mocks.mjs');
++const { POST } = await import('../src/app/api/portal/token/generate/route.js');
++
++for (const plan of ['free', 'starter', 'pro']) {
++  configureRouteRuntime({
++    context: { mode: 'supabase', user: { id: 'user-r56b1' } },
++    plan,
++    entitlements: {
++      client_portal: false,
++      client_approval: false,
++      approval_scope: 'none',
++      unlimited_invoices: false,
++    },
++  });
++
++  const response = await POST(new Request('http://localhost/api/portal/token/generate', {
++    method: 'POST',
++    headers: { 'content-type': 'application/json' },
++    body: JSON.stringify({ resource_id: 'doc-r56b1', resource_type: 'invoice' }),
++  }));
++  const body = await response.json();
++
++  assert.equal(response.status, 403, `${plan} must fail closed`);
++  assert.deepEqual(body, { error: 'FEATURE_NOT_AVAILABLE' });
++  assert.equal(Object.hasOwn(body, 'requiredPlan'), false);
++  assert.deepEqual(getRouteRuntimeCalls(), [], `${plan} must not perform side effects before entitlement denial`);
++}
++
++console.log('R56B1 Portal token route runtime tests passed.');
+diff --git a/scripts/test-support/route-runtime-loader.mjs b/scripts/test-support/route-runtime-loader.mjs
+index 19da069..78ff90e 100644
+--- a/scripts/test-support/route-runtime-loader.mjs
++++ b/scripts/test-support/route-runtime-loader.mjs
+@@ -9,6 +9,8 @@ const mockedSpecifiers = new Set([
+   '../../lib/rate-limit',
+   '../../lib/security',
+   '../../lib/validation',
++  '../../../lib/supabase',
++  '../../../lib/supabase-service',
+   '../../lib/product-analytics-server',
+   '../../lib/first-revenue-loop',
+   '../../../core/revenue/firstRevenueLoop',
+@@ -17,9 +19,13 @@ const mockedSpecifiers = new Set([
+   '../../../core/ai/AI_DECISION_GUARD',
+   '../../lib/config',
+   '../../../../lib/entitlements',
++  '../../../../../../lib/entitlements',
+   '../../../../lib/supabase',
+   '../../../../lib/supabase-service',
++  '../../../../lib/rate-limit',
+   '../../../../lib/security',
++  '../../../../lib/validation',
++  '../../../../../lib/entitlements',
+ ]);
+ 
+ export async function resolve(specifier, context, nextResolve) {
+diff --git a/scripts/test-support/route-runtime-mocks.mjs b/scripts/test-support/route-runtime-mocks.mjs
+index e60436a..1b30945 100644
+--- a/scripts/test-support/route-runtime-mocks.mjs
++++ b/scripts/test-support/route-runtime-mocks.mjs
+@@ -78,6 +78,9 @@ export function requestContextResponse(context) {
+ export function authRequiredResponse() {
+   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+ }
++export function failClosedResponse(label = 'request') {
++  return NextResponse.json({ error: `${label} unavailable` }, { status: 503 });
++}
+ 
+ export function getIp(request) {
+   return request?.headers?.get('x-forwarded-for') || '127.0.0.1';
+@@ -90,6 +93,7 @@ export async function rateLimitAuthenticated(scope, userId) {
+ }
+ export function validateQuotePayload(body) { return body; }
+ export function validateInvoicePayload(body) { return body; }
++export function validateClientPayload(body) { return body; }
+ export function validationResponse() { return null; }
+ export function validateObject(body) { return body; }
+ export function enumValue(value) { return value; }
+@@ -263,8 +267,8 @@ function createQuery(kind, table) {
+     },
+     insert(values) {
+       state.operation = 'insert';
+-      if (table === 'quotes' || table === 'invoices') call(`persist:${table}`);
+-      if (table === 'quotes' || table === 'invoices') runtime.inserts.push({ kind, table, values });
++      if (table === 'clients' || table === 'quotes' || table === 'invoices') call(`persist:${table}`);
++      if (table === 'clients' || table === 'quotes' || table === 'invoices') runtime.inserts.push({ kind, table, values });
+       if (table === 'analytics_activation_claims') call('helper_claim_insert');
+       if (table === 'analytics_activation_claims' && runtime.config.helperClaimThrows) throw new Error('claim insert threw');
+       return chain;
+@@ -292,6 +296,16 @@ function matchingRecord(records, filters, inFilters = {}) {
+ }
+ 
+ function queryResult({ kind, table, operation, filters, inFilters, values }) {
++  if (table === 'entitlements' && operation === 'select') {
++    return result(runtime.config.entitlementRecord || null);
++  }
++  if (table === 'profiles' && operation === 'select') {
++    return result({ plan: runtime.config.plan || 'free' });
++  }
++  if (table === 'clients' && operation === 'insert') {
++    if (runtime.config.clientInsertError) return result(null, runtime.config.clientInsertError);
++    return result(runtime.config.clientCreated || { id: 'client-r56b1', ...values });
++  }
+   if (table === 'clients' && operation === 'select' && Array.isArray(runtime.config.clientRecords)) {
+     if (runtime.config.clientLookupError) return result(null, runtime.config.clientLookupError);
+     return result(matchingRecord(runtime.config.clientRecords, filters));
+diff --git a/src/app/api/clients/route.js b/src/app/api/clients/route.js
+index c0836b6..8ae6261 100644
+--- a/src/app/api/clients/route.js
++++ b/src/app/api/clients/route.js
+@@ -4,41 +4,12 @@ import { ensureProfile, trackProfileMetric } from '../../lib/supabase-service';
+ import { rateLimitAuthenticated } from '../../lib/rate-limit';
+ import { authRequiredResponse, requestContextResponse } from '../../lib/security';
+ import { validateClientPayload, validationResponse } from '../../lib/validation';
+-import { getUserEntitlements } from '../../../../lib/entitlements';
+-
+-async function requireClientEntitlement(context) {
+-  const profile = await ensureProfile(context.supabase, context.user);
+-  const entitlements = getUserEntitlements(profile?.plan || 'free');
+-
+-  // Bypass plan limit checks during onboarding (until user triggers FIRST_VALUE_CREATED)
+-  const { count: activationEventCount } = await context.supabase
+-    .from('analytics_events')
+-    .select('*', { count: 'exact', head: true })
+-    .eq('user_id', context.user.id)
+-    .eq('event', 'FIRST_VALUE_CREATED');
+-
+-  const hasActivated = (activationEventCount || 0) > 0;
+-
+-  if (!entitlements.client_portal && !entitlements.crm && hasActivated) {
+-    return NextResponse.json(
+-      {
+-        error: 'FORBIDDEN',
+-        requiredEntitlement: 'client_portal_or_crm',
+-      },
+-      { status: 403 }
+-    );
+-  }
+-
+-  return null;
+-}
+ 
+ export async function GET(request) {
+   try {
+     const context = await getRequestUser(request);
+     const contextFailure = requestContextResponse(context, 'clients');
+     if (contextFailure) return contextFailure;
+-    const entitlementFailure = await requireClientEntitlement(context);
+-    if (entitlementFailure) return entitlementFailure;
+ 
+     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+     if (!limitResult.success) {
+@@ -72,8 +43,6 @@ export async function POST(request) {
+     const context = await getRequestUser(request);
+     const contextFailure = requestContextResponse(context, 'clients');
+     if (contextFailure) return contextFailure;
+-    const entitlementFailure = await requireClientEntitlement(context);
+-    if (entitlementFailure) return entitlementFailure;
+ 
+     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+     if (!limitResult.success) {
+@@ -129,8 +98,6 @@ export async function DELETE(request) {
+     const context = await getRequestUser(request);
+     const contextFailure = requestContextResponse(context, 'clients');
+     if (contextFailure) return contextFailure;
+-    const entitlementFailure = await requireClientEntitlement(context);
+-    if (entitlementFailure) return entitlementFailure;
+ 
+     const limitResult = await rateLimitAuthenticated('invoiceApi', context.user.id);
+     if (!limitResult.success) {
+diff --git a/src/app/api/portal/token/generate/route.js b/src/app/api/portal/token/generate/route.js
+index ffacbdc..b6aedca 100644
+--- a/src/app/api/portal/token/generate/route.js
++++ b/src/app/api/portal/token/generate/route.js
+@@ -23,8 +23,7 @@ export async function POST(request) {
+     const entitlements = getUserEntitlements(plan);
+     if (!entitlements.client_portal) {
+       return NextResponse.json({
+-        error: "UPGRADE_REQUIRED",
+-        requiredPlan: "pro"
++        error: "FEATURE_NOT_AVAILABLE"
+       }, { status: 403 });
+     }
+ 
+diff --git a/src/app/api/revenue/evaluate/route.js b/src/app/api/revenue/evaluate/route.js
+index 4769979..60cb9e7 100644
+--- a/src/app/api/revenue/evaluate/route.js
++++ b/src/app/api/revenue/evaluate/route.js
+@@ -6,7 +6,7 @@ import { shadowValidatePlanRead } from '../../../../core/state/planStateAdapter'
+ export async function POST(request) {
+   try {
+     const body = await request.json().catch(() => ({}));
+-    const { action, invoicesCount = 0, quotesCount = 0, intentScore = 0, pricingViewCount = 0 } = body;
++    const { action, intentScore = 0, pricingViewCount = 0 } = body;
+ 
+     // Resolve authenticated user profile from database context (if active)
+     let userPlan = body.userPlan || 'free';
+@@ -53,52 +53,34 @@ export async function POST(request) {
+     let targetPlan = 'pro';
+     let message = '';
+ 
+-    // Enforce limits and paywall triggers defined by the backend business rules
++    // This compatibility evaluator must not compete with canonical atomic
++    // document creation quota enforcement.
+     switch (action) {
+       case 'create_invoice':
+-        if (invoicesCount >= 2) {
+-          shouldBlock = true;
+-          responseAction = 'block';
+-          uiState = 'hard_paywall';
+-          reason = 'invoice_limit_reached';
+-          message = 'You have reached the free limit of 2 invoices. Upgrade to continue billing clients without interruption.';
+-        } else if (invoicesCount === 1) {
+-          shouldBlock = false;
+-          responseAction = 'upsell';
+-          uiState = 'upgrade_banner';
+-          reason = 'invoice_limit_approaching';
+-          message = 'You have 1 invoice left on the free tier. Upgrade to Pro for unlimited billing.';
+-        } else {
+-          responseAction = 'allow';
+-        }
++        responseAction = 'allow';
++        reason = 'canonical_invoice_creation_authority';
++        message = 'Invoice creation is evaluated by the canonical document API.';
+         break;
+ 
+       case 'create_quote':
+-        if (quotesCount >= 1) {
+-          shouldBlock = true;
+-          responseAction = 'block';
+-          uiState = 'hard_paywall';
+-          reason = 'quote_limit_reached';
+-          message = 'You have reached the free limit of 1 quote. Upgrade to Pro to send unlimited proposals.';
+-        } else {
+-          responseAction = 'allow';
+-        }
++        responseAction = 'allow';
++        reason = 'canonical_quote_creation_authority';
++        message = 'Quote creation is evaluated by the canonical document API.';
+         break;
+ 
+       case 'export_pdf':
+-        shouldBlock = false;
+-        responseAction = 'upsell';
+-        uiState = 'soft_upsell';
+-        reason = 'export_watermark_restriction';
+-        message = 'Free exports include a Corvioz watermark. Upgrade to Pro to remove it.';
++        responseAction = 'allow';
++        reason = 'pdf_export_allowed';
++        message = 'PDF export is available; branding follows the current plan.';
+         break;
+ 
+       case 'client_portal':
+         shouldBlock = true;
+-        responseAction = 'redirect';
+-        uiState = 'pricing_redirect';
+-        reason = 'client_portal_locked';
+-        message = 'Client Portal is a premium capability. Redirecting to pricing...';
++        responseAction = 'block';
++        uiState = 'none';
++        reason = 'feature_not_available';
++        message = 'This feature is not currently available.';
++        targetPlan = null;
+         break;
+ 
+       case 'send_invoice':
+@@ -107,7 +89,7 @@ export async function POST(request) {
+         responseAction = 'block';
+         uiState = 'hard_paywall';
+         reason = 'automation_features_locked';
+-        message = 'Client email automation and reminder links are premium capabilities. Upgrade to manage client operations.';
++        message = 'This workflow is not currently available from this evaluator.';
+         break;
+ 
+       case 'pricing_cta':
+diff --git a/src/app/api/user/entitlements/route.js b/src/app/api/user/entitlements/route.js
+index 37f74d8..7845064 100644
+--- a/src/app/api/user/entitlements/route.js
++++ b/src/app/api/user/entitlements/route.js
+@@ -23,7 +23,23 @@ export async function GET(request) {
+         .maybeSingle();
+ 
+       if (error) throw error;
+-      return NextResponse.json({ entitlements: data || null });
++      const { data: profile } = await supabase
++        .from('profiles')
++        .select('plan')
++        .eq('id', context.user.id)
++        .maybeSingle();
++      const plan = String(profile?.plan || 'free').toLowerCase();
++      const currentContract = getUserEntitlements(plan);
++      return NextResponse.json({
++        entitlements: {
++          ...(data || {}),
++          ...currentContract,
++          client_portal: false,
++          client_approval: false,
++          approval_scope: 'none',
++          unlimited_invoices: false,
++        },
++      });
+     }
+ 
+     const serviceSupabase = createServiceSupabaseClient();
+@@ -38,6 +54,10 @@ export async function GET(request) {
+       .maybeSingle();
+ 
+     if (entitlementError) throw entitlementError;
++    if (['client_portal', 'client_approval', 'approval_scope', 'unlimited_invoices'].includes(feature)) {
++      return NextResponse.json({ access: false });
++    }
++
+     if (entitlementRow && feature in entitlementRow) {
+       return NextResponse.json({ access: Boolean(entitlementRow[feature]) });
+     }
+diff --git a/src/app/dashboard/components/StudioSpace.js b/src/app/dashboard/components/StudioSpace.js
+index e96a4ac..ba42b83 100644
+--- a/src/app/dashboard/components/StudioSpace.js
++++ b/src/app/dashboard/components/StudioSpace.js
+@@ -13,7 +13,6 @@ export default function StudioSpace({
+   quotes = [],
+   leads = [],
+   getCurrencySymbol,
+-  onCopyPortalLink,
+   triggerToast,
+   isSandbox = false,
+   isStudioPreview = false,
+@@ -292,11 +291,11 @@ export default function StudioSpace({
+ 
+     let text = '';
+     if (selectedTemplate === 'soft') {
+-      text = `Hi ${inv.client_name},\n\nHope you're having a great week. Just a friendly note that invoice document #${inv.invoice_number} (${amountStr}) is now slightly past due.\n\nYou can review the document details via the client portal link: [Client Portal URL]\n\nLet me know if you have any questions or need the document details adjusted. Thanks so much.\n\nBest regards,\n[Your Name]`;
++      text = `Hi ${inv.client_name},\n\nHope you're having a great week. Just a friendly note that invoice document #${inv.invoice_number} (${amountStr}) is now slightly past due.\n\nPlease review the document details and let me know if anything needs adjusting. Thanks so much.\n\nBest regards,\n[Your Name]`;
+     } else if (selectedTemplate === 'firm') {
+-      text = `Dear ${inv.client_name},\n\nThis is a follow-up reminder that invoice document #${inv.invoice_number} is now ${daysStr} overdue. The pending document total is ${amountStr}, originally due on ${inv.due_date}.\n\nPlease review the secure client portal here: [Client Portal URL]\n\nIf this document has already been reviewed, please let me know so I can update the client record.\n\nSincerely,\n[Your Name]`;
++      text = `Dear ${inv.client_name},\n\nThis is a follow-up reminder that invoice document #${inv.invoice_number} is now ${daysStr} overdue. The pending document total is ${amountStr}, originally due on ${inv.due_date}.\n\nPlease review the document details when convenient. If this document has already been settled, please let me know so I can update the client record.\n\nSincerely,\n[Your Name]`;
+     } else if (selectedTemplate === 'urgent') {
+-      text = `Hello ${inv.client_name},\n\nI am writing to notify you that document #${inv.invoice_number} is now significantly overdue (${daysStr}). The total due is ${amountStr}.\n\nThis update is now important to avoid project delays or milestone delivery halts. Please review the secure client portal: [Client Portal URL]\n\nPlease reply once reviewed.\n\nRegards,\n[Your Name]`;
++      text = `Hello ${inv.client_name},\n\nI am writing to notify you that document #${inv.invoice_number} is now significantly overdue (${daysStr}). The total due is ${amountStr}.\n\nPlease review the document details and reply with an update.\n\nRegards,\n[Your Name]`;
+     }
+ 
+     setReminderText(text);
+@@ -304,7 +303,7 @@ export default function StudioSpace({
+ 
+   const handleCopyReminder = () => {
+     navigator.clipboard.writeText(reminderText);
+-    triggerToast('Reminder template copied to clipboard! Portal link is ready.', 'success');
++    triggerToast('Reminder template copied to clipboard!', 'success');
+ 
+     trackEvent('client_activity_event', {
+       action: 'reminder_copied',
+@@ -1769,7 +1768,7 @@ export default function StudioSpace({
+                 
+                 {clientProfiles.length === 0 ? (
+                   <div style={{ padding: '40px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+-                    No client areas configured. Register a client using the form on the right to initialize their Client Portal.
++                    No client areas configured. Register a client using the form on the right to organize their document history.
+                   </div>
+                 ) : (
+                   <div style={{ overflowX: 'auto' }}>
+@@ -1913,13 +1912,6 @@ export default function StudioSpace({
+                       {getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}
+                     </span>
+                     <div style={{ display: 'flex', gap: '8px' }}>
+-                      <button
+-                        onClick={() => onCopyPortalLink(inv.id, 'invoice')}
+-                        className="btn btn-secondary btn-sm"
+-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+-                      >
+-                        🔗 Copy Portal Link
+-                      </button>
+                       <button
+                         onClick={() => {
+                           setSelectedInvoiceId(inv.id);
+@@ -2008,7 +2000,7 @@ export default function StudioSpace({
+                   className="btn btn-primary"
+                   style={{ fontWeight: 700 }}
+                 >
+-                  📋 Copy Nudge &amp; Portal Link
++                  📋 Copy Reminder Text
+                 </button>
+                 <button
+                   onClick={handleSendReminder}
+@@ -2031,8 +2023,8 @@ export default function StudioSpace({
+                   You are operating as a professional service business. Studio helps you prepare direct client follow-up emails and track pending document workflows.
+                 </p>
+                 <ul style={{ margin: '10px 0 0 0', paddingLeft: '16px', fontSize: '0.78rem', color: 'var(--text-muted)', display: 'grid', gap: '6px' }}>
+-                  <li><strong>Follow-up Messages:</strong> Prepare client follow-up emails with customized copy and portal links.</li>
+-                  <li><strong>Live Portal Tracking:</strong> Know exactly when clients view, comment, or approve your documents.</li>
++                  <li><strong>Follow-up Messages:</strong> Prepare client follow-up emails with customized copy.</li>
++                  <li><strong>Document Status:</strong> Keep pending invoice documents and overdue days visible.</li>
+                   <li><strong>Document Overview:</strong> Track pending invoice documents and overdue days.</li>
+                 </ul>
+               </div>
+@@ -2173,7 +2165,7 @@ export default function StudioSpace({
+                       </div>
+ 
+                       <p style={{ fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 24px 0', opacity: 0.9 }}>
+-                        This live preview displays how your public landing page, milestone portals, and itemized client receipts will adapt to your agency brand colors, logo, and selected typography.
++                        This live preview displays how your public landing page, milestone summaries, and itemized client receipts will adapt to your agency brand colors, logo, and selected typography.
+                       </p>
+ 
+                       <div style={{ display: 'flex', gap: '10px' }}>
+@@ -2259,7 +2251,7 @@ export default function StudioSpace({
+                     </p>
+                     <button
+                       onClick={() => {
+-                        const reminderSequence = `1. FRIENDLY NOTE (SOFT)\n"Hi [Client Name], Just a friendly note that invoice document [Invoice #] is now slightly past due. You can review details via the client portal link: [Portal URL]"\n\n2. DOCUMENT NOTICE (FIRM)\n"Dear [Client Name], This is a follow-up reminder that invoice document [Invoice #] is now past due. Pending document total is [Amount], originally due on [Date]. Please review the document when convenient."`;
++                        const reminderSequence = `1. FRIENDLY NOTE (SOFT)\n"Hi [Client Name], Just a friendly note that invoice document [Invoice #] is now slightly past due. Please review the document details when convenient."\n\n2. DOCUMENT NOTICE (FIRM)\n"Dear [Client Name], This is a follow-up reminder that invoice document [Invoice #] is now past due. Pending document total is [Amount], originally due on [Date]. Please review the document details when convenient."`;
+                         navigator.clipboard.writeText(reminderSequence);
+                         triggerToast('Reminder email sequence copy text copied to clipboard.', 'success');
+                       }}
+diff --git a/src/app/lib/revenue/control-plane/decision-engine.ts b/src/app/lib/revenue/control-plane/decision-engine.ts
+index d7bc1c3..73532d7 100644
+--- a/src/app/lib/revenue/control-plane/decision-engine.ts
++++ b/src/app/lib/revenue/control-plane/decision-engine.ts
+@@ -140,9 +140,7 @@ const FREE_INCLUDED = [
+   'Preview your work before signup',
+ ];
+ const PAID_REQUIRED = [
+-  'Export PDF without limits',
+-  'Send invoices to clients',
+-  'Save work permanently to an account',
++  'Clean PDF branding on paid plans',
+ ];
+ 
+ export type PaywallTriggerKey =
+@@ -351,7 +349,7 @@ function educationalMessageForEvent(event: string, action: RevenueControlPlaneAc
+   }
+ 
+   if (event === 'export_pdf' && action === 'soft_paywall') {
+-    return 'Professional Invoice Delivery is a Pro feature. Free exports include a preview watermark.';
++    return 'PDF export is available on Free with a watermark; paid plans receive clean PDF branding.';
+   }
+ 
+   if (event === 'send_invoice') {
+diff --git a/src/components/dashboard/Dashboard.js b/src/components/dashboard/Dashboard.js
+index b624a87..e2a6c1d 100644
+--- a/src/components/dashboard/Dashboard.js
++++ b/src/components/dashboard/Dashboard.js
+@@ -39,7 +39,7 @@ const trackEvent = () => {};
+ const setAnalyticsUserId = () => {};
+ const clearAnalyticsUserId = () => {};
+ import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
+-import { canAccess, getUserEntitlements } from 'lib/entitlements';
++import { getUserEntitlements } from 'lib/entitlements';
+ import { sendEvent } from '../../core/analytics/eventRouter';
+ 
+ 
+@@ -50,7 +50,6 @@ import useDashboardMode from '@/hooks/useDashboardMode';
+ import { useRevenueAction } from '@/hooks/useRevenueAction';
+ 
+ import { Icons } from '@/styles/icons';
+-import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
+ import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
+ import {
+   buildFirstQuoteActivationEvent,
+@@ -62,6 +61,7 @@ import {
+   DASHBOARD_ENTITLEMENT_STATUS,
+   EMPTY_DASHBOARD_ENTITLEMENTS,
+   buildDashboardEntitlementState,
++  getDashboardPdfExportDecision,
+   mapEntitlementRecord,
+   resolveDashboardEntitlements,
+ } from '../../core/state/dashboardEntitlementState';
+@@ -870,8 +870,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+   const isEntitlementLoading = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.LOADING;
+   const isEntitlementError = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.ERROR;
+ 
+-  const isPro = entitlements.export_pdf || entitlements.client_portal;
+-  const isFree = entitlementReady ? !isPro : false;
++  const { canExportPdf, hasCleanPdf } = getDashboardPdfExportDecision(entitlements);
++  const normalizedPlan = String(user?.plan || (previewMode ? 'free' : '')).toLowerCase();
++  const isFreePlan = entitlementReady && normalizedPlan === 'free';
+   const firstRevenueLoop = user?.first_revenue_loop || null;
+   const firstRevenueLoopActionReady = Boolean(
+     firstRevenueLoop
+@@ -895,7 +896,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+   );
+   const planStatusLabel = isEntitlementLoading
+     ? 'Loading'
+-    : (isEntitlementError ? 'Unavailable' : (user?.plan || (isFree ? 'free' : 'paid')));
++    : (isEntitlementError ? 'Unavailable' : (user?.plan || (isFreePlan ? 'free' : 'paid')));
+ 
+   const [exportCount, setExportCount] = useState(0);
+   const [showExportPurposeModal, setShowExportPurposeModal] = useState(false);
+@@ -2312,47 +2313,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     }
+   };
+ 
+-  const handleCopyPortalLink = async (resourceId, resourceType) => {
+-    const actionName = resourceType === 'invoice' ? 'send_invoice' : 'client_portal';
+-    evaluateAction(actionName, async () => {
+-      if (!session) {
+-        try {
+-          const token = `sandbox-${resourceType}-${resourceId}`;
+-          const portalUrl = `${window.location.origin}/portal/${token}`;
+-          await navigator.clipboard.writeText(portalUrl);
+-          triggerToast('Secure client portal link (Sandbox Mode) copied to clipboard!', 'success');
+-        } catch (err) {
+-          console.error(err);
+-          triggerToast('Error copying portal link.', 'error');
+-        }
+-        return;
+-      }
+-
+-      try {
+-        const res = await fetch('/api/portal/token/generate', {
+-          method: 'POST',
+-          headers: { 'Content-Type': 'application/json' },
+-          body: JSON.stringify({
+-            resource_id: resourceId,
+-            resource_type: resourceType
+-          })
+-        });
+-        
+-        const data = await res.json();
+-        if (!res.ok) {
+-          throw new Error(data.error || 'Failed to generate portal token');
+-        }
+-        
+-        const portalUrl = `${window.location.origin}/portal/${data.token}`;
+-        await navigator.clipboard.writeText(portalUrl);
+-        triggerToast('Secure client portal link copied to clipboard!', 'success');
+-      } catch (err) {
+-        console.error(err);
+-        triggerToast(err.message || 'Error generating portal link.', 'error');
+-      }
+-    });
+-  };
+-
+   const handleViewLead = (lead) => {
+     const crm = getLeadCRMFields(lead);
+     setSelectedLead(lead);
+@@ -2896,7 +2856,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     // Paywall Emotional Trigger (PET): Trigger upgrade on second generation attempt
+     if (typeof window !== 'undefined') {
+       const attempts = Number(window.localStorage.getItem('corvioz_profile_generation_attempts') || 0);
+-      if (attempts >= 1 && isFree) {
++      if (attempts >= 1 && isFreePlan) {
+         setFormError('Daily limit reached. Upgrade when you need repeated client workflow support.');
+         setModalProps({
+           title: "Upgrade Plan",
+@@ -3095,34 +3055,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+       const currentClientCount = clients ? clients.length : 0;
+       const userPlan = String(user?.plan || 'free').toLowerCase();
+ 
+-      if ((userPlan === 'free' || userPlan === 'starter') && currentClientCount >= 0) {
+-        setModalProps({
+-          title: "Upgrade to Pro",
+-          description: "Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.",
+-          lockedFeatureValue: "Clients Directory & Client Records",
+-          limit: "client_limit",
+-          source: "client_creation_gate",
+-          targetPlan: "pro"
+-        });
+-        setActiveModal('upgrade');
+-        setFormError('Client directory requires Pro plan.');
+-        return;
+-      }
+-
+-      if (userPlan === 'pro' && currentClientCount >= 1) {
+-        setModalProps({
+-          title: "Studio is coming soon",
+-          description: "Additional multi-client workspace capacity is planned for Studio and is not available for purchase yet.",
+-          lockedFeatureValue: "Additional client workspace capacity",
+-          limit: "client_limit",
+-          source: "client_creation_gate",
+-          targetPlan: "support"
+-        });
+-        setActiveModal('upgrade');
+-        setFormError('Additional multi-client workspace capacity is coming soon.');
+-        return;
+-      }
+-
+       if (userPlan === 'studio' && currentClientCount >= 100) {
+         setModalProps({
+           title: "Client limit reached",
+@@ -3225,7 +3157,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+       return;
+     }
+ 
+-    const watermarkFree = user?.id ? await canAccess(user.id, 'export_pdf') : false;
++    if (!canExportPdf) {
++      triggerToast('PDF export is unavailable.', 'error');
++      return;
++    }
++    const watermarkFree = hasCleanPdf;
+ 
+     // Save parameters and show modal to select export purpose
+     setExportPurposeParams({ elementId, name, resourceId, watermarkFree });
+@@ -3277,11 +3213,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+       source: 'export_purpose_modal'
+     };
+ 
+-    await evaluateAction('export_pdf', async (shouldProceedWithoutWatermark) => {
++    await evaluateAction('export_pdf', async () => {
+       window.localStorage.setItem('corvioz_export_count', String(newCount));
+       setExportCount(newCount);
+       sendEvent('FIRST_ACTION_TAKEN', { action: 'export_pdf', documentType, export_count: newCount, source: 'export_purpose_modal' });
+-      const downloadWatermarkFree = !isFree || shouldProceedWithoutWatermark;
++      const downloadWatermarkFree = hasCleanPdf;
+       await triggerActualPdfDownload(elementId, name, downloadWatermarkFree, resourceId);
+     }, telemetryPayload);
+   };
+@@ -4000,38 +3936,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               );
+             })}
+ 
+-            <Link
+-              href="/client-portal"
+-              onClick={(e) => {
+-                e.preventDefault();
+-                evaluateAction('client_portal', () => {
+-                  router.push('/client-portal');
+-                });
+-              }}
+-              aria-label="Client Portal: external pages shared with clients"
+-              title="External pages shared with clients"
+-              style={{
+-                display: 'flex',
+-                alignItems: 'center',
+-                gap: '10px',
+-                padding: '8.5px 12px',
+-                borderRadius: '8px',
+-                width: '100%',
+-                textAlign: 'left',
+-                cursor: 'pointer',
+-                backgroundColor: 'transparent',
+-                color: 'var(--text-muted)',
+-                border: '1px solid transparent',
+-                fontSize: '0.85rem',
+-                fontWeight: 500,
+-                textDecoration: 'none',
+-                transition: 'var(--transition)'
+-              }}
+-            >
+-              <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
+-              <span className="dashboard-sidebar-label">Client Portal</span>
+-            </Link>
+-
+             <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
+             <button
+               type="button"
+@@ -4157,8 +4061,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+             <div className="dashboard-sidebar-plan-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+               <span className="dashboard-sidebar-plan-label">Plan</span>
+               <span style={{ 
+-                background: isEntitlementLoading || isFree ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
+-                color: isEntitlementLoading || isFree ? 'var(--text-muted)' : 'var(--success)',
++                background: isEntitlementLoading || isFreePlan ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
++                color: isEntitlementLoading || isFreePlan ? 'var(--text-muted)' : 'var(--success)',
+                 fontSize: '0.65rem', 
+                 padding: '2px 8px', 
+                 borderRadius: '99px', 
+@@ -4168,7 +4072,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                 {planStatusLabel}
+               </span>
+             </div>
+-            {entitlementReady && isFree && (
++            {entitlementReady && isFreePlan && (
+               <Link
+                 href="/pricing?checkout=pro"
+                 onClick={(e) => {
+@@ -4335,7 +4239,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                 isLoading: isRefreshing,
+                 error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
+                 quoteError: quotesError,
+-                isFree,
++                isFree: isFreePlan,
+                 exportCount,
+                 businessModeBadge,
+                 tierPlan,
+@@ -4381,9 +4285,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                   const lead = getActiveLeads().find((item) => item.id === id);
+                   if (lead) handleAiQuoteGeneration(lead);
+                 },
+-                copyPortalLink: ({ id, type } = {}) => {
+-                  if (id && type) handleCopyPortalLink(id, type);
+-                },
+               }}
+             />
+           </>
+@@ -4502,7 +4403,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                       title="AI Generate Quote Draft"
+                                     >
+                                       <span>{isParsingLead === lead.id ? 'Generating...' : 'AI Quote'}</span>
+-                                      {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
++                                      {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
+                                     </button>
+                                   )}
+                                 </div>
+@@ -4724,13 +4625,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                 >
+                                   Edit
+                                 </button>
+-                                <button
+-                                  onClick={() => handleCopyPortalLink(q.id, 'quote')}
+-                                  className="btn btn-secondary btn-sm"
+-                                  style={{ color: 'var(--accent)' }}
+-                                >
+-                                  Copy Link
+-                                </button>
+                                 {q.status === 'draft' && (
+                                   <button
+                                     onClick={() => handleSendQuote(q)}
+@@ -5311,7 +5205,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+ 
+                       {/* PDF download trigger button */}
+                       <div style={{ marginTop: '12px' }}>
+-                        {!entitlements.export_pdf ? (
++                        {!canExportPdf ? (
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                             <button
+                               onClick={() => handleExportAttempt('printable-quote', `quote_${qNumber}`, qId)}
+@@ -5338,7 +5232,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                 fontWeight: 700
+                               }}
+                             >
+-                              Export Client-Ready Pro (Clean)
++                              Export Clean PDF
+                             </button>
+                             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
+                               Client-visible watermark will appear
+@@ -5351,7 +5245,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                             className="btn btn-primary"
+                             style={{ width: '100%' }}
+                           >
+-                            {isDownloadingPdf ? 'Generating PDF...' : 'Download Client-Ready PDF'}
++                            {isDownloadingPdf ? 'Generating PDF...' : (hasCleanPdf ? 'Download Clean PDF' : 'Download Watermarked PDF')}
+                           </button>
+                         )}
+                       </div>
+@@ -5467,13 +5361,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                 >
+                                   Edit
+                                 </button>
+-                                <button
+-                                  onClick={() => handleCopyPortalLink(inv.id, 'invoice')}
+-                                  className="btn btn-secondary btn-sm"
+-                                  style={{ color: 'var(--accent)' }}
+-                                >
+-                                  Copy Link
+-                                </button>
+                                 {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
+                                   <button
+                                     onClick={() => openRecordPaymentModal(inv)}
+@@ -5495,7 +5382,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                     title="Send Client Follow-up"
+                                   >
+                                     <span>🔔 Reminder</span>
+-                                    {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
++                                    {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
+                                   </button>
+                                 )}
+                                 <button
+@@ -6053,7 +5940,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                               {isDownloadingPdf ? 'Generating PDF...' : 'Download again'}
+                             </button>
+                             
+-                            {isFree && (
++                            {isFreePlan && (
+                               <div style={{
+                                 padding: '14px',
+                                 background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+@@ -6066,7 +5953,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                   Level Up Your Business Profile
+                                 </div>
+                                 <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+-                                  Upgrade to Pro for clean PDF exports, Client Portal, and quote approval.
++                                  Upgrade to a paid plan for clean PDF exports.
+                                 </p>
+                                 <div style={{ display: 'flex', gap: '8px' }}>
+                                   <Link
+@@ -6108,7 +5995,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                               </div>
+                             )}
+                           </div>
+-                        ) : !entitlements.export_pdf ? (
++                        ) : !canExportPdf ? (
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                             <button
+                               onClick={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
+@@ -6135,7 +6022,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                 fontWeight: 700
+                               }}
+                             >
+-                              Export Client-Ready Pro (Clean)
++                              Export Clean PDF
+                             </button>
+                             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
+                               Client-visible watermark will appear
+@@ -6148,7 +6035,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                             className="btn btn-primary"
+                             style={{ width: '100%' }}
+                           >
+-                            {isDownloadingPdf ? 'Generating PDF...' : 'Download Client-Ready PDF'}
++                            {isDownloadingPdf ? 'Generating PDF...' : (hasCleanPdf ? 'Download Clean PDF' : 'Download Watermarked PDF')}
+                           </button>
+                         )}
+                       </div>
+@@ -6171,7 +6058,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               quotes={quotes}
+               leads={leads}
+               getCurrencySymbol={getCurrencySymbol}
+-              onCopyPortalLink={handleCopyPortalLink}
+               triggerToast={triggerToast}
+               isSandbox={isSandboxMode}
+               isStudioPreview={false}
+@@ -6369,7 +6255,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                     Describe your freelance services in a few words. Let AI instantly generate a complete Public Profile.
+                   </p>
+                 </div>
+-                {isFree && (
++                {isFreePlan && (
+                   <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
+                     1 Generation Attempt Free
+                   </span>
+@@ -6457,7 +6343,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                     )}
+                   </div>
+                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.4' }}>
+-                    Upload your custom logo, configure brand colors, and set up custom typography styles for Client Portals, quotes, and invoices.
++                    Upload your custom logo, configure brand colors, and set up custom typography styles for public profile pages, quotes, and invoices.
+                   </p>
+                   <button
+                     type="button"
+@@ -6504,14 +6390,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                       <div className="input-group">
+                         <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <span>Cover Banner CSS Background</span>
+-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.65rem', padding: '1px 4px', borderRadius: '4px', scale: '0.9' }}>Pro</span>}
++                          {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.65rem', padding: '1px 4px', borderRadius: '4px', scale: '0.9' }}>Pro</span>}
+                         </label>
+                         <input 
+                           type="text" 
+                           className="form-input" 
+-                          placeholder={isFree ? "Default gradient (Upgrade to customize)" : "e.g. linear-gradient(135deg, #6366f1, #06b6d4)"} 
+-                          value={isFree ? "" : cpCoverBanner} 
+-                          disabled={isFree}
++                          placeholder={isFreePlan ? "Default gradient (Upgrade to customize)" : "e.g. linear-gradient(135deg, #6366f1, #06b6d4)"}
++                          value={isFreePlan ? "" : cpCoverBanner}
++                          disabled={isFreePlan}
+                           onChange={e => setCpCoverBanner(e.target.value)} 
+                         />
+                       </div>
+@@ -6613,20 +6499,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                     <div className="card" style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                       <span className="input-label" style={{ fontSize: '0.65rem' }}>Profile Badges</span>
+                       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
+-                          <input type="checkbox" checked={isFree ? false : cpVerifiedBadge} disabled={isFree} onChange={e => setCpVerifiedBadge(e.target.checked)} />
++                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFreePlan ? 'not-allowed' : 'pointer', opacity: isFreePlan ? 0.7 : 1 }}>
++                          <input type="checkbox" checked={isFreePlan ? false : cpVerifiedBadge} disabled={isFreePlan} onChange={e => setCpVerifiedBadge(e.target.checked)} />
+                           <span>Verified badge</span>
+-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
++                          {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
+                         </label>
+-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
+-                          <input type="checkbox" checked={isFree ? false : cpTopRatedBadge} disabled={isFree} onChange={e => setCpTopRatedBadge(e.target.checked)} />
++                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFreePlan ? 'not-allowed' : 'pointer', opacity: isFreePlan ? 0.7 : 1 }}>
++                          <input type="checkbox" checked={isFreePlan ? false : cpTopRatedBadge} disabled={isFreePlan} onChange={e => setCpTopRatedBadge(e.target.checked)} />
+                           <span>Top Rated badge</span>
+-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
++                          {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
+                         </label>
+-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
+-                          <input type="checkbox" checked={isFree ? false : cpFastResponseBadge} disabled={isFree} onChange={e => setCpFastResponseBadge(e.target.checked)} />
++                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFreePlan ? 'not-allowed' : 'pointer', opacity: isFreePlan ? 0.7 : 1 }}>
++                          <input type="checkbox" checked={isFreePlan ? false : cpFastResponseBadge} disabled={isFreePlan} onChange={e => setCpFastResponseBadge(e.target.checked)} />
+                           <span>Fast Response badge</span>
+-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
++                          {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
+                         </label>
+ 	                      </div>
+ 	                    </div>
+@@ -6859,7 +6745,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               quotes={quotes}
+               leads={leads}
+               getCurrencySymbol={getCurrencySymbol}
+-              onCopyPortalLink={handleCopyPortalLink}
+               triggerToast={triggerToast}
+               isSandbox={isSandboxMode}
+               isStudioPreview={studioPreviewActive && !isStudio}
+@@ -7282,7 +7167,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                     </div>
+ 
+                     <p style={{ fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 24px 0', opacity: 0.9 }}>
+-                      This live preview displays how your public landing page, milestone portals, and itemized client receipts will adapt to your agency brand colors, logo, and selected typography.
++                      This live preview displays how your public landing page, milestone summaries, and itemized client receipts will adapt to your agency brand colors, logo, and selected typography.
+                     </p>
+ 
+                     <div style={{ display: 'flex', gap: '10px' }}>
+@@ -7574,7 +7459,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                 onChange={(e) => setFeedbackCategory(e.target.value)}
+               >
+                 <option>Dashboard</option>
+-                <option>Client Portal</option>
++                <option>Client-facing page</option>
+                 <option>Quote</option>
+                 <option>Invoice</option>
+                 <option>Pricing</option>
+@@ -7850,7 +7735,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                   }}
+                 >
+                   <option value="draft">📝 Internal Draft Export</option>
+-                  <option value="client send">Send to Client Review</option>
++                  <option value="client send">Client Delivery Copy</option>
+                   <option value="final invoice">Final Accounting Invoice</option>
+                   <option value="revision export">🔄 Scope Revision / Edit Update</option>
+                 </select>
+@@ -7933,7 +7818,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               Congratulations on creating your first client profile! You are moving from ad-hoc tasks to an organized photography business.
+             </p>
+             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 20px 0', lineHeight: 1.4, textAlign: 'center' }}>
+-              To support this growth, the <strong>Pro Plan</strong> adds clean PDF exports, Client Portal, quote approval, and clearer client records.
++              To support this growth, paid plans add clean PDF branding while the core quote, invoice, and payment workflow stays available.
+             </p>
+ 
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+@@ -8035,34 +7920,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               Your document draft #{suggestedActionDoc.number} has been created successfully. What would you like to do next?
+             </p>
+ 
+-            {suggestedActionDoc.type === 'quote' && isFree && (
+-              <div style={{
+-                background: 'var(--primary-glow)',
+-                border: '1.5px solid var(--primary)',
+-                borderRadius: '8px',
+-                padding: '10px 14px',
+-                marginBottom: '18px',
+-                fontSize: '0.8rem',
+-                color: 'var(--text-soft)',
+-                display: 'flex',
+-                alignItems: 'center',
+-                gap: '8px',
+-                justifyContent: 'center',
+-                textAlign: 'left'
+-              }}>
+-                <span>Pro</span>
+-                <span>Pro users get quote approval tracking and client-ready delivery records.</span>
+-              </div>
+-            )}
+-
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+-              {/* Option 1: Send to Client */}
++              {/* Option 1: Open the saved document */}
+               <button
+                 onClick={() => {
+-	                  handleCopyPortalLink(suggestedActionDoc.id, suggestedActionDoc.type);
+-	                  setSuggestedActionDoc(null);
+-	                  if (suggestedActionDoc.type === 'invoice') setInvoiceView('list');
+-	                  else setQuoteView('list');
++                  const docInfo = suggestedActionDoc;
++                  setSuggestedActionDoc(null);
++                  openDocument({ documentType: docInfo.type, id: docInfo.id });
+                 }}
+                 className="btn btn-primary animate-pulse-subtle"
+                 style={{ 
+@@ -8082,8 +7946,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                   cursor: 'pointer'
+                 }}
+               >
+-                <span>Link</span>
+-                <span>Send to Client (Copy Portal Link)</span>
++                <span>Open</span>
++                <span>Open {suggestedActionDoc.type === 'invoice' ? 'Invoice' : 'Quote'}</span>
+               </button>
+ 
+               {/* Option 2: Export PDF */}
+@@ -8109,9 +7973,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                 }}
+               >
+                 <span>Export</span>
+-                <span>{!entitlements.export_pdf ? 'Watermarked PDF export' : 'Export Client-Ready PDF'}</span>
++                <span>{hasCleanPdf ? 'Export Clean PDF' : 'Export Watermarked PDF'}</span>
+               </button>
+-              {!entitlements.export_pdf && (
++              {!hasCleanPdf && (
+                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '-8px 0 0 0', textAlign: 'center' }}>
+                   Client-visible watermark will appear
+                 </p>
+@@ -8186,7 +8050,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               </ul>
+             </div>
+ 
+-            {isFree && (
++            {isFreePlan && (
+               <div style={{
+                 padding: '16px',
+                 background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%)',
+@@ -8199,16 +8063,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                   <span>⭐</span> Remove PDF Watermarks
+                 </h4>
+                 <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: 1.4 }}>
+-                  Your clients will see a watermark on free exports. Upgrade to Pro to get clean, professional, and client-ready PDFs.
++                  Free exports include a Corvioz watermark. Paid plans include clean PDF branding.
+                 </p>
+                 <Link
+-                  href="/pricing?checkout=pro"
++                  href="/pricing"
+                   onClick={() => {
+                     trackEvent('upgrade_trigger_clicked', {
+                       plan: 'free',
+-                      target_plan: 'pro',
+                       offer_type: 'checkout_nudge',
+-                      cta_text: 'Upgrade to Pro'
++                      cta_text: 'View paid plans'
+                     });
+                     setPostExportDoc(null);
+                   }}
+@@ -8228,45 +8091,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                     cursor: 'pointer'
+                   }}
+                 >
+-                  Upgrade to Pro (Remove Watermarks)
++                  View paid plans (Clean PDF branding)
+                 </Link>
+               </div>
+             )}
+ 
+-            {/* Share Moment System */}
++            {/* Close after export */}
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+               <button
+                 onClick={() => {
+-                  if (postExportDoc.id) {
+-                    handleCopyPortalLink(postExportDoc.id, postExportDoc.type);
+-                  } else {
+-                    triggerToast('Copying portal link (Sandbox Mode)...', 'success');
+-                  }
++                  const docInfo = postExportDoc;
+                   setPostExportDoc(null);
++                  if (docInfo?.id) openDocument({ documentType: docInfo.type, id: docInfo.id });
+                 }}
+                 className="btn btn-primary"
+-                style={{ 
+-                  width: '100%', 
+-                  padding: '12px', 
+-                  fontSize: '0.9rem', 
+-                  fontWeight: 700,
+-                  display: 'flex',
+-                  alignItems: 'center',
+-                  justifyContent: 'center',
+-                  gap: '8px',
+-                  cursor: 'pointer'
+-                }}
+-              >
+-                <span>Link</span>
+-                <span>Copy Client Portal Link (Recommended)</span>
+-              </button>
+-
+-              <button
+-                onClick={() => setPostExportDoc(null)}
+-                className="btn btn-secondary"
+                 style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+               >
+-                Done
++                {postExportDoc?.id ? `Open ${postExportDoc.type === 'invoice' ? 'Invoice' : 'Quote'}` : 'Done'}
+               </button>
+             </div>
+           </div>
+@@ -8317,7 +8158,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+           isDebugPanelVisible={isDebugPanelVisible}
+           setIsDebugPanelVisible={setIsDebugPanelVisible}
+           exportCount={exportCount}
+-          isFree={isFree}
++          isFreePlan={isFreePlan}
+           planStatusLabel={planStatusLabel}
+           showExportPurposeModal={showExportPurposeModal}
+         />
+@@ -8331,7 +8172,7 @@ function DevDashboardAuditPanel({
+   isDebugPanelVisible,
+   setIsDebugPanelVisible,
+   exportCount,
+-  isFree,
++  isFreePlan,
+   planStatusLabel,
+   showExportPurposeModal
+ }) {
+@@ -8382,7 +8223,7 @@ function DevDashboardAuditPanel({
+           </div>
+           <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+             <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '2px' }}>User Plan</div>
+-            <strong style={{ fontSize: '1rem', color: isFree ? '#f43f5e' : '#10b981' }}>{planStatusLabel}</strong>
++            <strong style={{ fontSize: '1rem', color: isFreePlan ? '#f43f5e' : '#10b981' }}>{planStatusLabel}</strong>
+           </div>
+         </div>
+ 
+diff --git a/src/core/state/dashboardEntitlementState.js b/src/core/state/dashboardEntitlementState.js
+index 73d6ec6..e6940c3 100644
+--- a/src/core/state/dashboardEntitlementState.js
++++ b/src/core/state/dashboardEntitlementState.js
+@@ -5,9 +5,14 @@ export const DASHBOARD_ENTITLEMENT_STATUS = Object.freeze({
+ });
+ 
+ export const EMPTY_DASHBOARD_ENTITLEMENTS = Object.freeze({
++  quote: false,
+   invoice: false,
+   export_pdf: false,
++  pdf_branding: 'branded',
+   client_portal: false,
++  client_approval: false,
++  approval_scope: 'none',
++  unlimited_invoices: false,
+   crm: false,
+   automation: false,
+   advanced_invoicing: false,
+@@ -16,14 +21,28 @@ export const EMPTY_DASHBOARD_ENTITLEMENTS = Object.freeze({
+ export function mapEntitlementRecord(record) {
+   return {
+     invoice: true,
++    quote: true,
+     export_pdf: !!record?.export_pdf,
+-    client_portal: !!record?.client_portal,
++    pdf_branding: record?.pdf_branding === 'clean' ? 'clean' : 'branded',
++    // Portal and Approval are retained as compatibility fields but are not
++    // current marketed capabilities for any plan.
++    client_portal: false,
++    client_approval: false,
++    approval_scope: 'none',
++    unlimited_invoices: false,
+     crm: !!record?.crm,
+     automation: !!record?.automation,
+     advanced_invoicing: !!record?.advanced_invoicing,
+   };
+ }
+ 
++export function getDashboardPdfExportDecision(entitlements) {
++  return {
++    canExportPdf: entitlements?.export_pdf === true,
++    hasCleanPdf: entitlements?.pdf_branding === 'clean',
++  };
++}
++
+ const TRUSTED_DASHBOARD_PLANS = new Set(['free', 'starter', 'pro', 'studio']);
+ 
+ export async function resolveDashboardEntitlements({
+diff --git a/src/hooks/useRevenueAction.js b/src/hooks/useRevenueAction.js
+index 152c35c..6380e82 100644
+--- a/src/hooks/useRevenueAction.js
++++ b/src/hooks/useRevenueAction.js
+@@ -68,13 +68,13 @@ function getUpgradeModalProps(actionName, decisionMessage, decision = null) {
+     create_invoice: 'Organize client delivery with Starter',
+     create_quote: 'Pitch projects with professional quotes',
+     send_invoice: 'Keep client follow-up organized',
+-    client_portal: 'Build client trust with professional Client Portals',
++    client_portal: 'This client-sharing feature is not currently available',
+   };
+   const descMap = {
+     create_invoice: 'Present polished client documents from one dashboard',
+     create_quote: 'Share quotes with clear project milestones',
+     send_invoice: 'Keep client documents and follow-up organized',
+-    client_portal: 'Secure client approvals via professional portal links',
++    client_portal: 'This client-sharing feature is not currently available in the current release',
+   };
+ 
+   return {
