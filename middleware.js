@@ -153,7 +153,7 @@ export async function middleware(request) {
     { matches: pathname === '/quotes' || pathname.startsWith('/quotes/'), tool: 'quote' },
     { matches: pathname === '/invoices' || pathname.startsWith('/invoices/'), tool: 'invoice' },
     { matches: pathname === '/invoice', tool: 'invoice' },
-    { matches: pathname === '/proposal' || pathname.startsWith('/proposal/'), tool: 'proposal' },
+    { matches: pathname === '/proposal' || pathname.startsWith('/proposal/'), tool: 'quotes' },
     { matches: pathname === '/client', tool: 'client' },
   ];
 
@@ -198,6 +198,8 @@ export async function middleware(request) {
     pathname.startsWith('/dashboard/control-plane/') ||
     pathname === '/dashboard/evolution' ||
     pathname.startsWith('/dashboard/evolution/') ||
+    pathname === '/dashboard/early-access' ||
+    pathname.startsWith('/dashboard/early-access/') ||
     pathname === '/dashboard/optimization' ||
     pathname.startsWith('/dashboard/optimization/') ||
     pathname === '/dashboard/simulation' ||
@@ -206,7 +208,10 @@ export async function middleware(request) {
     pathname.startsWith('/dashboard/validation/');
 
   if (process.env.NODE_ENV === 'production' && isInternalDashboardRoute) {
-    return withSecurityHeaders(new NextResponse(null, { status: 404 }));
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    return withSecurityHeaders(NextResponse.redirect(url));
   }
 
   const response = NextResponse.next();

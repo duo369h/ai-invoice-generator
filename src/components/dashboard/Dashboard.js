@@ -5244,7 +5244,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div className="animate-fade-in">
               {invoiceView === 'list' && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div className="dashboard-invoice-list-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Invoice Documents</h1>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <button 
@@ -5289,8 +5289,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     </p>
                   </div>
                 ) : (
-                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
-                    <table>
+                  <div className="dashboard-invoice-table-wrap" style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
+                    <table className="dashboard-invoice-table">
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--btn-secondary-bg)' }}>
                           <th style={{ padding: '14px 18px' }}>Invoice #</th>
@@ -5329,7 +5329,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               </span>
                             </td>
                             <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                              <div className="dashboard-invoice-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => {
                                     openDocument({ documentType: 'invoice', id: inv.id });

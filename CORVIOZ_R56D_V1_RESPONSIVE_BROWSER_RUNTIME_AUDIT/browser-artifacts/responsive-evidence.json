@@ -1,0 +1,1413 @@
+{
+  "viewports": [
+    {
+      "width": 320,
+      "height": 700,
+      "overview": {
+        "viewportWidth": 320,
+        "innerWidth": 320,
+        "bodyScrollWidth": 320,
+        "documentScrollWidth": 320,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 8,
+        "buttonsInViewport": 8,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 250,
+          "scrollWidth": 250,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 285,
+          "top": 1793.4586181640625,
+          "bottom": 1856.7867431640625
+        },
+        "longQuote": {
+          "present": true,
+          "width": 119,
+          "scrollWidth": 119,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 154,
+          "top": 1634.0054931640625,
+          "bottom": 1760.6617431640625
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 216,
+          "scrollWidth": 216,
+          "whiteSpace": "normal",
+          "left": 52,
+          "right": 268,
+          "top": 2574.083740234375,
+          "bottom": 2665.271240234375
+        },
+        "longMoney": {
+          "present": true,
+          "width": 250,
+          "scrollWidth": 250,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 285,
+          "top": 1988.9586181640625,
+          "bottom": 2012.9586181640625
+        },
+        "multiWordStatus": {
+          "present": true,
+          "width": 119,
+          "scrollWidth": 119,
+          "whiteSpace": "normal",
+          "left": 166,
+          "right": 285,
+          "top": 1634.0054931640625,
+          "bottom": 1676.2242431640625
+        }
+      },
+      "invoices": {
+        "viewportWidth": 320,
+        "innerWidth": 320,
+        "bodyScrollWidth": 320,
+        "documentScrollWidth": 320,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 7,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 258,
+          "scrollWidth": 258,
+          "whiteSpace": "normal",
+          "left": 31,
+          "right": 289,
+          "top": 502.96875,
+          "bottom": 565.96875
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 286,
+          "scrollWidth": 286,
+          "whiteSpace": "normal",
+          "left": 17,
+          "right": 303,
+          "top": 383.34375,
+          "bottom": 477.65625
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      },
+      "clients": {
+        "viewportWidth": 320,
+        "innerWidth": 320,
+        "bodyScrollWidth": 320,
+        "documentScrollWidth": 320,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 6,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 246,
+          "scrollWidth": 246,
+          "whiteSpace": "normal",
+          "left": 37,
+          "right": 283,
+          "top": 343.75,
+          "bottom": 444.5
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": false
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      }
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "overview": {
+        "viewportWidth": 375,
+        "innerWidth": 375,
+        "bodyScrollWidth": 375,
+        "documentScrollWidth": 375,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 8,
+        "buttonsInViewport": 8,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 305,
+          "scrollWidth": 305,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 340,
+          "top": 1608.1744384765625,
+          "bottom": 1650.3931884765625
+        },
+        "longQuote": {
+          "present": true,
+          "width": 147,
+          "scrollWidth": 147,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 181.5,
+          "top": 1469.8306884765625,
+          "bottom": 1575.3775634765625
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 271,
+          "scrollWidth": 271,
+          "whiteSpace": "normal",
+          "left": 52,
+          "right": 323,
+          "top": 2343.68994140625,
+          "bottom": 2412.08056640625
+        },
+        "longMoney": {
+          "present": true,
+          "width": 305,
+          "scrollWidth": 305,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 340,
+          "top": 1782.5650634765625,
+          "bottom": 1806.5650634765625
+        },
+        "multiWordStatus": {
+          "present": true,
+          "width": 147,
+          "scrollWidth": 147,
+          "whiteSpace": "normal",
+          "left": 193.5,
+          "right": 340,
+          "top": 1469.8306884765625,
+          "bottom": 1512.0494384765625
+        }
+      },
+      "invoices": {
+        "viewportWidth": 375,
+        "innerWidth": 375,
+        "bodyScrollWidth": 375,
+        "documentScrollWidth": 375,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 7,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 313,
+          "scrollWidth": 313,
+          "whiteSpace": "normal",
+          "left": 31,
+          "right": 344,
+          "top": 466.166748046875,
+          "bottom": 508.166748046875
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 341,
+          "scrollWidth": 341,
+          "whiteSpace": "normal",
+          "left": 17,
+          "right": 358,
+          "top": 367.541748046875,
+          "bottom": 440.854248046875
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      },
+      "clients": {
+        "viewportWidth": 375,
+        "innerWidth": 375,
+        "bodyScrollWidth": 375,
+        "documentScrollWidth": 375,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 6,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 301,
+          "scrollWidth": 301,
+          "whiteSpace": "normal",
+          "left": 37,
+          "right": 338,
+          "top": 328.75,
+          "bottom": 404.3125
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": false
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      }
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overview": {
+        "viewportWidth": 390,
+        "innerWidth": 390,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 8,
+        "buttonsInViewport": 8,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 320,
+          "scrollWidth": 320,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 355,
+          "top": 1566.840576171875,
+          "bottom": 1609.059326171875
+        },
+        "longQuote": {
+          "present": true,
+          "width": 154,
+          "scrollWidth": 154,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 189,
+          "top": 1428.496826171875,
+          "bottom": 1534.043701171875
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 286,
+          "scrollWidth": 286,
+          "whiteSpace": "normal",
+          "left": 52,
+          "right": 338,
+          "top": 2269.356201171875,
+          "bottom": 2337.746826171875
+        },
+        "longMoney": {
+          "present": true,
+          "width": 320,
+          "scrollWidth": 320,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 355,
+          "top": 1741.231201171875,
+          "bottom": 1765.231201171875
+        },
+        "multiWordStatus": {
+          "present": true,
+          "width": 154,
+          "scrollWidth": 154,
+          "whiteSpace": "normal",
+          "left": 201,
+          "right": 355,
+          "top": 1428.496826171875,
+          "bottom": 1470.715576171875
+        }
+      },
+      "invoices": {
+        "viewportWidth": 390,
+        "innerWidth": 390,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 7,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 328,
+          "scrollWidth": 328,
+          "whiteSpace": "normal",
+          "left": 31,
+          "right": 359,
+          "top": 465.9791259765625,
+          "bottom": 507.9791259765625
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 356,
+          "scrollWidth": 356,
+          "whiteSpace": "normal",
+          "left": 17,
+          "right": 373,
+          "top": 367.3541259765625,
+          "bottom": 440.6666259765625
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      },
+      "clients": {
+        "viewportWidth": 390,
+        "innerWidth": 390,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 6,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 316,
+          "scrollWidth": 316,
+          "whiteSpace": "normal",
+          "left": 37,
+          "right": 353,
+          "top": 328.75,
+          "bottom": 404.3125
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": false
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      }
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "overview": {
+        "viewportWidth": 768,
+        "innerWidth": 768,
+        "bodyScrollWidth": 768,
+        "documentScrollWidth": 768,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 8,
+        "buttonsInViewport": 8,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 698,
+          "scrollWidth": 698,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 733,
+          "top": 1294.6856689453125,
+          "bottom": 1315.7950439453125
+        },
+        "longQuote": {
+          "present": true,
+          "width": 343,
+          "scrollWidth": 343,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 378,
+          "top": 1219.6700439453125,
+          "bottom": 1261.8887939453125
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 664,
+          "scrollWidth": 664,
+          "whiteSpace": "normal",
+          "left": 52,
+          "right": 716,
+          "top": 1813.1387939453125,
+          "bottom": 1835.9356689453125
+        },
+        "longMoney": {
+          "present": true,
+          "width": 698,
+          "scrollWidth": 698,
+          "whiteSpace": "normal",
+          "left": 35,
+          "right": 733,
+          "top": 1447.9669189453125,
+          "bottom": 1471.9669189453125
+        },
+        "multiWordStatus": {
+          "present": true,
+          "width": 343,
+          "scrollWidth": 343,
+          "whiteSpace": "normal",
+          "left": 390,
+          "right": 733,
+          "top": 1219.6700439453125,
+          "bottom": 1240.7794189453125
+        }
+      },
+      "invoices": {
+        "viewportWidth": 768,
+        "innerWidth": 768,
+        "bodyScrollWidth": 768,
+        "documentScrollWidth": 768,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 7,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 706,
+          "scrollWidth": 706,
+          "whiteSpace": "normal",
+          "left": 31,
+          "right": 737,
+          "top": 445.96875,
+          "bottom": 466.96875
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 734,
+          "scrollWidth": 734,
+          "whiteSpace": "normal",
+          "left": 17,
+          "right": 751,
+          "top": 368.34375,
+          "bottom": 420.65625
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      },
+      "clients": {
+        "viewportWidth": 768,
+        "innerWidth": 768,
+        "bodyScrollWidth": 768,
+        "documentScrollWidth": 768,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 6,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 694,
+          "scrollWidth": 694,
+          "whiteSpace": "normal",
+          "left": 37,
+          "right": 731,
+          "top": 328.75,
+          "bottom": 379.125
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": false
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      }
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "overview": {
+        "viewportWidth": 1280,
+        "innerWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "documentScrollWidth": 1280,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 8,
+        "buttonsInViewport": 9,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 384,
+          "scrollWidth": 384,
+          "whiteSpace": "normal",
+          "left": 824.6875,
+          "right": 1208.984375,
+          "top": 1054.6978759765625,
+          "bottom": 1096.9166259765625
+        },
+        "longQuote": {
+          "present": true,
+          "width": 256,
+          "scrollWidth": 256,
+          "whiteSpace": "normal",
+          "left": 331,
+          "right": 587.1875,
+          "top": 1054.6978759765625,
+          "bottom": 1118.0260009765625
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 480,
+          "scrollWidth": 480,
+          "whiteSpace": "normal",
+          "left": 348,
+          "right": 828.15625,
+          "top": 1585.7916259765625,
+          "bottom": 1631.3853759765625
+        },
+        "longMoney": {
+          "present": true,
+          "width": 180,
+          "scrollWidth": 180,
+          "whiteSpace": "normal",
+          "left": 331,
+          "right": 511.265625,
+          "top": 1250.1978759765625,
+          "bottom": 1274.1978759765625
+        },
+        "multiWordStatus": {
+          "present": true,
+          "width": 214,
+          "scrollWidth": 214,
+          "whiteSpace": "normal",
+          "left": 599.1875,
+          "right": 812.6875,
+          "top": 1054.6978759765625,
+          "bottom": 1075.8072509765625
+        }
+      },
+      "invoices": {
+        "viewportWidth": 1280,
+        "innerWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "documentScrollWidth": 1280,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 8,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 174,
+          "scrollWidth": 174,
+          "whiteSpace": "normal",
+          "left": 489.859375,
+          "right": 663.375,
+          "top": 188.59375,
+          "bottom": 293.59375
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": true,
+          "width": 163,
+          "scrollWidth": 163,
+          "whiteSpace": "normal",
+          "left": 309,
+          "right": 471.859375,
+          "top": 174.59375,
+          "bottom": 327.59375
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      },
+      "clients": {
+        "viewportWidth": 1280,
+        "innerWidth": 1280,
+        "bodyScrollWidth": 1280,
+        "documentScrollWidth": 1280,
+        "noHorizontalPageOverflow": true,
+        "noCardContentClipping": true,
+        "noActionButtonOffscreen": true,
+        "cardCount": 0,
+        "buttonsInViewport": 7,
+        "overflowBoxes": [],
+        "offscreenButtons": [],
+        "longClient": {
+          "present": true,
+          "width": 404,
+          "scrollWidth": 404,
+          "whiteSpace": "normal",
+          "left": 329,
+          "right": 733,
+          "top": 124.359375,
+          "bottom": 174.734375
+        },
+        "longQuote": {
+          "present": false
+        },
+        "longInvoice": {
+          "present": false
+        },
+        "longMoney": {
+          "present": false
+        },
+        "multiWordStatus": {
+          "present": false
+        }
+      }
+    }
+  ],
+  "modals": [
+    {
+      "viewport": "320x700",
+      "name": "Record Payment",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 20,
+          "right": 300,
+          "top": 204.109375,
+          "bottom": 511.875,
+          "width": 278,
+          "scrollWidth": 278,
+          "height": 306,
+          "scrollHeight": 306
+        },
+        "controls": [
+          {
+            "left": 266.9375,
+            "right": 279,
+            "top": 255.34375,
+            "bottom": 286.34375,
+            "width": 12,
+            "scrollWidth": 12,
+            "height": 31,
+            "scrollHeight": 31
+          },
+          {
+            "left": 41,
+            "right": 279,
+            "top": 364.28125,
+            "bottom": 411.28125,
+            "width": 236,
+            "scrollWidth": 236,
+            "height": 45,
+            "scrollHeight": 45
+          },
+          {
+            "left": 41,
+            "right": 154,
+            "top": 435.28125,
+            "bottom": 490.875,
+            "width": 111,
+            "scrollWidth": 111,
+            "height": 54,
+            "scrollHeight": 54
+          },
+          {
+            "left": 166,
+            "right": 279,
+            "top": 435.28125,
+            "bottom": 490.875,
+            "width": 111,
+            "scrollWidth": 111,
+            "height": 54,
+            "scrollHeight": 54
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "320x700",
+      "name": "Export Purpose",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 12,
+          "right": 308,
+          "top": 177.046875,
+          "bottom": 538.9375,
+          "width": 294,
+          "scrollWidth": 294,
+          "height": 360,
+          "scrollHeight": 360
+        },
+        "controls": [
+          {
+            "left": 33,
+            "right": 287,
+            "top": 336.6875,
+            "bottom": 378.6875,
+            "width": 252,
+            "scrollWidth": 252,
+            "height": 40,
+            "scrollHeight": 40
+          },
+          {
+            "left": 48,
+            "right": 61,
+            "top": 416.3125,
+            "bottom": 432.3125,
+            "width": 13,
+            "scrollWidth": 13,
+            "height": 16,
+            "scrollHeight": 16
+          },
+          {
+            "left": 33,
+            "right": 154,
+            "top": 477.9375,
+            "bottom": 517.9375,
+            "width": 119,
+            "scrollWidth": 119,
+            "height": 38,
+            "scrollHeight": 38
+          },
+          {
+            "left": 166,
+            "right": 287,
+            "top": 477.9375,
+            "bottom": 517.9375,
+            "width": 119,
+            "scrollWidth": 119,
+            "height": 38,
+            "scrollHeight": 38
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "375x812",
+      "name": "Record Payment",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 20,
+          "right": 355,
+          "top": 269.625,
+          "bottom": 558.359375,
+          "width": 333,
+          "scrollWidth": 333,
+          "height": 287,
+          "scrollHeight": 287
+        },
+        "controls": [
+          {
+            "left": 321.9375,
+            "right": 334,
+            "top": 311.34375,
+            "bottom": 342.34375,
+            "width": 12,
+            "scrollWidth": 12,
+            "height": 31,
+            "scrollHeight": 31
+          },
+          {
+            "left": 41,
+            "right": 334,
+            "top": 410.765625,
+            "bottom": 457.765625,
+            "width": 291,
+            "scrollWidth": 291,
+            "height": 45,
+            "scrollHeight": 45
+          },
+          {
+            "left": 41,
+            "right": 181.5,
+            "top": 481.765625,
+            "bottom": 537.359375,
+            "width": 139,
+            "scrollWidth": 139,
+            "height": 54,
+            "scrollHeight": 54
+          },
+          {
+            "left": 193.5,
+            "right": 334,
+            "top": 481.765625,
+            "bottom": 537.359375,
+            "width": 139,
+            "scrollWidth": 139,
+            "height": 54,
+            "scrollHeight": 54
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "375x812",
+      "name": "Export Purpose",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 12,
+          "right": 363,
+          "top": 241.359375,
+          "bottom": 586.625,
+          "width": 349,
+          "scrollWidth": 349,
+          "height": 343,
+          "scrollHeight": 343
+        },
+        "controls": [
+          {
+            "left": 33,
+            "right": 342,
+            "top": 401,
+            "bottom": 443,
+            "width": 307,
+            "scrollWidth": 307,
+            "height": 40,
+            "scrollHeight": 40
+          },
+          {
+            "left": 48,
+            "right": 64,
+            "top": 472.3125,
+            "bottom": 488.3125,
+            "width": 16,
+            "scrollWidth": 16,
+            "height": 16,
+            "scrollHeight": 16
+          },
+          {
+            "left": 33,
+            "right": 181.5,
+            "top": 525.625,
+            "bottom": 565.625,
+            "width": 147,
+            "scrollWidth": 147,
+            "height": 38,
+            "scrollHeight": 38
+          },
+          {
+            "left": 193.5,
+            "right": 342,
+            "top": 525.625,
+            "bottom": 565.625,
+            "width": 147,
+            "scrollWidth": 147,
+            "height": 38,
+            "scrollHeight": 38
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "390x844",
+      "name": "Record Payment",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 20,
+          "right": 370,
+          "top": 284.58905029296875,
+          "bottom": 573.3234252929688,
+          "width": 348,
+          "scrollWidth": 348,
+          "height": 287,
+          "scrollHeight": 287
+        },
+        "controls": [
+          {
+            "left": 336.9375,
+            "right": 349,
+            "top": 326.30780029296875,
+            "bottom": 357.30780029296875,
+            "width": 12,
+            "scrollWidth": 12,
+            "height": 31,
+            "scrollHeight": 31
+          },
+          {
+            "left": 41,
+            "right": 349,
+            "top": 425.72967529296875,
+            "bottom": 472.72967529296875,
+            "width": 306,
+            "scrollWidth": 306,
+            "height": 45,
+            "scrollHeight": 45
+          },
+          {
+            "left": 41,
+            "right": 189,
+            "top": 496.72967529296875,
+            "bottom": 552.3234252929688,
+            "width": 146,
+            "scrollWidth": 146,
+            "height": 54,
+            "scrollHeight": 54
+          },
+          {
+            "left": 201,
+            "right": 349,
+            "top": 496.72967529296875,
+            "bottom": 552.3234252929688,
+            "width": 146,
+            "scrollWidth": 146,
+            "height": 54,
+            "scrollHeight": 54
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "390x844",
+      "name": "Export Purpose",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 12,
+          "right": 378,
+          "top": 257.359375,
+          "bottom": 602.625,
+          "width": 364,
+          "scrollWidth": 364,
+          "height": 343,
+          "scrollHeight": 343
+        },
+        "controls": [
+          {
+            "left": 33,
+            "right": 357,
+            "top": 417,
+            "bottom": 459,
+            "width": 322,
+            "scrollWidth": 322,
+            "height": 40,
+            "scrollHeight": 40
+          },
+          {
+            "left": 48,
+            "right": 64,
+            "top": 488.3125,
+            "bottom": 504.3125,
+            "width": 16,
+            "scrollWidth": 16,
+            "height": 16,
+            "scrollHeight": 16
+          },
+          {
+            "left": 33,
+            "right": 189,
+            "top": 541.625,
+            "bottom": 581.625,
+            "width": 154,
+            "scrollWidth": 154,
+            "height": 38,
+            "scrollHeight": 38
+          },
+          {
+            "left": 201,
+            "right": 357,
+            "top": 541.625,
+            "bottom": 581.625,
+            "width": 154,
+            "scrollWidth": 154,
+            "height": 38,
+            "scrollHeight": 38
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "768x1024",
+      "name": "Record Payment",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 154,
+          "right": 614,
+          "top": 372.625,
+          "bottom": 667.359375,
+          "width": 458,
+          "scrollWidth": 458,
+          "height": 293,
+          "scrollHeight": 293
+        },
+        "controls": [
+          {
+            "left": 568.9375,
+            "right": 581,
+            "top": 426.34375,
+            "bottom": 457.34375,
+            "width": 12,
+            "scrollWidth": 12,
+            "height": 31,
+            "scrollHeight": 31
+          },
+          {
+            "left": 187,
+            "right": 581,
+            "top": 525.765625,
+            "bottom": 572.765625,
+            "width": 392,
+            "scrollWidth": 392,
+            "height": 45,
+            "scrollHeight": 45
+          },
+          {
+            "left": 187,
+            "right": 378,
+            "top": 596.765625,
+            "bottom": 634.359375,
+            "width": 189,
+            "scrollWidth": 189,
+            "height": 36,
+            "scrollHeight": 36
+          },
+          {
+            "left": 390,
+            "right": 581,
+            "top": 596.765625,
+            "bottom": 634.359375,
+            "width": 189,
+            "scrollWidth": 189,
+            "height": 36,
+            "scrollHeight": 36
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "768x1024",
+      "name": "Export Purpose",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 154,
+          "right": 614,
+          "top": 348.546875,
+          "bottom": 691.4375,
+          "width": 458,
+          "scrollWidth": 458,
+          "height": 341,
+          "scrollHeight": 341
+        },
+        "controls": [
+          {
+            "left": 183,
+            "right": 585,
+            "top": 497.8125,
+            "bottom": 539.8125,
+            "width": 400,
+            "scrollWidth": 400,
+            "height": 40,
+            "scrollHeight": 40
+          },
+          {
+            "left": 198,
+            "right": 214,
+            "top": 569.125,
+            "bottom": 585.125,
+            "width": 16,
+            "scrollWidth": 16,
+            "height": 16,
+            "scrollHeight": 16
+          },
+          {
+            "left": 183,
+            "right": 378,
+            "top": 622.4375,
+            "bottom": 662.4375,
+            "width": 193,
+            "scrollWidth": 193,
+            "height": 38,
+            "scrollHeight": 38
+          },
+          {
+            "left": 390,
+            "right": 585,
+            "top": 622.4375,
+            "bottom": 662.4375,
+            "width": 193,
+            "scrollWidth": 193,
+            "height": 38,
+            "scrollHeight": 38
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "1280x900",
+      "name": "Record Payment",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 410,
+          "right": 870,
+          "top": 309.643310546875,
+          "bottom": 604.377685546875,
+          "width": 458,
+          "scrollWidth": 458,
+          "height": 293,
+          "scrollHeight": 293
+        },
+        "controls": [
+          {
+            "left": 824.9375,
+            "right": 837,
+            "top": 363.362060546875,
+            "bottom": 394.362060546875,
+            "width": 12,
+            "scrollWidth": 12,
+            "height": 31,
+            "scrollHeight": 31
+          },
+          {
+            "left": 443,
+            "right": 837,
+            "top": 462.783935546875,
+            "bottom": 509.783935546875,
+            "width": 392,
+            "scrollWidth": 392,
+            "height": 45,
+            "scrollHeight": 45
+          },
+          {
+            "left": 443,
+            "right": 634,
+            "top": 533.783935546875,
+            "bottom": 571.377685546875,
+            "width": 189,
+            "scrollWidth": 189,
+            "height": 36,
+            "scrollHeight": 36
+          },
+          {
+            "left": 646,
+            "right": 837,
+            "top": 533.783935546875,
+            "bottom": 571.377685546875,
+            "width": 189,
+            "scrollWidth": 189,
+            "height": 36,
+            "scrollHeight": 36
+          }
+        ]
+      }
+    },
+    {
+      "viewport": "1280x900",
+      "name": "Export Purpose",
+      "result": {
+        "modalWithinViewport": true,
+        "modalHorizontalOverflow": false,
+        "modalVerticalScrollAvailable": true,
+        "closeReachable": true,
+        "primaryReachable": true,
+        "card": {
+          "left": 410,
+          "right": 870,
+          "top": 286.546875,
+          "bottom": 629.4375,
+          "width": 458,
+          "scrollWidth": 458,
+          "height": 341,
+          "scrollHeight": 341
+        },
+        "controls": [
+          {
+            "left": 439,
+            "right": 841,
+            "top": 435.8125,
+            "bottom": 477.8125,
+            "width": 400,
+            "scrollWidth": 400,
+            "height": 40,
+            "scrollHeight": 40
+          },
+          {
+            "left": 454,
+            "right": 470,
+            "top": 507.125,
+            "bottom": 523.125,
+            "width": 16,
+            "scrollWidth": 16,
+            "height": 16,
+            "scrollHeight": 16
+          },
+          {
+            "left": 439,
+            "right": 634,
+            "top": 560.4375,
+            "bottom": 600.4375,
+            "width": 193,
+            "scrollWidth": 193,
+            "height": 38,
+            "scrollHeight": 38
+          },
+          {
+            "left": 646,
+            "right": 841,
+            "top": 560.4375,
+            "bottom": 600.4375,
+            "width": 193,
+            "scrollWidth": 193,
+            "height": 38,
+            "scrollHeight": 38
+          }
+        ]
+      }
+    }
+  ],
+  "empty": {
+    "viewportWidth": 320,
+    "innerWidth": 320,
+    "bodyScrollWidth": 320,
+    "documentScrollWidth": 320,
+    "noHorizontalPageOverflow": true,
+    "noCardContentClipping": true,
+    "noActionButtonOffscreen": true,
+    "cardCount": 6,
+    "buttonsInViewport": 6,
+    "overflowBoxes": [],
+    "offscreenButtons": [],
+    "longClient": {
+      "present": false
+    },
+    "longQuote": {
+      "present": false
+    },
+    "longInvoice": {
+      "present": false
+    },
+    "longMoney": {
+      "present": false
+    },
+    "multiWordStatus": {
+      "present": false
+    }
+  },
+  "error": {
+    "viewportWidth": 320,
+    "innerWidth": 320,
+    "bodyScrollWidth": 320,
+    "documentScrollWidth": 320,
+    "noHorizontalPageOverflow": true,
+    "noCardContentClipping": true,
+    "noActionButtonOffscreen": true,
+    "cardCount": 6,
+    "buttonsInViewport": 8,
+    "overflowBoxes": [],
+    "offscreenButtons": [],
+    "longClient": {
+      "present": false
+    },
+    "longQuote": {
+      "present": false
+    },
+    "longInvoice": {
+      "present": false
+    },
+    "longMoney": {
+      "present": false
+    },
+    "multiWordStatus": {
+      "present": false
+    }
+  },
+  "pageErrors": []
+}

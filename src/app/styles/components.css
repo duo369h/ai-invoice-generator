@@ -4807,9 +4807,83 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
     flex-basis: 100%;
   }
 
+  .dashboard-wave1-document {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .dashboard-wave1-document-meta {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .dashboard-invoice-table-wrap {
+    overflow-x: hidden !important;
+  }
+
+  .dashboard-invoice-list-header {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .dashboard-invoice-list-header > div {
+    width: 100%;
+    justify-content: stretch !important;
+  }
+
+  .dashboard-invoice-list-header > div > button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .dashboard-invoice-table {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .dashboard-invoice-table thead {
+    display: none;
+  }
+
+  .dashboard-invoice-table tbody,
+  .dashboard-invoice-table tr,
+  .dashboard-invoice-table td {
+    display: block;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .dashboard-invoice-table tr {
+    padding: 10px 0;
+  }
+
+  .dashboard-invoice-table td {
+    padding: 6px 14px !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .dashboard-invoice-table td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-invoice-table td:nth-child(1)::before { content: 'Invoice #'; }
+  .dashboard-invoice-table td:nth-child(2)::before { content: 'Recipient Client'; }
+  .dashboard-invoice-table td:nth-child(3)::before { content: 'Issue & Due dates'; }
+  .dashboard-invoice-table td:nth-child(4)::before { content: 'Document Total'; }
+  .dashboard-invoice-table td:nth-child(5)::before { content: 'Status'; }
+  .dashboard-invoice-table td:nth-child(6)::before { content: 'Actions'; }
+
+  .dashboard-invoice-actions {
+    justify-content: flex-start !important;
   }
 
   .dashboard-wave1-section-heading {
