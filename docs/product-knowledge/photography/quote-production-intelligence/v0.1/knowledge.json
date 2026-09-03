@@ -1,0 +1,85 @@
+{
+  "id": "photography.quote-production-intelligence.v0.1",
+  "version": "0.1",
+  "title": "Corvioz Quote & Production Intelligence Product Model v0.1",
+  "language": "zh-CN",
+  "status": "ACCEPTED_EVIDENCE_BACKED_DESIGN_INPUT",
+  "knowledge_authority": "ACCEPTED",
+  "implementation_authority": "NO",
+  "runtime_authority": "NO",
+  "current_mainline_impact": "NONE",
+  "source_document": "Corvioz_Quote_Production_Intelligence_Product_Model_v0.1_CN.md",
+  "source_sha256": "bdbfc170799e1d7ff46c6649c304a0315f53bd3f4abb545dd58af3ab5b77db1d",
+  "created_at": "2026-09-03T14:36:12Z",
+  "evidence_model": {
+    "E1": "Strong external evidence",
+    "E2": "Moderate external evidence",
+    "F": "Founder experience",
+    "H": "Product hypothesis or product derivation requiring later validation"
+  },
+  "primary_consumers": [
+    "PHOTOGRAPHY_TEMPLATE_USABILITY"
+  ],
+  "future_consumers": [
+    "INTELLIGENCE_INTEGRATION_POLISH",
+    "INTERNAL_BUDGET",
+    "PERSONAL_PRICING_INTELLIGENCE"
+  ],
+  "core_principles": [
+    {"id": "BRIEF_IS_NOT_SCOPE", "statement": "A client brief is not quote-ready scope."},
+    {"id": "QUANTIFY_BEFORE_FINAL_QUOTE", "statement": "Quantify deliverables, production variables, usage, and assumptions before a final quote."},
+    {"id": "REQUIREMENT_CREATES_DEPENDENCIES", "statement": "Requirements may create production dependencies and associated cost."},
+    {"id": "INTERNAL_DETAIL_AND_CLIENT_PRESENTATION_ARE_DIFFERENT_CONCERNS", "statement": "Internal budget detail and client-facing disclosure are separate concerns."},
+    {"id": "CLIENT_REQUIREMENT_AND_AI_RECOMMENDATION_MUST_BE_SEPARATED", "statement": "Retain explicit client requirements separately from Corvioz recommendations."},
+    {"id": "USAGE_IS_PART_OF_COMMERCIAL_SCOPE", "statement": "Usage and licensing are commercial-scope variables."},
+    {"id": "SCOPE_CHANGE_REQUIRES_COMMERCIAL_REVIEW", "statement": "Changes to scope require commercial review rather than silent overwrite."},
+    {"id": "PERSONAL_HISTORY_IS_MORE_TRUSTWORTHY_THAN_FAKE_MARKET_AVERAGES", "statement": "A creator's verified personal history is preferable to invented or falsely precise market averages."},
+    {"id": "REGIONAL_RULES_MATTER", "statement": "Regional market and operating rules matter and must not be flattened into universal defaults."},
+    {"id": "LLM_DOES_NOT_OWN_BUSINESS_TRUTH", "statement": "An LLM may assist interpretation but does not own pricing, scope, legal, or other business truth."}
+  ],
+  "design_directions": [
+    "BRIEF_TO_SCOPE",
+    "BRIEF_MATURITY",
+    "PRELIMINARY_ESTIMATE",
+    "ESTIMATE_VERSION_HISTORY",
+    "SCOPE_DELTA_TRACKING",
+    "INTERNAL_BUDGET",
+    "CLIENT_PRESENTATION_GROUPING",
+    "REQUIREMENT_DEPENDENCY_COST",
+    "PRODUCTION_COMPLEXITY",
+    "EVENT_SERVICE_MODE",
+    "KNOWN_VS_UNKNOWN_BUDGET",
+    "USAGE_LICENSING",
+    "ESTIMATE_BID_QUOTE_SEMANTIC_DIFFERENCE",
+    "PRICE_OBJECTION_DIAGNOSIS",
+    "REVISION_VS_ADDITIONAL_POST_VS_RESHOOT",
+    "APPROVAL_TYPES",
+    "PRODUCTION_TIME_COMPONENTS",
+    "OVERTIME_STRUCTURE",
+    "PERSONAL_PRICING_BASELINE",
+    "REGIONAL_KNOWLEDGE_LAYER",
+    "AI_BUSINESS_PRODUCER_VISION"
+  ],
+  "deferred_items": [
+    "PERSONAL_PRICING_INTELLIGENCE",
+    "REGIONAL_MARKET_PRICING",
+    "MARKET_RATE_ENGINE"
+  ],
+  "prohibited_assumptions": [
+    {"id": "GLOBAL_SINGLE_PRICING_RULEBOOK", "do_not_hardcode": true},
+    {"id": "GLOBAL_DEFAULT_ONE_YEAR_USAGE", "do_not_hardcode": true},
+    {"id": "FIXED_PERPETUAL_LICENSE_PERCENTAGE", "do_not_hardcode": true},
+    {"id": "UNIVERSAL_CREW_THRESHOLD", "do_not_hardcode": true},
+    {"id": "UNIVERSAL_EVENT_STAFFING_RULE", "do_not_hardcode": true},
+    {"id": "CLIENT_QUOTE_ALWAYS_AGGREGATED", "do_not_hardcode": true},
+    {"id": "AUTONOMOUS_MARKET_PRICE", "do_not_hardcode": true},
+    {"id": "LLM_AS_PRICE_SOURCE_OF_TRUTH", "do_not_hardcode": true},
+    {"id": "AUTOMATIC_LEGAL_DECISION", "do_not_hardcode": true}
+  ],
+  "authority_boundary": {
+    "domain_concept_does_not_imply_database_entity": true,
+    "design_input_does_not_imply_current_feature": true,
+    "knowledge_authority_does_not_imply_implementation_authority": true,
+    "implementation_authority_does_not_imply_runtime_authority": true
+  }
+}

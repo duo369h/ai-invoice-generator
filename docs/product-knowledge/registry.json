@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "registry_type": "corvioz_product_knowledge",
+  "entries": [
+    {
+      "id": "photography.quote-production-intelligence.v0.1",
+      "path": "docs/product-knowledge/photography/quote-production-intelligence/v0.1/knowledge.json",
+      "title": "Corvioz Quote & Production Intelligence Product Model v0.1",
+      "status": "ACCEPTED_EVIDENCE_BACKED_DESIGN_INPUT",
+      "knowledge_authority": "ACCEPTED",
+      "implementation_authority": "NO",
+      "primary_consumers": [
+        "PHOTOGRAPHY_TEMPLATE_USABILITY"
+      ],
+      "tags": [
+        "photography",
+        "quote",
+        "production-intelligence",
+        "product-knowledge",
+        "design-input"
+      ],
+      "source_sha256": "bdbfc170799e1d7ff46c6649c304a0315f53bd3f4abb545dd58af3ab5b77db1d"
+    }
+  ]
+}
