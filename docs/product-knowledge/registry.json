@@ -20,6 +20,29 @@
         "design-input"
       ],
       "source_sha256": "bdbfc170799e1d7ff46c6649c304a0315f53bd3f4abb545dd58af3ab5b77db1d"
+    },
+    {
+      "id": "dashboard.ui-ux-design-specification.v0.1",
+      "path": "docs/product-knowledge/dashboard/ui-ux-design/v0.1/knowledge.json",
+      "title": "Corvioz Dashboard UI / UX Design Specification v0.1",
+      "status": "ACCEPTED_DESIGN_INPUT",
+      "knowledge_authority": "ACCEPTED",
+      "implementation_authority": "NO",
+      "primary_consumers": [
+        "R56E-A_DASHBOARD_DESIGN_AUTHORITY"
+      ],
+      "tags": [
+        "dashboard",
+        "ui",
+        "ux",
+        "information-architecture",
+        "interaction-design",
+        "quote-workspace",
+        "progressive-disclosure",
+        "product-knowledge",
+        "design-input"
+      ],
+      "source_sha256": "ca7f939c32e2d3ed4cc833ec0aa983ed50fc46bfc4464fa728238a263b837412"
     }
   ]
 }
