@@ -1,0 +1,484 @@
+import assert from "node:assert";
+import fs from "node:fs";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const ts = require("typescript");
+
+// 1. Transpile and load lib/entitlements.ts
+const entSource = fs.readFileSync("lib/entitlements.ts", "utf8");
+const entJs = ts.transpileModule(entSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+
+const entModule = {};
+const entWrapper = new Function("exports", "require", "module", "__filename", "__dirname", entJs);
+const fakeEntModule = { exports: entModule };
+entWrapper(entModule, (id) => {
+  if (id.includes("planStateAdapter")) return { shadowValidatePlanRead: () => {} };
+  if (id.includes("decisionTelemetry")) return { recordDecisionTelemetry: () => {} };
+  return {};
+}, fakeEntModule, "lib/entitlements.ts", "lib");
+const { getUserEntitlements } = fakeEntModule.exports;
+
+// 2. Transpile and load src/app/lib/supabase.js
+const subSource = fs.readFileSync("src/app/lib/supabase.js", "utf8");
+const subJs = ts.transpileModule(subSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+
+const subModule = {};
+const subWrapper = new Function("exports", "require", "module", "__filename", "__dirname", subJs);
+const fakeSubModule = { exports: subModule };
+subWrapper(subModule, (id) => {
+  if (id.includes("security")) return { defaultPortalExpiry: () => new Date().toISOString(), generatePortalToken: () => "tok", hashPortalToken: (t) => t };
+  if (id.includes("@supabase/supabase-js")) return { createClient: () => ({}) };
+  return {};
+}, fakeSubModule, "src/app/lib/supabase.js", "src/app/lib");
+
+const {
+  getClampedAnniversaryDate,
+  computeMonthlyAnniversaryCycle,
+  resolveUserBillingCycle,
+  getDocumentQuota,
+  getSupabaseQuota,
+  createQuoteWithAtomicQuota,
+  createInvoiceWithAtomicQuota
+} = fakeSubModule.exports;
+
+// 3. Transpile and load email template functions from src/app/lib/email.js
+const emailSource = fs.readFileSync("src/app/lib/email.js", "utf8");
+const emailJs = ts.transpileModule(emailSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+
+const emailModule = {};
+const emailWrapper = new Function("exports", "require", "module", "__filename", "__dirname", emailJs);
+const fakeEmailModule = { exports: emailModule };
+emailWrapper(emailModule, (id) => ({ Resend: function() { return { emails: { send: async () => ({}) } }; }, getSiteUrl: () => "https://corvioz.com" }), fakeEmailModule, "src/app/lib/email.js", "src/app/lib");
+const { getInvoiceSentEmailHtml, getPaymentReminderEmailHtml } = fakeEmailModule.exports;
+
+console.log("==================================================");
+console.log("RUNNING CORVIOZ PRICING V2 CONTRACT TEST SUITE");
+console.log("==================================================");
+
+let passed = 0;
+let failed = 0;
+
+async function test(desc, fn) {
+  try {
+    await fn();
+    console.log(`  ✓ PASS: ${desc}`);
+    passed++;
+  } catch (err) {
+    console.error(`  ✗ FAIL: ${desc}`);
+    console.error(err);
+    failed++;
+  }
+}
+
+async function runAll() {
+  console.log("\n0. Testing Frozen Plan Entitlement Truth...");
+
+  await test("Free keeps Quote + Invoice + branded PDF and denies Portal/Approval", () => {
+    assert.deepStrictEqual(getUserEntitlements("free"), {
+      invoice: true,
+      quote: true,
+      export_pdf: true,
+      pdf_branding: "branded",
+      client_portal: false,
+      client_approval: false,
+      approval_scope: "none",
+      crm: false,
+      automation: false,
+      advanced_invoicing: false,
+      unlimited_invoices: false,
+    });
+  });
+
+  await test("Starter keeps Quote + Invoice + clean PDF and denies Portal/Approval", () => {
+    assert.deepStrictEqual(getUserEntitlements("starter"), {
+      invoice: true,
+      quote: true,
+      export_pdf: true,
+      pdf_branding: "clean",
+      client_portal: false,
+      client_approval: false,
+      approval_scope: "none",
+      crm: false,
+      automation: false,
+      advanced_invoicing: false,
+      unlimited_invoices: false,
+    });
+  });
+
+  await test("Pro keeps Portal and Approval unavailable with clean PDF", () => {
+    const pro = getUserEntitlements("pro");
+    assert.strictEqual(pro.invoice, true);
+    assert.strictEqual(pro.quote, true);
+    assert.strictEqual(pro.export_pdf, true);
+    assert.strictEqual(pro.pdf_branding, "clean");
+    assert.strictEqual(pro.client_portal, false);
+    assert.strictEqual(pro.client_approval, false);
+    assert.strictEqual(pro.approval_scope, "none");
+    assert.strictEqual(pro.unlimited_invoices, false);
+  });
+
+  console.log("\n1. Testing Unified Free Monthly Anniversary Calculation (No Drift)...");
+
+  await test("Preserves Jan 31 anchor without drift: Jan 31 -> Feb 28/29 -> Mar 31 -> Apr 30", () => {
+    const anchor = "2026-01-31T12:00:00.000Z";
+
+    const dFeb = getClampedAnniversaryDate(anchor, 2026, 1);
+    assert.strictEqual(dFeb.getUTCMonth(), 1);
+    assert.strictEqual(dFeb.getUTCDate(), 28);
+
+    const dMar = getClampedAnniversaryDate(anchor, 2026, 2);
+    assert.strictEqual(dMar.getUTCMonth(), 2);
+    assert.strictEqual(dMar.getUTCDate(), 31, "March cycle date must be 31");
+
+    const dApr = getClampedAnniversaryDate(anchor, 2026, 3);
+    assert.strictEqual(dApr.getUTCMonth(), 3);
+    assert.strictEqual(dApr.getUTCDate(), 30);
+
+    const dMay = getClampedAnniversaryDate(anchor, 2026, 4);
+    assert.strictEqual(dMay.getUTCMonth(), 4);
+    assert.strictEqual(dMay.getUTCDate(), 31);
+  });
+
+  await test("Leap year handling: 2024-01-31 clamps to Feb 29", () => {
+    const dLeap = getClampedAnniversaryDate("2024-01-31T10:00:00.000Z", 2024, 1);
+    assert.strictEqual(dLeap.getUTCDate(), 29);
+  });
+
+  console.log("\n2. Testing Starter Subscription Billing Period & Legacy Studio Safety...");
+
+  await test("Starter cycle uses active subscription current_period_start and current_period_end", async () => {
+    const fakeSubStart = "2026-08-10T00:00:00.000Z";
+    const fakeSubEnd = "2026-09-10T00:00:00.000Z";
+    const mockSupabase = {
+      from: (table) => ({
+        select: () => ({
+          eq: () => ({
+            in: () => ({
+              order: () => ({
+                maybeSingle: async () => ({
+                  data: { current_period_start: fakeSubStart, current_period_end: fakeSubEnd, status: "active" }
+                })
+              })
+            })
+          })
+        })
+      })
+    };
+
+    const cycle = await resolveUserBillingCycle(mockSupabase, "starter-user-1", "starter");
+    assert.strictEqual(cycle.cycleStart, fakeSubStart);
+    assert.strictEqual(cycle.cycleEnd, fakeSubEnd);
+  });
+
+  await test("Legacy plan='studio' is NOT treated as Free=5 in getDocumentQuota and getSupabaseQuota", async () => {
+    const mockSupabase = {};
+    const quota = await getDocumentQuota(mockSupabase, "legacy-studio-user", "studio");
+    assert.strictEqual(quota.documentsLimit, Infinity, "Legacy studio must have unlimited quota in getDocumentQuota");
+    assert.strictEqual(quota.documentsAllowed, true);
+
+    const legacyQuota = await getSupabaseQuota(mockSupabase, "legacy-studio-user", "studio");
+    assert.strictEqual(legacyQuota.documentsLimit, Infinity, "Legacy studio must have unlimited quota in getSupabaseQuota adapter");
+    assert.strictEqual(legacyQuota.invoicesLimit, Infinity);
+  });
+
+  console.log("\n3. Testing getSupabaseQuota Reconciliation & getDocumentQuota Shape Compatibility...");
+
+  await test("getSupabaseQuota resolves Starter=30 and Free=5 (total documents, no calendar-month drift)", async () => {
+    const mockSubSupabase = {
+      from: (table) => ({
+        select: () => ({
+          eq: () => ({
+            in: () => ({
+              order: () => ({
+                maybeSingle: async () => ({
+                  data: { current_period_start: "2026-08-01T00:00:00.000Z", current_period_end: "2026-09-01T00:00:00.000Z", status: "active" }
+                })
+              })
+            }),
+            gte: () => ({
+              lt: async () => ({ count: 12 })
+            })
+          })
+        })
+      })
+    };
+
+    const starterQuota = await getSupabaseQuota(mockSubSupabase, "user-starter", "starter");
+    assert.strictEqual(starterQuota.plan, "starter");
+    assert.strictEqual(starterQuota.documentsLimit, 30);
+    assert.strictEqual(starterQuota.documentsUsed, 24);
+    assert.strictEqual(starterQuota.documentsAllowed, true);
+    assert.strictEqual(starterQuota.invoicesUsed, 24);
+    assert.strictEqual(starterQuota.invoicesLimit, 30);
+  });
+
+  await test("getDocumentQuota provides all canonical and backward-compatibility fields", async () => {
+    const mockFreeSupabase = {
+      from: (table) => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { created_at: "2026-01-15T00:00:00.000Z" }
+            }),
+            gte: () => ({
+              lt: async () => ({ count: 2 })
+            })
+          })
+        })
+      })
+    };
+
+    const freeQuota = await getDocumentQuota(mockFreeSupabase, "user-free", "free");
+    assert.strictEqual(typeof freeQuota.plan, "string");
+    assert.strictEqual(typeof freeQuota.documentsUsed, "number");
+    assert.strictEqual(typeof freeQuota.documentsLimit, "number");
+    assert.strictEqual(typeof freeQuota.documentsAllowed, "boolean");
+    assert.strictEqual(typeof freeQuota.invoicesUsed, "number");
+    assert.strictEqual(typeof freeQuota.quotesUsed, "number");
+    assert.strictEqual(typeof freeQuota.totalUsed, "number");
+    assert.strictEqual(typeof freeQuota.cycleStart, "string");
+    assert.strictEqual(typeof freeQuota.cycleEnd, "string");
+  });
+
+  console.log("\n4. Testing Atomic Document Creation & Route-Level Status Mapping...");
+
+  await test("Invoice POST success: returns HTTP 201, no ReferenceError, exactly one document data", async () => {
+    const fakeDoc = { id: "inv_123", invoice_number: "INV-1001", total: 5000, currency: "USD", items: [] };
+    const mockSupabase = {
+      rpc: async (fn, params) => {
+        if (fn === "check_and_create_invoice") {
+          return { data: fakeDoc, error: null };
+        }
+        return { data: null, error: new Error("unknown rpc") };
+      }
+    };
+
+    // Call atomic helper
+    const creation = await createInvoiceWithAtomicQuota(mockSupabase, "user-inv-success", "free", fakeDoc);
+    assert.ok(creation.data, "creation.data must exist");
+    assert.strictEqual(creation.data.id, "inv_123");
+    assert.strictEqual(creation.data.invoice_number, "INV-1001");
+  });
+
+  await test("Atomic quota rejection maps to HTTP 403 with code=QUOTA_EXCEEDED", async () => {
+    const mockQuotaSupabase = {
+      rpc: async () => ({ data: null, error: { message: "QUOTA_EXCEEDED: limit reached" } })
+    };
+
+    let quoteStatus = null;
+    let quoteCode = null;
+    try {
+      await createQuoteWithAtomicQuota(mockQuotaSupabase, "user-quota", "free", { quote_number: "Q-FAIL" });
+    } catch (err) {
+      if (err.code === "QUOTA_EXCEEDED" || err.status === 403) {
+        quoteStatus = 403;
+        quoteCode = "QUOTA_EXCEEDED";
+      }
+    }
+    assert.strictEqual(quoteStatus, 403);
+    assert.strictEqual(quoteCode, "QUOTA_EXCEEDED");
+
+    let invoiceStatus = null;
+    let invoiceCode = null;
+    try {
+      await createInvoiceWithAtomicQuota(mockQuotaSupabase, "user-quota", "starter", { invoice_number: "I-FAIL" });
+    } catch (err) {
+      if (err.code === "QUOTA_EXCEEDED" || err.status === 403) {
+        invoiceStatus = 403;
+        invoiceCode = "QUOTA_EXCEEDED";
+      }
+    }
+    assert.strictEqual(invoiceStatus, 403);
+    assert.strictEqual(invoiceCode, "QUOTA_EXCEEDED");
+  });
+
+  await test("Unexpected database/RPC failure fails closed with HTTP 500 code=DATABASE_ERROR", async () => {
+    const mockBrokenSupabase = {
+      rpc: async () => ({ data: null, error: { message: "Connection terminated unexpectedly" } })
+    };
+
+    let quoteStatus = null;
+    let quoteCode = null;
+    try {
+      await createQuoteWithAtomicQuota(mockBrokenSupabase, "user-db", "free", { quote_number: "Q-ERR" });
+    } catch (err) {
+      if (err.code === "DATABASE_ERROR" || err.status === 500) {
+        quoteStatus = 500;
+        quoteCode = "DATABASE_ERROR";
+      }
+    }
+    assert.strictEqual(quoteStatus, 500);
+    assert.strictEqual(quoteCode, "DATABASE_ERROR");
+
+    let invoiceStatus = null;
+    let invoiceCode = null;
+    try {
+      await createInvoiceWithAtomicQuota(mockBrokenSupabase, "user-db", "starter", { invoice_number: "I-ERR" });
+    } catch (err) {
+      if (err.code === "DATABASE_ERROR" || err.status === 500) {
+        invoiceStatus = 500;
+        invoiceCode = "DATABASE_ERROR";
+      }
+    }
+    assert.strictEqual(invoiceStatus, 500);
+    assert.strictEqual(invoiceCode, "DATABASE_ERROR");
+  });
+
+  console.log("\n5. Testing Non-Portal Invoice Delivery Rendering Safety & Payment Neutrality...");
+
+  const sampleInvoice = {
+    invoice_number: "INV-1001",
+    client_name: "Acme Studios",
+    currency: "USD",
+    total: 25000,
+    subtotal: 25000,
+    items: [{ description: "Brand Design Services", quantity: 1, unit_price: 25000 }],
+    due_date: "2026-09-01",
+    payment_terms: "Net 30"
+  };
+
+  await test("getInvoiceSentEmailHtml with null portalUrl does NOT contain 'null' URL or broken button", () => {
+    const html = getInvoiceSentEmailHtml(sampleInvoice, null, "Jane Freelancer");
+    assert.ok(!html.includes('href="null"'), "Email HTML must not contain href='null'");
+    assert.ok(!html.includes("View Invoice in Portal"), "Non-portal email must not render portal button");
+    assert.ok(html.includes("INV-1001"), "Email HTML must include invoice number");
+    assert.ok(html.includes("$250.00"), "Email HTML must include formatted total");
+  });
+
+  await test("getPaymentReminderEmailHtml contains zero payment-processing claims", () => {
+    const html = getPaymentReminderEmailHtml(sampleInvoice, null, "Please review by Friday.", "Jane Freelancer");
+    assert.ok(!html.includes("complete your payment via"), "Must not imply payment collection through Corvioz");
+    assert.ok(!html.includes("Pay now"), "Must not include Pay now");
+    assert.ok(!html.includes("payment processing"), "Must not include payment processing");
+  });
+
+  console.log("\n6. Testing Canonical UI Copy Hard Gates & Studio API Semantics...");
+
+  await test("Studio resolves as status=coming_soon, active=false, price=null, features=[]", () => {
+    const pricingRoute = fs.readFileSync("src/app/api/pricing/route.js", "utf8");
+    assert.ok(pricingRoute.includes('id: "studio"'), "Missing Studio plan definition");
+    assert.ok(pricingRoute.includes('status: "coming_soon"'), "Studio status must be coming_soon");
+    assert.ok(pricingRoute.includes("active: false"), "Studio active must be false");
+    assert.ok(pricingRoute.includes("price_monthly: null"), "Studio price_monthly must be null");
+    assert.ok(pricingRoute.includes("features: []"), "Studio features must be empty");
+  });
+
+  console.log("\n7. Testing Product Truth Hard Negative Gates Scan (including email.js)...");
+
+  const SCANNED_FILES = [
+    "src/app/pricing/page.js",
+    "src/app/api/pricing/route.js",
+    "src/app/pricing/pricing.css",
+    "src/app/lib/email.js"
+  ];
+
+  const PROHIBITED_TERMS = [
+    "Proposal",
+    "CRM",
+    "Save 17%",
+    "Save ~16%",
+    "2 months on us",
+    "Team seats",
+    "team seats",
+    "Multi-user",
+    "multi-user",
+    "white-label",
+    "White-label",
+    "custom domain",
+    "Custom domain",
+    "dedicated account manager",
+    "Dedicated account manager",
+    "Contracts",
+    "E-signature",
+    "Calendar",
+    "Lead Tracking",
+    "Lead tracking",
+    "payment processing",
+    "payment collection",
+    "complete your payment via"
+  ];
+
+  await test("Public pricing and email files contain ZERO prohibited terms", () => {
+    for (const file of SCANNED_FILES) {
+      if (!fs.existsSync(file)) continue;
+      const text = fs.readFileSync(file, "utf8");
+      for (const term of PROHIBITED_TERMS) {
+        assert.ok(!text.includes(term), `Prohibited term "${term}" found in ${file}`);
+      }
+    }
+  });
+
+  console.log("\n8. Testing Paddle Fail-Closed Behavior...");
+
+  await test("Pricing Page checkout handler requires valid token, env, and price ID (no unsafe fallback)", () => {
+    const pageJs = fs.readFileSync("src/app/pricing/page.js", "utf8");
+    assert.ok(!pageJs.includes('NEXT_PUBLIC_PADDLE_ENV || "sandbox"'), "Must not have silent sandbox fallback");
+    assert.ok(!pageJs.includes('NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "test_token"'), "Must not have silent test_token fallback");
+    assert.ok(pageJs.includes("resolvePaddleEnvironment()"), "Must use the single Paddle environment authority");
+    assert.ok(pageJs.includes("validatePaddleClientToken("), "Must validate the token class for the resolved environment");
+    assert.ok(pageJs.includes("targetCard?.priceMeta?.priceId"), "Must use the view-model priceMeta price ID authority");
+  });
+
+
+  console.log("\n9. Testing Single Atomic RPC Authority & Migration Safety...");
+
+  await test("createQuoteWithAtomicQuota(studio) uses the same atomic RPC path", async () => {
+    const fakeDoc = { id: "q_studio_1", quote_number: "Q-STUDIO", total: 10000, items: [] };
+    const calls = [];
+    const mockSupabase = {
+      rpc: async (name) => { calls.push(name); return { data: fakeDoc, error: null }; }
+    };
+
+    const result = await createQuoteWithAtomicQuota(mockSupabase, "user-studio", "studio", fakeDoc);
+    assert.deepStrictEqual(calls, ["check_and_create_quote"]);
+    assert.strictEqual(result.data.id, "q_studio_1");
+  });
+
+  await test("createInvoiceWithAtomicQuota(studio) uses the same atomic RPC path", async () => {
+    const fakeDoc = { id: "inv_studio_1", invoice_number: "INV-STUDIO", total: 10000, items: [] };
+    const calls = [];
+    const mockSupabase = {
+      rpc: async (name) => { calls.push(name); return { data: fakeDoc, error: null }; }
+    };
+
+    const result = await createInvoiceWithAtomicQuota(mockSupabase, "user-studio", "studio", fakeDoc);
+    assert.deepStrictEqual(calls, ["check_and_create_invoice"]);
+    assert.strictEqual(result.data.id, "inv_studio_1");
+  });
+
+  await test("Migration SQL adds the nullable Quote Client link without destructive plan writes", () => {
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("ADD COLUMN IF NOT EXISTS client_id UUID"), "Migration must add nullable quote client_id");
+    assert.ok(sql.includes("quotes_client_id_fkey"), "Migration must add the quote-client foreign key");
+  });
+
+  await test("SQL invoice authority ignores caller settlement fields", () => {
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("'unpaid'"), "New invoices must be unpaid");
+    assert.match(sql, /'unpaid',\s+0,\s+v_total/, "New invoices must start with zero paid and total due");
+  });
+
+  await test("SQL starter subscription query requires period to be active (NOW inside start and end)", () => {
+    const sql = fs.readFileSync("supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql", "utf8");
+    assert.ok(sql.includes("current_period_start <= v_now"), "Must check current_period_start <= current time");
+    assert.ok(sql.includes("current_period_end > v_now"), "Must check current_period_end > current time");
+  });
+
+  console.log("==================================================");
+  console.log(`TEST SUITE SUMMARY: ${passed} PASSED, ${failed} FAILED`);
+  console.log("==================================================");
+
+  if (failed > 0) process.exit(1);
+}
+
+runAll().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

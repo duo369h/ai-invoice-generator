@@ -1,0 +1,64 @@
+CORVIOZ R56B2 CORRECTED R56B1 BLOB MANIFEST
+BEFORE_SOURCE_SHA=dec38dc05bccfd5116c0beb1ad7cd0fb16196092
+BEFORE_R56B1_PARENT_SHA=cf9a9114b225c1e447d63db619fbc9cf273b372b
+AFTER_SOURCE_SHA=dec38dc05bccfd5116c0beb1ad7cd0fb16196092
+
+The R56B1 before/after entries below are resolved independently from Git:
+BEFORE_BLOB=git rev-parse R56B1_PARENT_SHA:path
+AFTER_BLOB=git rev-parse R56B1_SHA:path
+ABSENT_AT_BASE is used only for files introduced by R56B1. Audit-package files and snapshots are excluded.
+
+lib/entitlements.ts
+  BEFORE_BLOB=5699b024a92872259d33d0ed31ac668eb0be5214
+  AFTER_BLOB=0e193d659c6abef890cca1ff9ae32d38a7c91abf
+scripts/test-dashboard-entitlement-runtime.mjs
+  BEFORE_BLOB=9f775c07da7d41684047d0b782fc08421ccbaf59
+  AFTER_BLOB=ab53d2dc980906f96ef49bd54fc9b6ac88f497f3
+scripts/test-pricing-v2-suite.mjs
+  BEFORE_BLOB=0b247d4ece39aa659d35d3093248a241544d8362
+  AFTER_BLOB=1f3ded48c03c71d7c23d665ad1925bd677f042d3
+scripts/test-r56b1-client-create-runtime.mjs
+  BEFORE_BLOB=ABSENT_AT_BASE
+  AFTER_BLOB=3e80a751b2727c4a98edc7fd478206d53e98da1f
+scripts/test-r56b1-dashboard-contract-corrections.mjs
+  BEFORE_BLOB=ABSENT_AT_BASE
+  AFTER_BLOB=1f2bd074f1eb41679b61f4d3c67881f446e99b79
+scripts/test-r56b1-entitlements-route-runtime.mjs
+  BEFORE_BLOB=ABSENT_AT_BASE
+  AFTER_BLOB=ea3a0ec33792a6a6a4e4becade2dae23db535378
+scripts/test-r56b1-portal-route-runtime.mjs
+  BEFORE_BLOB=ABSENT_AT_BASE
+  AFTER_BLOB=7af0bb77678a2e9827033281e1d8c67e46cf5fed
+scripts/test-support/route-runtime-loader.mjs
+  BEFORE_BLOB=19da069db210a6b02d2c90cab1b5162d18dbd4fc
+  AFTER_BLOB=78ff90ea5481059fd15f82b30fb7e3798a300a75
+scripts/test-support/route-runtime-mocks.mjs
+  BEFORE_BLOB=e60436af51fb2bd2f483ae1897abe727a1e59e0f
+  AFTER_BLOB=1b30945a9628ee858f4d351c3d5f1301191ac9a5
+src/app/api/clients/route.js
+  BEFORE_BLOB=c0836b6c416e57bbfbe50036dff59283a253a9e6
+  AFTER_BLOB=8ae6261273f9980ed523f25d8a4730cbaebd4bb0
+src/app/api/portal/token/generate/route.js
+  BEFORE_BLOB=ffacbdc532e4f2a6d031630e3d6f7ac92ba942e1
+  AFTER_BLOB=b6aedcad622395f474e37a7c65f198f3a8b01eed
+src/app/api/revenue/evaluate/route.js
+  BEFORE_BLOB=4769979f0985263850fe8976885caeb6aff7e78d
+  AFTER_BLOB=60cb9e72eb31f4d20851d618bb7b4ca099d20722
+src/app/api/user/entitlements/route.js
+  BEFORE_BLOB=37f74d823f7173b55f105807312fa7a8d572fb40
+  AFTER_BLOB=7845064bf0f44deb8f71d111f2e0819d3317c40c
+src/app/dashboard/components/StudioSpace.js
+  BEFORE_BLOB=e96a4acb6a615ffb6504ce5fd1703a4f4f91e11c
+  AFTER_BLOB=ba42b836c4b073e108fbdfd79ae64b5639050296
+src/app/lib/revenue/control-plane/decision-engine.ts
+  BEFORE_BLOB=d7bc1c304cea0f3849341fa963d246fa7cde361c
+  AFTER_BLOB=73532d7738409b85ba9b453476e62d49402f2b25
+src/components/dashboard/Dashboard.js
+  BEFORE_BLOB=b624a87ddda3ced0e72911b5efc127dbf2e2e4b8
+  AFTER_BLOB=e2a6c1d2e90e0658e6eaec9099e8a5457ee6a2a5
+src/core/state/dashboardEntitlementState.js
+  BEFORE_BLOB=73d6ec6fa98a9b1ea991aaeac78883c98074df5f
+  AFTER_BLOB=e6940c39468aa83246f9709d1d18f4506aee5d98
+src/hooks/useRevenueAction.js
+  BEFORE_BLOB=152c35c88b83fca74cc67e38db2d4cb6aafc1918
+  AFTER_BLOB=6380e823f16ddcd00fe0fc3e3104670eb4fc0b89

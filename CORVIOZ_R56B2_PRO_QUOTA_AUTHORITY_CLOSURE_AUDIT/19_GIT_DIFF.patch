@@ -1,0 +1,997 @@
+diff --git a/lib/entitlements.ts b/lib/entitlements.ts
+index 0e193d6..3baeb0e 100644
+--- a/lib/entitlements.ts
++++ b/lib/entitlements.ts
+@@ -5,6 +5,9 @@
+ 
+ import { shadowValidatePlanRead } from '../src/core/state/planStateAdapter';
+ import { recordDecisionTelemetry } from '../src/core/telemetry/decisionTelemetry';
++import { getCombinedDocumentLimit } from '../src/core/state/documentQuota';
++
++export { getCombinedDocumentLimit } from '../src/core/state/documentQuota';
+ 
+ export interface Entitlements {
+   invoice: boolean;
+@@ -18,6 +21,7 @@ export interface Entitlements {
+   automation: boolean;
+   advanced_invoicing: boolean;
+   unlimited_invoices: boolean;
++  combined_document_limit: number | null;
+ }
+ 
+ /** All plan keys considered "paid" (non-free). */
+@@ -30,6 +34,7 @@ export function isPaidPlan(plan?: string | null): boolean {
+ 
+ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+   const plan = String(userPlan || 'free').toLowerCase();
++  const combined_document_limit = getCombinedDocumentLimit(plan);
+   if (process.env.NODE_ENV !== 'production') {
+     shadowValidatePlanRead(
+       'entitlements.userPlan',
+@@ -54,6 +59,7 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+       automation: false,
+       advanced_invoicing: false,
+       unlimited_invoices: false,
++      combined_document_limit,
+     };
+     recordDecisionTelemetry({
+       source: 'lib/entitlements.ts:getUserEntitlements',
+@@ -65,7 +71,7 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+     return result;
+   }
+ 
+-  // Pro ($19 plan / $190 yearly): clean PDF branding with the current core workflow.
++  // Pro ($19 plan / $190 yearly): 100 combined new documents per billing cycle.
+   if (plan === 'pro') {
+     const result: Entitlements = {
+       invoice: true,
+@@ -78,8 +84,8 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+       crm: true,
+       automation: false,
+       advanced_invoicing: true,
+-      // Compatibility field only. The Pro document cap is not finalized.
+       unlimited_invoices: false,
++      combined_document_limit,
+     };
+     recordDecisionTelemetry({
+       source: 'lib/entitlements.ts:getUserEntitlements',
+@@ -106,6 +112,7 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+       advanced_invoicing: true,
+       // Compatibility field only. Studio is not a current marketed tier.
+       unlimited_invoices: false,
++      combined_document_limit,
+     };
+     recordDecisionTelemetry({
+       source: 'lib/entitlements.ts:getUserEntitlements',
+@@ -130,6 +137,7 @@ export function getUserEntitlements(userPlan?: string | null): Entitlements {
+     automation: false,
+     advanced_invoicing: false,
+     unlimited_invoices: false,
++    combined_document_limit,
+   };
+   recordDecisionTelemetry({
+     source: 'lib/entitlements.ts:getUserEntitlements',
+diff --git a/lib/expression/revenueTrigger.ts b/lib/expression/revenueTrigger.ts
+index 9fe6234..5110556 100644
+--- a/lib/expression/revenueTrigger.ts
++++ b/lib/expression/revenueTrigger.ts
+@@ -50,7 +50,7 @@ const NUDGE_MAP: Record<SuccessMoment, Partial<Record<PlanTier, SuccessNudge>>>
+     pro: {
+       moment: 'PROPOSAL_GENERATED',
+       headline: 'Proposal ready to send.',
+-      outcome: 'Unlimited proposals. No daily limits. Export clean PDFs instantly.',
++      outcome: 'Keep more proposals moving with clean PDF exports.',
+       ctaLabel: 'Upgrade to Pro — $19/mo',
+       targetPlan: 'growth',
+       source: 'proposal_generated_starter',
+@@ -86,7 +86,7 @@ const NUDGE_MAP: Record<SuccessMoment, Partial<Record<PlanTier, SuccessNudge>>>
+     pro: {
+       moment: 'QUOTE_CREATED',
+       headline: 'Quote sent.',
+-      outcome: 'Create unlimited quotes and keep client review moving.',
++      outcome: 'Create up to 100 combined quotes and invoices per billing cycle.',
+       ctaLabel: 'Upgrade to Pro — $19/mo',
+       targetPlan: 'growth',
+       source: 'quote_created_starter',
+diff --git a/lib/monetization/funnelAdapter.ts b/lib/monetization/funnelAdapter.ts
+index 42235e3..2edf6b8 100644
+--- a/lib/monetization/funnelAdapter.ts
++++ b/lib/monetization/funnelAdapter.ts
+@@ -102,7 +102,7 @@ export function adaptOfferForSegment(
+   // 2. Tailor Copywriting strategy
+   if (segment === 'high_intent') {
+     if (ctaStrategy === 'urgency') {
+-      adjustedMessage = `Ready to scale? Select your plan now and get instant access to unlimited ${planCapitalized} features.`;
++      adjustedMessage = `Ready to scale? Select your plan now and get instant access to expanded ${planCapitalized} features.`;
+       adjustedCtaText = `Unlock ${planCapitalized} Immediately`;
+     } else {
+       adjustedMessage = `Complete your upgrade to ${planCapitalized} to remove all boundaries on your invoicing workflow.`;
+diff --git a/lib/monetization/offerSelector.ts b/lib/monetization/offerSelector.ts
+index 575b1c5..742a04e 100644
+--- a/lib/monetization/offerSelector.ts
++++ b/lib/monetization/offerSelector.ts
+@@ -56,7 +56,7 @@ export function selectOffer(
+       };
+     }
+     return {
+-      message: `Invoice created successfully! Remove all watermarks and get unlimited invoices on ${planCapitalized}.`,
++      message: `Invoice created successfully! Remove all watermarks and get more invoice capacity on ${planCapitalized}.`,
+       cta_text: `Upgrade to ${planCapitalized}`,
+       offer_type: 'soft_banner',
+     };
+diff --git a/lib/monetization/upgradeTriggerEngine.ts b/lib/monetization/upgradeTriggerEngine.ts
+index a936404..967eba1 100644
+--- a/lib/monetization/upgradeTriggerEngine.ts
++++ b/lib/monetization/upgradeTriggerEngine.ts
+@@ -99,7 +99,7 @@ const TRIGGER_RULES: TriggerRule[] = [
+     target_plan: 'studio',
+     trigger_type: 'usage',
+     confidence: 90,
+-    reason: 'You have exported 20+ professional documents — Studio removes all limits and adds white-label branding.',
++    reason: 'You have exported 20+ professional documents — Studio is a future roadmap tier for larger operations.',
+     match: (s) => s.export_count >= 20,
+   },
+   {
+@@ -143,7 +143,7 @@ const TRIGGER_RULES: TriggerRule[] = [
+     target_plan: 'pro',
+     trigger_type: 'usage',
+     confidence: 95,
+-    reason: 'You have reached the free invoice limit (3). Pro gives you unlimited invoices and a clean PDF export.',
++    reason: 'You have reached the free invoice limit (3). Pro gives you 100 combined new Quotes and Invoices per billing cycle with clean PDF export.',
+     match: (s) => s.invoice_count >= 3 && !isPaidPlan(s.plan),
+   },
+   {
+diff --git a/lib/paywall/paywallEngine.ts b/lib/paywall/paywallEngine.ts
+index a02fe94..6bce7af 100644
+--- a/lib/paywall/paywallEngine.ts
++++ b/lib/paywall/paywallEngine.ts
+@@ -63,19 +63,19 @@ export function evaluatePaywallTrigger(
+   trackPaywallView(triggerSource, featureKey, 'pro');
+ 
+   let title = "Upgrade to Corvioz Pro";
+-  let description = "Unlock unlimited professional tools and grow your freelance business.";
+-  let lockedFeatureValue = "Unlimited clients, quotes, and invoices";
++  let description = "Unlock more professional tools and keep your freelance business moving.";
++  let lockedFeatureValue = "More clients, quotes, and invoices within your plan allowance";
+ 
+   switch (featureKey) {
+     case 'create_invoice':
+-      title = "Unlock unlimited invoices";
++      title = "Unlock more invoices";
+       description = `You've reached the free tier limit of ${usage.invoicesCount} invoices. Most freelancers upgrade at this stage to continue billing clients without interruption.`;
+-      lockedFeatureValue = "Unlimited client billing and direct online payments";
++      lockedFeatureValue = "Expanded client billing and direct online payments";
+       break;
+     case 'create_quote':
+       title = "Professional proposal features locked";
+-      description = `You've reached the free tier limit of ${usage.quotesCount} quote. Lock in more client projects without proposal limits.`;
+-      lockedFeatureValue = "Unlimited proposal quotes and real-time approval tracking";
++      description = `You've reached the free tier limit of ${usage.quotesCount} quote. A paid plan gives you more room for client projects.`;
++      lockedFeatureValue = "More proposal quotes within your plan allowance";
+       break;
+     case 'export_pdf':
+       title = "Watermark-free PDF exports locked";
+diff --git a/lib/usage/usageLimiter.ts b/lib/usage/usageLimiter.ts
+index c8e5fd8..a26caae 100644
+--- a/lib/usage/usageLimiter.ts
++++ b/lib/usage/usageLimiter.ts
+@@ -10,7 +10,7 @@ export interface UsageStats {
+ 
+ export const FREE_TIER_LIMITS = {
+   invoices: 3,  // 4th invoice triggers paywall (3 total allowed)
+-  quotes: 5,    // unlimited quotes on free (soft trigger at 5)
++  quotes: 5,    // Free combined document threshold used by legacy soft triggers
+   exports: 0,   // PDF export blocked on free (watermark only)
+   clients: 2,   // max 2 clients on free plan
+ };
+diff --git a/scripts/test-client-quote-phase1.mjs b/scripts/test-client-quote-phase1.mjs
+index 59aa2a2..3ea0daa 100644
+--- a/scripts/test-client-quote-phase1.mjs
++++ b/scripts/test-client-quote-phase1.mjs
+@@ -108,7 +108,8 @@ function loadQuoteRoute(db) {
+ function loadQuotaHelpers() {
+   return loadModule("src/app/lib/supabase.js", {
+     "security": { defaultPortalExpiry: () => new Date().toISOString(), generatePortalToken: () => "token", hashPortalToken: (value) => value },
+-    "@supabase/supabase-js": { createClient: () => ({}) }
++    "@supabase/supabase-js": { createClient: () => ({}) },
++    "documentQuota": { getCombinedDocumentLimit: (plan) => ({ free: 5, starter: 30, pro: 100 }[String(plan || "free").toLowerCase()] ?? null) }
+   });
+ }
+ 
+@@ -187,17 +188,17 @@ for (const [plan, expected] of [["free", 5], ["starter", 30]]) {
+   const result = await helpers.createQuoteWithAtomicQuota(rpcClient, "user-1", plan, {});
+   assert.equal(result.quota.documentsLimit, expected, `${plan} Quote helper metadata`);
+ }
+-for (const plan of ["pro", "agency", "studio"]) {
++for (const [plan, expected] of [["pro", 100], ["agency", Infinity], ["studio", Infinity]]) {
+   const result = await helpers.createQuoteWithAtomicQuota(rpcClient, "user-1", plan, {});
+-  assert.equal(result.quota.documentsLimit, Infinity, `${plan} Quote helper metadata is unlimited`);
++  assert.equal(result.quota.documentsLimit, expected, `${plan} Quote helper metadata`);
+ }
+ for (const [plan, expected] of [["free", 5], ["starter", 30]]) {
+   const result = await helpers.createInvoiceWithAtomicQuota(rpcClient, "user-1", plan, {});
+   assert.equal(result.quota.documentsLimit, expected, `${plan} Invoice helper metadata`);
+ }
+-for (const plan of ["pro", "agency", "studio"]) {
++for (const [plan, expected] of [["pro", 100], ["agency", Infinity], ["studio", Infinity]]) {
+   const result = await helpers.createInvoiceWithAtomicQuota(rpcClient, "user-1", plan, {});
+-  assert.equal(result.quota.documentsLimit, Infinity, `${plan} Invoice helper metadata is unlimited`);
++  assert.equal(result.quota.documentsLimit, expected, `${plan} Invoice helper metadata`);
+ }
+ assert.equal(fromCalls, 0, "atomic helpers never use direct table insert fallback");
+ assert.ok(rpcCalls.includes("check_and_create_quote"));
+diff --git a/scripts/test-combined-quota-boundary-r1.mjs b/scripts/test-combined-quota-boundary-r1.mjs
+index c7799b9..b057916 100644
+--- a/scripts/test-combined-quota-boundary-r1.mjs
++++ b/scripts/test-combined-quota-boundary-r1.mjs
+@@ -56,7 +56,7 @@ function boundaryFixture(plan, quoteCount, invoiceCount) {
+     quotes: Array.from({ length: quoteCount }, (_, index) => ({ id: `seed-q-${index}` })),
+     invoices: Array.from({ length: invoiceCount }, (_, index) => ({ id: `seed-i-${index}` })),
+   };
+-  const limit = plan === 'starter' ? 30 : plan === 'pro' ? Infinity : 5;
++  const limit = { free: 5, starter: 30, pro: 100 }[plan];
+   return {
+     state,
+     client: {
+@@ -78,7 +78,7 @@ function boundaryFixture(plan, quoteCount, invoiceCount) {
+ }
+ 
+ async function runPermutation(plan, firstKind) {
+-  const startCount = plan === 'starter' ? 29 : 4;
++  const startCount = { free: 4, starter: 29, pro: 99 }[plan];
+   const fixture = boundaryFixture(plan, Math.floor(startCount / 2), Math.ceil(startCount / 2));
+   const createFirst = firstKind === 'quote' ? createQuoteWithAtomicQuota : createInvoiceWithAtomicQuota;
+   const createSecond = firstKind === 'quote' ? createInvoiceWithAtomicQuota : createQuoteWithAtomicQuota;
+@@ -96,10 +96,19 @@ await runPermutation('free', 'quote');
+ await runPermutation('free', 'invoice');
+ await runPermutation('starter', 'quote');
+ await runPermutation('starter', 'invoice');
++await runPermutation('pro', 'quote');
++await runPermutation('pro', 'invoice');
+ 
+-const proFixture = boundaryFixture('pro', 100, 100);
+-await createQuoteWithAtomicQuota(proFixture.client, 'user-boundary', 'pro', {});
+-await createInvoiceWithAtomicQuota(proFixture.client, 'user-boundary', 'pro', {});
+-assert.equal(proFixture.state.quotes.length + proFixture.state.invoices.length, 202);
++async function expectMixedProBoundary(quoteCount, invoiceCount) {
++  const fixture = boundaryFixture('pro', quoteCount, invoiceCount);
++  const created = await createQuoteWithAtomicQuota(fixture.client, 'user-boundary', 'pro', {});
++  assert.ok(created.data.id, 'mixed Pro 99 total must allow one document');
++  assert.equal(fixture.state.quotes.length + fixture.state.invoices.length, 100);
++  await expectQuotaError(createInvoiceWithAtomicQuota(fixture.client, 'user-boundary', 'pro', {}));
++}
++
++await expectMixedProBoundary(60, 39);
++await expectQuotaError(createInvoiceWithAtomicQuota(boundaryFixture('pro', 0, 100).client, 'user-boundary', 'pro', {}));
++await expectQuotaError(createQuoteWithAtomicQuota(boundaryFixture('pro', 100, 0).client, 'user-boundary', 'pro', {}));
+ 
+ console.log('COMBINED_QUOTA_BOUNDARY_HELPER_TEST=PASS');
+diff --git a/scripts/test-phase2-approved-quote-invoice-draft.mjs b/scripts/test-phase2-approved-quote-invoice-draft.mjs
+index d92646a..b2ffd51 100644
+--- a/scripts/test-phase2-approved-quote-invoice-draft.mjs
++++ b/scripts/test-phase2-approved-quote-invoice-draft.mjs
+@@ -74,7 +74,7 @@ assert.equal(switchedDraft.data.invoice.client_id, secondClient);
+ assert.equal(switchedDraft.data.invoice.client_name, 'Second Snapshot');
+ 
+ // 16-18: plan metadata remains the shared helper contract; RPC is the only creation path.
+-for (const [plan, limit] of [['free', 5], ['starter', 30], ['pro', Infinity]]) {
++for (const [plan, limit] of [['free', 5], ['starter', 30], ['pro', 100]]) {
+   const calls = [];
+   const result = await createInvoiceWithAtomicQuota({ rpc: async (name) => { calls.push(name); return { data: { id: 'invoice' }, error: null }; } }, userId, plan, {});
+   assert.equal(result.quota.documentsLimit, limit);
+diff --git a/scripts/test-pricing-v2-suite.mjs b/scripts/test-pricing-v2-suite.mjs
+index 1f3ded4..dbc2efb 100644
+--- a/scripts/test-pricing-v2-suite.mjs
++++ b/scripts/test-pricing-v2-suite.mjs
+@@ -17,6 +17,7 @@ const fakeEntModule = { exports: entModule };
+ entWrapper(entModule, (id) => {
+   if (id.includes("planStateAdapter")) return { shadowValidatePlanRead: () => {} };
+   if (id.includes("decisionTelemetry")) return { recordDecisionTelemetry: () => {} };
++  if (id.includes("documentQuota")) return { getCombinedDocumentLimit: (plan) => ({ free: 5, starter: 30, pro: 100 }[String(plan || "free").toLowerCase()] ?? null) };
+   return {};
+ }, fakeEntModule, "lib/entitlements.ts", "lib");
+ const { getUserEntitlements } = fakeEntModule.exports;
+@@ -33,6 +34,7 @@ const fakeSubModule = { exports: subModule };
+ subWrapper(subModule, (id) => {
+   if (id.includes("security")) return { defaultPortalExpiry: () => new Date().toISOString(), generatePortalToken: () => "tok", hashPortalToken: (t) => t };
+   if (id.includes("@supabase/supabase-js")) return { createClient: () => ({}) };
++  if (id.includes("documentQuota")) return { getCombinedDocumentLimit: (plan) => ({ free: 5, starter: 30, pro: 100 }[String(plan || "free").toLowerCase()] ?? null) };
+   return {};
+ }, fakeSubModule, "src/app/lib/supabase.js", "src/app/lib");
+ 
+@@ -93,6 +95,7 @@ async function runAll() {
+       automation: false,
+       advanced_invoicing: false,
+       unlimited_invoices: false,
++      combined_document_limit: 5,
+     });
+   });
+ 
+@@ -109,6 +112,7 @@ async function runAll() {
+       automation: false,
+       advanced_invoicing: false,
+       unlimited_invoices: false,
++      combined_document_limit: 30,
+     });
+   });
+ 
+@@ -122,6 +126,7 @@ async function runAll() {
+     assert.strictEqual(pro.client_approval, false);
+     assert.strictEqual(pro.approval_scope, "none");
+     assert.strictEqual(pro.unlimited_invoices, false);
++    assert.strictEqual(pro.combined_document_limit, 100);
+   });
+ 
+   console.log("\n1. Testing Unified Free Monthly Anniversary Calculation (No Drift)...");
+@@ -215,7 +220,8 @@ async function runAll() {
+     assert.strictEqual(starterQuota.documentsLimit, 30);
+     assert.strictEqual(starterQuota.documentsUsed, 24);
+     assert.strictEqual(starterQuota.documentsAllowed, true);
+-    assert.strictEqual(starterQuota.invoicesUsed, 24);
++    assert.strictEqual(starterQuota.invoicesUsed, 12);
++    assert.strictEqual(starterQuota.quotesUsed, 12);
+     assert.strictEqual(starterQuota.invoicesLimit, 30);
+   });
+ 
+diff --git a/scripts/test-r56b1-dashboard-contract-corrections.mjs b/scripts/test-r56b1-dashboard-contract-corrections.mjs
+index 1f2bd07..9cc380c 100644
+--- a/scripts/test-r56b1-dashboard-contract-corrections.mjs
++++ b/scripts/test-r56b1-dashboard-contract-corrections.mjs
+@@ -18,6 +18,7 @@ new Function('exports', 'require', 'module', '__filename', '__dirname', entJs)(
+   (specifier) => {
+     if (specifier.includes('planStateAdapter')) return { shadowValidatePlanRead: () => {} };
+     if (specifier.includes('decisionTelemetry')) return { recordDecisionTelemetry: () => {} };
++    if (specifier.includes('documentQuota')) return { getCombinedDocumentLimit: (plan) => ({ free: 5, starter: 30, pro: 100 }[String(plan || 'free').toLowerCase()] ?? null) };
+     return {};
+   },
+   entModule,
+diff --git a/scripts/test-r56b2-pro-quota-authority.mjs b/scripts/test-r56b2-pro-quota-authority.mjs
+new file mode 100644
+index 0000000..d406b23
+--- /dev/null
++++ b/scripts/test-r56b2-pro-quota-authority.mjs
+@@ -0,0 +1,56 @@
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++import { createRequire } from 'node:module';
++import { createQuoteWithAtomicQuota, createInvoiceWithAtomicQuota } from '../src/app/lib/supabase.js';
++
++const require = createRequire(import.meta.url);
++const ts = require('typescript');
++const entSource = fs.readFileSync('lib/entitlements.ts', 'utf8');
++const entJs = ts.transpileModule(entSource, {
++  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
++}).outputText;
++const entModule = { exports: {} };
++new Function('exports', 'require', 'module', '__filename', '__dirname', entJs)(
++  entModule.exports,
++  (specifier) => {
++    if (specifier.includes('planStateAdapter')) return { shadowValidatePlanRead: () => {} };
++    if (specifier.includes('decisionTelemetry')) return { recordDecisionTelemetry: () => {} };
++    if (specifier.includes('documentQuota')) return { getCombinedDocumentLimit: (plan) => ({ free: 5, starter: 30, pro: 100 }[String(plan || 'free').toLowerCase()] ?? 5) };
++    return {};
++  },
++  entModule,
++  'lib/entitlements.ts',
++  'lib',
++);
++
++const { getUserEntitlements, getCombinedDocumentLimit } = entModule.exports;
++assert.equal(typeof getCombinedDocumentLimit, 'function', 'entitlements must expose the canonical combined limit helper');
++const expectedLimits = { free: 5, starter: 30, pro: 100 };
++for (const [plan, limit] of Object.entries(expectedLimits)) {
++  const actualLimit = typeof getCombinedDocumentLimit === 'function' ? getCombinedDocumentLimit(plan) : undefined;
++  assert.equal(actualLimit, limit, `${plan} must have the frozen combined limit`);
++  assert.equal(getUserEntitlements(plan).combined_document_limit, limit, `${plan} entitlement must expose the frozen combined limit`);
++  assert.equal(getUserEntitlements(plan).unlimited_invoices, false, `${plan} must not expose an unlimited compatibility claim`);
++}
++
++const serverHelper = fs.readFileSync('src/app/lib/supabase.js', 'utf8');
++assert.match(serverHelper, /getCombinedDocumentLimit/, 'server quota helper must use the canonical plan limit definition');
++assert.doesNotMatch(serverHelper, /normalizedPlan === "pro"[\s\S]{0,260}Infinity/, 'Pro server quota helper must not return Infinity');
++assert.match(serverHelper, /documentsUsed: totalUsed/, 'Pro server quota helper must report actual combined usage');
++
++const migrationNames = fs.readdirSync('supabase/migrations').filter((name) => name.includes('r56b2_pro_combined_document_quota_authority'));
++assert.equal(migrationNames.length, 1, 'R56B2 must add exactly one forward-only quota migration');
++const quotaMigration = fs.readFileSync(`supabase/migrations/${migrationNames[0]}`, 'utf8');
++assert.match(quotaMigration, /v_plan = 'pro'[\s\S]{0,180}v_limit := 100/, 'R56B2 migration must set Pro to 100');
++assert.doesNotMatch(quotaMigration, /v_plan IN \('pro', 'agency', 'studio'\)[\s\S]{0,180}RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT/, 'R56B2 migration must not leave Pro unlimited');
++const activeMigration = fs.readFileSync('supabase/migrations/20260821174436_pricing_quota_client_quote_foundation.sql', 'utf8');
++assert.match(activeMigration, /pg_advisory_xact_lock\(hashtext\(p_user_id::text\)\)/, 'active atomic RPCs must retain advisory locking');
++assert.match(activeMigration, /COUNT\(\*\) FROM public\.quotes[\s\S]{0,260}COUNT\(\*\) FROM public\.invoices/, 'active atomic RPCs must retain combined Quote plus Invoice counting');
++
++const successfulRpc = { rpc: async () => ({ data: { id: 'doc-r56b2' }, error: null }) };
++const quoteResult = await createQuoteWithAtomicQuota(successfulRpc, 'user-r56b2', 'pro', {});
++const invoiceResult = await createInvoiceWithAtomicQuota(successfulRpc, 'user-r56b2', 'pro', {});
++assert.equal(quoteResult.quota.documentsLimit, 100, 'Pro Quote creation metadata must expose 100');
++assert.equal(invoiceResult.quota.documentsLimit, 100, 'Pro Invoice creation metadata must expose 100');
++
++console.log('R56B2 Pro quota authority tests passed.');
+diff --git a/scripts/verify-pricing-flow.mjs b/scripts/verify-pricing-flow.mjs
+index 0a72ba5..5c18e67 100644
+--- a/scripts/verify-pricing-flow.mjs
++++ b/scripts/verify-pricing-flow.mjs
+@@ -29,6 +29,7 @@ function transpile(tsContent) {
+   js = js.replace(/from\s+'\.\.\/execution\/uiTranslator\.mjs'/g, "from './uiTranslator.mjs'");
+   js = js.replace(/from\s+'\.\.\/src\/core\/state\/planStateAdapter\.mjs'/g, "from './planStateAdapter.mjs'");
+   js = js.replace(/from\s+'\.\.\/src\/core\/telemetry\/decisionTelemetry\.mjs'/g, "from './decisionTelemetry.mjs'");
++  js = js.replace(/from\s+'\.\.\/src\/core\/state\/documentQuota\.mjs'/g, "from './documentQuota.mjs'");
+   return js;
+ }
+ 
+@@ -56,6 +57,11 @@ fs.writeFileSync(
+   `export function recordDecisionTelemetry() { return null; }`,
+   'utf8'
+ );
++fs.writeFileSync(
++  path.resolve(tmpDir, './documentQuota.mjs'),
++  `export function getCombinedDocumentLimit(plan) { return ({ free: 5, starter: 30, pro: 100 }[String(plan || 'free').toLowerCase()] ?? null); }`,
++  'utf8'
++);
+ 
+ const tsContent = fs.readFileSync(path.resolve(__dirname, '../src/core/pricing/pricingViewModel.ts'), 'utf8');
+ const jsContent = transpile(tsContent);
+@@ -91,10 +97,10 @@ async function runTests() {
+     {
+       id: 'pro',
+       name: 'Pro',
+-      description: 'For unlimited work and a client experience that lives in Corvioz too.',
++      description: 'For higher-volume work, with 100 combined new Quotes and Invoices per billing cycle.',
+       price_monthly: 19,
+       price_yearly: 190,
+-      features: ['Everything in Starter', 'Unlimited new documents', 'Client Portal with client approval'],
++      features: ['Everything in Starter', '100 combined new Quotes and Invoices per billing cycle', 'Clean PDF exports'],
+     },
+     {
+       id: 'studio',
+@@ -136,9 +142,9 @@ async function runTests() {
+   const proCard = cards.find(c => c.id === 'pro');
+   assert(proCard.name === 'Pro', 'Pro tier name');
+   assert(proCard.identity === 'Pro', 'Pro tier identity');
+-  assert(proCard.outcome === 'For unlimited work and a client experience that lives in Corvioz too.', 'Pro tier outcome');
+-  assert(proCard.features.includes('Unlimited new documents'), 'Pro has unlimited new documents');
+-  assert(proCard.features.includes('Client Portal with client approval'), 'Pro has client approval');
++  assert(proCard.outcome === 'For higher-volume work, with 100 combined new Quotes and Invoices per billing cycle.', 'Pro tier outcome');
++  assert(proCard.features.includes('100 combined new Quotes and Invoices per billing cycle'), 'Pro has the finite combined quota');
++  assert(proCard.features.includes('Clean PDF exports'), 'Pro has clean PDFs');
+ 
+   const studioCard = cards.find(c => c.id === 'studio');
+   assert(studioCard.name === 'Studio', 'Studio tier name');
+@@ -153,7 +159,8 @@ async function runTests() {
+ 
+   const proEnt = getUserEntitlements('pro');
+   assert(proEnt.export_pdf === true, 'Pro plan has export PDF enabled');
+-  assert(proEnt.approval_scope === 'quotes_only', 'Pro approval is quote-only');
++  assert(proEnt.approval_scope === 'none', 'Pro has no client approval surface');
++  assert(proEnt.combined_document_limit === 100, 'Pro has the finite combined document limit');
+ 
+   console.log('✅ Corvioz Pricing Flow & Entitlements Verification PASSED.');
+   
+diff --git a/src/app/api/pricing/route.js b/src/app/api/pricing/route.js
+index 15301dd..59afc91 100644
+--- a/src/app/api/pricing/route.js
++++ b/src/app/api/pricing/route.js
+@@ -58,7 +58,7 @@ const CANONICAL_PLANS = [
+     name: "Pro",
+     status: "active",
+     tagline: "Give the whole experience a little more care.",
+-    description: "For unlimited work and a client experience that lives in Corvioz too.",
++    description: "For higher-volume work, with 100 combined new Quotes and Invoices per billing cycle.",
+     price_monthly: 19.00,
+     price_yearly: 190.00,
+     currency: "USD",
+@@ -67,8 +67,8 @@ const CANONICAL_PLANS = [
+     paddle_yearly_price_id: "",
+     features: [
+       "Everything in Starter",
+-      "Unlimited new documents",
+-      "Client Portal with client approval"
++      "100 combined new Quotes and Invoices per billing cycle",
++      "Clean PDF exports"
+     ],
+     badge_text: "2 months free",
+     display_order: 3,
+diff --git a/src/app/home/HomePricing.js b/src/app/home/HomePricing.js
+index 7a11751..8f5f9ba 100644
+--- a/src/app/home/HomePricing.js
++++ b/src/app/home/HomePricing.js
+@@ -27,7 +27,7 @@ export default function HomePricing() {
+                 <div className="pricing-price-slot"><div className="price-numeral-row"><span className="price-currency-val">$0</span></div></div>
+                 <p className="pricing-plan-positioning">Try the core workflow.</p>
+               </div>
+-              <ul className="pricing-feature-list"><Feature>5 quotes &amp; invoices per billing cycle</Feature><Feature>Branded PDF export</Feature><Feature>Up to 50 stored documents</Feature></ul>
++              <ul className="pricing-feature-list"><Feature>5 combined new Quotes and Invoices per billing cycle</Feature><Feature>Branded PDF export</Feature><Feature>Up to 50 stored documents</Feature></ul>
+               <div className="pricing-plan-footer"><Link href={SIGNUP_URL} className="btn-action-start-free">Start free</Link></div>
+             </div>
+             <div className="pricing-plan-col col-interactive">
+@@ -36,7 +36,7 @@ export default function HomePricing() {
+                 <div className="pricing-price-slot"><div className="price-numeral-row"><span className="price-currency-val">$9</span><span className="price-period-label">/ month</span></div><div className="price-yearly-subline">Yearly option available</div></div>
+                 <p className="pricing-plan-positioning">For regular client work.</p>
+               </div>
+-              <ul className="pricing-feature-list"><Feature>30 quotes &amp; invoices per billing cycle</Feature><Feature>Clean PDF export</Feature><Feature>Quote &amp; invoice workflow</Feature></ul>
++              <ul className="pricing-feature-list"><Feature>30 combined new Quotes and Invoices per billing cycle</Feature><Feature>Clean PDF export</Feature><Feature>Quote &amp; invoice workflow</Feature></ul>
+               <div className="pricing-plan-footer"><Link href="/pricing" className="btn-action-view-plan">View Starter</Link></div>
+             </div>
+             <div className="pricing-plan-col col-interactive col-pro">
+@@ -45,7 +45,7 @@ export default function HomePricing() {
+                 <div className="pricing-price-slot"><div className="price-numeral-row"><span className="price-currency-val">$19</span><span className="price-period-label">/ month</span></div><div className="price-yearly-subline">Yearly option available</div></div>
+                 <p className="pricing-plan-positioning">For more active client work.</p>
+               </div>
+-              <ul className="pricing-feature-list"><Feature>Unlimited quotes &amp; invoices</Feature><Feature>Clean PDF export</Feature><Feature>Client Portal &amp; quote approval</Feature></ul>
++              <ul className="pricing-feature-list"><Feature>100 combined new Quotes and Invoices per billing cycle</Feature><Feature>Clean PDF export</Feature><Feature>Quote &amp; invoice workflow</Feature></ul>
+               <div className="pricing-plan-footer"><Link href="/pricing" className="btn-action-view-plan">View Pro</Link></div>
+             </div>
+             <div className="pricing-plan-col col-studio">
+diff --git a/src/app/home/homeFaqData.js b/src/app/home/homeFaqData.js
+index 7d331fc..745bf4d 100644
+--- a/src/app/home/homeFaqData.js
++++ b/src/app/home/homeFaqData.js
+@@ -1,10 +1,10 @@
+ export const HOME_FAQ = [
+   { question: 'Who is Corvioz built for?', answer: 'Corvioz is built for independent professionals—including photographers, consultants, designers, developers, and small studios—who want quotes, invoices, client records, and recorded payment status kept in one clear workflow.' },
+   { question: 'Is Corvioz accounting software, or a client workflow tool?', answer: 'Corvioz is a focused client-workflow tool rather than a full accounting suite. It keeps quotes, invoices, client records, and recorded payment status connected as work moves forward.' },
+-  { question: 'What happens after a client approves a quote?', answer: 'On Pro, client approval applies to quotes. Once a client approves a quote, you can keep that decision connected to the next step and convert the approved quote into an invoice when it is time to bill.' },
+-  { question: 'Do clients need a Corvioz account?', answer: 'No. On Pro, clients can use the Client Portal without creating a Corvioz account. Client approval applies to quotes.' },
++  { question: 'What happens after I finish a quote?', answer: 'You can keep the Quote connected to your client record and use it as the source for the next billing step when appropriate.' },
++  { question: 'Can I share documents with clients?', answer: 'You can export Quotes and Invoices as PDFs. Client Portal and quote approval are not current capabilities.' },
+   { question: 'Can I keep a history of client work in Corvioz?', answer: 'Corvioz keeps client records, quotes, invoices, and recorded payment status in one workflow, giving you a clearer history of client work.' },
+-  { question: 'What quote and invoice options depend on my plan?', answer: 'Free includes 5 quotes and invoices per billing cycle with branded PDF export. Starter includes 30 quotes and invoices per billing cycle with clean PDF export. Pro includes unlimited quotes and invoices, clean PDF export, Client Portal, and quote approval.' },
++  { question: 'What quote and invoice options depend on my plan?', answer: 'Free includes 5 combined new Quotes and Invoices per billing cycle with branded PDF export. Starter includes 30 combined with clean PDF export. Pro includes 100 combined with clean PDF export.' },
+   { question: 'Can I export quotes and invoices?', answer: 'Free includes branded PDF export. Starter and Pro include clean PDF export.' },
+   { question: 'How does Corvioz handle payment status?', answer: 'Corvioz lets you record payment status in the client workflow. Paddle is used for Corvioz subscriptions.' },
+   { question: 'Can Corvioz tell me what I should charge?', answer: 'No. Corvioz does not decide what you should charge. It helps keep scope, quote details, and client documents organized so you can make your own pricing decisions with clearer context.' },
+diff --git a/src/app/lib/supabase.js b/src/app/lib/supabase.js
+index 6196171..434fd45 100644
+--- a/src/app/lib/supabase.js
++++ b/src/app/lib/supabase.js
+@@ -1,6 +1,7 @@
+ import { createClient } from '@supabase/supabase-js';
+ import { hashPortalToken } from './security.js';
+ import { resolveInvoicePaymentReadModel } from '../../core/revenue/invoicePaymentState.js';
++import { getCombinedDocumentLimit } from '../../core/state/documentQuota.js';
+ 
+ export function isSupabaseConfigured() {
+   return Boolean(
+@@ -241,7 +242,7 @@ export async function resolveUserBillingCycle(supabase, userId, plan = "free") {
+         const now = new Date().getTime();
+         const start = new Date(sub.current_period_start).getTime();
+         const end = new Date(sub.current_period_end).getTime();
+-        if (now >= start && now <= end) {
++        if (now >= start && now < end) {
+           return {
+             cycleStart: new Date(sub.current_period_start).toISOString(),
+             cycleEnd: new Date(sub.current_period_end).toISOString(),
+@@ -279,9 +280,11 @@ export async function resolveUserBillingCycle(supabase, userId, plan = "free") {
+ 
+ export async function getDocumentQuota(supabase, userId, plan = "free") {
+   const normalizedPlan = String(plan || "free").toLowerCase();
++  const limit = getCombinedDocumentLimit(normalizedPlan);
+ 
+-  // Pro, Agency, and legacy Studio have unlimited quota
+-  if (normalizedPlan === "pro" || normalizedPlan === "agency" || normalizedPlan === "studio") {
++  // Agency and legacy Studio retain their historical compatibility behavior.
++  // Current Free, Starter, and Pro plans always use a finite combined limit.
++  if (limit === null) {
+     return {
+       plan: normalizedPlan,
+       documentsUsed: 0,
+@@ -300,7 +303,6 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
+     };
+   }
+ 
+-  const limit = normalizedPlan === "starter" ? 30 : 5;
+   const cycle = await resolveUserBillingCycle(supabase, userId, normalizedPlan);
+ 
+   const [quotesResult, invoicesResult] = await Promise.all([
+@@ -337,15 +339,15 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
+     totalUsed,
+     cycleStart: cycle.cycleStart,
+     cycleEnd: cycle.cycleEnd,
+-    cycleType: normalizedPlan === "starter" ? "subscription" : "anniversary",
++    cycleType: cycle.cycleType,
+   };
+ }
+ 
+ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, payload) {
+   const serviceSupabase = supabaseClient;
+   const normalizedPlan = String(plan || "free").toLowerCase();
+-  const limit = normalizedPlan === "starter" ? 30 : 5;
+-  const documentsLimit = ["pro", "agency", "studio"].includes(normalizedPlan) ? Infinity : limit;
++  const documentsLimit = getCombinedDocumentLimit(normalizedPlan);
++  const displayLimit = documentsLimit === null ? null : documentsLimit;
+ 
+   // Execute secured service_role RPC check_and_create_quote
+   const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_quote", {
+@@ -365,7 +367,9 @@ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, p
+       throw ownershipErr;
+     }
+     if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
+-      const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
++      const quotaExceededErr = new Error(displayLimit === null
++        ? "Document creation is unavailable for this plan."
++        : `You have reached your ${displayLimit}-document billing cycle allowance.`);
+       quotaExceededErr.code = "QUOTA_EXCEEDED";
+       quotaExceededErr.status = 403;
+       throw quotaExceededErr;
+@@ -384,13 +388,13 @@ export async function createQuoteWithAtomicQuota(supabaseClient, userId, plan, p
+     throw dbErr;
+   }
+ 
+-  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit } };
++  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: displayLimit === null ? Infinity : displayLimit } };
+ }
+ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan, payload) {
+   const serviceSupabase = supabaseClient;
+   const normalizedPlan = String(plan || "free").toLowerCase();
+-  const limit = normalizedPlan === "starter" ? 30 : 5;
+-  const documentsLimit = ["pro", "agency", "studio"].includes(normalizedPlan) ? Infinity : limit;
++  const documentsLimit = getCombinedDocumentLimit(normalizedPlan);
++  const displayLimit = documentsLimit === null ? null : documentsLimit;
+ 
+   // Execute secured service_role RPC check_and_create_invoice
+   const { data: rpcData, error: rpcError } = await serviceSupabase.rpc("check_and_create_invoice", {
+@@ -409,7 +413,9 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
+       throw ownershipErr;
+     }
+     if (rpcError.message && rpcError.message.includes("QUOTA_EXCEEDED")) {
+-      const quotaExceededErr = new Error(`You have reached your limit of ${limit} documents for this billing cycle. Please upgrade.`);
++      const quotaExceededErr = new Error(displayLimit === null
++        ? "Document creation is unavailable for this plan."
++        : `You have reached your ${displayLimit}-document billing cycle allowance.`);
+       quotaExceededErr.code = "QUOTA_EXCEEDED";
+       quotaExceededErr.status = 403;
+       throw quotaExceededErr;
+@@ -428,13 +434,14 @@ export async function createInvoiceWithAtomicQuota(supabaseClient, userId, plan,
+     throw dbErr;
+   }
+ 
+-  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit } };
++  return { data: rpcData, quota: { documentsAllowed: true, documentsLimit: displayLimit === null ? Infinity : displayLimit } };
+ }
+ 
+ export async function createInvoiceDraftFromApprovedQuote(supabaseClient, userId, plan, quoteId) {
+   const serviceSupabase = supabaseClient;
+   const normalizedPlan = String(plan || 'free').toLowerCase();
+-  const documentsLimit = normalizedPlan === 'starter' ? 30 : ['pro', 'agency', 'studio'].includes(normalizedPlan) ? Infinity : 5;
++  const canonicalLimit = getCombinedDocumentLimit(normalizedPlan);
++  const documentsLimit = canonicalLimit === null ? Infinity : canonicalLimit;
+   const { data, error } = await serviceSupabase.rpc('create_invoice_draft_from_approved_quote', {
+     p_user_id: userId,
+     p_quote_id: quoteId,
+@@ -451,7 +458,9 @@ export async function createInvoiceDraftFromApprovedQuote(supabaseClient, userId
+       throw conversionError;
+     }
+     if (message.includes('QUOTA_EXCEEDED')) {
+-      const quotaError = new Error(`You have reached your limit of ${documentsLimit} documents for this billing cycle. Please upgrade.`);
++      const quotaError = new Error(canonicalLimit === null
++        ? 'Document creation is unavailable for this plan.'
++        : `You have reached your ${canonicalLimit}-document billing cycle allowance.`);
+       quotaError.code = 'QUOTA_EXCEEDED';
+       quotaError.status = 403;
+       throw quotaError;
+@@ -479,10 +488,10 @@ export async function getSupabaseQuota(supabase, userId, plan = "free") {
+     documentsUsed: docQuota.documentsUsed,
+     documentsLimit: docQuota.documentsLimit,
+     documentsAllowed: docQuota.documentsAllowed,
+-    invoicesUsed: docQuota.documentsUsed,
++    invoicesUsed: docQuota.invoicesUsed,
+     invoicesLimit: docQuota.documentsLimit,
+     invoicesAllowed: docQuota.documentsAllowed,
+-    quotesUsed: docQuota.documentsUsed,
++    quotesUsed: docQuota.quotesUsed,
+     quotesLimit: docQuota.documentsLimit,
+     quotesAllowed: docQuota.documentsAllowed,
+     aiUsed: 0,
+diff --git a/src/app/payment-instructions/page.js b/src/app/payment-instructions/page.js
+index 7dc3954..774dc10 100644
+--- a/src/app/payment-instructions/page.js
++++ b/src/app/payment-instructions/page.js
+@@ -16,7 +16,7 @@ export default function PaymentInstructionsPage() {
+     {
+       num: '01',
+       title: 'Select Pro',
+-      body: 'You\'ve selected the Corvioz Pro plan. This unlocks unlimited Quote + Invoice creation, Client Portal, clean PDF exports, quote approval, and organized review status. See the current price on the Pricing page.',
++      body: 'You\'ve selected the Corvioz Pro plan. This provides 100 combined new Quotes and Invoices per billing cycle, clean PDF exports, and organized review status. See the current price on the Pricing page.',
+     },
+     {
+       num: '02',
+diff --git a/src/app/pricing/page.js b/src/app/pricing/page.js
+index 9bd3721..e160075 100644
+--- a/src/app/pricing/page.js
++++ b/src/app/pricing/page.js
+@@ -23,7 +23,7 @@ const FAQ_DATA = [
+   {
+     id: "faq-ans-1",
+     question: "What counts as a document?",
+-    answer: "Each new quote or invoice you create in your workspace counts as one document toward your plan's allowance (5 per billing cycle on Free, 30 per billing cycle on Starter, and Unlimited on Pro)."
++    answer: "Each new quote or invoice you create in your workspace counts as one document toward your plan's combined allowance (5 per billing cycle on Free, 30 per billing cycle on Starter, and 100 per billing cycle on Pro)."
+   },
+   {
+     id: "faq-ans-2",
+@@ -43,12 +43,12 @@ const FAQ_DATA = [
+   {
+     id: "faq-ans-5",
+     question: "What changes when I move to Pro?",
+-    answer: "Pro adds unlimited new documents, Client Portal, and quote approval."
++    answer: "Pro includes 100 combined new quotes and invoices per billing cycle, plus clean PDF export."
+   },
+   {
+     id: "faq-ans-6",
+-    question: "What is included in Client Portal?",
+-    answer: "The Client Portal gives Pro users a client-facing link for shared quotes and invoices. Client approval applies to quotes."
++    question: "Are Client Portal and quote approval included?",
++    answer: "Client Portal and quote approval are not current capabilities on Free, Starter, or Pro."
+   },
+   {
+     id: "faq-ans-7",
+@@ -567,11 +567,11 @@ export default function PricingPage() {
+                   </div>
+                 </div>
+                 <div className="a3-statement">Give the whole experience a little more care.</div>
+-                <p className="a3-supporting">For unlimited work and a client experience that lives in Corvioz too.</p>
++                <p className="a3-supporting">For higher-volume work, with 100 combined new Quotes and Invoices per billing cycle.</p>
+                 <div className="a3-datum-divider pro-datum" aria-hidden="true" />
+                 <div className="a3-metric-block pro-metric-block">
+                   <div className="metric-figure-row">
+-                    <span className="metric-num metric-unlimited">Unlimited</span>
++                    <span className="metric-num">100</span>
+                   </div>
+                   <div className="metric-caption-row">
+                     <span className="metric-label-primary">new documents</span>
+@@ -581,7 +581,7 @@ export default function PricingPage() {
+                 <div className="a3-sub-divider pro-sub-divider" aria-hidden="true" />
+                 <div className="a3-capabilities-stack">
+                   <div className="cap-line">Everything in Starter</div>
+-                  <div className="cap-line cap-strong pro-cap-strong">Client Portal with quote approval</div>
++                  <div className="cap-line cap-strong pro-cap-strong">Clean PDF exports</div>
+                 </div>
+                 <div className="a3-card-action">
+                   <button
+@@ -674,7 +674,8 @@ export default function PricingPage() {
+                       <span className="metric-cell-unit">per billing cycle</span>
+                     </td>
+                     <td className="ledger-cell col-plan col-plan-pro">
+-                      <span className="metric-cell-figure metric-pro-figure">Unlimited</span>
++                      <span className="metric-cell-figure metric-pro-figure">100</span>
++                      <span className="metric-cell-unit">per billing cycle</span>
+                     </td>
+                   </tr>
+                 </tbody>
+@@ -716,12 +717,8 @@ export default function PricingPage() {
+                       <span className="sr-only">Not included</span>
+                     </td>
+                     <td className="ledger-cell col-plan col-plan-pro">
+-                      <span className="val-check-wrap">
+-                        <svg className="val-check-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+-                          <polyline points="3 8.5 6.5 12 13 4.5" />
+-                        </svg>
+-                        <span className="sr-only">Included</span>
+-                      </span>
++                      <span className="val-dash" aria-hidden="true">&mdash;</span>
++                      <span className="sr-only">Not included</span>
+                     </td>
+                   </tr>
+                   <tr
+@@ -739,12 +736,8 @@ export default function PricingPage() {
+                       <span className="sr-only">Not included</span>
+                     </td>
+                     <td className="ledger-cell col-plan col-plan-pro">
+-                      <span className="val-check-wrap">
+-                        <svg className="val-check-svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+-                          <polyline points="3 8.5 6.5 12 13 4.5" />
+-                        </svg>
+-                        <span className="sr-only">Included</span>
+-                      </span>
++                      <span className="val-dash" aria-hidden="true">&mdash;</span>
++                      <span className="sr-only">Not included</span>
+                     </td>
+                   </tr>
+                 </tbody>
+@@ -761,7 +754,7 @@ export default function PricingPage() {
+                     <div className="m-plan-values">
+                       <div className="m-val-col"><span className="m-plan-tag">Free</span><span className="m-val m-metric-val">5 <span className="m-sub">per billing cycle</span></span></div>
+                       <div className="m-val-col"><span className="m-plan-tag">Starter</span><span className="m-val m-metric-val">30 <span className="m-sub">per billing cycle</span></span></div>
+-                      <div className="m-val-col m-val-pro"><span className="m-plan-tag pro-tag">Pro</span><span className="m-val m-metric-val m-metric-pro">Unlimited</span></div>
++                      <div className="m-val-col m-val-pro"><span className="m-plan-tag pro-tag">Pro</span><span className="m-val m-metric-val m-metric-pro">100 <span className="m-sub">per billing cycle</span></span></div>
+                     </div>
+                   </div>
+                 </div>
+@@ -797,12 +790,8 @@ export default function PricingPage() {
+                       </div>
+                       <div className="m-val-col m-val-pro">
+                         <span className="m-plan-tag pro-tag">Pro</span>
+-                        <span className="m-val m-check-val">
+-                          <svg className="m-check-svg" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+-                            <polyline points="3 8.5 6.5 12 13 4.5" />
+-                          </svg>
+-                          <span className="sr-only">Included</span>
+-                        </span>
++                        <span className="m-val m-dash" aria-hidden="true">&mdash;</span>
++                        <span className="sr-only">Not included</span>
+                       </div>
+                     </div>
+                   </div>
+@@ -821,12 +810,8 @@ export default function PricingPage() {
+                       </div>
+                       <div className="m-val-col m-val-pro">
+                         <span className="m-plan-tag pro-tag">Pro</span>
+-                        <span className="m-val m-check-val">
+-                          <svg className="m-check-svg" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+-                            <polyline points="3 8.5 6.5 12 13 4.5" />
+-                          </svg>
+-                          <span className="sr-only">Included</span>
+-                        </span>
++                        <span className="m-val m-dash" aria-hidden="true">&mdash;</span>
++                        <span className="sr-only">Not included</span>
+                       </div>
+                     </div>
+                   </div>
+diff --git a/src/components/ui/ExportRestrictionModal.js b/src/components/ui/ExportRestrictionModal.js
+index dcefdbb..c100d73 100644
+--- a/src/components/ui/ExportRestrictionModal.js
++++ b/src/components/ui/ExportRestrictionModal.js
+@@ -104,12 +104,12 @@ export function ExportRestrictionModal({
+             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
+               <span style={{ color: 'var(--text-main)' }}>Repeat {isQuote ? 'quote' : 'document'} workflow</span>
+               <span style={{ width: '80px', textAlign: 'center' }}>5 {isQuote ? 'Quotes' : 'Documents'}</span>
+-              <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Unlimited</span>
++              <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>100 combined</span>
+             </div>
+             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+               <span style={{ color: 'var(--text-main)' }}>Client portal and follow-up</span>
+               <span style={{ width: '80px', textAlign: 'center', color: 'var(--danger-text)' }}>No</span>
+-              <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>Yes</span>
++              <span style={{ width: '80px', textAlign: 'center', color: 'var(--success-text)', fontWeight: 'bold' }}>No</span>
+             </div>
+           </div>
+         </div>
+diff --git a/src/core/state/dashboardEntitlementState.js b/src/core/state/dashboardEntitlementState.js
+index e6940c3..231cf8b 100644
+--- a/src/core/state/dashboardEntitlementState.js
++++ b/src/core/state/dashboardEntitlementState.js
+@@ -16,6 +16,7 @@ export const EMPTY_DASHBOARD_ENTITLEMENTS = Object.freeze({
+   crm: false,
+   automation: false,
+   advanced_invoicing: false,
++  combined_document_limit: null,
+ });
+ 
+ export function mapEntitlementRecord(record) {
+@@ -33,6 +34,9 @@ export function mapEntitlementRecord(record) {
+     crm: !!record?.crm,
+     automation: !!record?.automation,
+     advanced_invoicing: !!record?.advanced_invoicing,
++    combined_document_limit: Number.isFinite(record?.combined_document_limit)
++      ? record.combined_document_limit
++      : null,
+   };
+ }
+ 
+diff --git a/src/core/state/documentQuota.js b/src/core/state/documentQuota.js
+new file mode 100644
+index 0000000..93aa81a
+--- /dev/null
++++ b/src/core/state/documentQuota.js
+@@ -0,0 +1,13 @@
++// Canonical product authority for newly created Quotes and Invoices.
++// Quote and Invoice creation share this one counter per billing cycle.
++export const COMBINED_DOCUMENT_LIMITS = Object.freeze({
++  free: 5,
++  starter: 30,
++  pro: 100,
++});
++
++export function getCombinedDocumentLimit(plan) {
++  const normalizedPlan = String(plan || 'free').toLowerCase();
++  if (normalizedPlan === 'agency' || normalizedPlan === 'studio') return null;
++  return COMBINED_DOCUMENT_LIMITS[normalizedPlan] ?? COMBINED_DOCUMENT_LIMITS.free;
++}
+diff --git a/supabase/migrations/20260903092326_r56b2_pro_combined_document_quota_authority.sql b/supabase/migrations/20260903092326_r56b2_pro_combined_document_quota_authority.sql
+new file mode 100644
+index 0000000..6c36e7a
+--- /dev/null
++++ b/supabase/migrations/20260903092326_r56b2_pro_combined_document_quota_authority.sql
+@@ -0,0 +1,103 @@
++SET lock_timeout = '10s';
++
++-- R56B-2: freeze the current combined Quote + Invoice creation authority.
++-- Historical migrations remain immutable. This forward migration replaces only
++-- the cycle function used by the existing atomic creation RPCs.
++CREATE OR REPLACE FUNCTION public.get_user_active_document_cycle(
++  p_user_id UUID
++)
++RETURNS TABLE (
++  cycle_start TIMESTAMPTZ,
++  cycle_end TIMESTAMPTZ,
++  doc_limit INT
++)
++LANGUAGE plpgsql
++STABLE
++SECURITY INVOKER
++SET search_path = pg_catalog, public
++AS $$
++DECLARE
++  v_plan TEXT;
++  v_anchor TIMESTAMPTZ;
++  v_now TIMESTAMPTZ := CURRENT_TIMESTAMP;
++  v_sub_start TIMESTAMPTZ;
++  v_sub_end TIMESTAMPTZ;
++  v_month_offset INT;
++  v_cycle_start TIMESTAMPTZ;
++  v_cycle_end TIMESTAMPTZ;
++  v_limit INT;
++BEGIN
++  SELECT lower(COALESCE(p.plan, 'free')), COALESCE(p.created_at, v_now)
++    INTO v_plan, v_anchor
++  FROM public.profiles p
++  WHERE p.id = p_user_id;
++
++  IF NOT FOUND THEN
++    RAISE EXCEPTION 'PROFILE_NOT_FOUND'
++      USING ERRCODE = 'P0001';
++  END IF;
++
++  -- Agency/Studio are legacy compatibility tracks and remain outside the
++  -- current public quota authority. Pro is explicitly finite at 100.
++  IF v_plan IN ('agency', 'studio') THEN
++    RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
++    RETURN;
++  END IF;
++
++  IF v_plan = 'starter' THEN
++    v_limit := 30;
++  ELSIF v_plan = 'pro' THEN
++    v_limit := 100;
++  ELSE
++    v_limit := 5;
++  END IF;
++
++  IF v_plan IN ('starter', 'pro') THEN
++    SELECT s.current_period_start, s.current_period_end
++      INTO v_sub_start, v_sub_end
++    FROM public.subscriptions s
++    WHERE s.user_id = p_user_id
++      AND lower(COALESCE(s.plan, '')) = v_plan
++      AND s.status IN ('active', 'trialing')
++      AND s.current_period_start IS NOT NULL
++      AND s.current_period_end IS NOT NULL
++      AND s.current_period_start <= v_now
++      AND s.current_period_end > v_now
++    ORDER BY s.current_period_end DESC
++    LIMIT 1;
++
++    IF v_sub_start IS NOT NULL AND v_sub_end IS NOT NULL THEN
++      RETURN QUERY SELECT v_sub_start, v_sub_end, v_limit;
++      RETURN;
++    END IF;
++  END IF;
++
++  -- Existing accepted fallback: account-anniversary cycle anchored to the
++  -- profile creation timestamp, used only when no valid paid period exists.
++  v_month_offset := GREATEST(
++    0,
++    (EXTRACT(YEAR FROM (v_now AT TIME ZONE 'UTC'))::INT - EXTRACT(YEAR FROM (v_anchor AT TIME ZONE 'UTC'))::INT) * 12
++    + (EXTRACT(MONTH FROM (v_now AT TIME ZONE 'UTC'))::INT - EXTRACT(MONTH FROM (v_anchor AT TIME ZONE 'UTC'))::INT)
++  );
++
++  v_cycle_start := public.get_clamped_anniversary_timestamptz(v_anchor, v_month_offset);
++  IF v_cycle_start > v_now AND v_month_offset > 0 THEN
++    v_month_offset := v_month_offset - 1;
++    v_cycle_start := public.get_clamped_anniversary_timestamptz(v_anchor, v_month_offset);
++  END IF;
++
++  v_cycle_end := public.get_clamped_anniversary_timestamptz(v_anchor, v_month_offset + 1);
++  WHILE v_cycle_end <= v_now LOOP
++    v_month_offset := v_month_offset + 1;
++    v_cycle_start := v_cycle_end;
++    v_cycle_end := public.get_clamped_anniversary_timestamptz(v_anchor, v_month_offset + 1);
++  END LOOP;
++
++  RETURN QUERY SELECT v_cycle_start, v_cycle_end, v_limit;
++END;
++$$;
++
++COMMENT ON FUNCTION public.get_user_active_document_cycle(UUID) IS
++  'R56B-2 authority: Free 5, Starter 30, Pro 100 combined Quotes and Invoices per billing cycle; Agency/Studio legacy compatibility.';
++
++GRANT EXECUTE ON FUNCTION public.get_user_active_document_cycle(UUID) TO authenticated, service_role;
