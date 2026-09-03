@@ -1,0 +1,532 @@
+diff --git a/scripts/test-pricing-v2-suite.mjs b/scripts/test-pricing-v2-suite.mjs
+index dbc2efb..d4f392f 100644
+--- a/scripts/test-pricing-v2-suite.mjs
++++ b/scripts/test-pricing-v2-suite.mjs
+@@ -197,6 +197,17 @@ async function runAll() {
+ 
+   await test("getSupabaseQuota resolves Starter=30 and Free=5 (total documents, no calendar-month drift)", async () => {
+     const mockSubSupabase = {
++      rpc: async () => ({
++        data: [{
++          cycle_start: "2026-08-01T00:00:00.000Z",
++          cycle_end: "2026-09-01T00:00:00.000Z",
++          doc_limit: 30,
++          total_used: 24,
++          quotes_used: 12,
++          invoices_used: 12,
++        }],
++        error: null,
++      }),
+       from: (table) => ({
+         select: () => ({
+           eq: () => ({
+@@ -227,6 +238,17 @@ async function runAll() {
+ 
+   await test("getDocumentQuota provides all canonical and backward-compatibility fields", async () => {
+     const mockFreeSupabase = {
++      rpc: async () => ({
++        data: [{
++          cycle_start: "2026-01-15T00:00:00.000Z",
++          cycle_end: "2026-02-15T00:00:00.000Z",
++          doc_limit: 5,
++          total_used: 2,
++          quotes_used: 1,
++          invoices_used: 1,
++        }],
++        error: null,
++      }),
+       from: (table) => ({
+         select: () => ({
+           eq: () => ({
+diff --git a/scripts/test-r56b2a-immutable-quota.mjs b/scripts/test-r56b2a-immutable-quota.mjs
+new file mode 100644
+index 0000000..359bfbe
+--- /dev/null
++++ b/scripts/test-r56b2a-immutable-quota.mjs
+@@ -0,0 +1,85 @@
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++
++const migrationNames = fs.readdirSync('supabase/migrations')
++  .filter((name) => name.includes('r56b2a_quota_immutability_security_closure'));
++assert.equal(migrationNames.length, 1, 'R56B2A must add exactly one forward-only migration');
++const migration = fs.readFileSync(`supabase/migrations/${migrationNames[0]}`, 'utf8');
++const ledger = fs.readFileSync('supabase/migrations/20260815000000_document_usage_engine_v2.sql', 'utf8');
++const hardening = fs.readFileSync('supabase/migrations/20260815134423_document_usage_engine_v2_hardening.sql', 'utf8');
++const quotaHelper = fs.readFileSync('src/app/lib/supabase.js', 'utf8');
++const userRoute = fs.readFileSync('src/app/api/user/route.js', 'utf8');
++const invoiceRoute = fs.readFileSync('src/app/api/invoices/route.js', 'utf8');
++
++assert.match(ledger, /document_usage_events_document_unique UNIQUE \(user_id, document_type, document_id\)/);
++assert.match(ledger, /document_usage_events_idempotency_unique UNIQUE \(user_id, document_type, idempotency_key\)/);
++assert.match(hardening, /ALTER TABLE public\.document_usage_events ENABLE ROW LEVEL SECURITY/);
++assert.match(hardening, /REVOKE ALL ON TABLE public\.document_usage_events FROM anon, authenticated, service_role/);
++
++for (const signature of [
++  'public.get_user_active_document_cycle(UUID)',
++  'public.check_and_create_quote(UUID, JSONB)',
++  'public.check_and_create_invoice(UUID, JSONB)',
++]) {
++  assert.match(migration, new RegExp(`REVOKE ALL ON FUNCTION ${signature.replace(/[()]/g, '\\$&')} FROM PUBLIC, anon, authenticated`));
++  assert.match(migration, new RegExp(`GRANT EXECUTE ON FUNCTION ${signature.replace(/[()]/g, '\\$&')} TO service_role`));
++}
++assert.match(migration, /document_usage_events/);
++assert.match(migration, /ON CONFLICT \(user_id, document_type, document_id\) DO NOTHING/);
++assert.match(migration, /INSERT INTO public\.document_usage_events/);
++assert.match(migration, /COUNT\(\*\) INTO v_count[\s\S]{0,260}FROM public\.document_usage_events/);
++assert.doesNotMatch(migration, /COUNT\(\*\) FROM public\.quotes/);
++assert.doesNotMatch(migration, /COUNT\(\*\) FROM public\.invoices/);
++assert.match(migration, /created_at >= c\.cycle_start/);
++assert.match(migration, /created_at < c\.cycle_end/);
++const quoteFunctionStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.check_and_create_quote');
++const invoiceFunctionStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.check_and_create_invoice');
++assert.ok(quoteFunctionStart >= 0, 'Quote atomic function must be redefined');
++assert.ok(invoiceFunctionStart > quoteFunctionStart, 'Invoice atomic function must follow Quote atomic function');
++const quoteFunction = migration.slice(quoteFunctionStart, invoiceFunctionStart);
++const invoiceFunction = migration.slice(invoiceFunctionStart);
++assert.match(quoteFunction, /INSERT INTO public\.quotes[\s\S]*INSERT INTO public\.document_usage_events/);
++assert.match(invoiceFunction, /INSERT INTO public\.invoices[\s\S]*INSERT INTO public\.document_usage_events/);
++assert.match(migration, /backfill/i);
++assert.match(migration, /q\.created_at/);
++assert.match(migration, /i\.created_at/);
++const quotaFunctionStart = quotaHelper.indexOf('export async function getDocumentQuota');
++const quotaFunctionEnd = quotaHelper.indexOf('export async function getSupabaseQuota');
++assert.ok(quotaFunctionStart >= 0 && quotaFunctionEnd > quotaFunctionStart, 'Quota helper must have a bounded implementation');
++const quotaFunction = quotaHelper.slice(quotaFunctionStart, quotaFunctionEnd);
++assert.match(quotaFunction, /rpc\(['"]get_user_document_usage['"]/);
++assert.doesNotMatch(quotaFunction, /\.from\(['"](?:quotes|invoices)['"]\)/);
++assert.match(userRoute, /createServiceSupabaseClient/);
++assert.match(userRoute, /getSupabaseQuota\(quotaSupabase/);
++assert.match(invoiceRoute, /getDocumentQuota\(quotaSupabase/);
++
++// Required delete-bypass contract: deletion changes business rows, never the
++// immutable event count used by the next creation attempt.
++function deletionBypassFixture(limit, seedCount) {
++  const events = Array.from({ length: seedCount }, (_, index) => ({ id: index }));
++  const documents = [...events];
++  return {
++    create() {
++      if (events.length >= limit) return false;
++      const event = { id: events.length };
++      events.push(event);
++      documents.push(event);
++      return true;
++    },
++    deleteOne() { documents.pop(); },
++    events,
++    documents,
++  };
++}
++for (const limit of [5, 30, 100]) {
++  const fixture = deletionBypassFixture(limit, limit);
++  fixture.deleteOne();
++  assert.equal(fixture.create(), false, `deleting a document must not restore capacity at ${limit}`);
++  assert.equal(fixture.events.length, limit);
++}
++const mixed = deletionBypassFixture(100, 100);
++mixed.deleteOne();
++assert.equal(mixed.create(), false, 'mixed Pro 60Q+40I delete bypass must remain blocked');
++assert.equal(mixed.events.length, 100);
++
++console.log('R56B2A IMMUTABLE QUOTA STATIC TEST=PASS');
+diff --git a/src/app/api/invoices/route.js b/src/app/api/invoices/route.js
+index 8974aed..6deb20d 100644
+--- a/src/app/api/invoices/route.js
++++ b/src/app/api/invoices/route.js
+@@ -311,7 +311,10 @@ export async function POST(request) {
+     if (context.mode === 'supabase') {
+       const profile = await ensureProfile(context.supabase, context.user);
+       // Non-authoritative UX quota precheck for telemetry
+-      await getDocumentQuota(context.supabase, context.user.id, profile.plan).catch(() => null);
++      const quotaSupabase = createServiceSupabaseClient();
++      if (quotaSupabase) {
++        await getDocumentQuota(quotaSupabase, context.user.id, profile.plan).catch(() => null);
++      }
+ 
+       // AI Injection Layer (Invoice Flow) - Observability only
+       const invoice = {
+diff --git a/src/app/api/user/route.js b/src/app/api/user/route.js
+index af4a4e2..98b2c51 100644
+--- a/src/app/api/user/route.js
++++ b/src/app/api/user/route.js
+@@ -1,6 +1,6 @@
+ import { NextResponse } from 'next/server';
+ import { getRequestUser, getSupabaseQuota } from '../../lib/supabase';
+-import { ensureProfile } from '../../lib/supabase-service';
++import { createServiceSupabaseClient, ensureProfile } from '../../lib/supabase-service';
+ import { rateLimitAuthenticated } from '../../lib/rate-limit';
+ import { authRequiredResponse, requestContextResponse } from '../../lib/security';
+ import { validatePlanPayload, validationResponse } from '../../lib/validation';
+@@ -41,7 +41,11 @@ export async function GET(request) {
+ 
+     if (context.mode === 'supabase') {
+       const profile = await ensureProfile(context.supabase, context.user);
+-      const quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
++      const quotaSupabase = createServiceSupabaseClient();
++      if (!quotaSupabase) {
++        return NextResponse.json({ error: 'User quota service unavailable' }, { status: 503 });
++      }
++      const quota = await getSupabaseQuota(quotaSupabase, context.user.id, profile.plan);
+ 
+       // Check if user has activated (created first value via onboarding)
+       const { count: activationEventCount } = await context.supabase
+diff --git a/src/app/lib/supabase.js b/src/app/lib/supabase.js
+index 434fd45..b7a3368 100644
+--- a/src/app/lib/supabase.js
++++ b/src/app/lib/supabase.js
+@@ -303,25 +303,14 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
+     };
+   }
+ 
+-  const cycle = await resolveUserBillingCycle(supabase, userId, normalizedPlan);
+-
+-  const [quotesResult, invoicesResult] = await Promise.all([
+-    supabase
+-      .from("quotes")
+-      .select("id", { count: "exact", head: true })
+-      .eq("user_id", userId)
+-      .gte("created_at", cycle.cycleStart)
+-      .lt("created_at", cycle.cycleEnd),
+-    supabase
+-      .from("invoices")
+-      .select("id", { count: "exact", head: true })
+-      .eq("user_id", userId)
+-      .gte("created_at", cycle.cycleStart)
+-      .lt("created_at", cycle.cycleEnd),
+-  ]);
++  const { data: usageRows, error: usageError } = await supabase.rpc("get_user_document_usage", {
++    p_user_id: userId,
++  });
++  if (usageError) throw usageError;
+ 
+-  const quotesCount = quotesResult.count || 0;
+-  const invoicesCount = invoicesResult.count || 0;
++  const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows;
++  const quotesCount = Number(usage?.quotes_used || 0);
++  const invoicesCount = Number(usage?.invoices_used || 0);
+   const totalUsed = quotesCount + invoicesCount;
+ 
+   return {
+@@ -337,9 +326,9 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
+     quotesLimit: limit,
+     quotesAllowed: totalUsed < limit,
+     totalUsed,
+-    cycleStart: cycle.cycleStart,
+-    cycleEnd: cycle.cycleEnd,
+-    cycleType: cycle.cycleType,
++    cycleStart: usage?.cycle_start || null,
++    cycleEnd: usage?.cycle_end || null,
++    cycleType: "database_authority",
+   };
+ }
+ 
+diff --git a/supabase/migrations/20260903102519_r56b2a_quota_immutability_security_closure.sql b/supabase/migrations/20260903102519_r56b2a_quota_immutability_security_closure.sql
+new file mode 100644
+index 0000000..715943f
+--- /dev/null
++++ b/supabase/migrations/20260903102519_r56b2a_quota_immutability_security_closure.sql
+@@ -0,0 +1,304 @@
++SET lock_timeout = '10s';
++
++-- R56B2A: make creation usage immutable while leaving business-document
++-- deletion behavior unchanged. The existing ledger has no FK from
++-- document_id to quotes/invoices, so deleting a document cannot delete its
++-- creation event.
++ALTER TABLE public.document_usage_events ENABLE ROW LEVEL SECURITY;
++REVOKE ALL ON TABLE public.document_usage_events FROM PUBLIC, anon, authenticated, service_role;
++
++-- Backfill only currently applicable-cycle documents. This preserves existing
++-- current-cycle usage without inventing history outside the active cycle.
++INSERT INTO public.document_usage_events (
++  user_id, document_type, document_id, idempotency_key,
++  cycle_start, cycle_end, created_at
++)
++SELECT q.user_id, 'quote', q.id, q.id,
++       c.cycle_start, c.cycle_end, q.created_at
++FROM public.quotes q
++CROSS JOIN LATERAL public.get_user_active_document_cycle(q.user_id) c
++WHERE c.doc_limit IS NOT NULL
++  AND q.created_at >= c.cycle_start
++  AND q.created_at < c.cycle_end
++ON CONFLICT (user_id, document_type, document_id) DO NOTHING;
++
++INSERT INTO public.document_usage_events (
++  user_id, document_type, document_id, idempotency_key,
++  cycle_start, cycle_end, created_at
++)
++SELECT i.user_id, 'invoice', i.id, i.id,
++       c.cycle_start, c.cycle_end, i.created_at
++FROM public.invoices i
++CROSS JOIN LATERAL public.get_user_active_document_cycle(i.user_id) c
++WHERE c.doc_limit IS NOT NULL
++  AND i.created_at >= c.cycle_start
++  AND i.created_at < c.cycle_end
++ON CONFLICT (user_id, document_type, document_id) DO NOTHING;
++
++-- Trusted-server quota read. The private ledger is never exposed to the Data
++-- API roles; only the service role may call this function.
++CREATE OR REPLACE FUNCTION public.get_user_document_usage(
++  p_user_id UUID
++)
++RETURNS TABLE (
++  cycle_start TIMESTAMPTZ,
++  cycle_end TIMESTAMPTZ,
++  doc_limit INT,
++  total_used BIGINT,
++  quotes_used BIGINT,
++  invoices_used BIGINT
++)
++LANGUAGE plpgsql
++STABLE
++SECURITY DEFINER
++SET search_path = public, pg_temp
++AS $$
++DECLARE
++  v_cycle_start TIMESTAMPTZ;
++  v_cycle_end TIMESTAMPTZ;
++  v_limit INT;
++BEGIN
++  SELECT c.cycle_start, c.cycle_end, c.doc_limit
++    INTO v_cycle_start, v_cycle_end, v_limit
++  FROM public.get_user_active_document_cycle(p_user_id) c;
++
++  SELECT
++    COUNT(*),
++    COUNT(*) FILTER (WHERE e.document_type = 'quote'),
++    COUNT(*) FILTER (WHERE e.document_type = 'invoice')
++    INTO total_used, quotes_used, invoices_used
++  FROM public.document_usage_events e
++  WHERE e.user_id = p_user_id
++    AND e.cycle_start = v_cycle_start
++    AND e.cycle_end = v_cycle_end;
++
++  cycle_start := v_cycle_start;
++  cycle_end := v_cycle_end;
++  doc_limit := v_limit;
++  RETURN NEXT;
++END;
++$$;
++
++-- Atomic Quote creation: one advisory lock, immutable usage count, business
++-- insert, and usage-event insert in the same transaction.
++CREATE OR REPLACE FUNCTION public.check_and_create_quote(
++  p_user_id UUID,
++  p_quote_payload JSONB
++)
++RETURNS JSONB
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public, pg_temp
++AS $$
++DECLARE
++  v_cycle_start TIMESTAMPTZ;
++  v_cycle_end TIMESTAMPTZ;
++  v_limit INT;
++  v_count BIGINT;
++  v_client_id UUID;
++  v_quote_row public.quotes%ROWTYPE;
++  v_event_rows INT;
++BEGIN
++  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
++
++  SELECT c.cycle_start, c.cycle_end, c.doc_limit
++    INTO v_cycle_start, v_cycle_end, v_limit
++  FROM public.get_user_active_document_cycle(p_user_id) c;
++
++  IF v_limit IS NOT NULL THEN
++    SELECT COUNT(*) INTO v_count
++    FROM public.document_usage_events e
++    WHERE e.user_id = p_user_id
++      AND e.cycle_start = v_cycle_start
++      AND e.cycle_end = v_cycle_end;
++
++    IF v_count >= v_limit THEN
++      RAISE EXCEPTION 'QUOTA_EXCEEDED: allowance of % documents reached for cycle', v_limit
++        USING ERRCODE = 'P0001';
++    END IF;
++  END IF;
++
++  v_client_id := NULLIF(p_quote_payload->>'client_id', '')::UUID;
++  IF v_client_id IS NOT NULL AND NOT EXISTS (
++    SELECT 1 FROM public.clients c WHERE c.id = v_client_id AND c.user_id = p_user_id
++  ) THEN
++    RAISE EXCEPTION 'CLIENT_NOT_OWNED' USING ERRCODE = 'P0001';
++  END IF;
++
++  INSERT INTO public.quotes (
++    user_id, client_id, quote_number,
++    client_name, client_email, client_address,
++    business_name, business_email, business_address, logo_url,
++    items, subtotal, discount_rate, discount_amount,
++    tax_rate, tax_amount, total, currency, notes, status
++  ) VALUES (
++    p_user_id,
++    v_client_id,
++    COALESCE(NULLIF(p_quote_payload->>'quote_number', ''), 'QUO-' || UPPER(SUBSTRING(MD5(RANDOM()::text) FROM 1 FOR 6))),
++    COALESCE(p_quote_payload->>'client_name', ''),
++    COALESCE(p_quote_payload->>'client_email', ''),
++    COALESCE(p_quote_payload->>'client_address', ''),
++    COALESCE(p_quote_payload->>'business_name', ''),
++    COALESCE(p_quote_payload->>'business_email', ''),
++    COALESCE(p_quote_payload->>'business_address', ''),
++    COALESCE(p_quote_payload->>'logo_url', ''),
++    COALESCE(p_quote_payload->'items', '[]'::JSONB),
++    COALESCE(NULLIF(p_quote_payload->>'subtotal', '')::INT, 0),
++    COALESCE(NULLIF(p_quote_payload->>'discount_rate', '')::NUMERIC, 0),
++    COALESCE(NULLIF(p_quote_payload->>'discount_amount', '')::INT, 0),
++    COALESCE(NULLIF(p_quote_payload->>'tax_rate', '')::NUMERIC, 0),
++    COALESCE(NULLIF(p_quote_payload->>'tax_amount', '')::INT, 0),
++    COALESCE(NULLIF(p_quote_payload->>'total', '')::INT, 0),
++    COALESCE(NULLIF(p_quote_payload->>'currency', ''), 'USD'),
++    COALESCE(p_quote_payload->>'notes', ''),
++    COALESCE(NULLIF(p_quote_payload->>'status', ''), 'draft')
++  )
++  RETURNING * INTO v_quote_row;
++
++  INSERT INTO public.document_usage_events (
++    user_id, document_type, document_id, idempotency_key, cycle_start, cycle_end
++  ) VALUES (
++    p_user_id, 'quote', v_quote_row.id, v_quote_row.id, v_cycle_start, v_cycle_end
++  ) ON CONFLICT (user_id, document_type, document_id) DO NOTHING;
++  GET DIAGNOSTICS v_event_rows = ROW_COUNT;
++  IF v_event_rows = 0 AND NOT EXISTS (
++    SELECT 1 FROM public.document_usage_events e
++    WHERE e.user_id = p_user_id AND e.document_type = 'quote' AND e.document_id = v_quote_row.id
++  ) THEN
++    RAISE EXCEPTION 'DOCUMENT_USAGE_IDEMPOTENCY_INTEGRITY_ERROR';
++  END IF;
++
++  RETURN to_jsonb(v_quote_row);
++END;
++$$;
++
++-- Atomic Invoice creation: same immutable counter and transaction boundary;
++-- payment truth remains initialized by the database, not the caller.
++CREATE OR REPLACE FUNCTION public.check_and_create_invoice(
++  p_user_id UUID,
++  p_invoice_payload JSONB
++)
++RETURNS JSONB
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public, pg_temp
++AS $$
++DECLARE
++  v_cycle_start TIMESTAMPTZ;
++  v_cycle_end TIMESTAMPTZ;
++  v_limit INT;
++  v_count BIGINT;
++  v_client_id UUID;
++  v_quote_id UUID;
++  v_total INT;
++  v_requested_status TEXT;
++  v_invoice_row public.invoices%ROWTYPE;
++  v_event_rows INT;
++BEGIN
++  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
++
++  SELECT c.cycle_start, c.cycle_end, c.doc_limit
++    INTO v_cycle_start, v_cycle_end, v_limit
++  FROM public.get_user_active_document_cycle(p_user_id) c;
++
++  IF v_limit IS NOT NULL THEN
++    SELECT COUNT(*) INTO v_count
++    FROM public.document_usage_events e
++    WHERE e.user_id = p_user_id
++      AND e.cycle_start = v_cycle_start
++      AND e.cycle_end = v_cycle_end;
++
++    IF v_count >= v_limit THEN
++      RAISE EXCEPTION 'QUOTA_EXCEEDED: allowance of % documents reached for cycle', v_limit
++        USING ERRCODE = 'P0001';
++    END IF;
++  END IF;
++
++  v_client_id := NULLIF(p_invoice_payload->>'client_id', '')::UUID;
++  IF v_client_id IS NOT NULL AND NOT EXISTS (
++    SELECT 1 FROM public.clients c WHERE c.id = v_client_id AND c.user_id = p_user_id
++  ) THEN
++    RAISE EXCEPTION 'CLIENT_NOT_OWNED' USING ERRCODE = 'P0001';
++  END IF;
++
++  v_quote_id := NULLIF(p_invoice_payload->>'quote_id', '')::UUID;
++  IF v_quote_id IS NOT NULL AND NOT EXISTS (
++    SELECT 1 FROM public.quotes q WHERE q.id = v_quote_id AND q.user_id = p_user_id
++  ) THEN
++    RAISE EXCEPTION 'QUOTE_NOT_OWNED' USING ERRCODE = 'P0001';
++  END IF;
++
++  v_total := GREATEST(COALESCE(NULLIF(p_invoice_payload->>'total', '')::INT, 0), 0);
++  v_requested_status := lower(COALESCE(NULLIF(p_invoice_payload->>'status', ''), 'draft'));
++  IF v_requested_status NOT IN ('draft', 'pending', 'sent', 'overdue', 'approved') THEN
++    v_requested_status := 'draft';
++  END IF;
++
++  INSERT INTO public.invoices (
++    user_id, invoice_number, status, doc_type,
++    invoice_kind, payment_status, amount_paid_cents, amount_due_cents,
++    client_id, quote_id, payment_link,
++    client_name, client_email, client_address,
++    business_name, business_email, business_address, logo_url,
++    currency, items, subtotal, discount_rate, discount_amount,
++    tax_rate, tax_amount, total, invoice_date, due_date,
++    payment_terms, notes
++  ) VALUES (
++    p_user_id,
++    COALESCE(NULLIF(p_invoice_payload->>'invoice_number', ''), 'INV-' || UPPER(SUBSTRING(MD5(RANDOM()::text) FROM 1 FOR 6))),
++    v_requested_status,
++    CASE WHEN lower(COALESCE(p_invoice_payload->>'doc_type', 'invoice')) IN ('invoice', 'receipt') THEN lower(COALESCE(p_invoice_payload->>'doc_type', 'invoice')) ELSE 'invoice' END,
++    CASE WHEN lower(COALESCE(p_invoice_payload->>'invoice_kind', 'standard')) IN ('standard', 'deposit', 'milestone', 'final') THEN lower(COALESCE(p_invoice_payload->>'invoice_kind', 'standard')) ELSE 'standard' END,
++    'unpaid', 0, v_total,
++    v_client_id, v_quote_id,
++    COALESCE(p_invoice_payload->>'payment_link', ''),
++    COALESCE(p_invoice_payload->>'client_name', ''),
++    COALESCE(p_invoice_payload->>'client_email', ''),
++    COALESCE(p_invoice_payload->>'client_address', ''),
++    COALESCE(p_invoice_payload->>'business_name', ''),
++    COALESCE(p_invoice_payload->>'business_email', ''),
++    COALESCE(p_invoice_payload->>'business_address', ''),
++    COALESCE(p_invoice_payload->>'logo_url', ''),
++    COALESCE(NULLIF(p_invoice_payload->>'currency', ''), 'USD'),
++    COALESCE(p_invoice_payload->'items', '[]'::JSONB),
++    COALESCE(NULLIF(p_invoice_payload->>'subtotal', '')::INT, 0),
++    COALESCE(NULLIF(p_invoice_payload->>'discount_rate', '')::NUMERIC, 0),
++    COALESCE(NULLIF(p_invoice_payload->>'discount_amount', '')::INT, 0),
++    COALESCE(NULLIF(p_invoice_payload->>'tax_rate', '')::NUMERIC, 0),
++    COALESCE(NULLIF(p_invoice_payload->>'tax_amount', '')::INT, 0),
++    v_total,
++    COALESCE(NULLIF(p_invoice_payload->>'invoice_date', '')::DATE, CURRENT_DATE),
++    NULLIF(p_invoice_payload->>'due_date', '')::DATE,
++    COALESCE(NULLIF(p_invoice_payload->>'payment_terms', ''), 'Net 30'),
++    COALESCE(p_invoice_payload->>'notes', '')
++  )
++  RETURNING * INTO v_invoice_row;
++
++  INSERT INTO public.document_usage_events (
++    user_id, document_type, document_id, idempotency_key, cycle_start, cycle_end
++  ) VALUES (
++    p_user_id, 'invoice', v_invoice_row.id, v_invoice_row.id, v_cycle_start, v_cycle_end
++  ) ON CONFLICT (user_id, document_type, document_id) DO NOTHING;
++  GET DIAGNOSTICS v_event_rows = ROW_COUNT;
++  IF v_event_rows = 0 AND NOT EXISTS (
++    SELECT 1 FROM public.document_usage_events e
++    WHERE e.user_id = p_user_id AND e.document_type = 'invoice' AND e.document_id = v_invoice_row.id
++  ) THEN
++    RAISE EXCEPTION 'DOCUMENT_USAGE_IDEMPOTENCY_INTEGRITY_ERROR';
++  END IF;
++
++  RETURN to_jsonb(v_invoice_row);
++END;
++$$;
++
++-- Explicit trusted-server-only function authority. PUBLIC is revoked first
++-- because PostgreSQL grants EXECUTE to PUBLIC by default.
++REVOKE ALL ON FUNCTION public.get_user_active_document_cycle(UUID) FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON FUNCTION public.check_and_create_quote(UUID, JSONB) FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON FUNCTION public.check_and_create_invoice(UUID, JSONB) FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON FUNCTION public.get_user_document_usage(UUID) FROM PUBLIC, anon, authenticated;
++
++GRANT EXECUTE ON FUNCTION public.get_user_active_document_cycle(UUID) TO service_role;
++GRANT EXECUTE ON FUNCTION public.check_and_create_quote(UUID, JSONB) TO service_role;
++GRANT EXECUTE ON FUNCTION public.check_and_create_invoice(UUID, JSONB) TO service_role;
++GRANT EXECUTE ON FUNCTION public.get_user_document_usage(UUID) TO service_role;

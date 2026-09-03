@@ -311,7 +311,10 @@ export async function POST(request) {
     if (context.mode === 'supabase') {
       const profile = await ensureProfile(context.supabase, context.user);
       // Non-authoritative UX quota precheck for telemetry
-      await getDocumentQuota(context.supabase, context.user.id, profile.plan).catch(() => null);
+      const quotaSupabase = createServiceSupabaseClient();
+      if (quotaSupabase) {
+        await getDocumentQuota(quotaSupabase, context.user.id, profile.plan).catch(() => null);
+      }
 
       // AI Injection Layer (Invoice Flow) - Observability only
       const invoice = {

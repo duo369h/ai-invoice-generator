@@ -303,25 +303,14 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
     };
   }
 
-  const cycle = await resolveUserBillingCycle(supabase, userId, normalizedPlan);
+  const { data: usageRows, error: usageError } = await supabase.rpc("get_user_document_usage", {
+    p_user_id: userId,
+  });
+  if (usageError) throw usageError;
 
-  const [quotesResult, invoicesResult] = await Promise.all([
-    supabase
-      .from("quotes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", cycle.cycleStart)
-      .lt("created_at", cycle.cycleEnd),
-    supabase
-      .from("invoices")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", cycle.cycleStart)
-      .lt("created_at", cycle.cycleEnd),
-  ]);
-
-  const quotesCount = quotesResult.count || 0;
-  const invoicesCount = invoicesResult.count || 0;
+  const usage = Array.isArray(usageRows) ? usageRows[0] : usageRows;
+  const quotesCount = Number(usage?.quotes_used || 0);
+  const invoicesCount = Number(usage?.invoices_used || 0);
   const totalUsed = quotesCount + invoicesCount;
 
   return {
@@ -337,9 +326,9 @@ export async function getDocumentQuota(supabase, userId, plan = "free") {
     quotesLimit: limit,
     quotesAllowed: totalUsed < limit,
     totalUsed,
-    cycleStart: cycle.cycleStart,
-    cycleEnd: cycle.cycleEnd,
-    cycleType: cycle.cycleType,
+    cycleStart: usage?.cycle_start || null,
+    cycleEnd: usage?.cycle_end || null,
+    cycleType: "database_authority",
   };
 }
 

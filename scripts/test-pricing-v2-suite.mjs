@@ -197,6 +197,17 @@ async function runAll() {
 
   await test("getSupabaseQuota resolves Starter=30 and Free=5 (total documents, no calendar-month drift)", async () => {
     const mockSubSupabase = {
+      rpc: async () => ({
+        data: [{
+          cycle_start: "2026-08-01T00:00:00.000Z",
+          cycle_end: "2026-09-01T00:00:00.000Z",
+          doc_limit: 30,
+          total_used: 24,
+          quotes_used: 12,
+          invoices_used: 12,
+        }],
+        error: null,
+      }),
       from: (table) => ({
         select: () => ({
           eq: () => ({
@@ -227,6 +238,17 @@ async function runAll() {
 
   await test("getDocumentQuota provides all canonical and backward-compatibility fields", async () => {
     const mockFreeSupabase = {
+      rpc: async () => ({
+        data: [{
+          cycle_start: "2026-01-15T00:00:00.000Z",
+          cycle_end: "2026-02-15T00:00:00.000Z",
+          doc_limit: 5,
+          total_used: 2,
+          quotes_used: 1,
+          invoices_used: 1,
+        }],
+        error: null,
+      }),
       from: (table) => ({
         select: () => ({
           eq: () => ({

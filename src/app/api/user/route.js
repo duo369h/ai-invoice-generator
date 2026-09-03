@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestUser, getSupabaseQuota } from '../../lib/supabase';
-import { ensureProfile } from '../../lib/supabase-service';
+import { createServiceSupabaseClient, ensureProfile } from '../../lib/supabase-service';
 import { rateLimitAuthenticated } from '../../lib/rate-limit';
 import { authRequiredResponse, requestContextResponse } from '../../lib/security';
 import { validatePlanPayload, validationResponse } from '../../lib/validation';
@@ -41,7 +41,11 @@ export async function GET(request) {
 
     if (context.mode === 'supabase') {
       const profile = await ensureProfile(context.supabase, context.user);
-      const quota = await getSupabaseQuota(context.supabase, context.user.id, profile.plan);
+      const quotaSupabase = createServiceSupabaseClient();
+      if (!quotaSupabase) {
+        return NextResponse.json({ error: 'User quota service unavailable' }, { status: 503 });
+      }
+      const quota = await getSupabaseQuota(quotaSupabase, context.user.id, profile.plan);
 
       // Check if user has activated (created first value via onboarding)
       const { count: activationEventCount } = await context.supabase
