@@ -1251,11 +1251,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [leadReminderDate, setLeadReminderDate] = useState('');
 
   // Modals
+  const [showReminderModal, setShowReminderModal] = useState(false);
   const [showActivationGuide, setShowActivationGuide] = useState(false);
   const [activationGuideDismissed, setActivationGuideDismissed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('corvioz_activation_dismissed') === 'true';
   });
+  const [selectedInvoiceForReminder, setSelectedInvoiceForReminder] = useState(null);
+  const [activeReminderTemplate, setActiveReminderTemplate] = useState('7');
+  const [reminderCopied, setReminderCopied] = useState(false);
   const [pendingInvoiceDraft, setPendingInvoiceDraft] = useState(null);
   const [showDraftRestorePrompt, setShowDraftRestorePrompt] = useState(false);
   const [hasSelectedPlanForFirstValue, setHasSelectedPlanForFirstValue] = useState(false);
@@ -2110,7 +2114,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
   };
 
-  const openInvoiceDraft = (invoice, quote, created = true) => {
+  const openInvoiceDraft = (invoice, quote) => {
     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
     const deserialized = deserializeInvoiceNotes(invoice.notes || '');
     const quotePublicNotes = deserializeInvoiceNotes(quote.notes || '').notes;
@@ -2137,7 +2141,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
     handleDashboardTabChange('invoices', 'quote_conversion');
     setInvoiceView('create');
-    triggerToast(created ? 'Invoice draft created. Review and save it before sending.' : 'Existing Invoice draft opened. Review it before sending.', 'success');
+    triggerToast('Invoice draft created. Review and save it before sending.', 'success');
   };
 
   const handleConvertQuoteToInvoice = async (quote) => {
@@ -2147,7 +2151,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const response = await fetch(`/api/quotes/${quote.id}/invoice-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Unable to create Invoice draft');
-      openInvoiceDraft(result.invoice, quote, result.created !== false);
+      openInvoiceDraft(result.invoice, quote);
       await fetchData(session?.access_token);
     } catch (error) {
       triggerToast(error.message || 'Unable to create Invoice draft.', 'error');
@@ -3242,6 +3246,41 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
+  // Copy customized reminder
+  const openReminderModalFor = (invoice) => {
+    setSelectedInvoiceForReminder(invoice);
+    setActiveReminderTemplate('7');
+    setReminderCopied(false);
+    setShowReminderModal(true);
+  };
+
+  const getReminderEmailContent = () => {
+    if (!selectedInvoiceForReminder) return { subject: '', body: '' };
+    const inv = selectedInvoiceForReminder;
+    const invNo = inv.invoice_number;
+    const amountStr = `${getCurrencySymbol(inv.currency)}${(inv.total / 100).toFixed(2)}`;
+    const cliName = inv.client_name;
+    const bName = inv.business_name || user.name || 'Photographer';
+    const due = inv.due_date || 'Receipt';
+
+    if (activeReminderTemplate === '7') {
+      return {
+        subject: `Friendly Reminder: Document #${invNo} needs review`,
+        body: `Hi ${cliName},\n\nHope you are doing well.\n\nThis is a quick friendly reminder that document #${invNo} for ${amountStr} was due on ${due} and is now a week overdue.\n\nCould you please review the document status and let me know if you need another copy or any clarification?\n\nThank you!\n\nBest regards,\n${bName}`
+      };
+    } else if (activeReminderTemplate === '14') {
+      return {
+        subject: `Follow-up: Document #${invNo} is 14 days overdue`,
+        body: `Hi ${cliName},\n\nI am writing to follow up on document #${invNo} for ${amountStr} which was due on ${due}. It is now 14 days past due.\n\nWe would appreciate it if you could review the document as soon as possible. Please confirm when it has been reviewed, or let me know if there are any questions blocking review.\n\nThank you for your prompt attention to this matter.\n\nRegards,\n${bName}`
+      };
+    } else {
+      return {
+        subject: `Final Follow-up: Document #${invNo} needs review`,
+        body: `Hi ${cliName},\n\nThis is a final follow-up regarding document #${invNo} of ${amountStr} which was due on ${due}. This document is now 30 days past due.\n\nPlease review the document instructions provided. If review is not completed, we may need to pause current work or revisit the project timeline.\n\nRegards,\n${bName}`
+      };
+    }
+  };
+
   // Form items handlers
   const handleItemChange = (editorType, index, field, value) => {
     if (editorType === 'quote') {
@@ -3366,9 +3405,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Document total computations
   const currentInvoices = getActiveInvoices();
-  const totalPaid = currentInvoices.filter(i => paymentStatusForInvoice(i) === 'paid').reduce((sum, i) => sum + (i.amount_paid_cents ?? i.total ?? 0), 0) / 100;
-  const totalPending = currentInvoices.filter(i => ['unpaid', 'partial'].includes(paymentStatusForInvoice(i))).reduce((sum, i) => sum + (i.amount_due_cents ?? i.total ?? 0), 0) / 100;
-  const totalOverdue = currentInvoices.filter(i => paymentStatusForInvoice(i) === 'overdue').reduce((sum, i) => sum + (i.amount_due_cents ?? i.total ?? 0), 0) / 100;
+  const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalPending = currentInvoices.filter(i => ['pending', 'sent', 'unpaid', 'partial'].includes(i.payment_status || i.status)).reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+  const totalOverdue = currentInvoices.filter(i => (i.payment_status || i.status) === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
   const totalVolume = totalPaid + totalPending + totalOverdue;
 
   // Init blank Quote
@@ -4193,14 +4232,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               data={{
                 quotes: getActiveQuotes(),
                 invoices: currentInvoices,
-                quota: user?.quota || null,
-                plan: user?.plan || tierPlan,
                 leads: getActiveLeads(),
                 clients: getActiveClients(),
                 totalPaid,
                 activeProfile: getActiveProfile(),
                 isLoading: isRefreshing,
-                error: dashboardDataError || quotesError || invoicesError || (isEntitlementError ? 'entitlement_unavailable' : null),
+                error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
                 quoteError: quotesError,
                 isFree: isFreePlan,
                 exportCount,
@@ -4220,12 +4257,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     return openDocument({ documentType: 'quote', id });
                   }
                   return handleDashboardTabChange('quotes', 'overview');
-                },
-                createInvoiceFromQuote: ({ id } = {}) => {
-                  const quote = getActiveQuotes().find((item) => item?.id === id);
-                  if (quote) return handleConvertQuoteToInvoice(quote);
-                  triggerToast('This Quote is no longer available. Refresh and try again.', 'error');
-                  return false;
                 },
                 openInvoices: ({ id } = {}) => {
                   if (id) {
@@ -5337,6 +5368,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                     className="btn btn-primary btn-sm"
                                   >
                                     {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+                                  </button>
+                                )}
+                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
+                                  <button
+                                    onClick={() => {
+                                      evaluateAction('payment_reminder', () => {
+                                        openReminderModalFor(inv);
+                                      });
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                    title="Send Client Follow-up"
+                                  >
+                                    <span>🔔 Reminder</span>
+                                    {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
                                   </button>
                                 )}
                                 <button
@@ -7532,6 +7578,60 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <button type="submit" disabled={isRecordingPayment} className="btn btn-primary" style={{ flex: 1 }}>{isRecordingPayment ? 'Recording...' : 'Record payment'}</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Reminder Text Copy Modal */}
+      {showReminderModal && selectedInvoiceForReminder && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '600px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Send Overdue Reminder</h3>
+              <button onClick={() => setShowReminderModal(false)} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer' }}>&times;</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {[
+                { id: '7', label: '7 Days Overdue' },
+                { id: '14', label: '14 Days Overdue' },
+                { id: '30', label: '30 Days Overdue' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setActiveReminderTemplate(t.id); setReminderCopied(false); }}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    backgroundColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'rgba(255,255,255,0.02)',
+                    borderColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'var(--border)'
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '20px', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
+              <div style={{ fontWeight: 'bold', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
+                Subject: {getReminderEmailContent().subject}
+              </div>
+              <div>{getReminderEmailContent().body}</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  const content = `Subject: ${getReminderEmailContent().subject}\n\n${getReminderEmailContent().body}`;
+                  navigator.clipboard.writeText(content);
+                  setReminderCopied(true);
+                }}
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+              >
+                {reminderCopied ? 'Copied Content!' : 'Copy to Clipboard'}
+              </button>
+              <button onClick={() => setShowReminderModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Close</button>
+            </div>
+          </div>
         </div>
       )}
 

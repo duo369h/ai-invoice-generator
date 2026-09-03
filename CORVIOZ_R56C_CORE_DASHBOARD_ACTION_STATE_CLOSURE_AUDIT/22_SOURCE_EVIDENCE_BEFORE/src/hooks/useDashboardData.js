@@ -249,7 +249,6 @@ export async function loadDashboardResources({
   const invoicesTask = consumeListResource({
     resultTask: resourceTasks.invoices,
     setData: setInvoices,
-    clearOnHttpError: false,
   }).then((result) => {
     if (result.status === 'success') {
       setInvoicesError(null);

@@ -39,19 +39,6 @@ export function getDashboardQuickActions() {
   ];
 }
 
-export const CORE_DASHBOARD_ACTION_AUTHORITY = Object.freeze({
-  draftQuote: Object.freeze({ action: 'openQuotes', label: 'Open quote', documentType: 'quote' }),
-  sentQuote: Object.freeze({ action: 'openQuotes', label: 'Open quote', documentType: 'quote' }),
-  approvedQuote: Object.freeze({ action: 'createInvoiceFromQuote', label: 'Create invoice', documentType: 'quote' }),
-  pastDueInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
-  partialInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
-  unpaidInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
-  createQuote: Object.freeze({ action: 'createQuote', label: 'Create Quote' }),
-  createInvoice: Object.freeze({ action: 'createInvoice', label: 'Create Invoice' }),
-  recordPayment: Object.freeze({ action: 'recordPayment', label: 'Record payment', documentType: 'invoice' }),
-  exportPdf: Object.freeze({ action: 'exportPdf', label: 'Export PDF' }),
-});
-
 function timestampFor(record) {
   const timestamp = Date.parse(record?.updated_at || record?.created_at || '');
   return Number.isFinite(timestamp) ? timestamp : 0;
@@ -245,8 +232,8 @@ export function buildNeedsAttention({ quotes = [], invoices = [] } = {}, now = n
         record,
         documentType: 'quote',
         title: 'Ready to create invoice',
-        action: CORE_DASHBOARD_ACTION_AUTHORITY.approvedQuote.action,
-        actionLabel: CORE_DASHBOARD_ACTION_AUTHORITY.approvedQuote.label,
+        action: 'openQuotes',
+        actionLabel: 'Open quote',
         priority: NEEDS_ATTENTION_PRIORITY.approved_quote,
       })];
     }
@@ -396,64 +383,5 @@ export function getNeedsAttentionSurfaceState({ itemCount = 0, surfaceState = 'e
     title: null,
     description: null,
     showRetry: false,
-  };
-}
-
-export function derivePaymentProgressState(invoices = [], now = new Date()) {
-  const currencyTotals = new Map();
-  let needsPaymentCount = 0;
-
-  for (const invoice of Array.isArray(invoices) ? invoices : []) {
-    const readModel = resolveInvoicePaymentReadModel(invoice, now);
-    const currency = String(invoice?.currency || 'USD').trim().toUpperCase() || 'USD';
-    const current = currencyTotals.get(currency) || {
-      currency,
-      paidAmountCents: 0,
-      outstandingAmountCents: 0,
-      needsPaymentCount: 0,
-    };
-    current.paidAmountCents += readModel.amount_paid_cents;
-    current.outstandingAmountCents += readModel.amount_due_cents;
-    if ([PAYMENT_STATUSES.UNPAID, PAYMENT_STATUSES.PARTIAL, PAYMENT_STATUSES.OVERDUE].includes(readModel.payment_status)) {
-      current.needsPaymentCount += 1;
-      needsPaymentCount += 1;
-    }
-    currencyTotals.set(currency, current);
-  }
-
-  const currencies = [...currencyTotals.values()].sort((left, right) => left.currency.localeCompare(right.currency));
-  const isMultiCurrency = currencies.length > 1;
-  return {
-    invoiceCount: Array.isArray(invoices) ? invoices.length : 0,
-    currency: currencies.length === 1 ? currencies[0].currency : null,
-    paidAmountCents: isMultiCurrency ? null : currencies[0]?.paidAmountCents || 0,
-    outstandingAmountCents: isMultiCurrency ? null : currencies[0]?.outstandingAmountCents || 0,
-    needsPaymentCount,
-    currencies,
-    isMultiCurrency,
-  };
-}
-
-export function deriveDocumentUsageState(quota, plan = 'free') {
-  const normalizedPlan = String(plan || 'free').toLowerCase();
-  const used = Number(quota?.documentsUsed);
-  const limit = Number(quota?.documentsLimit);
-  if (!Number.isFinite(used) || !Number.isFinite(limit) || used < 0 || limit < 0) {
-    return {
-      status: 'unavailable',
-      used: null,
-      limit: null,
-      label: 'Usage unavailable',
-      source: 'server_immutable_usage',
-      plan: normalizedPlan,
-    };
-  }
-  return {
-    status: 'ready',
-    used,
-    limit,
-    label: `${used} / ${limit}`,
-    source: 'server_immutable_usage',
-    plan: normalizedPlan,
   };
 }

@@ -1,0 +1,512 @@
+diff --git a/scripts/test-dashboard-overview-needs-attention-r42.mjs b/scripts/test-dashboard-overview-needs-attention-r42.mjs
+index e73400e..5618a26 100644
+--- a/scripts/test-dashboard-overview-needs-attention-r42.mjs
++++ b/scripts/test-dashboard-overview-needs-attention-r42.mjs
+@@ -88,7 +88,11 @@ assert.deepEqual(items.find(({ id }) => id === 'i-partial'), {
+ 
+ assert.equal(items.some(({ id }) => ['q-declined', 'q-converted', 'i-paid', 'i-draft'].includes(id)), false, 'terminal and draft documents must be excluded');
+ assert.deepEqual(sourceData, sourceSnapshot, 'derivation must not mutate authoritative read data');
+-assert.equal(items.every(({ action }) => ['openQuotes', 'openInvoices'].includes(action)), true, 'attention actions must only enter existing read-only document flows');
++assert.equal(
++  items.every(({ action }) => ['openQuotes', 'openInvoices', 'createInvoiceFromQuote'].includes(action)),
++  true,
++  'attention actions must only enter canonical document flows',
++);
+ 
+ const stableOrder = buildNeedsAttention({
+   quotes: [
+diff --git a/src/app/dashboard/components/DashboardOverview.js b/src/app/dashboard/components/DashboardOverview.js
+index a94aca3..3d049a9 100644
+--- a/src/app/dashboard/components/DashboardOverview.js
++++ b/src/app/dashboard/components/DashboardOverview.js
+@@ -11,6 +11,8 @@ import {
+   getNeedsAttentionSurfaceState,
+   buildScopeSnapshot,
+   getScopeSnapshotSurfaceState,
++  derivePaymentProgressState,
++  deriveDocumentUsageState,
+ } from '../../../components/dashboard/dashboardWave1.mjs';
+ 
+ const cardStyle = {
+@@ -666,6 +668,72 @@ function Wave1QuickActions({ actionHandlers }) {
+   );
+ }
+ 
++function formatPaymentCents(cents, currency) {
++  if (!Number.isFinite(Number(cents))) return 'Unavailable';
++  try {
++    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(Number(cents) / 100);
++  } catch {
++    return `${Number(cents) / 100} ${currency || 'USD'}`;
++  }
++}
++
++function Wave1PaymentProgress({ invoices }) {
++  const payment = derivePaymentProgressState(invoices);
++  return (
++    <section className="dashboard-wave1-card dashboard-payment-progress" data-testid="payment-progress" aria-labelledby="payment-progress-title">
++      <div className="dashboard-wave1-section-heading">
++        <div>
++          <h2 id="payment-progress-title">Payments</h2>
++          <p className="dashboard-wave1-subtitle">Based on recorded payment status</p>
++        </div>
++        <span className="dashboard-wave1-hint">{payment.invoiceCount} invoice{payment.invoiceCount === 1 ? '' : 's'}</span>
++      </div>
++      {payment.invoiceCount === 0 ? (
++        <div className="dashboard-wave1-state" data-testid="payment-progress-empty-state">
++          <strong>No invoice payments yet</strong>
++        </div>
++      ) : payment.isMultiCurrency ? (
++        <div className="dashboard-wave1-payment-groups" data-testid="payment-progress-multi-currency">
++          {payment.currencies.map((group) => (
++            <div key={group.currency} className="dashboard-wave1-payment-group">
++              <strong>{group.currency}</strong>
++              <span>Paid {formatPaymentCents(group.paidAmountCents, group.currency)}</span>
++              <span>Outstanding {formatPaymentCents(group.outstandingAmountCents, group.currency)}</span>
++              <span>Needs payment {group.needsPaymentCount}</span>
++            </div>
++          ))}
++        </div>
++      ) : (
++        <div className="dashboard-wave1-payment-metrics" data-testid="payment-progress-single-currency">
++          <div><span>Paid</span><strong>{formatPaymentCents(payment.paidAmountCents, payment.currency)}</strong></div>
++          <div><span>Outstanding</span><strong>{formatPaymentCents(payment.outstandingAmountCents, payment.currency)}</strong></div>
++          <div><span>Needs payment</span><strong>{payment.needsPaymentCount}</strong></div>
++        </div>
++      )}
++    </section>
++  );
++}
++
++function Wave1DocumentUsage({ quota, plan }) {
++  const usage = deriveDocumentUsageState(quota, plan);
++  return (
++    <section className="dashboard-wave1-card dashboard-document-usage" data-testid="document-usage" aria-labelledby="document-usage-title">
++      <div className="dashboard-wave1-section-heading">
++        <div>
++          <h2 id="document-usage-title">Document usage</h2>
++          <p className="dashboard-wave1-subtitle">New Quotes and Invoices this cycle</p>
++        </div>
++        <span className="dashboard-wave1-hint">{usage.plan}</span>
++      </div>
++      {usage.status === 'ready' ? (
++        <strong className="dashboard-wave1-usage-value" data-testid="document-usage-value">{usage.label}</strong>
++      ) : (
++        <span className="dashboard-wave1-state" data-testid="document-usage-unavailable">Usage unavailable</span>
++      )}
++    </section>
++  );
++}
++
+ function formatAttentionDate(value) {
+   if (!value) return null;
+   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))
+@@ -966,6 +1034,8 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
+         <p>Keep your next client document moving.</p>
+       </header>
+       <Wave1QuickActions actionHandlers={actionHandlers} />
++      <Wave1PaymentProgress invoices={invoices} />
++      <Wave1DocumentUsage quota={data.quota} plan={data.plan} />
+       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
+       <Wave1ScopeSnapshot
+         snapshot={scopeSnapshot}
+diff --git a/src/app/styles/components.css b/src/app/styles/components.css
+index e9b797a..f2ae9ca 100644
+--- a/src/app/styles/components.css
++++ b/src/app/styles/components.css
+@@ -2339,6 +2339,59 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
+   font-size: var(--text-xs);
+ }
+ 
++.dashboard-wave1-subtitle {
++  margin: 4px 0 0;
++  color: var(--text-muted);
++  font-size: var(--text-xs);
++  line-height: 1.4;
++}
++
++.dashboard-wave1-payment-metrics {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: var(--space-4);
++}
++
++.dashboard-wave1-payment-metrics > div,
++.dashboard-wave1-payment-group {
++  display: grid;
++  gap: var(--space-1);
++  min-width: 0;
++}
++
++.dashboard-wave1-payment-metrics span,
++.dashboard-wave1-payment-group span {
++  color: var(--text-muted);
++  font-size: var(--text-xs);
++}
++
++.dashboard-wave1-payment-metrics strong,
++.dashboard-wave1-payment-group strong {
++  color: var(--text-main);
++  font-size: var(--text-lg);
++  overflow-wrap: anywhere;
++}
++
++.dashboard-wave1-payment-groups {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
++  gap: var(--space-4);
++}
++
++.dashboard-wave1-payment-group {
++  padding: var(--space-3);
++  border: 1px solid var(--border);
++  border-radius: var(--radius-md);
++  background: var(--bg-surface);
++}
++
++.dashboard-wave1-usage-value {
++  display: block;
++  color: var(--text-main);
++  font-size: var(--text-2xl);
++  letter-spacing: -0.02em;
++}
++
+ @media (max-width: 640px) {
+   .dashboard-wave1-card {
+     padding: var(--space-5);
+@@ -2348,6 +2401,11 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
+     grid-template-columns: 1fr;
+   }
+ 
++  .dashboard-wave1-payment-metrics {
++    grid-template-columns: 1fr;
++    gap: var(--space-3);
++  }
++
+   .dashboard-wave1-document {
+     align-items: flex-start;
+     flex-wrap: wrap;
+diff --git a/src/components/dashboard/Dashboard.js b/src/components/dashboard/Dashboard.js
+index e2a6c1d..c43a07d 100644
+--- a/src/components/dashboard/Dashboard.js
++++ b/src/components/dashboard/Dashboard.js
+@@ -1251,15 +1251,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+   const [leadReminderDate, setLeadReminderDate] = useState('');
+ 
+   // Modals
+-  const [showReminderModal, setShowReminderModal] = useState(false);
+   const [showActivationGuide, setShowActivationGuide] = useState(false);
+   const [activationGuideDismissed, setActivationGuideDismissed] = useState(() => {
+     if (typeof window === 'undefined') return false;
+     return window.localStorage.getItem('corvioz_activation_dismissed') === 'true';
+   });
+-  const [selectedInvoiceForReminder, setSelectedInvoiceForReminder] = useState(null);
+-  const [activeReminderTemplate, setActiveReminderTemplate] = useState('7');
+-  const [reminderCopied, setReminderCopied] = useState(false);
+   const [pendingInvoiceDraft, setPendingInvoiceDraft] = useState(null);
+   const [showDraftRestorePrompt, setShowDraftRestorePrompt] = useState(false);
+   const [hasSelectedPlanForFirstValue, setHasSelectedPlanForFirstValue] = useState(false);
+@@ -2114,7 +2110,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
+   };
+ 
+-  const openInvoiceDraft = (invoice, quote) => {
++  const openInvoiceDraft = (invoice, quote, created = true) => {
+     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
+     const deserialized = deserializeInvoiceNotes(invoice.notes || '');
+     const quotePublicNotes = deserializeInvoiceNotes(quote.notes || '').notes;
+@@ -2141,7 +2137,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
+     handleDashboardTabChange('invoices', 'quote_conversion');
+     setInvoiceView('create');
+-    triggerToast('Invoice draft created. Review and save it before sending.', 'success');
++    triggerToast(created ? 'Invoice draft created. Review and save it before sending.' : 'Existing Invoice draft opened. Review it before sending.', 'success');
+   };
+ 
+   const handleConvertQuoteToInvoice = async (quote) => {
+@@ -2151,7 +2147,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+       const response = await fetch(`/api/quotes/${quote.id}/invoice-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+       const result = await response.json().catch(() => ({}));
+       if (!response.ok) throw new Error(result.error || 'Unable to create Invoice draft');
+-      openInvoiceDraft(result.invoice, quote);
++      openInvoiceDraft(result.invoice, quote, result.created !== false);
+       await fetchData(session?.access_token);
+     } catch (error) {
+       triggerToast(error.message || 'Unable to create Invoice draft.', 'error');
+@@ -3246,41 +3242,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     }
+   };
+ 
+-  // Copy customized reminder
+-  const openReminderModalFor = (invoice) => {
+-    setSelectedInvoiceForReminder(invoice);
+-    setActiveReminderTemplate('7');
+-    setReminderCopied(false);
+-    setShowReminderModal(true);
+-  };
+-
+-  const getReminderEmailContent = () => {
+-    if (!selectedInvoiceForReminder) return { subject: '', body: '' };
+-    const inv = selectedInvoiceForReminder;
+-    const invNo = inv.invoice_number;
+-    const amountStr = `${getCurrencySymbol(inv.currency)}${(inv.total / 100).toFixed(2)}`;
+-    const cliName = inv.client_name;
+-    const bName = inv.business_name || user.name || 'Photographer';
+-    const due = inv.due_date || 'Receipt';
+-
+-    if (activeReminderTemplate === '7') {
+-      return {
+-        subject: `Friendly Reminder: Document #${invNo} needs review`,
+-        body: `Hi ${cliName},\n\nHope you are doing well.\n\nThis is a quick friendly reminder that document #${invNo} for ${amountStr} was due on ${due} and is now a week overdue.\n\nCould you please review the document status and let me know if you need another copy or any clarification?\n\nThank you!\n\nBest regards,\n${bName}`
+-      };
+-    } else if (activeReminderTemplate === '14') {
+-      return {
+-        subject: `Follow-up: Document #${invNo} is 14 days overdue`,
+-        body: `Hi ${cliName},\n\nI am writing to follow up on document #${invNo} for ${amountStr} which was due on ${due}. It is now 14 days past due.\n\nWe would appreciate it if you could review the document as soon as possible. Please confirm when it has been reviewed, or let me know if there are any questions blocking review.\n\nThank you for your prompt attention to this matter.\n\nRegards,\n${bName}`
+-      };
+-    } else {
+-      return {
+-        subject: `Final Follow-up: Document #${invNo} needs review`,
+-        body: `Hi ${cliName},\n\nThis is a final follow-up regarding document #${invNo} of ${amountStr} which was due on ${due}. This document is now 30 days past due.\n\nPlease review the document instructions provided. If review is not completed, we may need to pause current work or revisit the project timeline.\n\nRegards,\n${bName}`
+-      };
+-    }
+-  };
+-
+   // Form items handlers
+   const handleItemChange = (editorType, index, field, value) => {
+     if (editorType === 'quote') {
+@@ -3405,9 +3366,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+ 
+   // Document total computations
+   const currentInvoices = getActiveInvoices();
+-  const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+-  const totalPending = currentInvoices.filter(i => ['pending', 'sent', 'unpaid', 'partial'].includes(i.payment_status || i.status)).reduce((sum, i) => sum + (i.total || 0), 0) / 100;
+-  const totalOverdue = currentInvoices.filter(i => (i.payment_status || i.status) === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
++  const totalPaid = currentInvoices.filter(i => paymentStatusForInvoice(i) === 'paid').reduce((sum, i) => sum + (i.amount_paid_cents ?? i.total ?? 0), 0) / 100;
++  const totalPending = currentInvoices.filter(i => ['unpaid', 'partial'].includes(paymentStatusForInvoice(i))).reduce((sum, i) => sum + (i.amount_due_cents ?? i.total ?? 0), 0) / 100;
++  const totalOverdue = currentInvoices.filter(i => paymentStatusForInvoice(i) === 'overdue').reduce((sum, i) => sum + (i.amount_due_cents ?? i.total ?? 0), 0) / 100;
+   const totalVolume = totalPaid + totalPending + totalOverdue;
+ 
+   // Init blank Quote
+@@ -4232,12 +4193,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+               data={{
+                 quotes: getActiveQuotes(),
+                 invoices: currentInvoices,
++                quota: user?.quota || null,
++                plan: user?.plan || tierPlan,
+                 leads: getActiveLeads(),
+                 clients: getActiveClients(),
+                 totalPaid,
+                 activeProfile: getActiveProfile(),
+                 isLoading: isRefreshing,
+-                error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
++                error: dashboardDataError || quotesError || invoicesError || (isEntitlementError ? 'entitlement_unavailable' : null),
+                 quoteError: quotesError,
+                 isFree: isFreePlan,
+                 exportCount,
+@@ -4258,6 +4221,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                   }
+                   return handleDashboardTabChange('quotes', 'overview');
+                 },
++                createInvoiceFromQuote: ({ id } = {}) => {
++                  const quote = getActiveQuotes().find((item) => item?.id === id);
++                  if (quote) return handleConvertQuoteToInvoice(quote);
++                  triggerToast('This Quote is no longer available. Refresh and try again.', 'error');
++                  return false;
++                },
+                 openInvoices: ({ id } = {}) => {
+                   if (id) {
+                     return openDocument({ documentType: 'invoice', id });
+@@ -5370,21 +5339,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                                     {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+                                   </button>
+                                 )}
+-                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
+-                                  <button
+-                                    onClick={() => {
+-                                      evaluateAction('payment_reminder', () => {
+-                                        openReminderModalFor(inv);
+-                                      });
+-                                    }}
+-                                    className="btn btn-secondary btn-sm"
+-                                    style={{ color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+-                                    title="Send Client Follow-up"
+-                                  >
+-                                    <span>🔔 Reminder</span>
+-                                    {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
+-                                  </button>
+-                                )}
+                                 <button
+                                   onClick={() => handleDeleteInvoice(inv.id)}
+                                   className="btn btn-secondary btn-sm"
+@@ -7581,60 +7535,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+         </div>
+       )}
+ 
+-      {/* Reminder Text Copy Modal */}
+-      {showReminderModal && selectedInvoiceForReminder && (
+-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+-          <div className="card animate-fade-in" style={{ maxWidth: '600px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
+-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Send Overdue Reminder</h3>
+-              <button onClick={() => setShowReminderModal(false)} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer' }}>&times;</button>
+-            </div>
+-
+-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+-              {[
+-                { id: '7', label: '7 Days Overdue' },
+-                { id: '14', label: '14 Days Overdue' },
+-                { id: '30', label: '30 Days Overdue' }
+-              ].map(t => (
+-                <button
+-                  key={t.id}
+-                  onClick={() => { setActiveReminderTemplate(t.id); setReminderCopied(false); }}
+-                  className="btn btn-secondary btn-sm"
+-                  style={{
+-                    backgroundColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'rgba(255,255,255,0.02)',
+-                    borderColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'var(--border)'
+-                  }}
+-                >
+-                  {t.label}
+-                </button>
+-              ))}
+-            </div>
+-
+-            <div style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '20px', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
+-              <div style={{ fontWeight: 'bold', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
+-                Subject: {getReminderEmailContent().subject}
+-              </div>
+-              <div>{getReminderEmailContent().body}</div>
+-            </div>
+-
+-            <div style={{ display: 'flex', gap: '12px' }}>
+-              <button
+-                onClick={() => {
+-                  const content = `Subject: ${getReminderEmailContent().subject}\n\n${getReminderEmailContent().body}`;
+-                  navigator.clipboard.writeText(content);
+-                  setReminderCopied(true);
+-                }}
+-                className="btn btn-primary"
+-                style={{ flex: 1 }}
+-              >
+-                {reminderCopied ? 'Copied Content!' : 'Copy to Clipboard'}
+-              </button>
+-              <button onClick={() => setShowReminderModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Close</button>
+-            </div>
+-          </div>
+-        </div>
+-      )}
+-
+       {/* Paywall Modals */}
+       <UpgradeModal
+         isOpen={activeModal === 'upgrade'}
+diff --git a/src/components/dashboard/dashboardWave1.mjs b/src/components/dashboard/dashboardWave1.mjs
+index 13894e7..9f9d648 100644
+--- a/src/components/dashboard/dashboardWave1.mjs
++++ b/src/components/dashboard/dashboardWave1.mjs
+@@ -39,6 +39,19 @@ export function getDashboardQuickActions() {
+   ];
+ }
+ 
++export const CORE_DASHBOARD_ACTION_AUTHORITY = Object.freeze({
++  draftQuote: Object.freeze({ action: 'openQuotes', label: 'Open quote', documentType: 'quote' }),
++  sentQuote: Object.freeze({ action: 'openQuotes', label: 'Open quote', documentType: 'quote' }),
++  approvedQuote: Object.freeze({ action: 'createInvoiceFromQuote', label: 'Create invoice', documentType: 'quote' }),
++  pastDueInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
++  partialInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
++  unpaidInvoice: Object.freeze({ action: 'openInvoices', label: 'Open invoice', documentType: 'invoice' }),
++  createQuote: Object.freeze({ action: 'createQuote', label: 'Create Quote' }),
++  createInvoice: Object.freeze({ action: 'createInvoice', label: 'Create Invoice' }),
++  recordPayment: Object.freeze({ action: 'recordPayment', label: 'Record payment', documentType: 'invoice' }),
++  exportPdf: Object.freeze({ action: 'exportPdf', label: 'Export PDF' }),
++});
++
+ function timestampFor(record) {
+   const timestamp = Date.parse(record?.updated_at || record?.created_at || '');
+   return Number.isFinite(timestamp) ? timestamp : 0;
+@@ -232,8 +245,8 @@ export function buildNeedsAttention({ quotes = [], invoices = [] } = {}, now = n
+         record,
+         documentType: 'quote',
+         title: 'Ready to create invoice',
+-        action: 'openQuotes',
+-        actionLabel: 'Open quote',
++        action: CORE_DASHBOARD_ACTION_AUTHORITY.approvedQuote.action,
++        actionLabel: CORE_DASHBOARD_ACTION_AUTHORITY.approvedQuote.label,
+         priority: NEEDS_ATTENTION_PRIORITY.approved_quote,
+       })];
+     }
+@@ -385,3 +398,62 @@ export function getNeedsAttentionSurfaceState({ itemCount = 0, surfaceState = 'e
+     showRetry: false,
+   };
+ }
++
++export function derivePaymentProgressState(invoices = [], now = new Date()) {
++  const currencyTotals = new Map();
++  let needsPaymentCount = 0;
++
++  for (const invoice of Array.isArray(invoices) ? invoices : []) {
++    const readModel = resolveInvoicePaymentReadModel(invoice, now);
++    const currency = String(invoice?.currency || 'USD').trim().toUpperCase() || 'USD';
++    const current = currencyTotals.get(currency) || {
++      currency,
++      paidAmountCents: 0,
++      outstandingAmountCents: 0,
++      needsPaymentCount: 0,
++    };
++    current.paidAmountCents += readModel.amount_paid_cents;
++    current.outstandingAmountCents += readModel.amount_due_cents;
++    if ([PAYMENT_STATUSES.UNPAID, PAYMENT_STATUSES.PARTIAL, PAYMENT_STATUSES.OVERDUE].includes(readModel.payment_status)) {
++      current.needsPaymentCount += 1;
++      needsPaymentCount += 1;
++    }
++    currencyTotals.set(currency, current);
++  }
++
++  const currencies = [...currencyTotals.values()].sort((left, right) => left.currency.localeCompare(right.currency));
++  const isMultiCurrency = currencies.length > 1;
++  return {
++    invoiceCount: Array.isArray(invoices) ? invoices.length : 0,
++    currency: currencies.length === 1 ? currencies[0].currency : null,
++    paidAmountCents: isMultiCurrency ? null : currencies[0]?.paidAmountCents || 0,
++    outstandingAmountCents: isMultiCurrency ? null : currencies[0]?.outstandingAmountCents || 0,
++    needsPaymentCount,
++    currencies,
++    isMultiCurrency,
++  };
++}
++
++export function deriveDocumentUsageState(quota, plan = 'free') {
++  const normalizedPlan = String(plan || 'free').toLowerCase();
++  const used = Number(quota?.documentsUsed);
++  const limit = Number(quota?.documentsLimit);
++  if (!Number.isFinite(used) || !Number.isFinite(limit) || used < 0 || limit < 0) {
++    return {
++      status: 'unavailable',
++      used: null,
++      limit: null,
++      label: 'Usage unavailable',
++      source: 'server_immutable_usage',
++      plan: normalizedPlan,
++    };
++  }
++  return {
++    status: 'ready',
++    used,
++    limit,
++    label: `${used} / ${limit}`,
++    source: 'server_immutable_usage',
++    plan: normalizedPlan,
++  };
++}
+diff --git a/src/hooks/useDashboardData.js b/src/hooks/useDashboardData.js
+index 26a3130..6b0d5af 100644
+--- a/src/hooks/useDashboardData.js
++++ b/src/hooks/useDashboardData.js
+@@ -249,6 +249,7 @@ export async function loadDashboardResources({
+   const invoicesTask = consumeListResource({
+     resultTask: resourceTasks.invoices,
+     setData: setInvoices,
++    clearOnHttpError: false,
+   }).then((result) => {
+     if (result.status === 'success') {
+       setInvoicesError(null);

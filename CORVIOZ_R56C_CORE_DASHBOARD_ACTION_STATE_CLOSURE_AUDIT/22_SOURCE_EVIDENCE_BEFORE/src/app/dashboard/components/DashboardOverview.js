@@ -11,8 +11,6 @@ import {
   getNeedsAttentionSurfaceState,
   buildScopeSnapshot,
   getScopeSnapshotSurfaceState,
-  derivePaymentProgressState,
-  deriveDocumentUsageState,
 } from '../../../components/dashboard/dashboardWave1.mjs';
 
 const cardStyle = {
@@ -668,72 +666,6 @@ function Wave1QuickActions({ actionHandlers }) {
   );
 }
 
-function formatPaymentCents(cents, currency) {
-  if (!Number.isFinite(Number(cents))) return 'Unavailable';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(Number(cents) / 100);
-  } catch {
-    return `${Number(cents) / 100} ${currency || 'USD'}`;
-  }
-}
-
-function Wave1PaymentProgress({ invoices }) {
-  const payment = derivePaymentProgressState(invoices);
-  return (
-    <section className="dashboard-wave1-card dashboard-payment-progress" data-testid="payment-progress" aria-labelledby="payment-progress-title">
-      <div className="dashboard-wave1-section-heading">
-        <div>
-          <h2 id="payment-progress-title">Payments</h2>
-          <p className="dashboard-wave1-subtitle">Based on recorded payment status</p>
-        </div>
-        <span className="dashboard-wave1-hint">{payment.invoiceCount} invoice{payment.invoiceCount === 1 ? '' : 's'}</span>
-      </div>
-      {payment.invoiceCount === 0 ? (
-        <div className="dashboard-wave1-state" data-testid="payment-progress-empty-state">
-          <strong>No invoice payments yet</strong>
-        </div>
-      ) : payment.isMultiCurrency ? (
-        <div className="dashboard-wave1-payment-groups" data-testid="payment-progress-multi-currency">
-          {payment.currencies.map((group) => (
-            <div key={group.currency} className="dashboard-wave1-payment-group">
-              <strong>{group.currency}</strong>
-              <span>Paid {formatPaymentCents(group.paidAmountCents, group.currency)}</span>
-              <span>Outstanding {formatPaymentCents(group.outstandingAmountCents, group.currency)}</span>
-              <span>Needs payment {group.needsPaymentCount}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="dashboard-wave1-payment-metrics" data-testid="payment-progress-single-currency">
-          <div><span>Paid</span><strong>{formatPaymentCents(payment.paidAmountCents, payment.currency)}</strong></div>
-          <div><span>Outstanding</span><strong>{formatPaymentCents(payment.outstandingAmountCents, payment.currency)}</strong></div>
-          <div><span>Needs payment</span><strong>{payment.needsPaymentCount}</strong></div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function Wave1DocumentUsage({ quota, plan }) {
-  const usage = deriveDocumentUsageState(quota, plan);
-  return (
-    <section className="dashboard-wave1-card dashboard-document-usage" data-testid="document-usage" aria-labelledby="document-usage-title">
-      <div className="dashboard-wave1-section-heading">
-        <div>
-          <h2 id="document-usage-title">Document usage</h2>
-          <p className="dashboard-wave1-subtitle">New Quotes and Invoices this cycle</p>
-        </div>
-        <span className="dashboard-wave1-hint">{usage.plan}</span>
-      </div>
-      {usage.status === 'ready' ? (
-        <strong className="dashboard-wave1-usage-value" data-testid="document-usage-value">{usage.label}</strong>
-      ) : (
-        <span className="dashboard-wave1-state" data-testid="document-usage-unavailable">Usage unavailable</span>
-      )}
-    </section>
-  );
-}
-
 function formatAttentionDate(value) {
   if (!value) return null;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))
@@ -1034,8 +966,6 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
         <p>Keep your next client document moving.</p>
       </header>
       <Wave1QuickActions actionHandlers={actionHandlers} />
-      <Wave1PaymentProgress invoices={invoices} />
-      <Wave1DocumentUsage quota={data.quota} plan={data.plan} />
       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
       <Wave1ScopeSnapshot
         snapshot={scopeSnapshot}

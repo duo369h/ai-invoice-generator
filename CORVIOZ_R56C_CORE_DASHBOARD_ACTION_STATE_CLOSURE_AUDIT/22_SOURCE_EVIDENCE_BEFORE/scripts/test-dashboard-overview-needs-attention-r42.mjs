@@ -88,11 +88,7 @@ assert.deepEqual(items.find(({ id }) => id === 'i-partial'), {
 
 assert.equal(items.some(({ id }) => ['q-declined', 'q-converted', 'i-paid', 'i-draft'].includes(id)), false, 'terminal and draft documents must be excluded');
 assert.deepEqual(sourceData, sourceSnapshot, 'derivation must not mutate authoritative read data');
-assert.equal(
-  items.every(({ action }) => ['openQuotes', 'openInvoices', 'createInvoiceFromQuote'].includes(action)),
-  true,
-  'attention actions must only enter canonical document flows',
-);
+assert.equal(items.every(({ action }) => ['openQuotes', 'openInvoices'].includes(action)), true, 'attention actions must only enter existing read-only document flows');
 
 const stableOrder = buildNeedsAttention({
   quotes: [
