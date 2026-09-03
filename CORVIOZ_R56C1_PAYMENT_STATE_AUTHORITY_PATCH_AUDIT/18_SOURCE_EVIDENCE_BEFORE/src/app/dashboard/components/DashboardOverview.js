@@ -677,9 +677,8 @@ function formatPaymentCents(cents, currency) {
   }
 }
 
-function Wave1PaymentProgress({ invoices, error, actionHandlers }) {
+function Wave1PaymentProgress({ invoices }) {
   const payment = derivePaymentProgressState(invoices);
-  const hasCachedPaymentData = payment.invoiceCount > 0;
   return (
     <section className="dashboard-wave1-card dashboard-payment-progress" data-testid="payment-progress" aria-labelledby="payment-progress-title">
       <div className="dashboard-wave1-section-heading">
@@ -689,23 +688,7 @@ function Wave1PaymentProgress({ invoices, error, actionHandlers }) {
         </div>
         <span className="dashboard-wave1-hint">{payment.invoiceCount} invoice{payment.invoiceCount === 1 ? '' : 's'}</span>
       </div>
-      {error && hasCachedPaymentData && (
-        <div className="dashboard-wave1-inline-error" role="alert" data-testid="payment-progress-stale-state">
-          <span>Payment data may be out of date.</span>{' '}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
-            Retry
-          </button>
-        </div>
-      )}
-      {error && !hasCachedPaymentData ? (
-        <div className="dashboard-wave1-state" role="alert" data-testid="payment-progress-error-state">
-          <strong>Payment status unavailable</strong>
-          <p>We could not refresh invoice payment status.</p>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
-            Retry
-          </button>
-        </div>
-      ) : payment.invoiceCount === 0 ? (
+      {payment.invoiceCount === 0 ? (
         <div className="dashboard-wave1-state" data-testid="payment-progress-empty-state">
           <strong>No invoice payments yet</strong>
         </div>
@@ -731,9 +714,8 @@ function Wave1PaymentProgress({ invoices, error, actionHandlers }) {
   );
 }
 
-function Wave1DocumentUsage({ quota, plan, error, actionHandlers }) {
+function Wave1DocumentUsage({ quota, plan }) {
   const usage = deriveDocumentUsageState(quota, plan);
-  const isUnavailable = Boolean(error) || usage.status !== 'ready';
   return (
     <section className="dashboard-wave1-card dashboard-document-usage" data-testid="document-usage" aria-labelledby="document-usage-title">
       <div className="dashboard-wave1-section-heading">
@@ -743,18 +725,10 @@ function Wave1DocumentUsage({ quota, plan, error, actionHandlers }) {
         </div>
         <span className="dashboard-wave1-hint">{usage.plan}</span>
       </div>
-      {!isUnavailable ? (
+      {usage.status === 'ready' ? (
         <strong className="dashboard-wave1-usage-value" data-testid="document-usage-value">{usage.label}</strong>
       ) : (
-        <div className="dashboard-wave1-state" role={error ? 'alert' : 'status'} data-testid="document-usage-unavailable">
-          <strong>Usage unavailable</strong>
-          {error && <p>We could not refresh document usage.</p>}
-          {error && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
-              Retry
-            </button>
-          )}
-        </div>
+        <span className="dashboard-wave1-state" data-testid="document-usage-unavailable">Usage unavailable</span>
       )}
     </section>
   );
@@ -1045,7 +1019,7 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
   const documents = buildRecentDocuments({ quotes, invoices });
   const needsAttention = buildNeedsAttention({ quotes, invoices });
   const scopeSnapshot = buildScopeSnapshot(quotes);
-  const scopeSnapshotError = data.quoteError;
+  const scopeSnapshotError = data.quoteError || data.error;
 
   // Keep the existing UI graph contract observable without allowing legacy
   // insight/metric sections to displace the Wave 1 work surface.
@@ -1060,8 +1034,8 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
         <p>Keep your next client document moving.</p>
       </header>
       <Wave1QuickActions actionHandlers={actionHandlers} />
-      <Wave1PaymentProgress invoices={invoices} error={data.invoicesError} actionHandlers={actionHandlers} />
-      <Wave1DocumentUsage quota={data.quota} plan={data.plan} error={data.quotaError} actionHandlers={actionHandlers} />
+      <Wave1PaymentProgress invoices={invoices} />
+      <Wave1DocumentUsage quota={data.quota} plan={data.plan} />
       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
       <Wave1ScopeSnapshot
         snapshot={scopeSnapshot}

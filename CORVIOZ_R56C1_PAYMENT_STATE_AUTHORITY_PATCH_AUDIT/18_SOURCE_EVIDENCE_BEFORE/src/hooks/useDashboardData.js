@@ -161,7 +161,6 @@ export async function loadDashboardResources({
   setCardProfile,
   setQuotesError = () => {},
   setInvoicesError = () => {},
-  setQuotaError = () => {},
   onQuotesSettled = () => {},
   onInvoicesSettled = () => {},
   consoleImpl = console,
@@ -227,13 +226,11 @@ export async function loadDashboardResources({
 
   const userDecisionTask = resourceTasks.user.then((result) => {
     if (result.status !== 'success') {
-      setQuotaError(result.error || result);
       return { status: 'error', user: null, error: result.error || result };
     }
 
     const userData = result.data;
     setUser(userData);
-    setQuotaError(null);
     if (!userData?.hasActivated) {
       return { status: 'unactivated', user: userData };
     }
@@ -323,7 +320,6 @@ export function useDashboardData(mode, session = null) {
   const [cardProfile, setCardProfile] = useState(() => (isLive ? null : MOCK_PROFILE));
   const [quotesError, setQuotesError] = useState(null);
   const [invoicesError, setInvoicesError] = useState(null);
-  const [quotaError, setQuotaError] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -359,7 +355,6 @@ export function useDashboardData(mode, session = null) {
       invoiceLoadingSetter(false);
       if (typeof setQuotesError === 'function') setQuotesError(null);
       if (typeof setInvoicesError === 'function') setInvoicesError(null);
-      if (typeof setQuotaError === 'function') setQuotaError(null);
       return { user: null, error: 'no_session' };
     }
 
@@ -389,7 +384,6 @@ export function useDashboardData(mode, session = null) {
         setQuotes: setIfCurrent(setQuotes),
         setQuotesError: setIfCurrent(typeof setQuotesError === 'function' ? setQuotesError : () => {}),
         setInvoicesError: setIfCurrent(typeof setInvoicesError === 'function' ? setInvoicesError : () => {}),
-        setQuotaError: setIfCurrent(typeof setQuotaError === 'function' ? setQuotaError : () => {}),
         setCardProfile: setIfCurrent(setCardProfile),
         onQuotesSettled: finishQuotesInitialLoad,
         onInvoicesSettled: finishInvoicesInitialLoad,
@@ -639,8 +633,6 @@ export function useDashboardData(mode, session = null) {
     quotesError,
     setQuotesError,
     invoicesError,
-    quotaError,
-    setQuotaError,
     invoices,
     setInvoices,
     clients,

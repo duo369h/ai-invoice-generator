@@ -1,0 +1,197 @@
+diff --git a/src/app/dashboard/components/DashboardOverview.js b/src/app/dashboard/components/DashboardOverview.js
+index 3d049a9..c2cb355 100644
+--- a/src/app/dashboard/components/DashboardOverview.js
++++ b/src/app/dashboard/components/DashboardOverview.js
+@@ -677,8 +677,9 @@ function formatPaymentCents(cents, currency) {
+   }
+ }
+ 
+-function Wave1PaymentProgress({ invoices }) {
++function Wave1PaymentProgress({ invoices, error, actionHandlers }) {
+   const payment = derivePaymentProgressState(invoices);
++  const hasCachedPaymentData = payment.invoiceCount > 0;
+   return (
+     <section className="dashboard-wave1-card dashboard-payment-progress" data-testid="payment-progress" aria-labelledby="payment-progress-title">
+       <div className="dashboard-wave1-section-heading">
+@@ -688,7 +689,23 @@ function Wave1PaymentProgress({ invoices }) {
+         </div>
+         <span className="dashboard-wave1-hint">{payment.invoiceCount} invoice{payment.invoiceCount === 1 ? '' : 's'}</span>
+       </div>
+-      {payment.invoiceCount === 0 ? (
++      {error && hasCachedPaymentData && (
++        <div className="dashboard-wave1-inline-error" role="alert" data-testid="payment-progress-stale-state">
++          <span>Payment data may be out of date.</span>{' '}
++          <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
++            Retry
++          </button>
++        </div>
++      )}
++      {error && !hasCachedPaymentData ? (
++        <div className="dashboard-wave1-state" role="alert" data-testid="payment-progress-error-state">
++          <strong>Payment status unavailable</strong>
++          <p>We could not refresh invoice payment status.</p>
++          <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
++            Retry
++          </button>
++        </div>
++      ) : payment.invoiceCount === 0 ? (
+         <div className="dashboard-wave1-state" data-testid="payment-progress-empty-state">
+           <strong>No invoice payments yet</strong>
+         </div>
+@@ -714,8 +731,9 @@ function Wave1PaymentProgress({ invoices }) {
+   );
+ }
+ 
+-function Wave1DocumentUsage({ quota, plan }) {
++function Wave1DocumentUsage({ quota, plan, error, actionHandlers }) {
+   const usage = deriveDocumentUsageState(quota, plan);
++  const isUnavailable = Boolean(error) || usage.status !== 'ready';
+   return (
+     <section className="dashboard-wave1-card dashboard-document-usage" data-testid="document-usage" aria-labelledby="document-usage-title">
+       <div className="dashboard-wave1-section-heading">
+@@ -725,10 +743,18 @@ function Wave1DocumentUsage({ quota, plan }) {
+         </div>
+         <span className="dashboard-wave1-hint">{usage.plan}</span>
+       </div>
+-      {usage.status === 'ready' ? (
++      {!isUnavailable ? (
+         <strong className="dashboard-wave1-usage-value" data-testid="document-usage-value">{usage.label}</strong>
+       ) : (
+-        <span className="dashboard-wave1-state" data-testid="document-usage-unavailable">Usage unavailable</span>
++        <div className="dashboard-wave1-state" role={error ? 'alert' : 'status'} data-testid="document-usage-unavailable">
++          <strong>Usage unavailable</strong>
++          {error && <p>We could not refresh document usage.</p>}
++          {error && (
++            <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, 'retryDashboard')}>
++              Retry
++            </button>
++          )}
++        </div>
+       )}
+     </section>
+   );
+@@ -1019,7 +1045,7 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
+   const documents = buildRecentDocuments({ quotes, invoices });
+   const needsAttention = buildNeedsAttention({ quotes, invoices });
+   const scopeSnapshot = buildScopeSnapshot(quotes);
+-  const scopeSnapshotError = data.quoteError || data.error;
++  const scopeSnapshotError = data.quoteError;
+ 
+   // Keep the existing UI graph contract observable without allowing legacy
+   // insight/metric sections to displace the Wave 1 work surface.
+@@ -1034,8 +1060,8 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
+         <p>Keep your next client document moving.</p>
+       </header>
+       <Wave1QuickActions actionHandlers={actionHandlers} />
+-      <Wave1PaymentProgress invoices={invoices} />
+-      <Wave1DocumentUsage quota={data.quota} plan={data.plan} />
++      <Wave1PaymentProgress invoices={invoices} error={data.invoicesError} actionHandlers={actionHandlers} />
++      <Wave1DocumentUsage quota={data.quota} plan={data.plan} error={data.quotaError} actionHandlers={actionHandlers} />
+       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
+       <Wave1ScopeSnapshot
+         snapshot={scopeSnapshot}
+diff --git a/src/components/dashboard/Dashboard.js b/src/components/dashboard/Dashboard.js
+index c43a07d..c082bde 100644
+--- a/src/components/dashboard/Dashboard.js
++++ b/src/components/dashboard/Dashboard.js
+@@ -632,6 +632,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+     quotesError,
+     setQuotesError,
+     invoicesError,
++    quotaError,
+     invoices,
+     setInvoices,
+     clients,
+@@ -4195,6 +4196,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
+                 invoices: currentInvoices,
+                 quota: user?.quota || null,
+                 plan: user?.plan || tierPlan,
++                invoicesError,
++                quotaError,
+                 leads: getActiveLeads(),
+                 clients: getActiveClients(),
+                 totalPaid,
+diff --git a/src/components/dashboard/dashboardWave1.mjs b/src/components/dashboard/dashboardWave1.mjs
+index 9f9d648..5f45e3d 100644
+--- a/src/components/dashboard/dashboardWave1.mjs
++++ b/src/components/dashboard/dashboardWave1.mjs
+@@ -402,8 +402,10 @@ export function getNeedsAttentionSurfaceState({ itemCount = 0, surfaceState = 'e
+ export function derivePaymentProgressState(invoices = [], now = new Date()) {
+   const currencyTotals = new Map();
+   let needsPaymentCount = 0;
++  const eligibleInvoices = (Array.isArray(invoices) ? invoices : [])
++    .filter((invoice) => normalizeRecordStatus(invoice?.status) !== 'draft');
+ 
+-  for (const invoice of Array.isArray(invoices) ? invoices : []) {
++  for (const invoice of eligibleInvoices) {
+     const readModel = resolveInvoicePaymentReadModel(invoice, now);
+     const currency = String(invoice?.currency || 'USD').trim().toUpperCase() || 'USD';
+     const current = currencyTotals.get(currency) || {
+@@ -424,7 +426,7 @@ export function derivePaymentProgressState(invoices = [], now = new Date()) {
+   const currencies = [...currencyTotals.values()].sort((left, right) => left.currency.localeCompare(right.currency));
+   const isMultiCurrency = currencies.length > 1;
+   return {
+-    invoiceCount: Array.isArray(invoices) ? invoices.length : 0,
++    invoiceCount: eligibleInvoices.length,
+     currency: currencies.length === 1 ? currencies[0].currency : null,
+     paidAmountCents: isMultiCurrency ? null : currencies[0]?.paidAmountCents || 0,
+     outstandingAmountCents: isMultiCurrency ? null : currencies[0]?.outstandingAmountCents || 0,
+diff --git a/src/hooks/useDashboardData.js b/src/hooks/useDashboardData.js
+index 6b0d5af..b108bdb 100644
+--- a/src/hooks/useDashboardData.js
++++ b/src/hooks/useDashboardData.js
+@@ -161,6 +161,7 @@ export async function loadDashboardResources({
+   setCardProfile,
+   setQuotesError = () => {},
+   setInvoicesError = () => {},
++  setQuotaError = () => {},
+   onQuotesSettled = () => {},
+   onInvoicesSettled = () => {},
+   consoleImpl = console,
+@@ -226,11 +227,13 @@ export async function loadDashboardResources({
+ 
+   const userDecisionTask = resourceTasks.user.then((result) => {
+     if (result.status !== 'success') {
++      setQuotaError(result.error || result);
+       return { status: 'error', user: null, error: result.error || result };
+     }
+ 
+     const userData = result.data;
+     setUser(userData);
++    setQuotaError(null);
+     if (!userData?.hasActivated) {
+       return { status: 'unactivated', user: userData };
+     }
+@@ -320,6 +323,7 @@ export function useDashboardData(mode, session = null) {
+   const [cardProfile, setCardProfile] = useState(() => (isLive ? null : MOCK_PROFILE));
+   const [quotesError, setQuotesError] = useState(null);
+   const [invoicesError, setInvoicesError] = useState(null);
++  const [quotaError, setQuotaError] = useState(null);
+ 
+   const [isLoading, setIsLoading] = useState(false);
+   const [isRefreshing, setIsRefreshing] = useState(false);
+@@ -355,6 +359,7 @@ export function useDashboardData(mode, session = null) {
+       invoiceLoadingSetter(false);
+       if (typeof setQuotesError === 'function') setQuotesError(null);
+       if (typeof setInvoicesError === 'function') setInvoicesError(null);
++      if (typeof setQuotaError === 'function') setQuotaError(null);
+       return { user: null, error: 'no_session' };
+     }
+ 
+@@ -384,6 +389,7 @@ export function useDashboardData(mode, session = null) {
+         setQuotes: setIfCurrent(setQuotes),
+         setQuotesError: setIfCurrent(typeof setQuotesError === 'function' ? setQuotesError : () => {}),
+         setInvoicesError: setIfCurrent(typeof setInvoicesError === 'function' ? setInvoicesError : () => {}),
++        setQuotaError: setIfCurrent(typeof setQuotaError === 'function' ? setQuotaError : () => {}),
+         setCardProfile: setIfCurrent(setCardProfile),
+         onQuotesSettled: finishQuotesInitialLoad,
+         onInvoicesSettled: finishInvoicesInitialLoad,
+@@ -633,6 +639,8 @@ export function useDashboardData(mode, session = null) {
+     quotesError,
+     setQuotesError,
+     invoicesError,
++    quotaError,
++    setQuotaError,
+     invoices,
+     setInvoices,
+     clients,

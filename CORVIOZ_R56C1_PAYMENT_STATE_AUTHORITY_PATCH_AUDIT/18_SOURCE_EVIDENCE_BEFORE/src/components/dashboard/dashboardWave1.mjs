@@ -402,10 +402,8 @@ export function getNeedsAttentionSurfaceState({ itemCount = 0, surfaceState = 'e
 export function derivePaymentProgressState(invoices = [], now = new Date()) {
   const currencyTotals = new Map();
   let needsPaymentCount = 0;
-  const eligibleInvoices = (Array.isArray(invoices) ? invoices : [])
-    .filter((invoice) => normalizeRecordStatus(invoice?.status) !== 'draft');
 
-  for (const invoice of eligibleInvoices) {
+  for (const invoice of Array.isArray(invoices) ? invoices : []) {
     const readModel = resolveInvoicePaymentReadModel(invoice, now);
     const currency = String(invoice?.currency || 'USD').trim().toUpperCase() || 'USD';
     const current = currencyTotals.get(currency) || {
@@ -426,7 +424,7 @@ export function derivePaymentProgressState(invoices = [], now = new Date()) {
   const currencies = [...currencyTotals.values()].sort((left, right) => left.currency.localeCompare(right.currency));
   const isMultiCurrency = currencies.length > 1;
   return {
-    invoiceCount: eligibleInvoices.length,
+    invoiceCount: Array.isArray(invoices) ? invoices.length : 0,
     currency: currencies.length === 1 ? currencies[0].currency : null,
     paidAmountCents: isMultiCurrency ? null : currencies[0]?.paidAmountCents || 0,
     outstandingAmountCents: isMultiCurrency ? null : currencies[0]?.outstandingAmountCents || 0,
