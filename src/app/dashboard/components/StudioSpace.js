@@ -7,6 +7,50 @@ import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from '../.
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
+const DASHBOARD_STUDIO_LOCALE = 'en-CA';
+
+const formatStudioDate = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = dateOnlyMatch
+    ? new Date(Date.UTC(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3])))
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DASHBOARD_STUDIO_LOCALE, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const formatStudioNumber = (value, options = {}) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '0';
+  return new Intl.NumberFormat(DASHBOARD_STUDIO_LOCALE, options).format(numericValue);
+};
+
+const formatStudioMoney = (amount, currency) => {
+  const numericValue = Number(amount);
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  const normalizedCurrency = String(currency || '').trim().toUpperCase();
+  if (!normalizedCurrency) return `${formatStudioNumber(safeValue, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Currency not specified`;
+  try {
+    return new Intl.NumberFormat(DASHBOARD_STUDIO_LOCALE, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(safeValue);
+  } catch {
+    return `${normalizedCurrency} ${safeValue.toFixed(2)}`;
+  }
+};
+
+const formatStudioCurrencylessAmount = (value, options = {}) => (
+  `${formatStudioNumber(value, options)} · Currency not specified`
+);
+
 export default function StudioSpace({
   clients = [],
   invoices = [],
@@ -287,7 +331,7 @@ export default function StudioSpace({
 
     const days = inv.due_date ? Math.floor((Date.now() - new Date(inv.due_date).getTime()) / (1000 * 3600 * 24)) : 0;
     const daysStr = days > 0 ? `${days} days` : 'a few days';
-    const amountStr = `${getCurrencySymbol(inv.currency)}${(inv.total / 100).toFixed(2)}`;
+    const amountStr = formatStudioMoney(inv.total / 100, inv.currency);
 
     let text = '';
     if (selectedTemplate === 'soft') {
@@ -550,7 +594,7 @@ export default function StudioSpace({
     const clientQuotes = clientDocuments.quotes;
     const formatDocumentDate = (document) => {
       const timestamp = getEffectiveDocumentTimestamp(document);
-      return timestamp === null ? '' : ` · ${new Date(timestamp).toLocaleDateString()}`;
+      return timestamp === null ? '' : ` · ${formatStudioDate(timestamp)}`;
     };
 
     return (
@@ -717,13 +761,13 @@ export default function StudioSpace({
                   <div style={{ padding: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>CLIENT RECORD TOTAL</span>
                     <h4 style={{ margin: '4px 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>
-                      ${client.ltv.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatStudioCurrencylessAmount(client.ltv, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h4>
                   </div>
                   <div style={{ padding: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PENDING</span>
                     <h4 style={{ margin: '4px 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: client.unpaidAmt > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                      ${client.unpaidAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatStudioCurrencylessAmount(client.unpaidAmt, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h4>
                   </div>
                 </div>
@@ -780,7 +824,7 @@ export default function StudioSpace({
                                     <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{quote.quote_number || quote.id}</strong>
                                     <span style={{ color: 'var(--text-muted)' }}>{quote.status || '—'}{formatDocumentDate(quote)}</span>
                                   </div>
-                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(quote.currency)}{(Number(quote.total || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatStudioMoney(Number(quote.total || 0) / 100, quote.currency)}</span>
                                 </div>
                               ))}
                               {clientDocuments.moreQuotes > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreQuotes} more quotes</span>}
@@ -796,7 +840,7 @@ export default function StudioSpace({
                                   <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{quote.quote_number || quote.id}</strong>
                                   <span style={{ color: 'var(--text-muted)' }}>{quote.status || '—'}{formatDocumentDate(quote)}</span>
                                 </div>
-                                <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(quote.currency)}{(Number(quote.total || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatStudioMoney(Number(quote.total || 0) / 100, quote.currency)}</span>
                               </div>
                             ))}
                             {clientDocuments.moreQuotes > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientDocuments.moreQuotes} more quotes</span>}
@@ -821,7 +865,7 @@ export default function StudioSpace({
                                       <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{invoice.invoice_number || invoice.id}</strong>
                                       <span style={{ color: 'var(--text-muted)' }}>{paymentReadModel.payment_status || invoice.status || '—'}{formatDocumentDate(invoice)}</span>
                                     </div>
-                                    <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(invoice.currency)}{(Number(amountCents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatStudioMoney(Number(amountCents) / 100, invoice.currency)}</span>
                                   </div>
                                 );
                               })}
@@ -841,7 +885,7 @@ export default function StudioSpace({
                                     <strong style={{ display: 'block', overflowWrap: 'anywhere', color: 'var(--text-main)' }}>{invoice.invoice_number || invoice.id}</strong>
                                     <span style={{ color: 'var(--text-muted)' }}>{paymentReadModel.payment_status || invoice.status || '—'}{formatDocumentDate(invoice)}</span>
                                   </div>
-                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{getCurrencySymbol(invoice.currency)}{(Number(amountCents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  <span style={{ color: 'var(--text-main)', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatStudioMoney(Number(amountCents) / 100, invoice.currency)}</span>
                                 </div>
                               );
                             })}
@@ -898,7 +942,7 @@ export default function StudioSpace({
                       {clientQuotes.map(q => (
                         <tr key={q.id} style={{ borderBottom: '1px solid var(--border)' }}>
                           <td style={{ padding: '12px 6px', fontWeight: 700, color: 'var(--text-main)' }}>#{q.quote_number}</td>
-                          <td style={{ padding: '12px 6px', color: 'var(--text-muted)' }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : q.date || 'N/A'}</td>
+                          <td style={{ padding: '12px 6px', color: 'var(--text-muted)' }}>{q.created_at ? formatStudioDate(q.created_at) : q.date || 'N/A'}</td>
                           <td style={{ padding: '12px 6px' }}>
                             <span style={{
                               fontSize: '0.65rem',
@@ -913,7 +957,7 @@ export default function StudioSpace({
                             </span>
                           </td>
                           <td style={{ padding: '12px 6px', fontWeight: 800, color: 'var(--text-main)', textAlign: 'right' }}>
-                            {getCurrencySymbol(q.currency)}{(q.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatStudioMoney(q.total / 100, q.currency)}
                           </td>
                         </tr>
                       ))}
@@ -983,7 +1027,7 @@ export default function StudioSpace({
                               </span>
                             </td>
                             <td style={{ padding: '12px 6px', fontWeight: 800, color: 'var(--text-main)', textAlign: 'right' }}>
-                              {getCurrencySymbol(inv.currency)}{(inv.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {formatStudioMoney(inv.total / 100, inv.currency)}
                             </td>
                           </tr>
                         );
@@ -1119,7 +1163,12 @@ export default function StudioSpace({
                             onChange={(e) => setNewDeliverableTitle({ ...newDeliverableTitle, [milestone.id]: e.target.value })}
                           />
                           <input
-                            type="date"
+                            type="text"
+                            placeholder="YYYY-MM-DD"
+                            inputMode="numeric"
+                            pattern="\\d{4}-\\d{2}-\\d{2}"
+                            maxLength={10}
+                            data-date-entry="yyyy-mm-dd"
                             className="form-input"
                             style={{ width: '120px', fontSize: '0.78rem', padding: '6px 10px' }}
                             value={newDeliverableDueDate[milestone.id] || ''}
@@ -1432,11 +1481,11 @@ export default function StudioSpace({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed Document Total</span>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>${totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>{formatStudioCurrencylessAmount(totalPaid, { maximumFractionDigits: 0 })}</h3>
         </div>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Document Total</span>
-          <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--accent)' }}>${pipelineValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
+          <h3 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--accent)' }}>{formatStudioCurrencylessAmount(pipelineValue, { maximumFractionDigits: 0 })}</h3>
         </div>
         <div className="metric-card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Clients</span>
@@ -1517,7 +1566,7 @@ export default function StudioSpace({
                             </div>
                           </div>
                           <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                            {getCurrencySymbol(inv.currency)}{(inv.total / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatStudioMoney(inv.total / 100, inv.currency)}
                           </span>
                         </div>
                       ))
@@ -1560,7 +1609,7 @@ export default function StudioSpace({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Document Status Overview</h3>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      Total: <strong>${(totalPaid + totalUnpaid + totalOverdue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      Total: <strong>{formatStudioCurrencylessAmount(totalPaid + totalUnpaid + totalOverdue, { maximumFractionDigits: 0 })}</strong>
                     </span>
                   </div>
 
@@ -1573,15 +1622,15 @@ export default function StudioSpace({
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', fontSize: '0.78rem' }}>
                     <div>
                       <div style={{ color: 'var(--text-muted)' }}>Completed</div>
-                      <strong style={{ color: 'var(--success)' }}>${totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      <strong style={{ color: 'var(--success)' }}>{formatStudioCurrencylessAmount(totalPaid, { maximumFractionDigits: 0 })}</strong>
                     </div>
                     <div>
                       <div style={{ color: 'var(--text-muted)' }}>Pending</div>
-                      <strong style={{ color: 'var(--warning)' }}>${totalUnpaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      <strong style={{ color: 'var(--warning)' }}>{formatStudioCurrencylessAmount(totalUnpaid, { maximumFractionDigits: 0 })}</strong>
                     </div>
                     <div>
                       <div style={{ color: 'var(--text-muted)' }}>Overdue</div>
-                      <strong style={{ color: 'var(--danger)' }}>${totalOverdue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      <strong style={{ color: 'var(--danger)' }}>{formatStudioCurrencylessAmount(totalOverdue, { maximumFractionDigits: 0 })}</strong>
                     </div>
                   </div>
                 </div>
@@ -1649,7 +1698,7 @@ export default function StudioSpace({
                     <div key={lead.id} style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{lead.client_name || lead.name}</strong>
                       <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>{lead.client_email || lead.email}</span>
-                      {lead.lead_value > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--success)' }}>${lead.lead_value}</span>}
+                      {lead.lead_value > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--success)' }}>{formatStudioCurrencylessAmount(lead.lead_value)}</span>}
                       <p style={{ margin: '4px 0 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.3 }}>
                         {lead.message}
                       </p>
@@ -1673,7 +1722,7 @@ export default function StudioSpace({
                     <div key={q.id} style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{q.client_name}</strong>
                       <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)' }}>Quote #{q.quote_number}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>Total: {getCurrencySymbol(q.currency)}{(q.total / 100).toFixed(2)}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>Total: {formatStudioMoney(q.total / 100, q.currency)}</span>
                     </div>
                   ))
                 )}
@@ -1697,7 +1746,7 @@ export default function StudioSpace({
                         {item.type === 'quote' ? `Approved Quote #${item.quote_number}` : `Pending Invoice #${item.invoice_number}`}
                       </span>
                       <span style={{ fontSize: '0.7rem', fontWeight: 650, color: 'var(--text-main)', marginTop: '2px' }}>
-                        {getCurrencySymbol(item.currency)}{(item.total / 100).toFixed(2)}
+                        {formatStudioMoney(item.total / 100, item.currency)}
                       </span>
                     </div>
                   ))
@@ -1721,7 +1770,7 @@ export default function StudioSpace({
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--danger)' }}>INV #{inv.invoice_number}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginTop: '2px', color: 'var(--text-muted)' }}>
                         <span>Overdue: {inv.daysOverdue} days</span>
-                        <strong style={{ color: 'var(--text-main)' }}>{getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}</strong>
+                        <strong style={{ color: 'var(--text-main)' }}>{formatStudioMoney(inv.total / 100, inv.currency)}</strong>
                       </div>
                     </div>
                   ))
@@ -1745,7 +1794,7 @@ export default function StudioSpace({
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Invoice #{inv.invoice_number}</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--success)', fontWeight: 700, marginTop: '2px' }}>
                         <span>Completed ✓</span>
-                        <span>{getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}</span>
+                        <span>{formatStudioMoney(inv.total / 100, inv.currency)}</span>
                       </div>
                     </div>
                   ))
@@ -1805,10 +1854,10 @@ export default function StudioSpace({
                               </span>
                             </td>
                             <td style={{ padding: '14px 8px', fontWeight: 600, color: cli.unpaidAmt > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                              ${cli.unpaidAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {formatStudioCurrencylessAmount(cli.unpaidAmt, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td style={{ padding: '14px 8px', fontWeight: 800, color: 'var(--success)' }}>
-                              ${cli.ltv.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {formatStudioCurrencylessAmount(cli.ltv, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td style={{ padding: '14px 8px', textAlign: 'right' }}>
                               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1909,7 +1958,7 @@ export default function StudioSpace({
 
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 850, color: 'var(--danger)' }}>
-                      {getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}
+                      {formatStudioMoney(inv.total / 100, inv.currency)}
                     </span>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
@@ -1955,7 +2004,7 @@ export default function StudioSpace({
                     ) : (
                       invoices.map(inv => (
                         <option key={inv.id} value={inv.id}>
-                          #{inv.invoice_number} - {inv.client_name} (${(inv.total / 100).toFixed(2)})
+                          #{inv.invoice_number} - {inv.client_name} ({formatStudioMoney(inv.total / 100, inv.currency)})
                         </option>
                       ))
                     )}

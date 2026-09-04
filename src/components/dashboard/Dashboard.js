@@ -1257,7 +1257,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [cpLanguages, setCpLanguages] = useState('');
   const [cpAvailabilityStatus, setCpAvailabilityStatus] = useState('Available for contract');
   const [cpResponseTime, setCpResponseTime] = useState('< 2 hours');
-  const [cpStartingPrice, setCpStartingPrice] = useState('$1,000');
+  const [cpStartingPrice, setCpStartingPrice] = useState('CAD 1,000 or USD 1,000');
   const [cpCalendlyLink, setCpCalendlyLink] = useState('');
   const [cpVerifiedBadge, setCpVerifiedBadge] = useState(true);
   const [cpTopRatedBadge, setCpTopRatedBadge] = useState(false);
@@ -1428,7 +1428,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     languages: 'English, Spanish',
     availability_status: 'Available for contract',
     response_time: '< 2 hours',
-    starting_price: '$1,500',
+    starting_price: 'CAD 1,500 or USD 1,500',
     calendly_link: 'https://calendly.com/alex-morgan',
     social_links: {
       twitter: 'https://twitter.com/alexmorgan',
@@ -1490,7 +1490,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setCpLanguages(parsed.languages || '');
     setCpAvailabilityStatus(parsed.availability_status || 'Available for contract');
     setCpResponseTime(parsed.response_time || '< 2 hours');
-    setCpStartingPrice(parsed.starting_price || '$1,000');
+    setCpStartingPrice(parsed.starting_price || 'CAD 1,000 or USD 1,000');
     setCpCalendlyLink(parsed.calendly_link || '');
     setCpVerifiedBadge(parsed.verified_badge !== false);
     setCpTopRatedBadge(parsed.top_rated_badge === true);
@@ -4476,7 +4476,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         </select>
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Lead Value ($)</label>
+                        <label className="input-label">Lead Value (amount)</label>
                         <input type="number" className="form-input" placeholder="Budget value e.g. 2500" value={leadValue} onChange={e => setLeadValue(Number(e.target.value))} />
                       </div>
                     </div>
@@ -5746,20 +5746,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <span>Total:</span>
                               <span>{formatDashboardMoney(invTotal, invCurrency)}</span>
                             </div>
-                            {invItems.length > 0 && invSubtotal > 0 && (
-                              <div style={{ 
-                                marginTop: '12px', 
-                                padding: '10px 12px', 
-                                background: 'var(--success-glow)', 
-                                border: '1px solid var(--success)', 
-                                borderRadius: '6px',
-                                color: 'var(--success)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600
-                              }}>
-                                This invoice could be valued at {formatDashboardMoney(invSubtotal * 0.95, invCurrency)} - {formatDashboardMoney(invSubtotal * 1.15, invCurrency)} range
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
@@ -6462,7 +6448,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                       <div className="input-group">
                         <label className="input-label">Starting Price</label>
-                        <input type="text" className="form-input" placeholder="e.g. $1,500" value={cpStartingPrice} onChange={e => setCpStartingPrice(e.target.value)} />
+                        <input type="text" className="form-input" placeholder="e.g. CAD 1,500 or USD 1,500" value={cpStartingPrice} onChange={e => setCpStartingPrice(e.target.value)} />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Avg Response Time</label>
@@ -6569,7 +6555,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div key={idx} style={{ padding: '10px 12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{srv.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>${srv.rate_amount} / {srv.rate_type}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDashboardNumber(srv.rate_amount)} / {srv.rate_type} · Currency not specified</div>
                         </div>
                         <button
                           onClick={() => setCpServices(cpServices.filter((_, i) => i !== idx))}
@@ -6835,7 +6821,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <div key={srv.id || idx} style={{ padding: '12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{srv.name} <span style={{ fontSize: '0.7rem', color: 'var(--primary)', background: 'var(--primary-glow)', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{srv.group || 'General'}</span></div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-soft)' }}>${srv.rate_amount} &bull; {srv.rate_type}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-soft)' }}>{formatDashboardNumber(srv.rate_amount)} &bull; {srv.rate_type} · Currency not specified</div>
                           </div>
                           <button
                             type="button"
@@ -6859,7 +6845,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <option value="fixed">Flat Package Fee</option>
                           <option value="hourly">Hourly Rate</option>
                         </select>
-                        <input type="number" className="form-input" placeholder="Amount ($)" value={tmpSrvAmount || ''} onChange={e => setTmpSrvAmount(Number(e.target.value))} />
+                        <input type="number" className="form-input" placeholder="Amount (numeric)" value={tmpSrvAmount || ''} onChange={e => setTmpSrvAmount(Number(e.target.value))} />
                       </div>
                       <button
                         type="button"
@@ -7250,7 +7236,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </div>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acquisition Cost (CAC)</span>
-                  <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>$240.00</h3>
+                  <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>240.00 · Currency not specified</h3>
                 </div>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deal Close Velocity</span>
@@ -7268,12 +7254,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0 }}>Monthly Client Workflow Growth</h3>
                   <div style={{ display: 'flex', gap: '20px', height: '200px', alignItems: 'flex-end', borderBottom: '1px solid var(--border)', paddingBottom: '10px', paddingTop: '20px' }}>
                     {[
-                      { month: 'Jan', val: 40, amt: '$4,000' },
-                      { month: 'Feb', val: 55, amt: '$5,500' },
-                      { month: 'Mar', val: 78, amt: '$7,800' },
-                      { month: 'Apr', val: 62, amt: '$6,200' },
-                      { month: 'May', val: 95, amt: '$9,500' },
-                      { month: 'Jun', val: 120, amt: '$12,000' },
+                      { month: 'Jan', val: 40, amt: '4,000 · Currency not specified' },
+                      { month: 'Feb', val: 55, amt: '5,500 · Currency not specified' },
+                      { month: 'Mar', val: 78, amt: '7,800 · Currency not specified' },
+                      { month: 'Apr', val: 62, amt: '6,200 · Currency not specified' },
+                      { month: 'May', val: 95, amt: '9,500 · Currency not specified' },
+                      { month: 'Jun', val: 120, amt: '12,000 · Currency not specified' },
                     ].map((bar, idx) => (
                       <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%', justifyContent: 'flex-end' }}>
                         <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-soft)' }}>{bar.amt}</span>

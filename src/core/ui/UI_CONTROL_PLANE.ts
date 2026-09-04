@@ -30,7 +30,25 @@ type ControlPlaneResult = {
 };
 
 function formatMoney(value: number): string {
-  return `$${(value / 100).toFixed(2)}`;
+  return `${(value / 100).toFixed(2)} · Currency not specified`;
+}
+
+function formatDocumentMoney(value: number, currency: string): string {
+  const normalizedCurrency = String(currency || '').trim().toUpperCase();
+  if (!normalizedCurrency) return formatMoney(value);
+  try {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(value / 100);
+  } catch {
+    return `${normalizedCurrency} ${(value / 100).toFixed(2)}`;
+  }
+}
+
+function formatCurrencylessNumber(value: number): string {
+  return new Intl.NumberFormat('en-CA').format(Number(value) || 0);
 }
 
 function sectionId(type: string): string {
@@ -58,10 +76,10 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       action: "createFirstInvoice",
       outcome: "Organize client delivery",
       previewLines: [
-        { label: "Design sprint", amount: "$1,500.00" },
-        { label: "Client revisions", amount: "$300.00" },
+        { label: "Design sprint", amount: "1,500.00 · Currency not specified" },
+        { label: "Client revisions", amount: "300.00 · Currency not specified" },
       ],
-      previewTotal: "$1,800.00",
+      previewTotal: "1,800.00 · Currency not specified",
     },
     SYSTEM: {
       eyebrow: "Client Delivery Workspace",
@@ -80,7 +98,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
       metrics: [
         {
           label: "Document total change",
-          value: `${derived.revenueCausality.revenue_uplift > 0 ? "+" : derived.revenueCausality.revenue_uplift < 0 ? "-" : ""}$${Math.abs(derived.revenueCausality.revenue_uplift / 100).toFixed(2)}`,
+          value: `${derived.revenueCausality.revenue_uplift > 0 ? "+" : derived.revenueCausality.revenue_uplift < 0 ? "-" : ""}${Math.abs(derived.revenueCausality.revenue_uplift / 100).toFixed(2)} · Currency not specified`,
           tone: derived.revenueCausality.revenue_uplift > 0 ? "success" : "default",
         },
         {
@@ -95,7 +113,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
         },
       ],
       monetization: derived.monetizationDecision.action === "no_action" ? null : {
-        label: `Upgrade suggestion: ${derived.monetizationDecision.recommended_plan} ($${derived.monetizationDecision.recommended_price_usd}/mo)`,
+        label: `Upgrade suggestion: ${derived.monetizationDecision.recommended_plan} (USD ${derived.monetizationDecision.recommended_price_usd}/mo)`,
         reason: derived.monetizationDecision.reason,
         action: derived.monetizationDecision.action,
       },
@@ -121,14 +139,14 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
     LEADS: {
       title: "Leads Inbox",
       description: "Latest freelancer card client inquiries.",
-      totalPipeline: `$${derived.totalLeadPipeline.toLocaleString()}`,
+      totalPipeline: `${formatCurrencylessNumber(derived.totalLeadPipeline)} · Currency not specified`,
       items: rawData.rawLeads.slice(0, 3).map((lead: any) => ({
         id: String(lead?.id || lead?.client_email || ""),
         title: lead?.client_name || "New client inquiry",
         subtitle: lead?.client_email || "",
         description: lead?.message || "No description provided.",
         received: lead?.created_at ? String(lead.created_at).substring(0, 10) : "",
-        value: lead?.lead_value ? `$${Number(lead.lead_value).toLocaleString()}` : "",
+        value: lead?.lead_value ? `${formatCurrencylessNumber(Number(lead.lead_value))} · Currency not specified` : "",
         badge: { label: lead?.status || "New", bg: "var(--primary-glow)", color: "var(--primary)" },
         actions: [
           { label: "View details", action: "viewLead", payload: { id: lead?.id } },
@@ -154,7 +172,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
         id: String(q?.id || q?.quote_number || ""),
         number: q?.quote_number || "Draft",
         client: q?.client_name || "Client",
-        amount: formatMoney(q?.total || 0),
+        amount: formatDocumentMoney(q?.total || 0, q?.currency),
         badge: { label: q?.status || "Draft", bg: "var(--primary-glow)", color: "var(--primary)" },
         actions: [{ label: "Link", action: "copyPortalLink", payload: { id: q?.id, type: "quote" } }],
       })),
@@ -171,7 +189,7 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
         id: String(i?.id || i?.invoice_number || ""),
         number: i?.invoice_number || "Draft",
         client: i?.client_name || "Client",
-        amount: formatMoney(i?.total || 0),
+        amount: formatDocumentMoney(i?.total || 0, i?.currency),
         badge: { label: i?.status || "Pending", bg: "var(--primary-glow)", color: "var(--primary)" },
         actions: [{ label: "Link", action: "copyPortalLink", payload: { id: i?.id, type: "invoice" } }],
       })),
@@ -184,14 +202,14 @@ function buildDashboardUI(rawData: any, derived: any, layout: any, stability: an
           id: `invoice-${inv?.id}`,
           text: `Invoice ${inv?.invoice_number || "draft"} generated`,
           time: "Just now",
-          amount: formatMoney(inv?.total || 0),
+          amount: formatDocumentMoney(inv?.total || 0, inv?.currency),
           badge: { label: inv?.status || "Pending", bg: "var(--primary-glow)", color: "var(--primary)" },
         })),
         ...rawData.rawQuotes.slice(0, 2).map((q: any) => ({
           id: `proposal-${q?.id}`,
           text: `Quote ${q?.quote_number || "draft"} updated`,
           time: "1h ago",
-          amount: formatMoney(q?.total || 0),
+          amount: formatDocumentMoney(q?.total || 0, q?.currency),
           badge: { label: q?.status || "Draft", bg: "var(--primary-glow)", color: "var(--primary)" },
         })),
       ],

@@ -27,6 +27,29 @@ const emptyTextStyle = {
   color: color.muted,
 };
 
+const DASHBOARD_OVERVIEW_LOCALE = 'en-CA';
+
+const normalizeOverviewCurrency = (currency) => String(currency || 'USD').trim().toUpperCase() || 'USD';
+
+const formatOverviewMoney = (cents, currency = 'USD') => {
+  if (!Number.isFinite(Number(cents))) return 'Unavailable';
+  const normalizedCurrency = normalizeOverviewCurrency(currency);
+  try {
+    return new Intl.NumberFormat(DASHBOARD_OVERVIEW_LOCALE, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(Number(cents) / 100);
+  } catch {
+    return `${normalizedCurrency} ${(Number(cents) / 100).toFixed(2)}`;
+  }
+};
+
+const formatOverviewCurrencylessAmount = (value) => {
+  if (!Number.isFinite(Number(value))) return 'Amount unavailable';
+  return `${new Intl.NumberFormat(DASHBOARD_OVERVIEW_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))} · Currency not specified`;
+};
+
 function resolveAction(actionHandlers, action, payload) {
   const handler = actionHandlers?.[action];
   if (handler) handler(payload);
@@ -424,7 +447,7 @@ export function ActivityFeed({ ui }) {
       time: item.time || "Recently",
       strategy: isQuote ? strategyUsed : null,
       outcome: statusLabel,
-      revenue: local && local.price ? `$${local.price.toFixed(2)}` : (item.amount || "$0.00"),
+      revenue: local && local.price ? formatOverviewCurrencylessAmount(local.price) : (item.amount || 'Amount unavailable'),
       isQuote,
     };
   });
@@ -633,10 +656,7 @@ function formatStatus(status) {
 
 function formatTotal(document) {
   if (!Number.isFinite(Number(document.total))) return 'Total unavailable';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: document.currency || 'USD',
-  }).format(Number(document.total) / 100);
+  return formatOverviewMoney(document.total, document.currency);
 }
 
 function Wave1QuickActions({ actionHandlers }) {
@@ -669,12 +689,7 @@ function Wave1QuickActions({ actionHandlers }) {
 }
 
 function formatPaymentCents(cents, currency) {
-  if (!Number.isFinite(Number(cents))) return 'Unavailable';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(Number(cents) / 100);
-  } catch {
-    return `${Number(cents) / 100} ${currency || 'USD'}`;
-  }
+  return formatOverviewMoney(cents, currency);
 }
 
 function Wave1PaymentProgress({ invoices, error, actionHandlers }) {
@@ -766,7 +781,7 @@ function formatAttentionDate(value) {
     ? new Date(`${value}T00:00:00Z`)
     : new Date(value);
   if (!Number.isFinite(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(DASHBOARD_OVERVIEW_LOCALE, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -776,14 +791,7 @@ function formatAttentionDate(value) {
 
 function formatAttentionAmount(cents, currency = 'USD') {
   if (!Number.isFinite(Number(cents))) return null;
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format(Number(cents) / 100);
-  } catch {
-    return `${Number(cents) / 100} ${currency || 'USD'}`;
-  }
+  return formatOverviewMoney(cents, currency);
 }
 
 function Wave1NeedsAttention({ items, surfaceState, error, actionHandlers }) {
