@@ -99,6 +99,55 @@ const getMockDateString = () => new Date().toISOString();
 const DASHBOARD_SIDEBAR_STORAGE_KEY = 'corvioz_dashboard_sidebar_collapsed';
 const TERMINAL_QUOTE_STATUSES = new Set(['approved', 'declined', 'converted']);
 const isDevelopment = process.env.NODE_ENV === 'development';
+const DASHBOARD_DATE_LOCALE = 'en-CA';
+const DASHBOARD_MONEY_LOCALE = 'en-CA';
+const DASHBOARD_DATE_ENTRY_PATTERN = '\\d{4}-\\d{2}-\\d{2}';
+
+const formatDashboardDate = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const dateOnlyMatch = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const date = dateOnlyMatch
+    ? new Date(Date.UTC(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3])))
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DASHBOARD_DATE_LOCALE, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const formatDashboardTime = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DASHBOARD_DATE_LOCALE, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const formatDashboardNumber = (value) => new Intl.NumberFormat(DASHBOARD_MONEY_LOCALE).format(Number(value) || 0);
+
+const formatDashboardMoney = (amount, currency) => {
+  const normalizedCurrency = String(currency || 'USD').trim().toUpperCase() || 'USD';
+  const numericAmount = Number(amount);
+  const safeAmount = Number.isFinite(numericAmount) ? numericAmount : 0;
+  const formattedAmount = safeAmount.toFixed(2);
+  try {
+    return new Intl.NumberFormat(DASHBOARD_MONEY_LOCALE, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(safeAmount);
+  } catch (_) {
+    return `${normalizedCurrency} ${formattedAmount}`;
+  }
+};
 
 function ClientDocumentsPanel({
   client,
@@ -124,7 +173,7 @@ function ClientDocumentsPanel({
 
   const formatDocumentDate = (document) => {
     const timestamp = getEffectiveDocumentTimestamp(document);
-    return timestamp === null ? '' : new Date(timestamp).toLocaleDateString();
+    return timestamp === null ? '' : formatDashboardDate(timestamp);
   };
 
   const renderDocuments = (documents, type) => documents.map((document) => {
@@ -1286,15 +1335,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     };
   }, []);
 
-  const getCurrencySymbol = (cur) => {
-    switch (String(cur).toUpperCase()) {
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      case 'CNY': return '¥';
-      case 'JPY': return '¥';
-      default: return '$';
-    }
-  };
+  const getCurrencySymbol = (cur) => `${String(cur || 'USD').trim().toUpperCase() || 'USD'} `;
 
   const restoreUserIntent = useCallback((userId = null, entryState = 'AUTHENTICATED') => {
     if (typeof window === 'undefined') return;
@@ -3545,7 +3586,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           {invItems.filter(item => item.description && item.description.trim()).map((item, index) => (
             <div key={`${item.description}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: 'var(--text-soft)', fontSize: '0.85rem' }}>
               <span>{item.description} × {item.quantity || 0}</span>
-              <strong style={{ color: 'var(--text-main)' }}>{getCurrencySymbol(invCurrency)}{(Number(item.quantity || 0) * Number(item.unitPrice || 0)).toFixed(2)}</strong>
+              <strong style={{ color: 'var(--text-main)' }}>{formatDashboardMoney(Number(item.quantity || 0) * Number(item.unitPrice || 0), invCurrency)}</strong>
             </div>
           ))}
         </div>
@@ -3553,23 +3594,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.84rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Subtotal</span>
-            <span>{getCurrencySymbol(invCurrency)}{totals.subtotal.toFixed(2)}</span>
+            <span>{formatDashboardMoney(totals.subtotal, invCurrency)}</span>
           </div>
           {Number(invDiscountRate || 0) > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
               <span>Discount</span>
-              <span>-{getCurrencySymbol(invCurrency)}{totals.discount.toFixed(2)}</span>
+              <span>-{formatDashboardMoney(totals.discount, invCurrency)}</span>
             </div>
           )}
           {Number(invTaxRate || 0) > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Tax</span>
-              <span>{getCurrencySymbol(invCurrency)}{totals.tax.toFixed(2)}</span>
+              <span>{formatDashboardMoney(totals.tax, invCurrency)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 800, fontSize: '1rem', marginTop: '6px' }}>
             <span>Total</span>
-            <span>{getCurrencySymbol(invCurrency)}{totals.total.toFixed(2)}</span>
+            <span>{formatDashboardMoney(totals.total, invCurrency)}</span>
           </div>
         </div>
       </div>
@@ -3695,11 +3736,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
       <input
         id={`quote-scope-${field}`}
-        type={type}
+        type={type === 'date' ? 'text' : type}
         className="form-input"
         value={qScopeCommon[field] ?? ''}
         onChange={(event) => updateQPhotographyScope(field, event.target.value)}
-        placeholder={placeholder}
+        placeholder={type === 'date' ? 'YYYY-MM-DD' : placeholder}
+        inputMode={type === 'date' ? 'numeric' : undefined}
+        pattern={type === 'date' ? DASHBOARD_DATE_ENTRY_PATTERN : undefined}
+        maxLength={type === 'date' ? 10 : undefined}
+        data-dashboard-date-entry={type === 'date' ? 'english' : undefined}
         list={suggestions.length > 0 ? `quote-scope-${field}-suggestions` : undefined}
         min={type === 'number' ? 0 : undefined}
         step={type === 'number' ? 1 : undefined}
@@ -4253,7 +4298,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Leads Pipeline CRM</h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
                   Track client inquiry cycles and project records. Active Document Total: <strong style={{ color: 'var(--accent)' }}>
-                    ${getActiveLeads().reduce((sum, l) => sum + Number(getLeadCRMFields(l).value || 0), 0).toLocaleString()}
+                    {formatDashboardNumber(getActiveLeads().reduce((sum, l) => sum + Number(getLeadCRMFields(l).value || 0), 0))}
                   </strong>
                 </p>
               </div>
@@ -4303,7 +4348,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             <div key={lead.id} className="kanban-card" style={{ borderLeft: `3px solid ${col.color}` }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{lead.name}</span>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>${Number(crm.value || 0).toLocaleString()}</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>{formatDashboardNumber(crm.value || 0)}</span>
                               </div>
                               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                                 {lead.message}
@@ -4321,7 +4366,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               {/* Reminder Notification */}
                               {crm.reminderDate && (
                                 <div style={{ fontSize: '0.65rem', color: 'var(--warning-text, #fbbf24)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
-                                  <span>Reminder: {new Date(crm.reminderDate).toLocaleDateString()}</span>
+                              <span>Reminder: {formatDashboardDate(crm.reminderDate)}</span>
                                 </div>
                               )}
 
@@ -4450,11 +4495,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div className="input-group">
                         <label className="input-label">Last Contact Date</label>
-                        <input type="date" className="form-input" value={leadLastContactDate} onChange={e => setLeadLastContactDate(e.target.value)} />
+                        <input type="text" className="form-input" value={leadLastContactDate} onChange={e => setLeadLastContactDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Follow-up Reminder Date</label>
-                        <input type="date" className="form-input" value={leadReminderDate} onChange={e => setLeadReminderDate(e.target.value)} />
+                        <input type="text" className="form-input" value={leadReminderDate} onChange={e => setLeadReminderDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                       </div>
                     </div>
 
@@ -4552,7 +4597,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{q.client_email}</div>
                             </td>
                             <td style={{ padding: '14px 18px', fontWeight: 600 }}>
-                              {getCurrencySymbol(q.currency)}{(q.total / 100).toFixed(2)}
+                              {formatDashboardMoney(q.total / 100, q.currency)}
                             </td>
                             <td style={{ padding: '14px 18px' }}>
                               <span
@@ -4731,11 +4776,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div className="input-group">
                         <label className="input-label">Currency</label>
                         <select className="form-select" value={qCurrency} onChange={e => setQCurrency(e.target.value)}>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="GBP">GBP (£)</option>
-                          <option value="CNY">CNY (¥)</option>
-                          {qCurrency && !['USD', 'EUR', 'GBP', 'CNY'].includes(qCurrency) && (
+                          <option value="USD">USD</option>
+                          <option value="CAD">CAD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="CNY">CNY</option>
+                          {qCurrency && !['USD', 'CAD', 'EUR', 'GBP', 'CNY'].includes(qCurrency) && (
                             <option value={qCurrency}>{qCurrency}</option>
                           )}
                         </select>
@@ -4985,23 +5031,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>Subtotal:</span>
-                              <span>{getCurrencySymbol(qCurrency)}{qSubtotal.toFixed(2)}</span>
+                              <span>{formatDashboardMoney(qSubtotal, qCurrency)}</span>
                             </div>
                             {qDiscountRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
                                 <span>Discount ({qDiscountRate}%):</span>
-                                <span>-{getCurrencySymbol(qCurrency)}{(qSubtotal * qDiscountRate / 100).toFixed(2)}</span>
+                                <span>-{formatDashboardMoney(qSubtotal * qDiscountRate / 100, qCurrency)}</span>
                               </div>
                             )}
                             {qTaxRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Tax ({qTaxRate}%):</span>
-                                <span>{getCurrencySymbol(qCurrency)}{(qSubtotal * (1 - qDiscountRate / 100) * qTaxRate / 100).toFixed(2)}</span>
+                                <span>{formatDashboardMoney(qSubtotal * (1 - qDiscountRate / 100) * qTaxRate / 100, qCurrency)}</span>
                               </div>
                             )}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px', color: 'var(--accent)' }}>
                               <span>Total:</span>
-                              <span>{getCurrencySymbol(qCurrency)}{qTotal.toFixed(2)}</span>
+                              <span>{formatDashboardMoney(qTotal, qCurrency)}</span>
                             </div>
                           </div>
                         );
@@ -5125,10 +5171,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                   <td style={{ padding: '10px 0' }}>{item.description || 'Service / Deliverable'}</td>
                                   <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
                                   <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                                    {getCurrencySymbol(qCurrency)}{Number(item.unitPrice || 0).toFixed(2)}
+                                    {formatDashboardMoney(Number(item.unitPrice || 0), qCurrency)}
                                   </td>
                                   <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                                    {getCurrencySymbol(qCurrency)}{(item.quantity * Number(item.unitPrice || 0)).toFixed(2)}
+                                    {formatDashboardMoney(item.quantity * Number(item.unitPrice || 0), qCurrency)}
                                   </td>
                                 </tr>
                               ))}
@@ -5148,23 +5194,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ width: '100%', maxWidth: '200px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                                   <span>Subtotal:</span>
-                                  <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)).toFixed(2)}</span>
+                                  <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0), qCurrency)}</span>
                                 </div>
                                 {qDiscountRate > 0 && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
                                     <span>Discount ({qDiscountRate}%):</span>
-                                    <span>-{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * qDiscountRate / 100).toFixed(2)}</span>
+                                    <span>-{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * qDiscountRate / 100, qCurrency)}</span>
                                   </div>
                                 )}
                                 {qTaxRate > 0 && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                                     <span>Tax ({qTaxRate}%):</span>
-                                    <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * qTaxRate / 100).toFixed(2)}</span>
+                                    <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * qTaxRate / 100, qCurrency)}</span>
                                   </div>
                                 )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
                                   <span>Total:</span>
-                                  <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100)).toFixed(2)}</span>
+                                  <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100), qCurrency)}</span>
                                 </div>
                               </div>
                             </div>
@@ -5323,11 +5369,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{inv.client_email}</div>
                             </td>
                             <td style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                              <div>Issued: {new Date(inv.invoice_date || inv.created_at).toLocaleDateString()}</div>
-                              <div style={{ marginTop: '2px' }}>Due: {new Date(inv.due_date).toLocaleDateString()}</div>
+                              <div>Issued: {formatDashboardDate(inv.invoice_date || inv.created_at)}</div>
+                              <div style={{ marginTop: '2px' }}>Due: {formatDashboardDate(inv.due_date)}</div>
                             </td>
                             <td style={{ padding: '14px 18px', fontWeight: 600 }}>
-                              {getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}
+                              {formatDashboardMoney(inv.total / 100, inv.currency)}
                             </td>
                             <td style={{ padding: '14px 18px' }}>
                               <span
@@ -5524,11 +5570,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div className="input-group">
                         <label className="input-label">Currency</label>
                         <select className="form-select" value={invCurrency} disabled={isSelectedInvoiceSettled} onChange={e => setInvCurrency(e.target.value)}>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="GBP">GBP (£)</option>
-                          <option value="CNY">CNY (¥)</option>
-                          {invCurrency && !['USD', 'EUR', 'GBP', 'CNY'].includes(invCurrency) && (
+                          <option value="USD">USD</option>
+                          <option value="CAD">CAD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="CNY">CNY</option>
+                          {invCurrency && !['USD', 'CAD', 'EUR', 'GBP', 'CNY'].includes(invCurrency) && (
                             <option value={invCurrency}>{invCurrency}</option>
                           )}
                         </select>
@@ -5636,11 +5683,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div className="invoice-summary-date-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <div className="input-group">
                           <label className="input-label">Issue Date</label>
-                          <input type="date" className="form-input" value={invDate} disabled={isSelectedInvoiceSettled} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} />
+                          <input type="text" className="form-input" value={invDate} disabled={isSelectedInvoiceSettled} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                         </div>
                         <div className="input-group">
                           <label className="input-label">Due Date</label>
-                          <input type="date" className="form-input" value={invDueDate} disabled={isSelectedInvoiceSettled} onChange={e => setInvDueDate(e.target.value)} />
+                          <input type="text" className="form-input" value={invDueDate} disabled={isSelectedInvoiceSettled} onChange={e => setInvDueDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                         </div>
                       </div>
 
@@ -5681,23 +5728,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>Subtotal:</span>
-                              <span>{getCurrencySymbol(invCurrency)}{invSubtotal.toFixed(2)}</span>
+                              <span>{formatDashboardMoney(invSubtotal, invCurrency)}</span>
                             </div>
                             {invDiscountRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
                                 <span>Discount ({invDiscountRate}%):</span>
-                                <span>-{getCurrencySymbol(invCurrency)}{(invSubtotal * invDiscountRate / 100).toFixed(2)}</span>
+                                <span>-{formatDashboardMoney(invSubtotal * invDiscountRate / 100, invCurrency)}</span>
                               </div>
                             )}
                             {invTaxRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Tax ({invTaxRate}%):</span>
-                                <span>{getCurrencySymbol(invCurrency)}{(invSubtotal * (1 - invDiscountRate / 100) * invTaxRate / 100).toFixed(2)}</span>
+                                <span>{formatDashboardMoney(invSubtotal * (1 - invDiscountRate / 100) * invTaxRate / 100, invCurrency)}</span>
                               </div>
                             )}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px', color: 'var(--accent)' }}>
                               <span>Total:</span>
-                              <span>{getCurrencySymbol(invCurrency)}{invTotal.toFixed(2)}</span>
+                              <span>{formatDashboardMoney(invTotal, invCurrency)}</span>
                             </div>
                             {invItems.length > 0 && invSubtotal > 0 && (
                               <div style={{ 
@@ -5710,7 +5757,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                 fontSize: '0.8rem',
                                 fontWeight: 600
                               }}>
-                                This invoice could be valued at {getCurrencySymbol(invCurrency)}{(invSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(invCurrency)}{(invSubtotal * 1.15).toFixed(2)} range
+                                This invoice could be valued at {formatDashboardMoney(invSubtotal * 0.95, invCurrency)} - {formatDashboardMoney(invSubtotal * 1.15, invCurrency)} range
                               </div>
                             )}
                           </div>
@@ -5788,10 +5835,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                   <td style={{ padding: '10px 0' }}>{item.description}</td>
                                   <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
                                   <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                                    {getCurrencySymbol(invCurrency)}{Number(item.unitPrice || 0).toFixed(2)}
+                                    {formatDashboardMoney(Number(item.unitPrice || 0), invCurrency)}
                                   </td>
                                   <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                                    {getCurrencySymbol(invCurrency)}{(item.quantity * Number(item.unitPrice || 0)).toFixed(2)}
+                                    {formatDashboardMoney(item.quantity * Number(item.unitPrice || 0), invCurrency)}
                                   </td>
                                 </tr>
                               ))}
@@ -5817,23 +5864,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               <div style={{ width: '100%', maxWidth: '200px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                                   <span>Subtotal:</span>
-                                  <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)).toFixed(2)}</span>
+                                  <span>{formatDashboardMoney(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0), invCurrency)}</span>
                                 </div>
                                 {invDiscountRate > 0 && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
                                     <span>Discount ({invDiscountRate}%):</span>
-                                    <span>-{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * invDiscountRate / 100).toFixed(2)}</span>
+                                    <span>-{formatDashboardMoney(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * invDiscountRate / 100, invCurrency)}</span>
                                   </div>
                                 )}
                                 {invTaxRate > 0 && (
                                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                                     <span>Tax ({invTaxRate}%):</span>
-                                    <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * invTaxRate / 100).toFixed(2)}</span>
+                                    <span>{formatDashboardMoney(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * invTaxRate / 100, invCurrency)}</span>
                                   </div>
                                 )}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
                                   <span>Total:</span>
-                                  <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * (1 + invTaxRate / 100)).toFixed(2)}</span>
+                                  <span>{formatDashboardMoney(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * (1 + invTaxRate / 100), invCurrency)}</span>
                                 </div>
                               </div>
                             </div>
@@ -7195,10 +7242,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Document Total</span>
                   <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--primary)' }}>
-                    ${leads.reduce((sum, l) => {
+                    {formatDashboardNumber(leads.reduce((sum, l) => {
                       const utm = typeof l.source_utm === 'object' ? l.source_utm : JSON.parse(l.source_utm || '{}');
                       return sum + Number(utm.lead_value || l.lead_value || 0);
-                    }, 0).toLocaleString()}
+                    }, 0))}
                   </h3>
                 </div>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
@@ -8179,7 +8226,7 @@ function DevDashboardAuditPanel({
                 <div key={idx} style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: '3px solid #38bdf8', fontSize: '0.78rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                     <span style={{ fontWeight: 700, color: '#38bdf8' }}>{evt.name}</span>
-                    <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                    <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{formatDashboardTime(evt.timestamp)}</span>
                   </div>
                   {evt.props && Object.keys(evt.props).length > 0 && (
                     <div style={{ color: '#94a3b8', fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
