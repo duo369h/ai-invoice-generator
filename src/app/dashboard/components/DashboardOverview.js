@@ -1071,20 +1071,20 @@ export default function DashboardOverview({ data = {}, actionHandlers = {} }) {
         <h1>Overview</h1>
         <p>Keep your next client document moving.</p>
       </header>
-      <Wave1QuickActions actionHandlers={actionHandlers} />
-      <Wave1PaymentProgress invoices={invoices} error={data.invoicesError} actionHandlers={actionHandlers} />
-      <Wave1DocumentUsage quota={data.quota} plan={data.plan} error={data.quotaError} actionHandlers={actionHandlers} />
       <Wave1NeedsAttention items={needsAttention} surfaceState={state} error={data.error} actionHandlers={actionHandlers} />
-      <Wave1ScopeSnapshot
-        snapshot={scopeSnapshot}
-        state={{ isLoading: Boolean(data.isLoading), error: scopeSnapshotError }}
-        actionHandlers={actionHandlers}
-      />
       <Wave1RecentDocuments
         documents={documents}
         state={state}
         actionHandlers={actionHandlers}
         error={data.error}
+      />
+      <Wave1QuickActions actionHandlers={actionHandlers} />
+      <Wave1PaymentProgress invoices={invoices} error={data.invoicesError} actionHandlers={actionHandlers} />
+      <Wave1DocumentUsage quota={data.quota} plan={data.plan} error={data.quotaError} actionHandlers={actionHandlers} />
+      <Wave1ScopeSnapshot
+        snapshot={scopeSnapshot}
+        state={{ isLoading: Boolean(data.isLoading), error: scopeSnapshotError }}
+        actionHandlers={actionHandlers}
       />
     </div>
   );
