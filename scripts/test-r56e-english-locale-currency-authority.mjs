@@ -6,13 +6,20 @@ import path from 'node:path';
 const root = process.cwd();
 const sourcePath = path.join(root, 'src/components/dashboard/Dashboard.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
-const baseSha = '4d7e8090ab8dbe9ecfa73c6ca2aa5ea6a037cb58';
-const baseSource = execFileSync('git', ['show', `${baseSha}:src/components/dashboard/Dashboard.js`], { encoding: 'utf8' });
-const changedFiles = execFileSync('git', ['diff', '--name-only', baseSha], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
-if (!changedFiles.includes('scripts/test-r56e-english-locale-currency-authority.mjs')) {
-  changedFiles.push('scripts/test-r56e-english-locale-currency-authority.mjs');
-}
-const dashboardDiff = execFileSync('git', ['diff', baseSha, '--', 'src/components/dashboard/Dashboard.js'], { encoding: 'utf8' });
+const r1BaseSha = '4d7e8090ab8dbe9ecfa73c6ca2aa5ea6a037cb58';
+const r1CommitSha = 'f7223946871fe9ded7baab3e2da048a0929ed9da';
+const currentHeadSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+assert.doesNotThrow(
+  () => execFileSync('git', ['cat-file', '-e', `${r1CommitSha}^{commit}`], { encoding: 'utf8' }),
+  'R1 historical commit must exist locally',
+);
+assert.doesNotThrow(
+  () => execFileSync('git', ['merge-base', '--is-ancestor', r1CommitSha, currentHeadSha], { encoding: 'utf8' }),
+  'R1 historical commit must be an ancestor of current HEAD',
+);
+const baseSource = execFileSync('git', ['show', `${r1BaseSha}:src/components/dashboard/Dashboard.js`], { encoding: 'utf8' });
+const changedFiles = execFileSync('git', ['diff', '--name-only', r1BaseSha, r1CommitSha, '--'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+const dashboardDiff = execFileSync('git', ['diff', r1BaseSha, r1CommitSha, '--', 'src/components/dashboard/Dashboard.js'], { encoding: 'utf8' });
 const addedLines = dashboardDiff.split('\n').filter((line) => line.startsWith('+') && !line.startsWith('+++')).join('\n');
 
 const count = (value, pattern) => value.match(pattern)?.length || 0;
