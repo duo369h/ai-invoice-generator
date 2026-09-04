@@ -4614,12 +4614,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                    {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
-                  </h2>
-                  <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
-                </div>
+                <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h2 id="quote-workspace-context-heading" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+                      {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
+                    </h2>
+                    <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
+                  </div>
 
                 {formError && (
                   <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -4669,11 +4670,40 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Not sure? Choose the closest match. You can change it later.</p>
                 </div>
+                </section>
+
+                <nav data-testid="quote-workspace-index" aria-label="Quote workspace sections" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', padding: '12px 14px', marginBottom: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--btn-secondary-bg)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', fontWeight: 700, marginRight: '4px' }}>Workspace</span>
+                  {[
+                    ['quote-workspace-scope', 'Scope'],
+                    ['quote-workspace-usage', 'Usage'],
+                    ['quote-workspace-pricing', 'Pricing'],
+                    ['quote-workspace-terms', 'Terms & Notes'],
+                    ['quote-workspace-review', 'Review'],
+                  ].map(([sectionId, label]) => (
+                    <button
+                      key={sectionId}
+                      type="button"
+                      aria-label={`Go to ${label}`}
+                      onClick={() => {
+                        const section = document.getElementById(sectionId);
+                        section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        section?.focus({ preventScroll: true });
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ minHeight: '34px' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
 
                 <div className="dashboard-grid-2col">
                   {/* Left Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <section aria-labelledby="quote-workspace-context-details-heading">
+                      <h3 id="quote-workspace-context-details-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 12px', textTransform: 'uppercase', color: 'var(--accent)' }}>Quote Context</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div className="input-group">
                         <label className="input-label">Existing Client (optional)</label>
                         <select
@@ -4710,7 +4740,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           )}
                         </select>
                       </div>
-                    </div>
+                        <div className="input-group">
+                          <label className="input-label">Quote Status</label>
+                          <div className="form-input" aria-label="Quote delivery status (read-only)">
+                            {qStatus === 'sent' ? 'Sent' : qStatus === 'draft' ? 'Draft' : qStatus}
+                          </div>
+                          {qStatus === 'draft' && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                              Save the Quote, then send it to the stored client email.
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
                     <div className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
                       <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Client Specifications</h3>
@@ -4787,10 +4828,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <input type="text" className="form-input" value={qClientAddress} onChange={e => setQClientAddress(e.target.value)} placeholder="e.g. 1007 Mountain Dr, Gotham" />
                       </div>
                     </div>
+                    </section>
 
-                    <div className="card glass-panel" data-testid="photography-scope" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
+                    <section id="quote-workspace-scope" tabIndex={-1} aria-labelledby="quote-workspace-scope-heading" className="card glass-panel" data-testid="photography-scope" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Photography Scope</h3>
+                        <h3 id="quote-workspace-scope-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Photography Scope</h3>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Optional structured capture</span>
                       </div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.45, margin: '8px 0 18px' }}>
@@ -4818,66 +4860,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         </div>
                       </section>
 
-                      <section aria-labelledby="quote-scope-usage-heading" style={{ marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-                          <h4 id="quote-scope-usage-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>Usage Rights</h4>
-                          <span data-testid="quote-scope-usage-status" style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                            {qScopeCommon.usage_rights.status === 'specified' ? 'Specified' : qScopeCommon.usage_rights.status === 'not_applicable' ? 'Not applicable' : 'Not specified'}
-                          </span>
-                        </div>
-                        <div className="input-group" style={{ marginTop: '12px' }}>
-                          <label className="input-label" htmlFor="quote-scope-usage-status">Usage status</label>
-                          <select
-                            id="quote-scope-usage-status"
-                            className="form-select"
-                            value={qScopeCommon.usage_rights.status}
-                            onChange={(event) => handleUsageRightsStatusChange(event.target.value)}
-                          >
-                            <option value="unspecified">Not specified</option>
-                            <option value="specified">Specified</option>
-                            <option value="not_applicable">Not applicable</option>
-                          </select>
-                        </div>
-                        {qScopeCommon.usage_rights.status === 'specified' && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => setUsageRightsExpanded((expanded) => !expanded)}
-                              aria-expanded={usageRightsExpanded}
-                              style={{ marginBottom: usageRightsExpanded ? '12px' : 0 }}
-                            >
-                              {usageRightsExpanded ? 'Hide usage details' : 'Show usage details'}
-                            </button>
-                            {usageRightsExpanded && (
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-                                <div className="input-group">
-                                  <label className="input-label" htmlFor="quote-scope-purpose">Purpose</label>
-                                  <input id="quote-scope-purpose" type="text" className="form-input" value={qScopeCommon.usage_rights.purpose ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.purpose', event.target.value)} placeholder="e.g. Brand campaign" />
-                                </div>
-                                <div className="input-group">
-                                  <label className="input-label" htmlFor="quote-scope-media-channels">Media / channels</label>
-                                  <textarea id="quote-scope-media-channels" className="form-textarea" value={(qScopeCommon.usage_rights.media_channels || []).join('\n')} onChange={(event) => updateQPhotographyScope('usage_rights.media_channels', event.target.value.split('\n'))} placeholder="e.g. Website\ne.g. Print" rows={3} />
-                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
-                                </div>
-                                <div className="input-group">
-                                  <label className="input-label" htmlFor="quote-scope-territory">Territory</label>
-                                  <input id="quote-scope-territory" type="text" className="form-input" value={qScopeCommon.usage_rights.territory ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.territory', event.target.value)} placeholder="e.g. North America" />
-                                </div>
-                                <div className="input-group">
-                                  <label className="input-label" htmlFor="quote-scope-license-duration">License duration</label>
-                                  <input id="quote-scope-license-duration" type="text" className="form-input" value={qScopeCommon.usage_rights.license_duration ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.license_duration', event.target.value)} placeholder="e.g. 12 months" />
-                                </div>
-                                <div className="input-group">
-                                  <label className="input-label" htmlFor="quote-scope-exclusivity">Exclusivity</label>
-                                  <input id="quote-scope-exclusivity" type="text" className="form-input" value={qScopeCommon.usage_rights.exclusivity ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.exclusivity', event.target.value)} placeholder="e.g. Non-exclusive" />
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </section>
-
                       <section aria-labelledby="quote-scope-boundaries-heading">
                         <h4 id="quote-scope-boundaries-heading" style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 12px' }}>Delivery &amp; Boundaries</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
@@ -4895,33 +4877,97 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       >
                         {scopeFieldsExpanded ? 'Show fewer scope fields' : 'Show more scope fields'}
                       </button>
-                    </div>
+                    </section>
 
-                    {/* Line Items */}
-                    <div>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Line Items</h3>
-                      {qSubmitAttempted && (qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) && (
-                        <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 600 }}>
-                          Please add at least one line item with a description.
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {qItems.map((item, index) => (
-                          <div key={index} className="items-editor-row">
-                            <input type="text" className="form-input" placeholder="Service / Deliverable description" value={item.description} onChange={e => handleItemChange('quote', index, 'description', e.target.value)} required />
-                            <input type="number" className="form-input" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange('quote', index, 'quantity', Number(e.target.value))} required />
-                            <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} onChange={e => handleItemChange('quote', index, 'unitPrice', Number(e.target.value))} required />
-                            <button onClick={() => removeItem('quote', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>
-                          </div>
-                        ))}
+                    <section id="quote-workspace-usage" tabIndex={-1} aria-labelledby="quote-workspace-usage-heading" className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+                        <h3 id="quote-workspace-usage-heading" style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', margin: 0 }}>Usage</h3>
+                        <span data-testid="quote-scope-usage-status" style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                          {qScopeCommon.usage_rights.status === 'specified' ? 'Specified' : qScopeCommon.usage_rights.status === 'not_applicable' ? 'Not applicable' : 'Not specified'}
+                        </span>
                       </div>
-                      <button onClick={() => addItem('quote')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>
-                    </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.45, margin: '8px 0 18px' }}>
+                        Record the photographer-authored Usage Rights for this Quote.
+                      </p>
+                      <div className="input-group">
+                        <label className="input-label" htmlFor="quote-scope-usage-status">Usage status</label>
+                        <select
+                          id="quote-scope-usage-status"
+                          className="form-select"
+                          value={qScopeCommon.usage_rights.status}
+                          onChange={(event) => handleUsageRightsStatusChange(event.target.value)}
+                        >
+                          <option value="unspecified">Not specified</option>
+                          <option value="specified">Specified</option>
+                          <option value="not_applicable">Not applicable</option>
+                        </select>
+                      </div>
+                      {qScopeCommon.usage_rights.status === 'specified' && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setUsageRightsExpanded((expanded) => !expanded)}
+                            aria-expanded={usageRightsExpanded}
+                            style={{ marginBottom: usageRightsExpanded ? '12px' : 0 }}
+                          >
+                            {usageRightsExpanded ? 'Hide usage details' : 'Show usage details'}
+                          </button>
+                          {usageRightsExpanded && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                              <div className="input-group">
+                                <label className="input-label" htmlFor="quote-scope-purpose">Purpose</label>
+                                <input id="quote-scope-purpose" type="text" className="form-input" value={qScopeCommon.usage_rights.purpose ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.purpose', event.target.value)} placeholder="e.g. Brand campaign" />
+                              </div>
+                              <div className="input-group">
+                                <label className="input-label" htmlFor="quote-scope-media-channels">Media / channels</label>
+                                <textarea id="quote-scope-media-channels" className="form-textarea" value={(qScopeCommon.usage_rights.media_channels || []).join('\n')} onChange={(event) => updateQPhotographyScope('usage_rights.media_channels', event.target.value.split('\n'))} placeholder="e.g. Website\ne.g. Print" rows={3} />
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
+                              </div>
+                              <div className="input-group">
+                                <label className="input-label" htmlFor="quote-scope-territory">Territory</label>
+                                <input id="quote-scope-territory" type="text" className="form-input" value={qScopeCommon.usage_rights.territory ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.territory', event.target.value)} placeholder="e.g. North America" />
+                              </div>
+                              <div className="input-group">
+                                <label className="input-label" htmlFor="quote-scope-license-duration">License duration</label>
+                                <input id="quote-scope-license-duration" type="text" className="form-input" value={qScopeCommon.usage_rights.license_duration ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.license_duration', event.target.value)} placeholder="e.g. 12 months" />
+                              </div>
+                              <div className="input-group">
+                                <label className="input-label" htmlFor="quote-scope-exclusivity">Exclusivity</label>
+                                <input id="quote-scope-exclusivity" type="text" className="form-input" value={qScopeCommon.usage_rights.exclusivity ?? ''} onChange={(event) => updateQPhotographyScope('usage_rights.exclusivity', event.target.value)} placeholder="e.g. Non-exclusive" />
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </section>
                   </div>
 
                   {/* Right Summary Card */}
                   <div>
-                    <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
+                    <section id="quote-workspace-pricing" tabIndex={-1} aria-labelledby="quote-workspace-pricing-heading">
+                      <div style={{ marginBottom: '20px' }}>
+                        <h3 id="quote-workspace-pricing-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 12px', textTransform: 'uppercase', color: 'var(--accent)' }}>Pricing</h3>
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Line Items</h4>
+                        {qSubmitAttempted && (qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) && (
+                          <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 600 }}>
+                            Please add at least one line item with a description.
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {qItems.map((item, index) => (
+                            <div key={index} className="items-editor-row">
+                              <input type="text" className="form-input" placeholder="Service / Deliverable description" value={item.description} onChange={e => handleItemChange('quote', index, 'description', e.target.value)} required />
+                              <input type="number" className="form-input" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange('quote', index, 'quantity', Number(e.target.value))} required />
+                              <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} onChange={e => handleItemChange('quote', index, 'unitPrice', Number(e.target.value))} required />
+                              <button onClick={() => removeItem('quote', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={() => addItem('quote')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>
+                      </div>
+
+                      <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
                       <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
                       <div className="input-group">
                         <label className="input-label">Tax Rate (%)</label>
@@ -4931,18 +4977,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <label className="input-label">Discount Rate (%)</label>
                         <input type="number" className="form-input" value={qDiscountRate} onChange={e => setQDiscountRate(Number(e.target.value))} />
                       </div>
-                      <div className="input-group" style={{ marginBottom: '20px' }}>
-                        <label className="input-label">Quote Status</label>
-                        <div className="form-input" aria-label="Quote delivery status (read-only)">
-                          {qStatus === 'sent' ? 'Sent' : qStatus === 'draft' ? 'Draft' : qStatus}
-                        </div>
-                        {qStatus === 'draft' && (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                            Save the Quote, then send it to the stored client email.
-                          </span>
-                        )}
-                      </div>
-
                       {/* Calculations */}
                       {(() => {
                         const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
@@ -4973,12 +5007,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         );
                       })()}
 
-                      <div className="input-group" style={{ marginTop: '20px' }}>
+                      </div>
+                    </section>
+
+                    <section id="quote-workspace-terms" tabIndex={-1} aria-labelledby="quote-workspace-terms-heading" style={{ marginTop: '20px' }}>
+                      <h3 id="quote-workspace-terms-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 12px', textTransform: 'uppercase', color: 'var(--accent)' }}>Terms &amp; Notes</h3>
+                      <div className="input-group">
                         <label className="input-label">Quote Notes</label>
                         <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
                       </div>
+                    </section>
 
-                      <section data-testid="quote-pre-send-review" aria-labelledby="quote-pre-send-review-heading" style={{ marginTop: '20px', padding: '16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
+                    <section id="quote-workspace-review" tabIndex={-1} data-testid="quote-pre-send-review" aria-labelledby="quote-pre-send-review-heading" style={{ marginTop: '20px', padding: '16px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
                           <h3 id="quote-pre-send-review-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--accent)' }}>Review with Corvioz</h3>
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Suggestions only</span>
@@ -5200,7 +5240,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           </button>
                         )}
                       </div>
-                    </div>
                   </div>
                 </div>
               </div>
