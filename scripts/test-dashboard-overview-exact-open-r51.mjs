@@ -253,20 +253,20 @@ async function runBrowserChecks() {
     };
 
     const attentionQuote = page.getByTestId('needs-attention-item').filter({ hasText: 'Needs Attention Quote Client' });
-    await attentionQuote.getByRole('button', { name: 'Open quote', exact: true }).click();
+    await attentionQuote.click();
     await assertQuoteEditor('Needs Attention Quote Client');
 
     const attentionInvoice = page.getByTestId('needs-attention-item').filter({ hasText: 'Needs Attention Invoice Client' });
-    await attentionInvoice.getByRole('button', { name: 'Open invoice', exact: true }).click();
+    await attentionInvoice.click();
     await assertInvoiceEditor('Edit Document INV-DUPLICATE', 'Needs Attention Invoice Client');
 
     await page.getByTestId('scope-snapshot').getByRole('button', { name: 'Open Quote', exact: true }).click();
     await assertQuoteEditor('Scope Snapshot Quote Client');
 
-    await page.getByTestId('recent-document-quote').filter({ hasText: 'Recent Quote Client' }).getByRole('button', { name: 'Open Quote', exact: true }).click();
+    await page.getByTestId('recent-document-quote').filter({ hasText: 'Recent Quote Client' }).click();
     await assertQuoteEditor('Recent Quote Client');
 
-    await page.getByTestId('recent-document-invoice').filter({ hasText: 'Recent Paid Invoice Client' }).getByRole('button', { name: 'Open Invoice', exact: true }).click();
+    await page.getByTestId('recent-document-invoice').filter({ hasText: 'Recent Paid Invoice Client' }).click();
     await assertInvoiceEditor('View Invoice INV-DUPLICATE', 'Recent Paid Invoice Client', true);
 
     await page.getByRole('button', { name: 'Quotes', exact: true }).click();
