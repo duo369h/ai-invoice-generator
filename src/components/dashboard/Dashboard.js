@@ -3903,32 +3903,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               );
             })}
 
-            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
-            <button
-              type="button"
-              onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
-              aria-label="Settings"
-              title={sidebarCollapsed ? 'Settings' : undefined}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'var(--transition)'
-              }}
-            >
-              <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              <span className="dashboard-sidebar-label">Settings</span>
-            </button>
           </nav>
         </div>
 
