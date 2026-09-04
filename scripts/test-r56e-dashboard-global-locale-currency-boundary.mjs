@@ -112,9 +112,13 @@ const allowedPaths = new Set([
   'scripts/test-r56e-dashboard-global-locale-currency-boundary.mjs',
 ]);
 for (const changedPath of changedPaths) assert.ok(allowedPaths.has(changedPath), `R2 changed out-of-scope path: ${changedPath}`);
-assert.doesNotMatch(diff, /^\+.*fetch\s*\(/m, 'R2 must not add network requests');
-assert.doesNotMatch(diff, /^\+.*(?:supabase|from\s+['"]@supabase|api\/)/im, 'R2 must not add backend or API integration');
-assert.doesNotMatch(diff, /^\+.*(?:profile[_A-Za-z]*currency|currency[_A-Za-z]*profile)/im, 'R2 must not add Public Profile currency persistence');
+const applicationChangedPaths = changedPaths.filter((changedPath) => !changedPath.startsWith('scripts/'));
+const applicationDiff = applicationChangedPaths.length
+  ? execFileSync('git', ['diff', '--unified=0', 'f7223946871fe9ded7baab3e2da048a0929ed9da', '--', ...applicationChangedPaths], { cwd: repoRoot, encoding: 'utf8' })
+  : '';
+assert.doesNotMatch(applicationDiff, /^\+.*fetch\s*\(/m, 'R2 must not add network requests');
+assert.doesNotMatch(applicationDiff, /^\+.*(?:supabase|from\s+['"]@supabase|api\/)/im, 'R2 must not add backend or API integration');
+assert.doesNotMatch(applicationDiff, /^\+.*(?:profile[_A-Za-z]*currency|currency[_A-Za-z]*profile)/im, 'R2 must not add Public Profile currency persistence');
 
 console.log(`PRODUCTION_REACHABLE_DASHBOARD_FILES=${graph.files.length}`);
 console.log(`PRODUCTION_REACHABLE_USER_VISIBLE_FILES=${userVisibleFiles.length}`);
