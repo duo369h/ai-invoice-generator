@@ -814,28 +814,32 @@ function Wave1NeedsAttention({ items, surfaceState, error, actionHandlers }) {
             const isPastDue = item.title === 'Past-due balance';
             const isPartial = item.title === 'Remaining balance';
             return (
-              <article className="dashboard-needs-attention-item" key={`${item.documentType}-${item.id}`} data-testid="needs-attention-item">
-                <div className="dashboard-needs-attention-main">
+              <button
+                type="button"
+                className="dashboard-needs-attention-item"
+                key={`${item.documentType}-${item.id}`}
+                data-testid="needs-attention-item"
+                aria-label={item.actionLabel}
+                onClick={() => resolveAction(actionHandlers, item.action, { id: item.documentId, documentType: item.documentType })}
+              >
+                <span className="dashboard-needs-attention-main">
                   <span className="dashboard-wave1-type">{item.documentType === 'quote' ? 'Quote' : 'Invoice'}</span>
-                  <h3>{item.title}</h3>
-                  <p>{item.number || 'Document number unavailable'}{item.clientName ? ` · ${item.clientName}` : ''}</p>
+                  <span className="dashboard-needs-attention-title" role="heading" aria-level="3">{item.title}</span>
+                  <span className="dashboard-needs-attention-document">{item.number || 'Document number unavailable'}{item.clientName ? ` · ${item.clientName}` : ''}</span>
                   {(isPastDue || isPartial) && (
-                    <div className="dashboard-needs-attention-detail">
+                    <span className="dashboard-needs-attention-detail">
                       {isPastDue && item.dueDate && <span>Due {formatAttentionDate(item.dueDate)}</span>}
                       {isPastDue && item.amountDueCents !== null && <strong>Remaining {formatAttentionAmount(item.amountDueCents, item.currency)}</strong>}
                       {isPartial && item.amountPaidCents !== null && <span>Paid {formatAttentionAmount(item.amountPaidCents, item.currency)}</span>}
                       {isPartial && item.amountDueCents !== null && <strong>Remaining {formatAttentionAmount(item.amountDueCents, item.currency)}</strong>}
-                    </div>
+                    </span>
                   )}
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => resolveAction(actionHandlers, item.action, { id: item.documentId, documentType: item.documentType })}
-                >
-                  {item.actionLabel}
-                </button>
-              </article>
+                </span>
+                <span className="dashboard-needs-attention-action" aria-hidden="true">
+                  <span>{item.actionLabel}</span>
+                  <span>→</span>
+                </span>
+              </button>
             );
           })}
         </div>
@@ -1007,22 +1011,30 @@ function Wave1RecentDocuments({ documents, state, actionHandlers, error }) {
               const openAction = isQuote ? 'openQuotes' : 'openInvoices';
               const typeLabel = isQuote ? 'Quote' : 'Invoice';
               return (
-                <article className="dashboard-wave1-document" key={`${document.type}-${document.id}`} data-testid={`recent-document-${document.type}`}>
-                  <div className="dashboard-wave1-document-main">
+                <button
+                  type="button"
+                  className="dashboard-wave1-document"
+                  key={`${document.type}-${document.id}`}
+                  data-testid={`recent-document-${document.type}`}
+                  aria-label={`Open ${typeLabel}`}
+                  onClick={() => resolveAction(actionHandlers, openAction, { id: document.id, documentType: isQuote ? 'quote' : 'invoice' })}
+                >
+                  <span className="dashboard-wave1-document-main">
                     <span className="dashboard-wave1-type">{typeLabel}</span>
-                    <h3>{document.number || `${typeLabel} number unavailable`}</h3>
-                    <p>{document.clientName || 'Client not provided'}</p>
-                  </div>
-                  <div className="dashboard-wave1-document-meta">
+                    <span className="dashboard-wave1-document-title" role="heading" aria-level="3">{document.number || `${typeLabel} number unavailable`}</span>
+                    <span className="dashboard-wave1-document-client">{document.clientName || 'Client not provided'}</span>
+                  </span>
+                  <span className="dashboard-wave1-document-meta">
                     <span className={`dashboard-wave1-status dashboard-wave1-status-${document.status || 'unavailable'}`}>
                       {formatStatus(document.status)}
                     </span>
                     <strong>{formatTotal(document)}</strong>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveAction(actionHandlers, openAction, { id: document.id, documentType: isQuote ? 'quote' : 'invoice' })}>
+                    <span className="dashboard-wave1-document-action" aria-hidden="true">
                       Open {typeLabel}
-                    </button>
-                  </div>
-                </article>
+                      <span>→</span>
+                    </span>
+                  </span>
+                </button>
               );
             })}
           </div>
