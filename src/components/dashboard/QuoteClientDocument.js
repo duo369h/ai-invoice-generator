@@ -16,7 +16,7 @@ export default function QuoteClientDocument({
   totals,
 }) {
   return (
-    <article className="quote-client-document" style={{ width: '794px', padding: '40px', background: '#fff', color: '#1e293b', fontFamily: 'monospace' }}>
+    <article className="quote-client-document" style={{ width: '794px', padding: '44px', background: '#fffdf9', color: '#1e293b', fontFamily: 'var(--font-sans)' }}>
       <header className="quote-client-document-header" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #cbd5e1', paddingBottom: '15px', marginBottom: '15px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>QUOTE</h2>

@@ -1155,7 +1155,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Interactive View Toggles
   const [quoteView, setQuoteView] = useState(() => initialQuoteCreateMode ? 'create' : 'list'); // list, create, edit
-  const [quoteWorkspaceMode, setQuoteWorkspaceMode] = useState('edit');
   const [invoiceView, setInvoiceView] = useState(() => initialTool === 'invoice' ? 'create' : 'list'); // list, create, edit
   const [invoiceFlowStage, setInvoiceFlowStage] = useState(() => initialTool === 'invoice' ? 'create' : 'create');
   const [invoiceFlowLocked, setInvoiceFlowLocked] = useState(() => initialTool === 'invoice');
@@ -4668,84 +4667,124 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <div className="quote-workspace-layout" data-workspace-mode={quoteWorkspaceMode}>
-                  <div className="quote-workspace-mode-switch" role="group" aria-label="Quote workspace view">
-                    <span>View</span>
-                    <button
-                      type="button"
-                      className={quoteWorkspaceMode === 'edit' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                      aria-pressed={quoteWorkspaceMode === 'edit'}
-                      onClick={() => setQuoteWorkspaceMode('edit')}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className={quoteWorkspaceMode === 'preview' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                      aria-pressed={quoteWorkspaceMode === 'preview'}
-                      onClick={() => setQuoteWorkspaceMode('preview')}
-                    >
-                      Preview
-                    </button>
-                  </div>
-                  <div className="quote-business-editor" data-testid="quote-business-editor">
-                <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h2 id="quote-workspace-context-heading" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                      {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
-                    </h2>
+                <div className="quote-document-first-shell">
+                  <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading" className="quote-document-first-header">
+                    <div>
+                      <span className="quote-document-first-kicker">Quote workspace</span>
+                      <h2 id="quote-workspace-context-heading">
+                        {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
+                      </h2>
+                    </div>
                     <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
-                  </div>
+                  </section>
 
-                {formError && (
-                  <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formError}
-                  </div>
-                )}
-                {formSuccess && (
-                  <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formSuccess}
-                  </div>
-                )}
+                  {formError && (
+                    <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {formError}
+                    </div>
+                  )}
+                  {formSuccess && (
+                    <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {formSuccess}
+                    </div>
+                  )}
 
-                {/* Photography workflow template selector */}
-                <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Choose a photography workflow
-                    {selectedQuoteVertical && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 600 }}>Selected: {selectedQuoteVertical}</span>}
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Start with the closest match. Your Quote pricing and notes remain yours.
-                  </p>
+                  <nav className="quote-workflow-selector" data-testid="quote-workflow-selector" aria-label="Photography workflow">
+                    <span className="quote-workflow-selector-label">Workflow</span>
+                    <div className="quote-workflow-selector-primary">
+                      {[
+                        ['commercial-shoot', 'Commercial'],
+                        ['wedding-shoot', 'Wedding'],
+                        ['portrait-session', 'Portrait'],
+                        ['event-photography', 'Event'],
+                      ].map(([templateId, label]) => {
+                        const template = getPhotographyWorkflowTemplateById(templateId);
+                        return (
+                          <button
+                            key={templateId}
+                            type="button"
+                            data-workflow-id={templateId}
+                            onClick={() => handleApplyQuotePreset(templateId)}
+                            className={selectedQuotePresetId === templateId ? 'quote-workflow-tab is-selected' : 'quote-workflow-tab'}
+                            aria-pressed={selectedQuotePresetId === templateId}
+                            aria-label={`Select ${label}${template?.shortDescription ? `: ${template.shortDescription}` : ''}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <details className="quote-workflow-more">
+                      <summary>More workflows</summary>
+                      <div className="quote-workflow-more-menu">
+                        {PHOTOGRAPHY_WORKFLOW_TEMPLATES.filter((template) => !['commercial-shoot', 'wedding-shoot', 'portrait-session', 'event-photography'].includes(template.id)).map((template) => {
+                          const label = template.id === 'food-photography' ? 'Food & Beverage' : template.label;
+                          return (
+                            <button
+                              key={template.id}
+                              type="button"
+                              data-workflow-id={template.id}
+                              onClick={() => handleApplyQuotePreset(template.id)}
+                              className={selectedQuotePresetId === template.id ? 'quote-workflow-more-item is-selected' : 'quote-workflow-more-item'}
+                              aria-pressed={selectedQuotePresetId === template.id}
+                              aria-label={`Select ${label}: ${template.shortDescription}`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={handleSkipQuotePreset}
+                          className={!selectedQuotePresetId ? 'quote-workflow-more-item is-selected' : 'quote-workflow-more-item'}
+                          aria-pressed={!selectedQuotePresetId}
+                        >
+                          Blank Quote
+                        </button>
+                      </div>
+                    </details>
+                  </nav>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-                    {PHOTOGRAPHY_WORKFLOW_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => handleApplyQuotePreset(template.id)}
-                        className={selectedQuotePresetId === template.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                        aria-pressed={selectedQuotePresetId === template.id}
-                        style={{ minHeight: '72px', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column', gap: '3px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.25 }}
-                      >
-                        <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>{template.iconIdentifier === 'rings' ? '◌' : template.iconIdentifier === 'building' ? '⌂' : template.iconIdentifier === 'plate' ? '◉' : '✦'}</span>
-                        <strong>{template.label}</strong>
-                        <span style={{ fontWeight: 500, opacity: 0.82 }}>{template.shortDescription}</span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleSkipQuotePreset}
-                      className={!selectedQuotePresetId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                      style={{ minHeight: '72px', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column', gap: '3px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.25 }}
-                    >
-                      <strong>Blank Quote</strong>
-                      <span style={{ fontWeight: 500, opacity: 0.82 }}>Start without a workflow</span>
-                    </button>
-                  </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Not sure? Choose the closest match. You can change it later.</p>
-                </div>
-                </section>
+                  <aside className="quote-client-canvas" data-testid="quote-client-document-canvas" aria-label="Client Document Canvas">
+                    <div className="quote-client-canvas-heading">
+                      <div>
+                        <span className="quote-client-canvas-kicker">Live client document</span>
+                        <h3>Quote document</h3>
+                      </div>
+                      <span className="quote-client-canvas-live">Live</span>
+                    </div>
+                    <div className="quote-client-document-viewport">
+                      <QuoteClientDocumentPreviewFrame>
+                        <QuoteClientDocument
+                          quoteNumber={qNumber}
+                          date={qDate || getTodayString()}
+                          status={qStatus}
+                          clientName={qClientName}
+                          clientEmail={qClientEmail}
+                          clientAddress={qClientAddress}
+                          photographerName={user.name}
+                          photographerEmail={user.email}
+                          items={qItems}
+                          discountRate={qDiscountRate}
+                          taxRate={qTaxRate}
+                          currency={qCurrency}
+                          notes={qNotes}
+                          formatMoney={formatDashboardMoney}
+                          totals={quoteTotals}
+                        />
+                      </QuoteClientDocumentPreviewFrame>
+                    </div>
+                  </aside>
+
+                  <div className="quote-editor-bridge">
+                    <div className="quote-editor-bridge-heading">
+                      <div>
+                        <span className="quote-editor-bridge-kicker">Temporary editing bridge</span>
+                        <h3>Edit quote details</h3>
+                      </div>
+                      <span>{selectedQuoteVertical || 'Blank Quote'}</span>
+                    </div>
+                    <div className="quote-business-editor" data-testid="quote-business-editor">
 
                 <nav data-testid="quote-workspace-index" aria-label="Quote workspace sections" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', padding: '12px 14px', marginBottom: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--btn-secondary-bg)' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', fontWeight: 700, marginRight: '4px' }}>Workspace</span>
@@ -5227,37 +5266,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   </div>
                 </div>
                   </div>
-
-                  <aside className="quote-client-canvas" data-testid="quote-client-document-canvas" aria-label="Client Document Canvas">
-                    <div className="quote-client-canvas-heading">
-                      <div>
-                        <span className="quote-client-canvas-kicker">Client-facing output</span>
-                        <h3>Client Document</h3>
-                      </div>
-                      <span className="quote-client-canvas-live">Live</span>
-                    </div>
-                    <div className="quote-client-document-viewport">
-                      <QuoteClientDocumentPreviewFrame>
-                        <QuoteClientDocument
-                          quoteNumber={qNumber}
-                          date={qDate || getTodayString()}
-                          status={qStatus}
-                          clientName={qClientName}
-                          clientEmail={qClientEmail}
-                          clientAddress={qClientAddress}
-                          photographerName={user.name}
-                          photographerEmail={user.email}
-                          items={qItems}
-                          discountRate={qDiscountRate}
-                          taxRate={qTaxRate}
-                          currency={qCurrency}
-                          notes={qNotes}
-                          formatMoney={formatDashboardMoney}
-                          totals={quoteTotals}
-                        />
-                      </QuoteClientDocumentPreviewFrame>
-                    </div>
-                  </aside>
+                  </div>
                 </div>
 
                 <div className="quote-printable-target" style={{ display: 'none' }}>
