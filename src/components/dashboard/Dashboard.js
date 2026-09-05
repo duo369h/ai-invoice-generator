@@ -93,6 +93,7 @@ import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './cl
 import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/revenue/invoicePaymentState.js';
 import QuoteClientDocument from './QuoteClientDocument';
 import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
+import QuotePresentationBoundary from './QuotePresentationBoundary';
 import { calculateQuoteTotals } from './quoteTotals';
 
 // Helper functions for random generation to maintain purity in render
@@ -4667,7 +4668,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <div className="quote-document-first-shell">
+                <QuotePresentationBoundary>
+                  <div className="quote-document-first-shell">
                   <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading" className="quote-document-first-header">
                     <div>
                       <span className="quote-document-first-kicker">Quote workspace</span>
@@ -5289,7 +5291,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       totals={quoteTotals}
                     />
                   </div>
-                </div>
+                  </div>
+                </QuotePresentationBoundary>
               </div>
             )}
             </div>
