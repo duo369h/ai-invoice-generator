@@ -1,4 +1,5 @@
 import useQuoteEditorPresentationMode from './useQuoteEditorPresentationMode';
+import QuoteEditorGuided from './QuoteEditorGuided';
 
 export default function QuotePresentationBoundary({ children }) {
   const mode = useQuoteEditorPresentationMode();
@@ -10,8 +11,11 @@ export default function QuotePresentationBoundary({ children }) {
       className="quote-presentation-boundary"
       data-quote-presentation-mode={observableMode}
       data-quote-presentation-compatibility={mode === 'GUIDED' ? 'true' : 'false'}
+      data-active-quote-presentation-trees="1"
     >
-      {activePresentation}
+      {mode === 'GUIDED' ? (
+        <QuoteEditorGuided compatibilityPresentation={activePresentation} />
+      ) : activePresentation}
     </div>
   );
 }
