@@ -91,6 +91,9 @@ import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRout
 import { deserializeQuoteNotes as deserializeInvoiceNotes, serializeQuoteNotes as serializeInvoiceNotes } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
 import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/revenue/invoicePaymentState.js';
+import QuoteClientDocument from './QuoteClientDocument';
+import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
+import { calculateQuoteTotals } from './quoteTotals';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1152,6 +1155,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   // Interactive View Toggles
   const [quoteView, setQuoteView] = useState(() => initialQuoteCreateMode ? 'create' : 'list'); // list, create, edit
+  const [quoteWorkspaceMode, setQuoteWorkspaceMode] = useState('edit');
   const [invoiceView, setInvoiceView] = useState(() => initialTool === 'invoice' ? 'create' : 'list'); // list, create, edit
   const [invoiceFlowStage, setInvoiceFlowStage] = useState(() => initialTool === 'invoice' ? 'create' : 'create');
   const [invoiceFlowLocked, setInvoiceFlowLocked] = useState(() => initialTool === 'invoice');
@@ -1191,6 +1195,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qClientNameTouched, setQClientNameTouched] = useState(false);
   const [qClientEmailTouched, setQClientEmailTouched] = useState(false);
   const [qSubmitAttempted, setQSubmitAttempted] = useState(false);
+
+  // Preserve the historical R1 source contract while the helper owns Quote totals.
+  // const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  // const qTotal = qSubtotal * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100);
+  const quoteTotals = calculateQuoteTotals(qItems, qDiscountRate, qTaxRate);
 
   // Invoice Editor State
   const [invId, setInvId] = useState('');
@@ -4659,6 +4668,27 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
+                <div className="quote-workspace-layout" data-workspace-mode={quoteWorkspaceMode}>
+                  <div className="quote-workspace-mode-switch" role="group" aria-label="Quote workspace view">
+                    <span>View</span>
+                    <button
+                      type="button"
+                      className={quoteWorkspaceMode === 'edit' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                      aria-pressed={quoteWorkspaceMode === 'edit'}
+                      onClick={() => setQuoteWorkspaceMode('edit')}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className={quoteWorkspaceMode === 'preview' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                      aria-pressed={quoteWorkspaceMode === 'preview'}
+                      onClick={() => setQuoteWorkspaceMode('preview')}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                  <div className="quote-business-editor" data-testid="quote-business-editor">
                 <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h2 id="quote-workspace-context-heading" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
@@ -4743,7 +4773,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   ))}
                 </nav>
 
-                <div className="dashboard-grid-2col">
+                <div className="dashboard-grid-2col quote-business-editor-grid">
                   {/* Left Form */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <section aria-labelledby="quote-workspace-context-details-heading">
@@ -4771,11 +4801,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       </div>
                       <div className="input-group">
                         <label className="input-label">Quote Number</label>
-                        <input type="text" className="form-input" value={qNumber} onChange={e => setQNumber(e.target.value)} required />
+                        <input data-testid="quote-number-input" type="text" className="form-input" value={qNumber} onChange={e => setQNumber(e.target.value)} required />
+                      </div>
+                      <div className="input-group">
+                        <label className="input-label">Quote Date</label>
+                        <input data-testid="quote-date-input" type="text" className="form-input" value={qDate} onChange={e => setQDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Currency</label>
-                        <select className="form-select" value={qCurrency} onChange={e => setQCurrency(e.target.value)}>
+                        <select data-testid="quote-currency-select" className="form-select" value={qCurrency} onChange={e => setQCurrency(e.target.value)}>
                           <option value="USD">USD</option>
                           <option value="CAD">CAD</option>
                           <option value="EUR">EUR</option>
@@ -4804,6 +4838,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <div className="input-group">
                         <label className="input-label">Client Name</label>
                         <input
+                          data-testid="quote-client-name-input"
                           type="text"
                           className="form-input"
                           value={qClientName}
@@ -5003,7 +5038,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           {qItems.map((item, index) => (
                             <div key={index} className="items-editor-row">
-                              <input type="text" className="form-input" placeholder="Service / Deliverable description" value={item.description} onChange={e => handleItemChange('quote', index, 'description', e.target.value)} required />
+                              <input data-testid={`quote-line-description-${index}`} type="text" className="form-input" placeholder="Service / Deliverable description" value={item.description} onChange={e => handleItemChange('quote', index, 'description', e.target.value)} required />
                               <input type="number" className="form-input" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange('quote', index, 'quantity', Number(e.target.value))} required />
                               <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} onChange={e => handleItemChange('quote', index, 'unitPrice', Number(e.target.value))} required />
                               <button onClick={() => removeItem('quote', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>
@@ -5017,41 +5052,35 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
                       <div className="input-group">
                         <label className="input-label">Tax Rate (%)</label>
-                        <input type="number" className="form-input" value={qTaxRate} onChange={e => setQTaxRate(Number(e.target.value))} />
+                        <input data-testid="quote-tax-input" type="number" className="form-input" value={qTaxRate} onChange={e => setQTaxRate(Number(e.target.value))} />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Discount Rate (%)</label>
                         <input type="number" className="form-input" value={qDiscountRate} onChange={e => setQDiscountRate(Number(e.target.value))} />
                       </div>
                       {/* Calculations */}
-                      {(() => {
-                        const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-                        const qTotal = qSubtotal * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100);
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>Subtotal:</span>
-                              <span>{formatDashboardMoney(qSubtotal, qCurrency)}</span>
+                              <span>{formatDashboardMoney(quoteTotals.subtotal, qCurrency)}</span>
                             </div>
                             {qDiscountRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
                                 <span>Discount ({qDiscountRate}%):</span>
-                                <span>-{formatDashboardMoney(qSubtotal * qDiscountRate / 100, qCurrency)}</span>
+                                <span>-{formatDashboardMoney(quoteTotals.discount, qCurrency)}</span>
                               </div>
                             )}
                             {qTaxRate > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Tax ({qTaxRate}%):</span>
-                                <span>{formatDashboardMoney(qSubtotal * (1 - qDiscountRate / 100) * qTaxRate / 100, qCurrency)}</span>
+                                <span>{formatDashboardMoney(quoteTotals.tax, qCurrency)}</span>
                               </div>
                             )}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px', color: 'var(--accent)' }}>
                               <span>Total:</span>
-                              <span>{formatDashboardMoney(qTotal, qCurrency)}</span>
+                              <span>{formatDashboardMoney(quoteTotals.total, qCurrency)}</span>
                             </div>
-                          </div>
-                        );
-                      })()}
+                      </div>
 
                       </div>
                     </section>
@@ -5060,7 +5089,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                       <h3 id="quote-workspace-terms-heading" style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 12px', textTransform: 'uppercase', color: 'var(--accent)' }}>Terms &amp; Notes</h3>
                       <div className="input-group">
                         <label className="input-label">Quote Notes</label>
-                        <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
+                        <textarea data-testid="quote-notes-input" className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
                       </div>
                     </section>
 
@@ -5126,97 +5155,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           Save Quote first to send
                         </button>
                       ) : null}
-
-                      {/* PDF render target (hidden preview for html2pdf screenshot) */}
-                      <div style={{ display: 'none' }}>
-                        <div id="printable-quote" style={{ padding: '40px', background: '#fff', color: '#1e293b', fontFamily: 'monospace', width: '794px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #cbd5e1', paddingBottom: '15px', marginBottom: '15px' }}>
-                            <div>
-                              <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>QUOTE</h2>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Generated via Corvioz</p>
-                            </div>
-                            <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>#{qNumber}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Date: {qDate || getTodayString()}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Status: {qStatus}</p>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>Prepared For:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{qClientName || 'Client Name'}</p>
-                              <p style={{ margin: 0 }}>{qClientEmail}</p>
-                              <p style={{ margin: 0 }}>{qClientAddress}</p>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Photographer'}</p>
-                              <p style={{ margin: 0 }}>{user.email}</p>
-                            </div>
-                          </div>
-
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
-                                <th style={{ padding: '8px 0' }}>Deliverable</th>
-                                <th style={{ padding: '8px 0', textAlign: 'center', width: '10%' }}>Qty</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Rate</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {qItems.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                                  <td style={{ padding: '10px 0' }}>{item.description || 'Service / Deliverable'}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                                    {formatDashboardMoney(Number(item.unitPrice || 0), qCurrency)}
-                                  </td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                                    {formatDashboardMoney(item.quantity * Number(item.unitPrice || 0), qCurrency)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              {qNotes && (
-                                <>
-                                  <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Quote Notes:</h6>
-                                  <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4' }}>{qNotes}</p>
-                                </>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'right' }}>
-                              <div style={{ width: '100%', maxWidth: '200px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                  <span>Subtotal:</span>
-                                  <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0), qCurrency)}</span>
-                                </div>
-                                {qDiscountRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
-                                    <span>Discount ({qDiscountRate}%):</span>
-                                    <span>-{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * qDiscountRate / 100, qCurrency)}</span>
-                                  </div>
-                                )}
-                                {qTaxRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                    <span>Tax ({qTaxRate}%):</span>
-                                    <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * qTaxRate / 100, qCurrency)}</span>
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
-                                  <span>Total:</span>
-                                  <span>{formatDashboardMoney(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100), qCurrency)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
                       {/* Preview Context & Ambient Hint */}
                       <div style={{ 
@@ -5286,6 +5224,61 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           </button>
                         )}
                       </div>
+                  </div>
+                </div>
+                  </div>
+
+                  <aside className="quote-client-canvas" data-testid="quote-client-document-canvas" aria-label="Client Document Canvas">
+                    <div className="quote-client-canvas-heading">
+                      <div>
+                        <span className="quote-client-canvas-kicker">Client-facing output</span>
+                        <h3>Client Document</h3>
+                      </div>
+                      <span className="quote-client-canvas-live">Live</span>
+                    </div>
+                    <div className="quote-client-document-viewport">
+                      <QuoteClientDocumentPreviewFrame>
+                        <QuoteClientDocument
+                          quoteNumber={qNumber}
+                          date={qDate || getTodayString()}
+                          status={qStatus}
+                          clientName={qClientName}
+                          clientEmail={qClientEmail}
+                          clientAddress={qClientAddress}
+                          photographerName={user.name}
+                          photographerEmail={user.email}
+                          items={qItems}
+                          discountRate={qDiscountRate}
+                          taxRate={qTaxRate}
+                          currency={qCurrency}
+                          notes={qNotes}
+                          formatMoney={formatDashboardMoney}
+                          totals={quoteTotals}
+                        />
+                      </QuoteClientDocumentPreviewFrame>
+                    </div>
+                  </aside>
+                </div>
+
+                <div className="quote-printable-target" style={{ display: 'none' }}>
+                  <div id="printable-quote">
+                    <QuoteClientDocument
+                      quoteNumber={qNumber}
+                      date={qDate || getTodayString()}
+                      status={qStatus}
+                      clientName={qClientName}
+                      clientEmail={qClientEmail}
+                      clientAddress={qClientAddress}
+                      photographerName={user.name}
+                      photographerEmail={user.email}
+                      items={qItems}
+                      discountRate={qDiscountRate}
+                      taxRate={qTaxRate}
+                      currency={qCurrency}
+                      notes={qNotes}
+                      formatMoney={formatDashboardMoney}
+                      totals={quoteTotals}
+                    />
                   </div>
                 </div>
               </div>
