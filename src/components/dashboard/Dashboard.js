@@ -94,6 +94,7 @@ import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/r
 import QuoteClientDocument from './QuoteClientDocument';
 import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
 import QuotePresentationBoundary from './QuotePresentationBoundary';
+import { createQuoteEditorSharedContract, QuoteEditorSharedProvider } from './QuoteEditorSharedContext';
 import { calculateQuoteTotals } from './quoteTotals';
 
 // Helper functions for random generation to maintain purity in render
@@ -3805,6 +3806,67 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     IMPROVE: 'Improve',
   };
   const reviewCategoryOrder = ['NEEDS_ATTENTION', 'CONFIRM', 'IMPROVE'];
+  const quoteSharedContract = createQuoteEditorSharedContract({
+    quote: {
+      qId,
+      qNumber,
+      qClientId,
+      qClientName,
+      qClientEmail,
+      qClientAddress,
+      qItems,
+      qTaxRate,
+      qDiscountRate,
+      qCurrency,
+      qNotes,
+      qDate,
+      qStatus,
+      qPhotographyScope,
+    },
+    setters: {
+      setQuoteNumber: setQNumber,
+      setQuoteClientId: setQClientId,
+      setQuoteClientName: setQClientName,
+      setQuoteClientEmail: setQClientEmail,
+      setQuoteClientAddress: setQClientAddress,
+      setQuoteItems: setQItems,
+      setQuoteTaxRate: setQTaxRate,
+      setQuoteDiscountRate: setQDiscountRate,
+      setQuoteCurrency: setQCurrency,
+      setQuoteNotes: setQNotes,
+      setQuoteDate: setQDate,
+      setQuotePhotographyScope: setQPhotographyScope,
+    },
+    validation: {
+      clientNameTouched: qClientNameTouched,
+      clientEmailTouched: qClientEmailTouched,
+      submitAttempted: qSubmitAttempted,
+      clientNameRequired: true,
+      clientEmailOptional: true,
+      sendRequiresSavedDraft: true,
+    },
+    workflow: {
+      selectedQuotePresetId,
+      quotePresetSelectionTouched,
+      templates: PHOTOGRAPHY_WORKFLOW_TEMPLATES,
+      applyPreset: handleApplyQuotePreset,
+      skipPreset: handleSkipQuotePreset,
+      usageClearingConfirmation: handleUsageRightsStatusChange,
+    },
+    derived: {
+      totals: quoteTotals,
+      calculateTotals: calculateQuoteTotals,
+      selectedQuoteVertical,
+      currentSemanticReviewFingerprint,
+    },
+    actions: {
+      save: handleSaveQuote,
+      send: handleSendQuote,
+      exportPdf: handleExportAttempt,
+      cancel: handleCancelQuote,
+      convertToInvoice: handleConvertQuoteToInvoice,
+    },
+  });
 
   return (
     <div 
@@ -4668,7 +4730,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
               <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <QuotePresentationBoundary>
+                <QuoteEditorSharedProvider value={quoteSharedContract}>
+                  <QuotePresentationBoundary>
                   <div className="quote-document-first-shell">
                   <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading" className="quote-document-first-header">
                     <div>
@@ -5292,7 +5355,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     />
                   </div>
                   </div>
-                </QuotePresentationBoundary>
+                  </QuotePresentationBoundary>
+                </QuoteEditorSharedProvider>
               </div>
             )}
             </div>
