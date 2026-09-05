@@ -102,8 +102,18 @@ assert.match(dashboard, /value="CAD"/, 'Dashboard must retain CAD document curre
 assert.match(dashboard, /value="USD"/, 'Dashboard must retain USD document currency selection');
 assert.match(overview, /DASHBOARD_OVERVIEW_LOCALE\s*=\s*['"]en-CA['"]/, 'Overview must use the deterministic English locale');
 
-const diff = execFileSync('git', ['diff', '--unified=0', 'f7223946871fe9ded7baab3e2da048a0929ed9da', '--'], { cwd: repoRoot, encoding: 'utf8' });
-const changedPaths = execFileSync('git', ['diff', '--name-only', 'f7223946871fe9ded7baab3e2da048a0929ed9da', '--'], { cwd: repoRoot, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+const r2BaseSha = 'f7223946871fe9ded7baab3e2da048a0929ed9da';
+const r2ImplementationSha = '1440e8fba2a49d1bb47714eef14666b375ee5909';
+const currentHeadSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+assert.doesNotThrow(
+  () => execFileSync('git', ['cat-file', '-e', `${r2ImplementationSha}^{commit}`], { cwd: repoRoot, encoding: 'utf8' }),
+  'R2 historical implementation commit must exist locally',
+);
+assert.doesNotThrow(
+  () => execFileSync('git', ['merge-base', '--is-ancestor', r2ImplementationSha, currentHeadSha], { cwd: repoRoot, encoding: 'utf8' }),
+  'R2 historical implementation commit must be an ancestor of current HEAD',
+);
+const historicalChangedPaths = execFileSync('git', ['diff', '--name-only', r2BaseSha, r2ImplementationSha, '--'], { cwd: repoRoot, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 const allowedPaths = new Set([
   'src/components/dashboard/Dashboard.js',
   'src/app/dashboard/components/DashboardOverview.js',
@@ -111,14 +121,14 @@ const allowedPaths = new Set([
   'src/core/ui/UI_CONTROL_PLANE.ts',
   'scripts/test-r56e-dashboard-global-locale-currency-boundary.mjs',
 ]);
-for (const changedPath of changedPaths) assert.ok(allowedPaths.has(changedPath), `R2 changed out-of-scope path: ${changedPath}`);
-const applicationChangedPaths = changedPaths.filter((changedPath) => !changedPath.startsWith('scripts/'));
-const applicationDiff = applicationChangedPaths.length
-  ? execFileSync('git', ['diff', '--unified=0', 'f7223946871fe9ded7baab3e2da048a0929ed9da', '--', ...applicationChangedPaths], { cwd: repoRoot, encoding: 'utf8' })
+for (const changedPath of historicalChangedPaths) assert.ok(allowedPaths.has(changedPath), `R2 changed out-of-scope path: ${changedPath}`);
+const historicalApplicationPaths = historicalChangedPaths.filter((changedPath) => !changedPath.startsWith('scripts/'));
+const historicalApplicationDiff = historicalApplicationPaths.length
+  ? execFileSync('git', ['diff', '--unified=0', r2BaseSha, r2ImplementationSha, '--', ...historicalApplicationPaths], { cwd: repoRoot, encoding: 'utf8' })
   : '';
-assert.doesNotMatch(applicationDiff, /^\+.*fetch\s*\(/m, 'R2 must not add network requests');
-assert.doesNotMatch(applicationDiff, /^\+.*(?:supabase|from\s+['"]@supabase|api\/)/im, 'R2 must not add backend or API integration');
-assert.doesNotMatch(applicationDiff, /^\+.*(?:profile[_A-Za-z]*currency|currency[_A-Za-z]*profile)/im, 'R2 must not add Public Profile currency persistence');
+assert.doesNotMatch(historicalApplicationDiff, /^\+.*fetch\s*\(/m, 'R2 must not add network requests');
+assert.doesNotMatch(historicalApplicationDiff, /^\+.*(?:supabase|from\s+['"]@supabase|api\/)/im, 'R2 must not add backend or API integration');
+assert.doesNotMatch(historicalApplicationDiff, /^\+.*(?:profile[_A-Za-z]*currency|currency[_A-Za-z]*profile)/im, 'R2 must not add Public Profile currency persistence');
 
 console.log(`PRODUCTION_REACHABLE_DASHBOARD_FILES=${graph.files.length}`);
 console.log(`PRODUCTION_REACHABLE_USER_VISIBLE_FILES=${userVisibleFiles.length}`);
