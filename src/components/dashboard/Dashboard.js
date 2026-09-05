@@ -94,7 +94,7 @@ import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/r
 import QuoteClientDocument from './QuoteClientDocument';
 import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
 import QuotePresentationBoundary from './QuotePresentationBoundary';
-import { createQuoteEditorSharedContract, QuoteEditorSharedProvider } from './QuoteEditorSharedContext';
+import { createQuoteEditorSharedContract, QuoteEditorSharedProvider, validateQuoteClient } from './QuoteEditorSharedContext';
 import { calculateQuoteTotals } from './quoteTotals';
 
 // Helper functions for random generation to maintain purity in render
@@ -1201,6 +1201,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   // const qTotal = qSubtotal * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100);
   const quoteTotals = calculateQuoteTotals(qItems, qDiscountRate, qTaxRate);
+  const quoteClientValidation = validateQuoteClient({ name: qClientName, email: qClientEmail });
 
   // Invoice Editor State
   const [invId, setInvId] = useState('');
@@ -2471,13 +2472,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   // Templates guide Scope capture. They never write line items, rates, or terms.
-  const handleApplyQuotePreset = (templateId) => {
+  const handleApplyQuotePreset = (templateId, { suppressSuccessFeedback = false } = {}) => {
     const workflowTemplate = getPhotographyWorkflowTemplateById(templateId);
     if (workflowTemplate) {
       setSelectedQuotePresetId(workflowTemplate.id);
       setQuotePresetSelectionTouched(true);
       setScopeFieldsExpanded(false);
-      triggerToast(`Applied "${workflowTemplate.label}" workflow template.`, 'success');
+      if (!suppressSuccessFeedback) triggerToast(`Applied "${workflowTemplate.label}" workflow template.`, 'success');
       sendEvent('TEMPLATE_VIEWED', {
         template_type: 'photography_workflow_template',
         preset_id: workflowTemplate.id,
@@ -2487,13 +2488,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
-  const handleSkipQuotePreset = () => {
+  const handleSkipQuotePreset = ({ suppressFeedback = false } = {}) => {
     setSelectedQuotePresetId('');
     setQuotePresetSelectionTouched(true);
     setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
     setQNotes('');
     setScopeFieldsExpanded(false);
-    triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
+    if (!suppressFeedback) triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
   };
 
   // Save Quote
@@ -2504,8 +2505,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setFormSuccess('');
       
       // Inline validation check before saving
-      const isEmailInvalid = qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim());
-      if (!qClientName || !qClientName.trim() || isEmailInvalid) {
+      const clientValidation = validateQuoteClient({ name: qClientName, email: qClientEmail });
+      if (!clientValidation.isValid) {
         setFormError('Please resolve all validation errors before saving.');
         return;
       }
@@ -3822,6 +3823,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       qDate,
       qStatus,
       qPhotographyScope,
+      availableClients: clients,
     },
     setters: {
       setQuoteNumber: setQNumber,
@@ -3843,6 +3845,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       submitAttempted: qSubmitAttempted,
       clientNameRequired: true,
       clientEmailOptional: true,
+      validateClient: validateQuoteClient,
+      setQuoteClientNameTouched: setQClientNameTouched,
+      setQuoteClientEmailTouched: setQClientEmailTouched,
       sendRequiresSavedDraft: true,
     },
     workflow: {
@@ -4954,10 +4959,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           required
                           placeholder="e.g. Wayne Enterprises"
                           style={{
-                            borderColor: (qSubmitAttempted || qClientNameTouched) && !qClientName.trim() ? 'var(--danger)' : 'var(--border)'
+                            borderColor: (qSubmitAttempted || qClientNameTouched) && quoteClientValidation.nameInvalid ? 'var(--danger)' : 'var(--border)'
                           }}
                         />
-                        {(qSubmitAttempted || qClientNameTouched) && !qClientName.trim() && (
+                        {(qSubmitAttempted || qClientNameTouched) && quoteClientValidation.nameInvalid && (
                           <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
                             Recipient client name is required.
                           </span>
@@ -4999,10 +5004,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                           onBlur={() => setQClientEmailTouched(true)}
                           placeholder="e.g. client@wayne.com"
                           style={{
-                            borderColor: (qSubmitAttempted || qClientEmailTouched) && qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim()) ? 'var(--danger)' : 'var(--border)'
+                            borderColor: (qSubmitAttempted || qClientEmailTouched) && quoteClientValidation.emailInvalid ? 'var(--danger)' : 'var(--border)'
                           }}
                         />
-                        {(qSubmitAttempted || qClientEmailTouched) && qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim()) && (
+                        {(qSubmitAttempted || qClientEmailTouched) && quoteClientValidation.emailInvalid && (
                           <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
                             Please enter a valid email address.
                           </span>

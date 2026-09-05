@@ -986,6 +986,47 @@
   width: 100%;
   min-height: 48px;
 }
+.quote-guided-client-form {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background-card);
+}
+.quote-guided-client-field {
+  display: grid;
+  gap: 7px;
+}
+.quote-guided-client-field label {
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.quote-guided-client-field label span {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.quote-guided-client-field .form-input {
+  min-height: 44px;
+}
+.quote-guided-client-field .form-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.quote-guided-field-error {
+  color: var(--danger);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.quote-guided-client-actions {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.35fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.quote-guided-step-back {
+  min-height: 48px;
+}
 .quote-guided-compatibility {
   min-width: 0;
 }
