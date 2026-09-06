@@ -3871,6 +3871,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       cancel: handleCancelQuote,
       convertToInvoice: handleConvertQuoteToInvoice,
     },
+    scope: {
+      updateField: updateQPhotographyScope,
+      setUsageRightsStatus: handleUsageRightsStatusChange,
+    },
   });
 
   return (

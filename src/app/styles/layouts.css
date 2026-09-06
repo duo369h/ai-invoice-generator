@@ -1027,6 +1027,119 @@
 .quote-guided-step-back {
   min-height: 48px;
 }
+.quote-guided-scope-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background-card);
+}
+.quote-guided-scope-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.quote-guided-scope-summary span,
+.quote-guided-scope-row small,
+.quote-guided-scope-edit-heading span,
+.quote-guided-scope-hint {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.quote-guided-scope-summary strong {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  text-align: right;
+}
+.quote-guided-scope-rows {
+  display: grid;
+  gap: 10px;
+}
+.quote-guided-scope-row {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-main);
+  background: var(--background-card);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.quote-guided-scope-row > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+.quote-guided-scope-row strong {
+  font-size: 0.88rem;
+}
+.quote-guided-scope-row.is-open {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-glow) 65%, transparent);
+}
+.quote-guided-scope-edit-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-card) 92%, var(--accent-glow));
+}
+.quote-guided-scope-edit-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+.quote-guided-scope-edit-heading strong {
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+.quote-guided-scope-edit-grid {
+  display: grid;
+  gap: 14px;
+}
+.quote-guided-scope-field {
+  display: grid;
+  gap: 7px;
+}
+.quote-guided-scope-field label {
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.quote-guided-scope-field .form-input,
+.quote-guided-scope-field .form-textarea {
+  min-height: 44px;
+}
+.quote-guided-scope-field .form-textarea {
+  min-height: 96px;
+}
+.quote-guided-scope-hint {
+  display: block;
+}
+.quote-guided-scope-disclosure {
+  min-height: 44px;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+.quote-guided-scope-actions {
+  margin-top: 2px;
+}
 .quote-guided-compatibility {
   min-width: 0;
 }
