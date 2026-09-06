@@ -16,7 +16,7 @@ export function validateQuoteClient({ name = '', email = '' } = {}) {
   };
 }
 
-export function createQuoteEditorSharedContract({ quote, setters, validation, workflow, derived, actions, scope }) {
+export function createQuoteEditorSharedContract({ quote, setters, validation, workflow, derived, actions, scope, ui }) {
   return {
     quote,
     setters,
@@ -25,6 +25,7 @@ export function createQuoteEditorSharedContract({ quote, setters, validation, wo
     derived,
     actions,
     scope,
+    ui,
   };
 }
 

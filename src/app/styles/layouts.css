@@ -2389,6 +2389,237 @@
   border-top: 0;
 }
 
+/* M06: summary-first closing surface for the guided Quote flow. */
+.quote-guided-review-step,
+.quote-guided-preview-step {
+  gap: 18px;
+}
+
+.quote-guided-review-header {
+  align-items: flex-start;
+}
+
+.quote-guided-review-eyebrow {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quote-guided-review-feedback {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--success-text) 30%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--success-text) 8%, transparent);
+  color: var(--text-primary);
+}
+
+.quote-guided-review-feedback.is-error {
+  border-color: color-mix(in srgb, var(--danger-text) 35%, transparent);
+  background: color-mix(in srgb, var(--danger-text) 8%, transparent);
+  color: var(--danger-text);
+}
+
+.quote-guided-review-readiness,
+.quote-guided-review-summary {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.quote-guided-review-readiness {
+  padding: 16px;
+}
+
+.quote-guided-review-readiness > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quote-guided-review-readiness > div:first-child strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.quote-guided-review-readiness > p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.quote-guided-review-readiness.has-attention {
+  border-color: color-mix(in srgb, var(--warning-text) 35%, transparent);
+  background: color-mix(in srgb, var(--warning-text) 6%, white);
+}
+
+.quote-guided-review-findings {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.quote-guided-review-finding {
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.quote-guided-review-finding-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.quote-guided-review-finding strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-primary);
+}
+
+.quote-guided-review-finding p,
+.quote-guided-review-finding small {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.quote-guided-review-semantic-action {
+  margin-top: 14px;
+}
+
+.quote-guided-review-summary {
+  padding: 16px;
+}
+
+.quote-guided-review-summary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.quote-guided-review-summary-heading h3 {
+  margin: 4px 0 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.quote-guided-review-summary-heading > span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.quote-guided-review-summary-list {
+  display: grid;
+}
+
+.quote-guided-review-summary-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.quote-guided-review-summary-list article:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.quote-guided-review-summary-list article > div {
+  min-width: 0;
+}
+
+.quote-guided-review-summary-list article span,
+.quote-guided-review-summary-list article strong,
+.quote-guided-review-summary-list article small {
+  display: block;
+}
+
+.quote-guided-review-summary-list article span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.quote-guided-review-summary-list article strong {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-guided-review-summary-list article small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-guided-review-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quote-guided-review-actions .quote-guided-review-preview,
+.quote-guided-review-actions .quote-guided-review-save {
+  grid-row: 1;
+}
+
+.quote-guided-review-actions .quote-guided-review-send,
+.quote-guided-review-actions .quote-guided-review-pdf {
+  grid-row: 2;
+}
+
+.quote-guided-client-preview {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.quote-guided-printable-target {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .quote-guided-review-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-guided-review-actions .quote-guided-review-preview,
+  .quote-guided-review-actions .quote-guided-review-save,
+  .quote-guided-review-actions .quote-guided-review-send,
+  .quote-guided-review-actions .quote-guided-review-pdf {
+    grid-row: auto;
+  }
+}
+
 @media (max-width: 980px) {
   .why-editorial-layout,
   .founder-note-layout {

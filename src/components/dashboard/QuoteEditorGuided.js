@@ -4,6 +4,8 @@ import {
   PHOTOGRAPHY_TEMPLATE_FIELD_IMPORTANCE,
 } from '../../core/quotes/photographyWorkflowTemplates';
 import { useQuoteEditorShared } from './QuoteEditorSharedContext';
+import QuoteClientDocument from './QuoteClientDocument';
+import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
 
 const PRIMARY_WORKFLOWS = [
   ['commercial-shoot', 'Commercial'],
@@ -56,8 +58,11 @@ const parseNumericDraft = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export default function QuoteEditorGuided({ compatibilityPresentation }) {
-  const [mobileQuoteStep, setMobileQuoteStep] = useState('WORKFLOW');
+export default function QuoteEditorGuided() {
+  const { quote, setters, validation, workflow, derived, actions, scope, ui = {} } = useQuoteEditorShared();
+  const [mobileQuoteStep, setMobileQuoteStep] = useState(() => quote.qId ? 'REVIEW' : 'WORKFLOW');
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [reviewSaveRequired, setReviewSaveRequired] = useState(() => !quote.qId);
   const [scopeOpenBlock, setScopeOpenBlock] = useState(null);
   const [dateDrafts, setDateDrafts] = useState({});
   const [pricingOpenItem, setPricingOpenItem] = useState(null);
@@ -65,7 +70,6 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const [pricingDrafts, setPricingDrafts] = useState({});
   const [termsUsageOpenSurface, setTermsUsageOpenSurface] = useState(null);
   const [usageDrafts, setUsageDrafts] = useState({});
-  const { quote, setters, validation, workflow, derived, scope } = useQuoteEditorShared();
   const templates = workflow.templates || [];
   const additionalTemplates = templates.filter(({ id }) => !PRIMARY_WORKFLOWS.some(([primaryId]) => primaryId === id));
   const availableClients = quote.availableClients || [];
@@ -107,6 +111,42 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const usageStatusLabel = USAGE_RIGHTS_STATUSES.find(([status]) => status === usageStatus)?.[1] || 'Not specified';
   const usageSummary = [usageRights.purpose, usageRights.territory, usageRights.license_duration].filter(Boolean).join(' · ') || (usageStatus === 'not_applicable' ? 'Licensing does not apply' : 'Add the usage context for this Quote');
   const termsSummary = qNotes.trim() || 'Add short terms or client-facing notes';
+  const reviewFindings = Array.isArray(derived.reviewFindings) ? derived.reviewFindings : [];
+  const reviewStatus = derived.reviewStatus || 'READY';
+  const reviewStatusCopy = derived.reviewStatusCopy || 'Structured checks remain available. You remain the final authority on this Quote.';
+  const reviewStatusLabel = quote.qStatus === 'sent' ? 'Sent' : quote.qStatus === 'draft' ? (quote.qId ? 'Saved draft' : 'Unsaved draft') : String(quote.qStatus || 'Draft');
+  const canSend = Boolean(!reviewSaveRequired && quote.qId && quote.qStatus === 'draft' && clientValidation.isValid && clientEmail.trim());
+  const sendReadinessCopy = quote.qStatus === 'sent'
+    ? 'Quote already sent'
+    : quote.qStatus !== 'draft'
+      ? 'Only draft Quotes can be sent'
+      : reviewSaveRequired
+        ? 'Save changes before sending'
+        : !clientValidation.isValid || !clientEmail.trim()
+          ? 'Add a valid email to send'
+          : 'Send Quote';
+  const clientDocumentProps = {
+    quoteNumber: quote.qNumber,
+    date: quote.qDate || new Date().toISOString().substring(0, 10),
+    status: quote.qStatus,
+    clientName,
+    clientEmail,
+    clientAddress,
+    photographerName: quote.photographerName || 'Photographer',
+    photographerEmail: quote.photographerEmail || '',
+    items: qItems,
+    discountRate: qDiscountRate,
+    taxRate: qTaxRate,
+    currency: qCurrency,
+    notes: qNotes,
+    formatMoney,
+    totals,
+  };
+  const renderPrintableDocument = () => (
+    <div className="quote-printable-target quote-guided-printable-target" aria-hidden="true">
+      <div id="printable-quote"><QuoteClientDocument {...clientDocumentProps} /></div>
+    </div>
+  );
 
   const handleClientSelection = (event) => {
     const nextId = event.target.value || null;
@@ -151,11 +191,10 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
     setPricingDraft(`${index}.${field}`, value);
     const parsed = parseNumericDraft(value);
     if (parsed === null && value !== '') return;
-    const nextItems = qItems.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value === '' ? 0 : parsed } : item);
-    setters.setQuoteItems(nextItems);
+    setters.setQuoteItems((currentItems) => currentItems.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value === '' ? 0 : parsed } : item));
   };
   const updatePricingDescription = (index, value) => {
-    setters.setQuoteItems(qItems.map((item, itemIndex) => itemIndex === index ? { ...item, description: value } : item));
+    setters.setQuoteItems((currentItems) => currentItems.map((item, itemIndex) => itemIndex === index ? { ...item, description: value } : item));
   };
   const openPricingItem = (index) => {
     const item = qItems[index];
@@ -354,17 +393,73 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
           </div>}
         </div>
 
-        <div className="quote-guided-client-actions quote-guided-terms-usage-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('PRICING')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('COMPATIBILITY_DETAILS')}>Continue</button></div>
+        <div className="quote-guided-client-actions quote-guided-terms-usage-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('PRICING')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('REVIEW')}>Review Quote</button></div>
       </section>
     );
   }
 
-  if (mobileQuoteStep === 'COMPATIBILITY_DETAILS') {
+  if (mobileQuoteStep === 'REVIEW' && mobilePreviewOpen) {
     return (
-      <div className="quote-guided-compatibility" data-guided-compatibility="true" data-guided-state="TRANSITIONAL_NOT_FINAL_AUTHORITY">
-        <div className="quote-guided-compatibility-bar"><div><span className="quote-guided-kicker">Quote details</span><h2>Continue your quote</h2></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setMobileQuoteStep('TERMS_USAGE')}>Back</button></div>
-        {compatibilityPresentation}
-      </div>
+      <section className="quote-guided-shell quote-guided-preview-step" data-testid="quote-guided-preview-step" data-guided-step="PREVIEW" aria-labelledby="quote-guided-preview-heading">
+        <header className="quote-guided-header"><div><span className="quote-guided-kicker">Client preview</span><h2 id="quote-guided-preview-heading">What your client will see</h2><p>Preview is on demand and uses the shared client document.</p></div><span className="quote-guided-progress" aria-label="Current step: Preview">Preview</span></header>
+        <div className="quote-guided-client-preview" data-testid="quote-guided-client-preview"><QuoteClientDocumentPreviewFrame><QuoteClientDocument {...clientDocumentProps} /></QuoteClientDocumentPreviewFrame></div>
+        <div className="quote-guided-client-actions quote-guided-review-preview-actions"><button type="button" className="btn btn-secondary" data-testid="quote-guided-preview-back" onClick={() => setMobilePreviewOpen(false)}>Back to Review</button></div>
+        {renderPrintableDocument()}
+      </section>
+    );
+  }
+
+  if (mobileQuoteStep === 'REVIEW') {
+    const summaryItems = qItems.filter((item) => item.description?.trim()).map((item) => `${item.description.trim()} × ${item.quantity || 1}`).join(' · ') || 'No deliverables added';
+    const attentionLabel = reviewFindings.length ? `${reviewFindings.length} item${reviewFindings.length === 1 ? '' : 's'} to review` : 'Ready for your review';
+    const edit = (step) => () => {
+      if (quote.qStatus === 'draft') setReviewSaveRequired(true);
+      setMobileQuoteStep(step);
+    };
+    const handleGuidedSave = async () => {
+      const saved = await actions.save();
+      setReviewSaveRequired(saved !== true);
+    };
+    return (
+      <section className="quote-guided-shell quote-guided-review-step" data-testid="quote-guided-review-step" data-guided-step="REVIEW" aria-labelledby="quote-guided-review-heading">
+        <header className="quote-guided-header quote-guided-review-header">
+          <div><span className="quote-guided-kicker">Closing check</span><h2 id="quote-guided-review-heading">Review your Quote</h2><p>Confirm the shared Quote details before you save, preview, or send.</p></div>
+          <span className="quote-guided-progress" data-testid="quote-guided-review-status" aria-label={`Quote status: ${reviewStatusLabel}`}>{reviewStatusLabel}</span>
+        </header>
+
+        {(ui.formError || ui.formSuccess) && <div className={ui.formError ? 'quote-guided-review-feedback is-error' : 'quote-guided-review-feedback'} data-testid={ui.formError ? 'quote-guided-review-error' : 'quote-guided-review-success'} role={ui.formError ? 'alert' : 'status'}>{ui.formError || ui.formSuccess}</div>}
+
+        <section className={`quote-guided-review-readiness${reviewFindings.length ? ' has-attention' : ''}`} data-testid="quote-guided-review-attention" aria-live="polite">
+          <div><span className="quote-guided-review-eyebrow">{reviewFindings.length ? 'Needs attention' : 'Review status'}</span><strong>{attentionLabel}</strong></div>
+          <p>{reviewFindings.length ? 'These are advisory review findings. You remain the final authority, and existing send rules still apply.' : reviewStatusCopy}</p>
+          {reviewFindings.length > 0 && <div className="quote-guided-review-findings">
+            {reviewFindings.map((finding) => <article key={`${finding.source}:${finding.id}`} className="quote-guided-review-finding" data-testid={finding.source === 'llm' ? 'quote-guided-review-semantic-finding' : 'quote-guided-review-finding'}>
+              <div className="quote-guided-review-finding-meta"><span>{finding.source === 'llm' ? 'Suggestion' : 'Structured check'}</span><span>{finding.category === 'NEEDS_ATTENTION' ? 'Needs attention' : finding.category === 'CONFIRM' ? 'Confirm' : 'Improve'}</span></div>
+              <strong>{finding.title}</strong><p>{finding.message}</p><small>Next: {finding.recommendedAction}</small>
+            </article>)}
+          </div>}
+          {typeof actions.runSemanticReview === 'function' && <button type="button" className="btn btn-secondary btn-sm quote-guided-review-semantic-action" data-testid="quote-guided-review-semantic-review" onClick={actions.runSemanticReview} disabled={reviewStatus === 'REVIEWING'}>{reviewStatus === 'REVIEWING' ? 'Reviewing…' : 'Review with Corvioz'}</button>}
+        </section>
+
+        <section className="quote-guided-review-summary" data-testid="quote-guided-review-summary" aria-label="Quote summary">
+          <div className="quote-guided-review-summary-heading"><div><span className="quote-guided-review-eyebrow">Shared Quote details</span><h3>Client-facing summary</h3></div><span>{quote.qNumber || 'Draft Quote'}</span></div>
+          <div className="quote-guided-review-summary-list">
+            <article><div><span>Client</span><strong>{clientName || 'Add a client name'}</strong><small>{clientEmail || 'No email added'}</small></div><button type="button" className="btn btn-secondary btn-sm" data-testid="quote-guided-review-edit-client" onClick={edit('CLIENT')}>Edit</button></article>
+            <article><div><span>Scope / Deliverables</span><strong>{scopeCommon.shoot_type || 'Photography scope'}</strong><small>{summaryItems}</small></div><button type="button" className="btn btn-secondary btn-sm" data-testid="quote-guided-review-edit-scope" onClick={edit('SCOPE')}>Edit</button></article>
+            <article><div><span>Pricing</span><strong>{formatMoney(totals.total, qCurrency)}</strong><small>{qCurrency} total · {qItems.length} line item{qItems.length === 1 ? '' : 's'}</small></div><button type="button" className="btn btn-secondary btn-sm" data-testid="quote-guided-review-edit-pricing" onClick={edit('PRICING')}>Edit</button></article>
+            <article><div><span>Usage</span><strong>{usageStatusLabel}</strong><small>{usageSummary}</small></div><button type="button" className="btn btn-secondary btn-sm" data-testid="quote-guided-review-edit-usage" onClick={edit('TERMS_USAGE')}>Edit</button></article>
+            <article><div><span>Terms / Notes</span><strong>{qNotes.trim() ? 'Added' : 'Not added'}</strong><small>{termsSummary}</small></div><button type="button" className="btn btn-secondary btn-sm" data-testid="quote-guided-review-edit-terms" onClick={edit('TERMS_USAGE')}>Edit</button></article>
+          </div>
+        </section>
+
+        <div className="quote-guided-review-actions">
+          <button type="button" className="btn btn-secondary quote-guided-review-preview" data-testid="quote-guided-review-preview" onClick={() => setMobilePreviewOpen(true)}>Preview</button>
+          <button type="button" className={`btn ${reviewSaveRequired || !quote.qId ? 'btn-primary' : 'btn-secondary'} quote-guided-review-save`} data-testid="quote-guided-review-save" onClick={handleGuidedSave} disabled={ui.isSaving}>{ui.isSaving ? 'Saving…' : 'Save Quote'}</button>
+          <button type="button" className={`btn ${canSend ? 'btn-primary' : 'btn-secondary'} quote-guided-review-send`} data-testid="quote-guided-review-send" onClick={() => actions.send()} disabled={!canSend || ui.isSendingQuote}>{ui.isSendingQuote ? 'Sending…' : sendReadinessCopy}</button>
+          <button type="button" className="btn btn-secondary quote-guided-review-pdf" data-testid="quote-guided-review-pdf" onClick={() => actions.exportPdf('printable-quote', `quote_${quote.qNumber}`, quote.qId || null)} disabled={ui.isDownloadingPdf}>{ui.isDownloadingPdf ? 'Generating PDF…' : ui.hasCleanPdf ? 'Download Clean PDF' : 'Export PDF'}</button>
+        </div>
+        {renderPrintableDocument()}
+      </section>
     );
   }
 

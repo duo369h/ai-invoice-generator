@@ -2507,7 +2507,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   // Save Quote
-  const handleSaveQuote = async () => {
+  const handleSaveQuote = async (options = {}) => {
+    const guidedSave = options?.surface === 'guided';
     const performSave = async () => {
       setQSubmitAttempted(true);
       setFormError('');
@@ -2517,11 +2518,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const clientValidation = validateQuoteClient({ name: qClientName, email: qClientEmail });
       if (!clientValidation.isValid) {
         setFormError('Please resolve all validation errors before saving.');
-        return;
+        return false;
       }
       if (!qItems || qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) {
         setFormError('Please add at least one item with a description.');
-        return;
+        return false;
       }
 
       let currentEditCount = 0;
@@ -2601,8 +2602,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         } catch (err) {
           console.error(err);
           setFormError('Failed to save quote draft locally.');
+          return false;
         }
-        return;
+        return true;
       }
 
       setIsSaving(true);
@@ -2673,30 +2675,39 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           if (!qId && mode === 'live') {
             await fetchData(session?.access_token);
           }
-          setSuggestedActionDoc({
-            type: 'quote',
-            number: qNumber,
-            id: res.data?.id || qId || 'mock-id',
-            elementId: 'printable-quote'
-          });
+          if (!guidedSave) {
+            setSuggestedActionDoc({
+              type: 'quote',
+              number: qNumber,
+              id: res.data?.id || qId || 'mock-id',
+              elementId: 'printable-quote'
+            });
+          }
           setFormSuccess('');
+          return true;
         } else {
           setFormError(res.error || 'Failed to save quote. Please verify all inputs.');
+          return false;
         }
       } catch (e) {
         console.error(e);
         setFormError('Network error when saving quote.');
+        return false;
       } finally {
         setIsSaving(false);
       }
     };
 
     if (!qId) {
-      evaluateAction('create_quote', () => {
-        performSave();
+      let resolveSave;
+      const saveResult = new Promise((resolve) => { resolveSave = resolve; });
+      const decision = await evaluateAction('create_quote', () => {
+        performSave().then(resolveSave).catch(() => resolveSave(false));
       });
+      if (!decision) resolveSave(false);
+      return saveResult;
     } else {
-      performSave();
+      return performSave();
     }
   };
 
@@ -3844,6 +3855,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       qDate,
       qStatus,
       qPhotographyScope,
+      photographerName: user?.name || 'Photographer',
+      photographerEmail: user?.email || '',
       availableClients: clients,
     },
     setters: {
@@ -3885,17 +3898,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       formatMoney: formatDashboardMoney,
       selectedQuoteVertical,
       currentSemanticReviewFingerprint,
+      reviewFindings,
+      reviewStatus: semanticReviewDisplayStatus,
+      reviewStatusCopy: semanticReviewStatusCopy[semanticReviewDisplayStatus] || semanticReviewStatusCopy.READY,
     },
     actions: {
-      save: handleSaveQuote,
+      save: () => handleSaveQuote({ surface: 'guided' }),
       send: handleSendQuote,
       exportPdf: handleExportAttempt,
+      runSemanticReview: handleRunSemanticReview,
       cancel: handleCancelQuote,
       convertToInvoice: handleConvertQuoteToInvoice,
     },
     scope: {
       updateField: updateQPhotographyScope,
       setUsageRightsStatus: handleUsageRightsStatusChange,
+    },
+    ui: {
+      formError,
+      formSuccess,
+      isSaving,
+      isSendingQuote,
+      isDownloadingPdf,
+      canExportPdf,
+      hasCleanPdf,
     },
   });
 
