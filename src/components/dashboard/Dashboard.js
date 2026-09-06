@@ -3861,6 +3861,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     derived: {
       totals: quoteTotals,
       calculateTotals: calculateQuoteTotals,
+      formatMoney: formatDashboardMoney,
       selectedQuoteVertical,
       currentSemanticReviewFingerprint,
     },

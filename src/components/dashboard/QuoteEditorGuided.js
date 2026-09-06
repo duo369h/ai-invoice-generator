@@ -41,12 +41,24 @@ const formatDateDraftInput = (value) => {
   if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
   return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
 };
+const PRICING_CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'CNY'];
+const numericDraftPattern = /^-?(?:\d+\.?\d*|\.\d+)$/;
+const displayNumericDraft = (value) => String(value ?? 0);
+const parseNumericDraft = (value) => {
+  if (value === '' || value === '-' || value === '.' || value === '-.') return null;
+  if (!numericDraftPattern.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const [mobileQuoteStep, setMobileQuoteStep] = useState('WORKFLOW');
   const [scopeOpenBlock, setScopeOpenBlock] = useState(null);
   const [dateDrafts, setDateDrafts] = useState({});
-  const { quote, setters, validation, workflow, scope } = useQuoteEditorShared();
+  const [pricingOpenItem, setPricingOpenItem] = useState(null);
+  const [pricingOpenAdjustments, setPricingOpenAdjustments] = useState(false);
+  const [pricingDrafts, setPricingDrafts] = useState({});
+  const { quote, setters, validation, workflow, derived, scope } = useQuoteEditorShared();
   const templates = workflow.templates || [];
   const additionalTemplates = templates.filter(({ id }) => !PRIMARY_WORKFLOWS.some(([primaryId]) => primaryId === id));
   const availableClients = quote.availableClients || [];
@@ -75,6 +87,12 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const scopePrimaryFields = selectedTemplate ? primaryScopeFields : blankPrimaryFields;
   const visibleShootFields = scopePrimaryFields.filter(({ group }) => group === 'shoot');
   const visibleDeliverableFields = scopePrimaryFields.filter(({ group }) => group === 'deliverables');
+  const qItems = quote.qItems || [];
+  const qCurrency = quote.qCurrency || 'USD';
+  const qDiscountRate = quote.qDiscountRate ?? 0;
+  const qTaxRate = quote.qTaxRate ?? 0;
+  const totals = derived.totals;
+  const formatMoney = derived.formatMoney;
 
   const handleClientSelection = (event) => {
     const nextId = event.target.value || null;
@@ -113,6 +131,57 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
       scope.updateField(field, draft);
     }
   };
+
+  const setPricingDraft = (key, value) => setPricingDrafts((current) => ({ ...current, [key]: value }));
+  const updatePricingNumber = (index, field, value) => {
+    setPricingDraft(`${index}.${field}`, value);
+    const parsed = parseNumericDraft(value);
+    if (parsed === null && value !== '') return;
+    const nextItems = qItems.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value === '' ? 0 : parsed } : item);
+    setters.setQuoteItems(nextItems);
+  };
+  const updatePricingDescription = (index, value) => {
+    setters.setQuoteItems(qItems.map((item, itemIndex) => itemIndex === index ? { ...item, description: value } : item));
+  };
+  const openPricingItem = (index) => {
+    const item = qItems[index];
+    if (!item) return;
+    setPricingOpenAdjustments(false);
+    setPricingOpenItem(index);
+    setPricingDraft(`${index}.description`, item.description || '');
+    setPricingDraft(`${index}.quantity`, displayNumericDraft(item.quantity));
+    setPricingDraft(`${index}.unitPrice`, displayNumericDraft(item.unitPrice));
+  };
+  const addPricingItem = () => {
+    const nextIndex = qItems.length;
+    setters.setQuoteItems([...qItems, { description: '', quantity: 1, unitPrice: 0 }]);
+    setPricingOpenAdjustments(false);
+    setPricingOpenItem(nextIndex);
+    setPricingDraft(`${nextIndex}.quantity`, '1');
+    setPricingDraft(`${nextIndex}.unitPrice`, '0');
+  };
+  const removePricingItem = (index) => {
+    if (qItems.length <= 1) return;
+    setters.setQuoteItems(qItems.filter((_, itemIndex) => itemIndex !== index));
+    setPricingOpenItem(null);
+    setPricingOpenAdjustments(false);
+    setPricingDrafts({});
+  };
+  const updateAdjustment = (field, value) => {
+    setPricingDraft(`adjustment.${field}`, value);
+    const parsed = parseNumericDraft(value);
+    if (parsed === null && value !== '') return;
+    const setter = field === 'discount' ? setters.setQuoteDiscountRate : setters.setQuoteTaxRate;
+    setter(value === '' ? 0 : parsed);
+  };
+  const togglePricingAdjustments = () => {
+    const nextOpen = !pricingOpenAdjustments;
+    setPricingOpenAdjustments(nextOpen);
+    if (nextOpen) setPricingOpenItem(null);
+    setPricingDraft('adjustment.discount', displayNumericDraft(qDiscountRate));
+    setPricingDraft('adjustment.tax', displayNumericDraft(qTaxRate));
+  };
+  const pricingDraftValue = (key, value) => Object.prototype.hasOwnProperty.call(pricingDrafts, key) ? pricingDrafts[key] : displayNumericDraft(value);
 
   const renderScopeField = (definition) => {
     const { field, label, kind } = definition;
@@ -153,10 +222,71 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   };
   const renderScopeFields = (fields) => <div className="quote-guided-scope-edit-grid">{fields.map(renderScopeField)}</div>;
 
+  if (mobileQuoteStep === 'PRICING') {
+    return (
+      <section className="quote-guided-shell quote-guided-pricing-step" data-testid="quote-guided-pricing-step" data-guided-step="PRICING" aria-labelledby="quote-guided-pricing-heading">
+        <header className="quote-guided-header">
+          <div><span className="quote-guided-kicker">Pricing</span><h2 id="quote-guided-pricing-heading">Set your price</h2><p>Describe the charge, choose the currency, and let Corvioz calculate the total.</p></div>
+          <span className="quote-guided-progress" aria-label="Current step: Pricing">Pricing</span>
+        </header>
+
+        <div className="quote-guided-pricing-currency-row">
+          <div><span className="quote-guided-pricing-label">Quote currency</span><strong data-testid="quote-guided-pricing-currency-code">{qCurrency}</strong></div>
+          <select data-testid="quote-guided-pricing-currency" className="form-select" value={qCurrency} onChange={(event) => setters.setQuoteCurrency(event.target.value)} aria-label="Quote currency">
+            {PRICING_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+            {!PRICING_CURRENCIES.includes(qCurrency) && <option value={qCurrency}>{qCurrency}</option>}
+          </select>
+        </div>
+
+        <div className="quote-guided-pricing-items" data-testid="quote-guided-pricing-items">
+          {qItems.map((item, index) => {
+            const isOpen = pricingOpenItem === index;
+            const lineTotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+            return (
+              <div className={`quote-guided-pricing-item${isOpen ? ' is-open' : ''}`} key={index} data-testid={`quote-guided-pricing-item-${index}`}>
+                <div className="quote-guided-pricing-item-summary-row">
+                  <button type="button" className="quote-guided-pricing-item-summary" aria-expanded={isOpen} onClick={() => openPricingItem(index)}>
+                    <span><strong>{item.description?.trim() || 'Untitled item'}</strong><small>{displayNumericDraft(item.quantity)} × {formatMoney(item.unitPrice, qCurrency)}</small></span>
+                    <strong>{formatMoney(lineTotal, qCurrency)}</strong>
+                  </button>
+                  <button type="button" className="quote-guided-pricing-remove-item" data-testid={`quote-guided-pricing-remove-item-${index}`} onClick={() => removePricingItem(index)} disabled={qItems.length <= 1} aria-label={`Remove ${item.description?.trim() || 'line item'}`}>×</button>
+                </div>
+                {isOpen && <div className="quote-guided-pricing-edit-block" data-pricing-edit-block="true" data-testid={`quote-guided-pricing-edit-${index}`}>
+                  <div className="quote-guided-pricing-field"><label htmlFor={`quote-guided-pricing-description-${index}`}>Description</label><input id={`quote-guided-pricing-description-${index}`} data-testid={`quote-guided-pricing-description-${index}`} className="form-input" type="text" value={pricingDraftValue(`${index}.description`, item.description || '')} onChange={(event) => { setPricingDraft(`${index}.description`, event.target.value); updatePricingDescription(index, event.target.value); }} placeholder="e.g. Portrait session" /></div>
+                  <div className="quote-guided-pricing-field"><label htmlFor={`quote-guided-pricing-quantity-${index}`}>Quantity</label><input id={`quote-guided-pricing-quantity-${index}`} data-testid={`quote-guided-pricing-quantity-${index}`} className="form-input" type="text" inputMode="decimal" value={pricingDraftValue(`${index}.quantity`, item.quantity)} onChange={(event) => updatePricingNumber(index, 'quantity', event.target.value)} /></div>
+                  <div className="quote-guided-pricing-field"><label htmlFor={`quote-guided-pricing-rate-${index}`}>Rate</label><input id={`quote-guided-pricing-rate-${index}`} data-testid={`quote-guided-pricing-rate-${index}`} className="form-input" type="text" inputMode="decimal" value={pricingDraftValue(`${index}.unitPrice`, item.unitPrice)} onChange={(event) => updatePricingNumber(index, 'unitPrice', event.target.value)} /></div>
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+
+        <button type="button" className="quote-guided-pricing-add-item" data-testid="quote-guided-pricing-add-item" onClick={addPricingItem}>+ Add item</button>
+
+        <div className="quote-guided-pricing-adjustments" data-testid="quote-guided-pricing-adjustments">
+          <button type="button" className="quote-guided-pricing-adjustments-toggle" data-testid="quote-guided-pricing-adjustments-toggle" aria-expanded={pricingOpenAdjustments} onClick={togglePricingAdjustments}>Adjustments <span>{pricingOpenAdjustments ? '−' : '+'}</span></button>
+          {pricingOpenAdjustments && <div className="quote-guided-pricing-adjustments-panel" data-pricing-edit-block="true" data-testid="quote-guided-pricing-adjustments-panel">
+            <div className="quote-guided-pricing-field"><label htmlFor="quote-guided-pricing-discount">Discount (%)</label><input id="quote-guided-pricing-discount" data-testid="quote-guided-pricing-discount" className="form-input" type="text" inputMode="decimal" value={pricingDraftValue('adjustment.discount', qDiscountRate)} onChange={(event) => updateAdjustment('discount', event.target.value)} /></div>
+            <div className="quote-guided-pricing-field"><label htmlFor="quote-guided-pricing-tax">Tax (%)</label><input id="quote-guided-pricing-tax" data-testid="quote-guided-pricing-tax" className="form-input" type="text" inputMode="decimal" value={pricingDraftValue('adjustment.tax', qTaxRate)} onChange={(event) => updateAdjustment('tax', event.target.value)} /></div>
+          </div>}
+        </div>
+
+        <div className="quote-guided-pricing-totals" data-testid="quote-guided-pricing-totals">
+          <div><span>Subtotal</span><strong>{formatMoney(totals.subtotal, qCurrency)}</strong></div>
+          {qDiscountRate > 0 && <div><span>Discount ({qDiscountRate}%)</span><strong>−{formatMoney(totals.discount, qCurrency)}</strong></div>}
+          {qTaxRate > 0 && <div><span>Tax ({qTaxRate}%)</span><strong>{formatMoney(totals.tax, qCurrency)}</strong></div>}
+          <div className="quote-guided-pricing-total"><span>Total</span><strong data-testid="quote-guided-pricing-total-value">{formatMoney(totals.total, qCurrency)}</strong></div>
+        </div>
+
+        <div className="quote-guided-client-actions quote-guided-pricing-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('SCOPE')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('COMPATIBILITY_DETAILS')}>Continue</button></div>
+      </section>
+    );
+  }
+
   if (mobileQuoteStep === 'COMPATIBILITY_DETAILS') {
     return (
       <div className="quote-guided-compatibility" data-guided-compatibility="true" data-guided-state="TRANSITIONAL_NOT_FINAL_AUTHORITY">
-        <div className="quote-guided-compatibility-bar"><div><span className="quote-guided-kicker">Quote details</span><h2>Continue your quote</h2></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setMobileQuoteStep('SCOPE')}>Back</button></div>
+        <div className="quote-guided-compatibility-bar"><div><span className="quote-guided-kicker">Quote details</span><h2>Continue your quote</h2></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setMobileQuoteStep('PRICING')}>Back</button></div>
         {compatibilityPresentation}
       </div>
     );
@@ -186,7 +316,7 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
           {scopeOpenBlock === 'RECOMMENDED' && <div className="quote-guided-scope-edit-block" data-scope-edit-block="RECOMMENDED"><div className="quote-guided-scope-edit-heading"><strong>Added details</strong><span>Recommended</span></div>{renderScopeFields(recommendedScopeFields.slice(0, 6))}</div>}
           {scopeOpenBlock === 'OPTIONAL' && <div className="quote-guided-scope-edit-block" data-scope-edit-block="OPTIONAL"><div className="quote-guided-scope-edit-heading"><strong>More scope details</strong><span>Optional</span></div>{renderScopeFields(optionalScopeFields.filter(({ field }) => !field.startsWith('usage_rights.')).slice(0, 6))}</div>}
         </>}
-        <div className="quote-guided-client-actions quote-guided-scope-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => leaveScopeStep('CLIENT')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => leaveScopeStep('COMPATIBILITY_DETAILS')}>Continue</button></div>
+        <div className="quote-guided-client-actions quote-guided-scope-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => leaveScopeStep('CLIENT')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => leaveScopeStep('PRICING')}>Continue</button></div>
       </section>
     );
   }

@@ -1140,6 +1140,161 @@
 .quote-guided-scope-actions {
   margin-top: 2px;
 }
+.quote-guided-pricing-currency-row,
+.quote-guided-pricing-item-summary-row,
+.quote-guided-pricing-total,
+.quote-guided-pricing-totals > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.quote-guided-pricing-currency-row,
+.quote-guided-pricing-item,
+.quote-guided-pricing-adjustments,
+.quote-guided-pricing-totals {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background-card);
+}
+.quote-guided-pricing-currency-row {
+  padding: 14px 16px;
+}
+.quote-guided-pricing-currency-row > div,
+.quote-guided-pricing-item-summary > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.quote-guided-pricing-label,
+.quote-guided-pricing-item-summary small,
+.quote-guided-pricing-totals span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.quote-guided-pricing-currency-row strong,
+.quote-guided-pricing-item-summary strong,
+.quote-guided-pricing-totals strong {
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+.quote-guided-pricing-currency-row .form-select {
+  width: 96px;
+  min-height: 44px;
+}
+.quote-guided-pricing-items {
+  display: grid;
+  gap: 10px;
+}
+.quote-guided-pricing-item {
+  overflow: hidden;
+}
+.quote-guided-pricing-item.is-open {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-glow) 65%, transparent);
+}
+.quote-guided-pricing-item-summary-row {
+  min-width: 0;
+}
+.quote-guided-pricing-item-summary {
+  flex: 1;
+  min-width: 0;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 0;
+  color: var(--text-main);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.quote-guided-pricing-item-summary > strong {
+  flex: 0 0 auto;
+  text-align: right;
+}
+.quote-guided-pricing-remove-item {
+  flex: 0 0 44px;
+  align-self: stretch;
+  border: 0;
+  border-left: 1px solid var(--border);
+  color: var(--danger);
+  background: transparent;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.quote-guided-pricing-remove-item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.quote-guided-pricing-edit-block,
+.quote-guided-pricing-adjustments-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background-card) 92%, var(--accent-glow));
+}
+.quote-guided-pricing-field {
+  display: grid;
+  gap: 7px;
+}
+.quote-guided-pricing-field label {
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+.quote-guided-pricing-field .form-input {
+  min-height: 44px;
+}
+.quote-guided-pricing-add-item,
+.quote-guided-pricing-adjustments-toggle {
+  min-height: 44px;
+  padding: 10px 2px;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+.quote-guided-pricing-adjustments-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+.quote-guided-pricing-totals {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+.quote-guided-pricing-total {
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.quote-guided-pricing-total span,
+.quote-guided-pricing-total strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+.quote-guided-pricing-total strong {
+  font-size: 1.1rem;
+}
+.quote-guided-pricing-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  padding-top: 4px;
+}
 .quote-guided-compatibility {
   min-width: 0;
 }
