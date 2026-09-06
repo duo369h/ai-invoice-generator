@@ -42,6 +42,11 @@ const formatDateDraftInput = (value) => {
   return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
 };
 const PRICING_CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'CNY'];
+const USAGE_RIGHTS_STATUSES = [
+  ['unspecified', 'Not specified'],
+  ['specified', 'Specified'],
+  ['not_applicable', 'Not applicable'],
+];
 const numericDraftPattern = /^-?(?:\d+\.?\d*|\.\d+)$/;
 const displayNumericDraft = (value) => String(value ?? 0);
 const parseNumericDraft = (value) => {
@@ -58,6 +63,8 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const [pricingOpenItem, setPricingOpenItem] = useState(null);
   const [pricingOpenAdjustments, setPricingOpenAdjustments] = useState(false);
   const [pricingDrafts, setPricingDrafts] = useState({});
+  const [termsUsageOpenSurface, setTermsUsageOpenSurface] = useState(null);
+  const [usageDrafts, setUsageDrafts] = useState({});
   const { quote, setters, validation, workflow, derived, scope } = useQuoteEditorShared();
   const templates = workflow.templates || [];
   const additionalTemplates = templates.filter(({ id }) => !PRIMARY_WORKFLOWS.some(([primaryId]) => primaryId === id));
@@ -93,6 +100,13 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   const qTaxRate = quote.qTaxRate ?? 0;
   const totals = derived.totals;
   const formatMoney = derived.formatMoney;
+  const qNotes = quote.qNotes || '';
+  const usageRights = scopeCommon.usage_rights || {};
+  const usageStatus = usageRights.status || 'unspecified';
+  const usagePriority = selectedTemplate ? scopePriority('usage_rights.purpose') : 'NEUTRAL';
+  const usageStatusLabel = USAGE_RIGHTS_STATUSES.find(([status]) => status === usageStatus)?.[1] || 'Not specified';
+  const usageSummary = [usageRights.purpose, usageRights.territory, usageRights.license_duration].filter(Boolean).join(' · ') || (usageStatus === 'not_applicable' ? 'Licensing does not apply' : 'Add the usage context for this Quote');
+  const termsSummary = qNotes.trim() || 'Add short terms or client-facing notes';
 
   const handleClientSelection = (event) => {
     const nextId = event.target.value || null;
@@ -182,6 +196,25 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
     setPricingDraft('adjustment.tax', displayNumericDraft(qTaxRate));
   };
   const pricingDraftValue = (key, value) => Object.prototype.hasOwnProperty.call(pricingDrafts, key) ? pricingDrafts[key] : displayNumericDraft(value);
+  const openTermsUsageSurface = (surface) => {
+    setTermsUsageOpenSurface((current) => current === surface ? null : surface);
+    setUsageDrafts(surface === 'USAGE' ? {
+      purpose: usageRights.purpose || '',
+      media_channels: (usageRights.media_channels || []).join('\n'),
+      territory: usageRights.territory || '',
+      license_duration: usageRights.license_duration || '',
+      exclusivity: usageRights.exclusivity || '',
+    } : {});
+  };
+  const usageDraftValue = (field, value) => Object.prototype.hasOwnProperty.call(usageDrafts, field) ? usageDrafts[field] : (value || '');
+  const updateUsageText = (field, value) => {
+    setUsageDrafts((current) => ({ ...current, [field]: value }));
+    scope.updateField(`usage_rights.${field}`, field === 'media_channels' ? value.split(/\r?\n/) : value);
+  };
+  const updateUsageStatus = (status) => {
+    scope.setUsageRightsStatus(status);
+    if (status === 'specified' && usageStatus === 'not_applicable') setUsageDrafts({});
+  };
 
   const renderScopeField = (definition) => {
     const { field, label, kind } = definition;
@@ -278,7 +311,50 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
           <div className="quote-guided-pricing-total"><span>Total</span><strong data-testid="quote-guided-pricing-total-value">{formatMoney(totals.total, qCurrency)}</strong></div>
         </div>
 
-        <div className="quote-guided-client-actions quote-guided-pricing-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('SCOPE')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('COMPATIBILITY_DETAILS')}>Continue</button></div>
+        <div className="quote-guided-client-actions quote-guided-pricing-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('SCOPE')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('TERMS_USAGE')}>Continue</button></div>
+      </section>
+    );
+  }
+
+  if (mobileQuoteStep === 'TERMS_USAGE') {
+    const usageOpen = termsUsageOpenSurface === 'USAGE';
+    const termsOpen = termsUsageOpenSurface === 'TERMS';
+    return (
+      <section className="quote-guided-shell quote-guided-terms-usage-step" data-testid="quote-guided-terms-usage-step" data-guided-step="TERMS_USAGE" aria-labelledby="quote-guided-terms-usage-heading">
+        <header className="quote-guided-header">
+          <div><span className="quote-guided-kicker">Terms / Usage</span><h2 id="quote-guided-terms-usage-heading">Clarify the handoff</h2><p>Keep Usage Rights and short Quote language clear without turning this into a contract.</p></div>
+          <span className="quote-guided-progress" aria-label="Current step: Terms / Usage">Terms / Usage</span>
+        </header>
+
+        <div className="quote-guided-terms-usage-priority"><span>Usage licensing</span><strong data-testid="quote-guided-terms-usage-priority">{usagePriority}</strong></div>
+        <div className={`quote-guided-terms-usage-card${usageOpen ? ' is-open' : ''}`} data-testid="quote-guided-terms-usage-usage-card">
+          <button type="button" className="quote-guided-terms-usage-summary" data-testid="quote-guided-terms-usage-usage-summary" aria-expanded={usageOpen} onClick={() => openTermsUsageSurface('USAGE')}>
+            <span><strong>Usage licensing</strong><small><span data-testid="quote-guided-terms-usage-usage-status">{usageStatusLabel}</span> · {usageSummary}</small></span><span aria-hidden="true">{usageOpen ? '−' : '+'}</span>
+          </button>
+          {usageOpen && <div className="quote-guided-terms-usage-edit" data-terms-usage-edit-block="true" data-testid="quote-guided-terms-usage-edit">
+            <div className="quote-guided-terms-usage-edit-heading"><strong>Usage details</strong><span>Photographer-authored</span></div>
+            <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-status">Usage status</label><select id="quote-guided-usage-status" data-testid="quote-guided-usage-status" className="form-select" value={usageStatus} onChange={(event) => updateUsageStatus(event.target.value)}>{USAGE_RIGHTS_STATUSES.map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></div>
+            {usageStatus !== 'not_applicable' && <div className="quote-guided-terms-usage-grid">
+              <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-purpose">Purpose</label><input id="quote-guided-usage-purpose" data-testid="quote-guided-usage-purpose" className="form-input" value={usageDraftValue('purpose', usageRights.purpose)} onChange={(event) => updateUsageText('purpose', event.target.value)} placeholder="e.g. Brand campaign" /></div>
+              <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-media-channels">Media / channels</label><textarea id="quote-guided-usage-media-channels" data-testid="quote-guided-usage-media-channels" className="form-textarea" value={usageDraftValue('media_channels', (usageRights.media_channels || []).join('\n'))} onChange={(event) => updateUsageText('media_channels', event.target.value)} placeholder="Website\nPaid social\nPrint" rows={3} /></div>
+              <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-territory">Territory</label><input id="quote-guided-usage-territory" data-testid="quote-guided-usage-territory" className="form-input" value={usageDraftValue('territory', usageRights.territory)} onChange={(event) => updateUsageText('territory', event.target.value)} placeholder="e.g. North America" /></div>
+              <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-license-duration">License duration</label><input id="quote-guided-usage-license-duration" data-testid="quote-guided-usage-license-duration" className="form-input" value={usageDraftValue('license_duration', usageRights.license_duration)} onChange={(event) => updateUsageText('license_duration', event.target.value)} placeholder="e.g. 12 months" /></div>
+              <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-usage-exclusivity">Exclusivity</label><input id="quote-guided-usage-exclusivity" data-testid="quote-guided-usage-exclusivity" className="form-input" value={usageDraftValue('exclusivity', usageRights.exclusivity)} onChange={(event) => updateUsageText('exclusivity', event.target.value)} placeholder="e.g. Non-exclusive" /></div>
+            </div>}
+          </div>}
+        </div>
+
+        <div className={`quote-guided-terms-usage-card${termsOpen ? ' is-open' : ''}`} data-testid="quote-guided-terms-usage-terms-card">
+          <button type="button" className="quote-guided-terms-usage-summary" data-testid="quote-guided-terms-usage-terms-summary" aria-expanded={termsOpen} onClick={() => openTermsUsageSurface('TERMS')}>
+            <span><strong>Terms &amp; notes</strong><small>{termsSummary}</small></span><span aria-hidden="true">{termsOpen ? '−' : '+'}</span>
+          </button>
+          {termsOpen && <div className="quote-guided-terms-usage-edit" data-terms-usage-edit-block="true" data-testid="quote-guided-terms-edit">
+            <div className="quote-guided-terms-usage-edit-heading"><strong>Short Quote language</strong><span>Public notes</span></div>
+            <div className="quote-guided-terms-usage-field"><label htmlFor="quote-guided-terms-notes">Terms &amp; notes</label><textarea id="quote-guided-terms-notes" data-testid="quote-guided-terms-notes" className="form-textarea" value={qNotes} onChange={(event) => setters.setQuoteNotes(event.target.value)} placeholder="Add short terms or client-facing notes" rows={5} /></div>
+          </div>}
+        </div>
+
+        <div className="quote-guided-client-actions quote-guided-terms-usage-actions"><button type="button" className="btn btn-secondary quote-guided-step-back" onClick={() => setMobileQuoteStep('PRICING')}>Back</button><button type="button" className="btn btn-primary quote-guided-continue" onClick={() => setMobileQuoteStep('COMPATIBILITY_DETAILS')}>Continue</button></div>
       </section>
     );
   }
@@ -286,7 +362,7 @@ export default function QuoteEditorGuided({ compatibilityPresentation }) {
   if (mobileQuoteStep === 'COMPATIBILITY_DETAILS') {
     return (
       <div className="quote-guided-compatibility" data-guided-compatibility="true" data-guided-state="TRANSITIONAL_NOT_FINAL_AUTHORITY">
-        <div className="quote-guided-compatibility-bar"><div><span className="quote-guided-kicker">Quote details</span><h2>Continue your quote</h2></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setMobileQuoteStep('PRICING')}>Back</button></div>
+        <div className="quote-guided-compatibility-bar"><div><span className="quote-guided-kicker">Quote details</span><h2>Continue your quote</h2></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setMobileQuoteStep('TERMS_USAGE')}>Back</button></div>
         {compatibilityPresentation}
       </div>
     );

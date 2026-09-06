@@ -1295,6 +1295,98 @@
   z-index: 2;
   padding-top: 4px;
 }
+.quote-guided-terms-usage-priority,
+.quote-guided-terms-usage-summary,
+.quote-guided-terms-usage-edit-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.quote-guided-terms-usage-priority,
+.quote-guided-terms-usage-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background-card);
+}
+.quote-guided-terms-usage-priority {
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.quote-guided-terms-usage-priority strong {
+  color: var(--accent);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+.quote-guided-terms-usage-card {
+  overflow: hidden;
+}
+.quote-guided-terms-usage-card.is-open {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-glow) 65%, transparent);
+}
+.quote-guided-terms-usage-summary {
+  width: 100%;
+  min-height: 72px;
+  padding: 14px;
+  border: 0;
+  color: var(--text-main);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.quote-guided-terms-usage-summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.quote-guided-terms-usage-summary small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quote-guided-terms-usage-edit {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background-card) 92%, var(--accent-glow));
+}
+.quote-guided-terms-usage-edit-heading {
+  align-items: baseline;
+}
+.quote-guided-terms-usage-edit-heading span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.quote-guided-terms-usage-grid {
+  display: grid;
+  gap: 12px;
+}
+.quote-guided-terms-usage-field {
+  display: grid;
+  gap: 7px;
+}
+.quote-guided-terms-usage-field label {
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+.quote-guided-terms-usage-field .form-input,
+.quote-guided-terms-usage-field .form-select {
+  min-height: 44px;
+}
+.quote-guided-terms-usage-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  padding-top: 4px;
+}
 .quote-guided-compatibility {
   min-width: 0;
 }
