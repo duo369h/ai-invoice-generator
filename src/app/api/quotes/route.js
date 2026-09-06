@@ -14,6 +14,15 @@ import { authRequiredResponse, getIp, requestContextResponse } from "../../lib/s
 import { enumValue, validateObject, validateQuotePayload, validationResponse } from "../../lib/validation";
 import { recordProductAnalyticsEvent } from "../../lib/product-analytics-server";
 import { getUserEntitlements } from "../../../../lib/entitlements";
+import {
+  deserializeQuoteNotes,
+  serializeQuoteNotes,
+  validateSerializedQuoteNotes,
+} from "../../../components/dashboard/quoteNotes.mjs";
+import {
+  buildQuoteProvenanceForSave,
+  isRecognizedRawClientSource,
+} from "../../../core/quotes/quoteProvenance.js";
 
 const OWNER_MUTABLE_QUOTE_STATUSES = new Set(["draft", "sent"]);
 const TERMINAL_QUOTE_STATUSES = new Set(["approved", "declined", "converted"]);
@@ -82,6 +91,35 @@ async function conditionalQuoteUpdateFailureResponse(serviceSupabase, quoteId, u
     return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   }
   return quoteStatusStateConflictResponse();
+}
+
+function quoteRawSourceInvalidResponse() {
+  return NextResponse.json({
+    error: "Quote raw client source must reference an existing Lead message.",
+    code: "RAW_CLIENT_SOURCE_INVALID",
+  }, { status: 400 });
+}
+
+function quoteRawSourceNotOwnedResponse() {
+  return NextResponse.json({
+    error: "Quote raw client source Lead is not available to this photographer.",
+    code: "RAW_CLIENT_SOURCE_NOT_OWNED",
+  }, { status: 403 });
+}
+
+async function validateNewRawClientSource(serviceSupabase, provenance, userId) {
+  const rawClientSource = provenance?.raw_client_source;
+  if (rawClientSource === undefined) return null;
+  if (!isRecognizedRawClientSource(rawClientSource)) return quoteRawSourceInvalidResponse();
+
+  const { data: lead, error } = await serviceSupabase
+    .from("leads")
+    .select("id")
+    .eq("id", rawClientSource.lead_id)
+    .eq("freelancer_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return lead ? null : quoteRawSourceNotOwnedResponse();
 }
 
 export async function GET(request) {
@@ -178,7 +216,7 @@ export async function POST(request) {
       if (id) {
         const { data: existingQuoteData, error: existingQuoteError } = await serviceSupabase
           .from("quotes")
-          .select("client_id, client_name, client_email, client_address, status")
+          .select("client_id, client_name, client_email, client_address, status, notes")
           .eq("id", id)
           .eq("user_id", context.user.id)
           .maybeSingle();
@@ -200,6 +238,42 @@ export async function POST(request) {
           return quoteStatusActorForbiddenResponse();
         }
       }
+
+      const existingNotes = id ? deserializeQuoteNotes(existingQuote?.notes || "") : null;
+      const incomingNotes = deserializeQuoteNotes(notes || "");
+      const existingMetadata = existingNotes?.metadata && typeof existingNotes.metadata === "object"
+        ? existingNotes.metadata
+        : {};
+      const incomingMetadata = incomingNotes?.metadata && typeof incomingNotes.metadata === "object"
+        ? incomingNotes.metadata
+        : {};
+      const existingProvenance = existingMetadata.quote_provenance_v1;
+      const incomingProvenance = incomingMetadata.quote_provenance_v1;
+      const hasEstablishedRawSource = isRecognizedRawClientSource(existingProvenance?.raw_client_source);
+      if (!id || !hasEstablishedRawSource) {
+        const rawSourceValidation = await validateNewRawClientSource(
+          serviceSupabase,
+          incomingProvenance,
+          context.user.id,
+        );
+        if (rawSourceValidation) return rawSourceValidation;
+      }
+      const existingScope = existingMetadata.photography_scope_v2 || null;
+      const currentScope = incomingMetadata.photography_scope_v2 || existingScope;
+      const quoteProvenance = buildQuoteProvenanceForSave({
+        existingProvenance,
+        draftProvenance: incomingProvenance,
+        existingScope,
+        currentScope,
+      });
+      const mergedMetadata = {
+        ...existingMetadata,
+        ...incomingMetadata,
+        quote_provenance_v1: quoteProvenance,
+      };
+      const persistedNotes = validateSerializedQuoteNotes(
+        serializeQuoteNotes(incomingNotes.notes || "", mergedMetadata),
+      );
 
       const requestedClientId = client_id || null;
       const effectiveClientId = id && existingQuote?.client_id && !requestedClientId
@@ -259,7 +333,7 @@ export async function POST(request) {
         tax_amount: calculatedTaxAmount,
         total: calculatedTotal,
         currency,
-        notes,
+        notes: persistedNotes,
         status: id && TERMINAL_QUOTE_STATUSES.has(existingQuote.status) ? existingQuote.status : requestedStatus,
         updated_at: new Date().toISOString()
       };

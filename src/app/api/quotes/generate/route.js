@@ -4,9 +4,6 @@ import { rateLimitAuthenticated } from '../../../lib/rate-limit';
 import { requestContextResponse } from '../../../lib/security';
 import { validateParsePayload, validationResponse } from '../../../lib/validation';
 import { checkRevenueLock } from '../../../../../lib/revenue/revenueLock';
-import { injectQuoteDecision } from '../../../../core/ai/AI_DECISION_INJECTION_MAP';
-import { getDecision } from '../../../../core/ai/AI_DECISION_CORE';
-import { assertCoreDecisionSource } from '../../../../core/ai/AI_DECISION_GUARD';
 
 function fallbackQuoteParse(text) {
   // Extract email address
@@ -26,18 +23,6 @@ function fallbackQuoteParse(text) {
     client_name = nameMatch[1].trim();
   }
 
-  // Look for any monetary figure (e.g. $5000, 2000 USD)
-  let detectedPrice = 150000; // default 1500.00
-  const priceMatches = [...text.matchAll(/(?:\$|€|£|¥)\s*(\d+(?:\.\d{2})?)\b|\b(\d+(?:\.\d{2})?)\s*(?:usd|eur|gbp|budget|cost|price)\b/gi)];
-  if (priceMatches.length > 0) {
-    const match = priceMatches[0];
-    const priceStr = match[1] || match[2];
-    const val = parseFloat(priceStr);
-    if (!isNaN(val) && val > 0) {
-      detectedPrice = Math.round(val * 100);
-    }
-  }
-
   // Extract description
   let description = 'Freelance Services Inquiry';
   const descWords = text.split(/\s+/).slice(0, 10).join(' ');
@@ -53,7 +38,7 @@ function fallbackQuoteParse(text) {
       {
         description: `Estimate for: ${description}`,
         quantity: 1,
-        unitPrice: detectedPrice / 100
+        unitPrice: 0
       }
     ],
     currency,
@@ -87,71 +72,18 @@ export async function POST(request) {
       );
     }
 
-    // 1.5 Calculate recommended price using Pricing Intelligence Engine
-    let jobType = 'web_design';
-    const textLower = (message_text || '').toLowerCase();
-    if (textLower.includes('ui') || textLower.includes('ux') || textLower.includes('design')) {
-      jobType = textLower.includes('web') ? 'web_design' : 'ui_ux';
-    } else if (textLower.includes('logo') || textLower.includes('brand')) {
-      jobType = 'logo';
-    } else if (textLower.includes('invoice') || textLower.includes('billing') || textLower.includes('system') || textLower.includes('code') || textLower.includes('dev')) {
-      jobType = 'invoice_system';
-    } else if (textLower.includes('marketing') || textLower.includes('seo') || textLower.includes('growth')) {
-      jobType = 'marketing';
-    }
-
-    let clientType = 'small_business';
-    if (textLower.includes('enterprise') || textLower.includes('corporate') || textLower.includes('large')) {
-      clientType = 'enterprise';
-    } else if (textLower.includes('startup') || textLower.includes('vc')) {
-      clientType = 'startup';
-    } else if (textLower.includes('individual') || textLower.includes('personal')) {
-      clientType = 'individual';
-    }
-
-    let urgency = 'medium';
-    if (textLower.includes('urgent') || textLower.includes('asap') || textLower.includes('rush') || textLower.includes('quick')) {
-      urgency = 'high';
-    }
-
-    let clarity = 'medium';
-    if (textLower.includes('not sure') || textLower.includes('unclear') || textLower.includes('vague')) {
-      clarity = 'low';
-    }
-    const decision = getDecision(context.user.id, {
-      clientContext: clientType,
-      urgency,
-      jobType,
-      clarity,
-    });
-    assertCoreDecisionSource("AI_DECISION_CORE");
-
     const parsed = fallbackQuoteParse(message_text);
-
-    // AI Injection Layer (Quote Flow) - Observability only
-    injectQuoteDecision({
-      stage: "QUOTE",
-      userProfile: context.user,
-      clientContext: clientType,
-      historicalOutcomes: [],
-      currentQuote: parsed
-    });
-
-    if (parsed.items && parsed.items.length > 0) {
-      const originalUnitPrice = Number(parsed.items[0].unitPrice || 0);
-      parsed.items[0].unitPrice = Math.round(originalUnitPrice * Number(decision.output?.pricing_bias || 1));
-    }
-    parsed.explanation_text = 'Quote pricing is controlled by AI_DECISION_CORE and cannot be changed by generated copy.';
     const res = {
       parsed_data: parsed,
-      core_decision: decision.output,
+      core_decision: null,
     };
     return NextResponse.json({
       ...res,
       data: res,
       ai: {
-        mode: "core_driven",
-        source: "AI_DECISION_CORE"
+        mode: "parser_only",
+        source: "quotes_generate",
+        authority: "suggestion_only",
       }
     });
 

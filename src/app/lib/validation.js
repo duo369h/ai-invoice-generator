@@ -1,4 +1,5 @@
-import { normalizeUrlList, safeUrl, sanitizePlainText } from './security';
+import { normalizeUrlList, safeUrl, sanitizePlainText } from './security.js';
+import { validateSerializedQuoteNotes } from '../../components/dashboard/quoteNotes.mjs';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ID_RE = /^[a-zA-Z0-9_\-]{1,80}$/;
@@ -146,6 +147,12 @@ export function validateInvoicePayload(body) {
 
 export function validateQuotePayload(body) {
   const obj = validateObject(body);
+  let notes;
+  try {
+    notes = validateSerializedQuoteNotes(obj.notes);
+  } catch (error) {
+    throw new ValidationError(error.message);
+  }
   return {
     id: obj.id ? id(obj.id, 'id') : '',
     client_id: obj.client_id ? id(obj.client_id, 'client_id') : null,
@@ -157,7 +164,7 @@ export function validateQuotePayload(body) {
     discount_rate: numberValue(obj.discount_rate, 'discount_rate', { min: 0, max: 100 }),
     tax_rate: numberValue(obj.tax_rate, 'tax_rate', { min: 0, max: 100 }),
     currency: currency(obj.currency || 'USD'),
-    notes: text(obj.notes, 'notes', { max: 4000 }),
+    notes,
     status: enumValue(obj.status || 'draft', 'status', ['draft', 'sent', 'approved', 'declined', 'converted'], 'draft'),
   };
 }

@@ -80,6 +80,20 @@ function makeRequest(body) {
 
 function loadQuoteRoute(db) {
   const NextResponse = { json: (body, init = {}) => ({ status: init.status || 200, body, json: async () => body }) };
+  const deserializeQuoteNotes = (value = '') => {
+    const marker = '\n\n---METADATA---\n';
+    const index = String(value).lastIndexOf(marker);
+    if (index < 0) return { notes: String(value || ''), metadata: {} };
+    return { notes: String(value).slice(0, index), metadata: JSON.parse(String(value).slice(index + marker.length)) };
+  };
+  const serializeQuoteNotes = (publicNotes, metadata) => `${publicNotes || ''}\n\n---METADATA---\n${JSON.stringify(metadata || {})}`;
+  const validateSerializedQuoteNotes = (value) => value;
+  const buildQuoteProvenanceForSave = ({ existingProvenance = null, draftProvenance = null, existingScope = null, currentScope = null } = {}) => ({
+    ...((existingProvenance?.raw_client_source || draftProvenance?.raw_client_source) ? { raw_client_source: existingProvenance?.raw_client_source || draftProvenance.raw_client_source } : {}),
+    ...((existingProvenance?.machine_draft || draftProvenance?.machine_draft) ? { machine_draft: existingProvenance?.machine_draft || draftProvenance.machine_draft } : {}),
+    ...((existingProvenance?.original_scope_baseline || existingScope || currentScope) ? { original_scope_baseline: existingProvenance?.original_scope_baseline || existingScope || currentScope } : {}),
+    canonical_authority: { authority: 'photographer', confirmation_action: 'explicit_quote_save' },
+  });
   const createQuoteWithAtomicQuota = async (_client, userId, plan, payload) => {
     const row = { ...payload, id: payload.id || `quote-${db.state.quotes.length + 1}`, user_id: userId };
     db.state.quotes.push(row);
@@ -100,6 +114,8 @@ function loadQuoteRoute(db) {
     "lib/rate-limit": { rateLimitAuthenticated: async () => ({ success: true }) },
     "lib/security": { authRequiredResponse: () => null, getIp: () => "127.0.0.1", requestContextResponse: () => null },
     "lib/validation": { validateQuotePayload: (body) => body, validateObject: (body) => body, enumValue: (value) => value, validationResponse: () => null },
+    "quoteNotes.mjs": { deserializeQuoteNotes, serializeQuoteNotes, validateSerializedQuoteNotes },
+    "quoteProvenance.js": { buildQuoteProvenanceForSave, isRecognizedRawClientSource: (value) => value?.kind === 'lead_message' && typeof value.lead_id === 'string' && value.source_field === 'message' },
     "product-analytics-server": { recordProductAnalyticsEvent: async () => {} },
     "lib/entitlements": { getUserEntitlements: () => ({ client_portal: false }) }
   });

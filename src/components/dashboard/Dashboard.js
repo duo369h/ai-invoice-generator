@@ -87,6 +87,10 @@ import {
   setPhotographyUsageRightsStatus,
   updatePhotographyScopeField,
 } from '../../core/quotes/photographyQuoteScope';
+import {
+  buildQuoteProvenanceForSave,
+  createLeadQuoteProvenance,
+} from '../../core/quotes/quoteProvenance.js';
 import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
 import { deserializeQuoteNotes as deserializeInvoiceNotes, serializeQuoteNotes as serializeInvoiceNotes } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
@@ -1183,6 +1187,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [selectedQuotePresetId, setSelectedQuotePresetId] = useState('');
   const [quotePresetSelectionTouched, setQuotePresetSelectionTouched] = useState(false);
   const [qPhotographyScope, setQPhotographyScope] = useState(() => createEmptyPhotographyScope());
+  const [qQuoteProvenance, setQQuoteProvenance] = useState(null);
   const [usageRightsExpanded, setUsageRightsExpanded] = useState(false);
   const [scopeFieldsExpanded, setScopeFieldsExpanded] = useState(false);
   const [semanticReviewState, setSemanticReviewState] = useState({
@@ -1545,6 +1550,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setQId('');
     setQClientId(null);
     setQPhotographyScope(createEmptyPhotographyScope());
+    setQQuoteProvenance(null);
     setSelectedQuotePresetId('');
     setQuotePresetSelectionTouched(false);
     setUsageRightsExpanded(false);
@@ -1553,7 +1559,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvClientId(null);
     setInvQuoteId(null);
     setExpandedClientDocumentsId(null);
-  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setSemanticReviewState, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
+  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setQQuoteProvenance, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setSemanticReviewState, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -1988,6 +1994,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setSelectedQuotePresetId('');
     if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
     if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
+    if (typeof setQQuoteProvenance === 'function') setQQuoteProvenance(null);
     if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
     if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
     if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
@@ -2059,6 +2066,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         setTimeout(() => {
           setIsParsingLead(null);
           resetQuoteCreateState();
+          setQQuoteProvenance(createLeadQuoteProvenance(lead.id));
           setQClientName(lead.client_name || lead.name || 'Mock Client');
           setQClientEmail(lead.client_email || lead.email || 'client@example.com');
           setQClientAddress(lead.client_address || '123 Enterprise Way');
@@ -2067,9 +2075,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           setQDate(getTodayString());
           setQStatus('draft');
           setQItems([
-            { description: 'Phase 1: Brand Strategy & Mockups', quantity: 1, unitPrice: 1500 },
-            { description: 'Phase 2: Custom Core Frontend Engineering', quantity: 1, unitPrice: 2500 },
-            { description: 'Phase 3: Integration & Launch Clearance', quantity: 1, unitPrice: 1000 }
+            { description: 'Phase 1: Brand Strategy & Mockups', quantity: 1, unitPrice: 0 },
+            { description: 'Phase 2: Custom Core Frontend Engineering', quantity: 1, unitPrice: 0 },
+            { description: 'Phase 3: Integration & Launch Clearance', quantity: 1, unitPrice: 0 }
           ]);
           setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'quote_generated', pipeline_status: 'Quote Sent' } : l));
           handleDashboardTabChange('quotes', 'lead_ai_quote');
@@ -2091,6 +2099,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           if (parsed_data) {
             // Pre-populate Quote Editor states
             resetQuoteCreateState();
+            setQQuoteProvenance(createLeadQuoteProvenance(lead.id));
             setQNumber(generateRandomNumberString('QT'));
             setQClientName(parsed_data.client_name || lead.name || '');
             setQClientEmail(parsed_data.client_email || lead.email || '');
@@ -2104,10 +2113,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               setQItems(parsed_data.items.map(i => ({
                 description: i.description,
                 quantity: i.quantity || 1,
-                unitPrice: i.unitPrice || 0
+                unitPrice: 0
               })));
             } else {
-              setQItems([{ description: `Consulting: ${lead.message.substring(0, 30)}...`, quantity: 1, unitPrice: 1000 }]);
+              setQItems([{ description: `Consulting: ${lead.message.substring(0, 30)}...`, quantity: 1, unitPrice: 0 }]);
             }
 
             // Move to quote tab and open editor
@@ -2541,6 +2550,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       const normalizedScope = typeof normalizePhotographyScope === 'function' && scopeValue
         ? normalizePhotographyScope(scopeValue)
         : scopeValue;
+      const existingScope = existingMetadata.photography_scope_v2 && typeof normalizePhotographyScope === 'function'
+        ? normalizePhotographyScope(existingMetadata.photography_scope_v2)
+        : existingMetadata.photography_scope_v2 || null;
+      const quoteProvenance = buildQuoteProvenanceForSave({
+        existingProvenance: existingMetadata.quote_provenance_v1,
+        draftProvenance: qQuoteProvenance,
+        existingScope,
+        currentScope: normalizedScope,
+      });
       const nextMetadata = {
         ...existingMetadata,
         edit_count: currentEditCount,
@@ -2550,6 +2568,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         quote_preset_name: presetName,
         workflow_terms: workflowTerms,
         photography_scope_v2: normalizedScope,
+        quote_provenance_v1: quoteProvenance,
       };
       const notesWithMeta = serializeInvoiceNotes(qNotes, nextMetadata);
 
@@ -2648,6 +2667,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             }
           }
           if (!qId && savedQuoteId) setQId(savedQuoteId);
+          setQQuoteProvenance(quoteProvenance);
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
           triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
           if (!qId && mode === 'live') {
@@ -3353,6 +3373,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setQCurrency(quote.currency || 'USD');
       const parsedQuoteNotes = deserializeInvoiceNotes(quote.notes || '');
       const quoteScope = parsedQuoteNotes.metadata?.photography_scope_v2;
+      setQQuoteProvenance(parsedQuoteNotes.metadata?.quote_provenance_v1 || null);
       if (typeof setQPhotographyScope === 'function') {
         if (quoteScope && typeof normalizePhotographyScope === 'function') {
           setQPhotographyScope(normalizePhotographyScope(quoteScope));

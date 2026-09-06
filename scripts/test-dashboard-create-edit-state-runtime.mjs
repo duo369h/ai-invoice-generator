@@ -164,6 +164,8 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     let qClientNameTouched = false;
     let qClientEmailTouched = false;
     let qSubmitAttempted = false;
+    let qPhotographyScope = { common: { usage_rights: { status: 'unspecified' } } };
+    let qQuoteProvenance = null;
     let canCreateFirstRevenueInvoiceDraft = false;
     let firstRevenueLoop = null;
     let suggestedActionDoc = null;
@@ -239,6 +241,19 @@ function createDashboardHarness({ delayAccess = false, accessAllowed = true } = 
     const setQClientNameTouched = (value) => { qClientNameTouched = value; };
     const setQClientEmailTouched = (value) => { qClientEmailTouched = value; };
     const setQSubmitAttempted = (value) => { qSubmitAttempted = value; };
+    const setQPhotographyScope = (value) => { qPhotographyScope = typeof value === 'function' ? value(qPhotographyScope) : value; };
+    const setQQuoteProvenance = (value) => { qQuoteProvenance = typeof value === 'function' ? value(qQuoteProvenance) : value; };
+    const createEmptyPhotographyScope = () => ({ common: { usage_rights: { status: 'unspecified' } } });
+    const normalizePhotographyScope = (scope) => scope;
+    const createLeadQuoteProvenance = (leadId) => ({ raw_client_source: { kind: 'lead_message', lead_id: leadId, source_field: 'message' }, machine_draft: { source: 'quotes_generate', authority: 'suggestion_only' } });
+    const buildQuoteProvenanceForSave = ({ existingProvenance = null, draftProvenance = null, existingScope = null, currentScope = null } = {}) => ({ ...(existingProvenance || {}), ...(draftProvenance || {}), original_scope_baseline: (existingProvenance?.original_scope_baseline || existingScope || currentScope), canonical_authority: { authority: 'photographer', confirmation_action: 'explicit_quote_save' } });
+    const validateQuoteClient = ({ name = '', email = '' }) => {
+      const normalizedName = String(name || '').trim();
+      const normalizedEmail = String(email || '').trim();
+      const nameInvalid = !normalizedName;
+      const emailInvalid = Boolean(normalizedEmail) && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail);
+      return { isValid: !nameInvalid && !emailInvalid, nameInvalid, emailInvalid, errors: {} };
+    };
     const setSuggestedActionDoc = (value) => { pendingSuggestedActionDoc = value; };
     const setFormError = (value) => { formError = value; };
     const setFormSuccess = (value) => { formSuccess = value; };
@@ -964,7 +979,7 @@ await verifySpecializedCreate('AI Quote authenticated create', async () => {
   await flush();
   assert.equal(harness.getQuote().id, '');
   assert.equal(harness.getQuote().clientName, 'Parsed client');
-  assert.deepEqual(harness.getQuote().items, [{ description: 'Parsed work', quantity: 2, unitPrice: 400 }]);
+  assert.deepEqual(harness.getQuote().items, [{ description: 'Parsed work', quantity: 2, unitPrice: 0 }]);
   assert.equal(harness.getQuote().currency, 'AUD');
   assert.equal(harness.getQuote().taxRate, 0);
   assert.equal(harness.getQuote().discountRate, 0);

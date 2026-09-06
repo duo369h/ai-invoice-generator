@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { resolveFirstRevenueLoop } from '../src/core/revenue/firstRevenueLoop.js';
+import { deserializeQuoteNotes } from '../src/components/dashboard/quoteNotes.mjs';
 import {
   configureRouteRuntime,
   getRouteRuntimeAuditLogs,
@@ -170,9 +171,13 @@ function assertUpdateHasNoCreateSideEffects(result, label) {
     status: 'sent',
   });
   assert.equal(result.response.status, 201, 'the anchor Quote content can be updated');
-  assert.equal(result.body.notes, 'Updated notes');
+  assert.equal(deserializeQuoteNotes(result.body.notes).notes, 'Updated notes');
+  assert.deepEqual(deserializeQuoteNotes(result.body.notes).metadata.quote_provenance_v1.canonical_authority, {
+    authority: 'photographer',
+    confirmation_action: 'explicit_quote_save',
+  });
   assert.equal(result.body.status, anchorQuote.status, 'anchor Quote status remains unchanged');
-  assert.equal(result.updates[0].values.notes, 'Updated notes');
+  assert.equal(deserializeQuoteNotes(result.updates[0].values.notes).notes, 'Updated notes');
   assert.equal(result.updates[0].values.status, anchorQuote.status);
   assertUpdateHasNoCreateSideEffects(result, 'anchor Free Quote');
 }
