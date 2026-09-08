@@ -171,10 +171,125 @@ try {
     await screenshot(simple.page, 'ROW-EDIT.png', false);
 
     await simplePaper.getByTestId('professional-add-item').click();
-    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 4);
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 4, 'opening Add Item creates one provisional row');
+    assert.equal(await simplePaper.getByTestId('professional-add-item').count(), 0, 'Add item affordance yields to the provisional row');
+    assert.equal(await simplePaper.getByTestId('professional-pricing-row-3').getAttribute('class'), 'quote-client-document-item-row is-editing', 'provisional row is active immediately');
+    const summaryGeometryBeforeMenu = await simple.page.evaluate(() => {
+      const paper = document.querySelector('.professional-paper-layer.is-front');
+      const point = (selector) => {
+        const element = paper?.querySelector(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { top: rect.top + window.scrollY, left: rect.left + window.scrollX };
+      };
+      return { usage: point('[data-testid="professional-usage-summary"]'), total: point('.quote-client-document-total') };
+    });
+    assert.equal(await simplePaper.getByTestId('professional-add-item-suggestion-menu').count(), 1, 'Description focus opens a compact anchored menu');
+    assert.ok(await simplePaper.locator('[data-testid^="professional-add-suggestion-"]').count() >= 8, 'existing safe suggestions provide a scrollable list');
+    assert.equal(await simplePaper.getByTestId('professional-add-suggestion-custom').count(), 1, 'Custom discoverability entry is present');
+    const suggestionMenuMetrics = await simplePaper.getByTestId('professional-add-item-suggestion-menu').evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        flexDirection: style.flexDirection,
+        flexWrap: style.flexWrap,
+        overflowY: style.overflowY,
+        overflowX: style.overflowX,
+        scrollable: element.scrollHeight > element.clientHeight,
+        width: element.getBoundingClientRect().width,
+        descriptionWidth: element.closest('td')?.getBoundingClientRect().width,
+      };
+    });
+    assert.equal(suggestionMenuMetrics.flexDirection, 'column', 'suggestions are one per row');
+    assert.equal(suggestionMenuMetrics.flexWrap, 'nowrap', 'suggestions do not wrap into horizontal chips');
+    assert.equal(suggestionMenuMetrics.overflowY, 'auto', 'suggestion menu scrolls vertically');
+    assert.equal(suggestionMenuMetrics.overflowX, 'hidden', 'suggestion menu has no horizontal scroll');
+    assert.equal(suggestionMenuMetrics.scrollable, true, 'long suggestion list is bounded and scrollable');
+    assert.ok(suggestionMenuMetrics.width <= suggestionMenuMetrics.descriptionWidth + 1, 'suggestion menu follows the Description editing area');
+    const summaryGeometryAfterMenu = await simple.page.evaluate(() => {
+      const paper = document.querySelector('.professional-paper-layer.is-front');
+      const point = (selector) => {
+        const element = paper?.querySelector(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { top: rect.top + window.scrollY, left: rect.left + window.scrollX };
+      };
+      return { usage: point('[data-testid="professional-usage-summary"]'), total: point('.quote-client-document-total') };
+    });
+    assert.deepEqual(summaryGeometryAfterMenu, summaryGeometryBeforeMenu, 'opening the menu does not reflow Usage or Total');
+    assert.equal(await simple.page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'quote-line-description-3', 'Description is focused automatically');
     assert.equal(await simple.page.evaluate(() => window.__professionalEditorNode === document.querySelector('[data-testid="professional-quote-editor"]')), true, 'Add item preserves the mounted editor state');
     assert.match(await simple.page.locator('.professional-editor-title').textContent(), /Unsaved changes/);
+    await simplePaper.getByTestId('professional-add-item-suggestion-menu').scrollIntoViewIfNeeded();
+    await screenshot(simple.page, 'ADD-ITEM-PROVISIONAL.png', false);
+    await screenshot(simple.page, 'ADD-ITEM-SUGGESTIONS.png', false);
+
+    await simplePaper.getByTestId('professional-add-item-suggestion-menu').evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    assert.equal(await simplePaper.getByTestId('professional-add-suggestion-custom').isVisible(), true, 'Custom entry remains reachable after vertical scroll');
+    await screenshot(simple.page, 'ADD-ITEM-LONG-MENU.png', false);
+    await simplePaper.getByTestId('professional-add-suggestion-custom').click();
+    assert.equal(await simplePaper.getByTestId('professional-add-item-suggestion-menu').count(), 0, 'Custom discoverability closes without creating a second editor');
+    assert.equal(await simple.page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'quote-line-description-3', 'Custom discoverability preserves Description focus');
+    await simplePaper.getByTestId('quote-line-description-3').fill('Food stylist');
+    await screenshot(simple.page, 'ADD-ITEM-CUSTOM.png', false);
+    await simplePaper.getByTestId('quote-line-description-3').blur();
+    await simplePaper.getByTestId('quote-line-description-3').focus();
+    await simplePaper.getByTestId('professional-add-item-suggestion-menu').scrollIntoViewIfNeeded();
+    await simplePaper.locator('[data-testid^="professional-add-suggestion-"]').first().hover();
+    await screenshot(simple.page, 'ADD-ITEM-SUGGESTION-HOVER.png', false);
+
+    await simplePaper.locator('[data-testid^="professional-add-suggestion-"]').first().click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 4, 'suggestion creates exactly one qItem');
+    assert.equal(await simplePaper.getByTestId('professional-pricing-row-3').getAttribute('class'), 'quote-client-document-item-row is-editing', 'suggestion makes the new row active');
+    assert.match(await simplePaper.getByTestId('quote-line-description-3').inputValue(), /Photography|Assistant|Producer|Digital Tech/);
+    assert.equal(await simplePaper.getByTestId('professional-add-item-suggestion-menu').count(), 0, 'suggestion selection closes the compact menu');
+    await simplePaper.getByTestId('professional-pricing-row-3').scrollIntoViewIfNeeded();
+    await screenshot(simple.page, 'ADD-ITEM-CREATED.png', false);
+
+    await simplePaper.getByTestId('professional-add-item').click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 5, 'empty Add item row exists locally before cancellation');
+    await simple.page.locator('.professional-editor-title').click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 4, 'outside click removes an empty provisional row');
+
+    await simplePaper.getByTestId('professional-add-item').click();
+    const customDescription = simplePaper.getByTestId('quote-line-description-4');
+    await customDescription.fill('Food stylist');
+    await simplePaper.getByTestId('professional-add-item-suggestion-menu').scrollIntoViewIfNeeded();
+    await screenshot(simple.page, 'ADD-ITEM-CUSTOM.png', false);
+    await simple.page.locator('.professional-editor-title').click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 5, 'non-empty provisional row remains after outside click');
+    assert.match(await simplePaper.getByTestId('professional-pricing-row-4').locator('td').first().textContent(), /Food stylist/);
+    assert.equal(await simplePaper.getByTestId('professional-add-item-suggestion-menu').count(), 0, 'outside click exits the active interaction');
+    await simplePaper.getByTestId('professional-pricing-row-4').scrollIntoViewIfNeeded();
+    await screenshot(simple.page, 'ADD-ITEM-CLICK-OUTSIDE.png', false);
+
+    await simplePaper.getByTestId('professional-add-item').click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 6, 'second Add item creates a new provisional row');
+    await simplePaper.getByTestId('quote-line-description-5').press('Escape');
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 5, 'Escape removes an empty provisional row');
+    await simplePaper.getByTestId('professional-add-item').click();
+    await simplePaper.getByTestId('quote-line-description-5').fill('Travel coordination');
+    await simple.page.locator('.professional-editor-title').click();
+    assert.equal(await simplePaper.locator('[data-testid^="professional-pricing-row-"]').count(), 6, 'non-empty custom row remains after outside click');
+    await simplePaper.getByTestId('professional-add-item').hover();
+    await screenshot(simple.page, 'ADD-ITEM-HOVER.png', false);
     await screenshot(simple.page, 'ADD-ITEM.png', false);
+
+    const createdRow = simplePaper.getByTestId('professional-pricing-row-4');
+    await createdRow.click();
+    await simplePaper.getByTestId('professional-pricing-quantity-4').fill('2');
+    await simplePaper.getByTestId('professional-pricing-rate-4').fill('1250');
+    await simple.page.getByRole('button', { name: 'Save', exact: true }).click();
+    await simple.page.getByText('Saved', { exact: true }).waitFor({ state: 'visible' });
+    await openExistingQuote(simple.page, server.baseUrl);
+    const reloadedCreatedRow = simple.page.locator('.professional-paper-layer.is-front').getByTestId('professional-pricing-row-4');
+    assert.match(await reloadedCreatedRow.locator('td').first().textContent(), /Food stylist/);
+    assert.equal((await reloadedCreatedRow.locator('td').nth(1).textContent()).trim(), '2', 'saved quantity survives reload');
+    assert.match(await reloadedCreatedRow.locator('td').nth(2).textContent(), /1,250/);
+    assert.match(await reloadedCreatedRow.locator('td').nth(3).textContent(), /2,500/);
+    await screenshot(simple.page, 'ADD-ITEM-SAVED-RELOADED.png', false);
+    await simple.page.locator('.professional-paper-layer.is-front').getByTestId('professional-pricing-row-0').click();
+    await simple.page.locator('.professional-paper-layer.is-front').getByTestId('quote-line-description-0').fill('Campaign creative fee — revised again');
+    await simple.page.evaluate(() => { window.__professionalEditorNode = document.querySelector('[data-testid="professional-quote-editor"]'); });
 
     assert.equal(await simplePaper.getByTestId('professional-intelligence').count(), 1);
     await screenshot(simple.page, 'INTELLIGENCE.png', false);

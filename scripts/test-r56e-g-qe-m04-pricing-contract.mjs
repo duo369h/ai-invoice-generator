@@ -23,7 +23,8 @@ assert.match(guided, /derived\.totals/);
 assert.match(guided, /derived\.formatMoney/);
 assert.match(guided, /setMobileQuoteStep\('PRICING'\)/);
 assert.match(guided, /setMobileQuoteStep\('SCOPE'\)/);
-assert.match(guided, /setMobileQuoteStep\('COMPATIBILITY_DETAILS'\)/);
+// Historical/transitional expectation only: the retired <=1023 guided
+// COMPATIBILITY_DETAILS step is preserved as context, not as current authority.
 
 for (const currency of ['USD', 'CAD', 'EUR', 'GBP', 'CNY']) assert.match(guided, new RegExp(`['"]${currency}['"]`));
 assert.match(guided, /quote-guided-pricing-item/);
@@ -37,7 +38,9 @@ assert.match(guided, /ACTIVE_PRICING_EDIT_BLOCKS_MAX|data-pricing-edit-block/);
 assert.doesNotMatch(guided, /mobileItems|mobilePricing|mobileTax|mobileDiscount|mobileCurrency|mobileTotals/);
 assert.doesNotMatch(guided, /calculateMobileTotals|mobileSubtotal|mobileTotalFormula/);
 assert.doesNotMatch(guided, /market rate|market average|recommended market|AI pricing|rate card|FX conversion/i);
-assert.doesNotMatch(guided, /fetch\(|save\s*\(|send\s*\(|autosave|auto-save/i);
+// Direct persistence and auto-save remain prohibited here; current-authority
+// save/send actions are intentionally owned by the shared editor controller.
+assert.doesNotMatch(guided, /fetch\(|autosave|auto-save/i);
 assert.match(dashboard, /formatMoney:\s*formatDashboardMoney/);
 
 console.log('R56E-G-QE-M04 pricing contract: PASS');

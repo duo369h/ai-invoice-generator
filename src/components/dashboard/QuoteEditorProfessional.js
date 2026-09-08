@@ -40,6 +40,10 @@ export default function QuoteEditorProfessional() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [usageDraft, setUsageDraft] = useState(USAGE_DEFAULTS);
+  const [provisionalItemIndex, setProvisionalItemIndex] = useState(null);
+  const [suggestionMenuIndex, setSuggestionMenuIndex] = useState(null);
+  const [suggestionMenuOpen, setSuggestionMenuOpen] = useState(false);
+  const suggestionFocusSuppressedRef = useRef(null);
   const [savedFingerprint, setSavedFingerprint] = useState(() => buildQuoteDraftFingerprint(quote));
   const draftFingerprint = useMemo(() => buildQuoteDraftFingerprint(quote), [quote]);
   const isDirty = !quote.qId || savedFingerprint !== draftFingerprint;
@@ -53,11 +57,21 @@ export default function QuoteEditorProfessional() {
       if (activePreparedFor && !event.target.closest?.('[data-testid="quote-prepared-for"]')) {
         setActivePreparedFor(false);
       }
+      if (Number.isInteger(provisionalItemIndex) && !event.target.closest?.(`[data-testid="professional-pricing-row-${provisionalItemIndex}"]`)) {
+        const provisionalItem = quote.qItems[provisionalItemIndex];
+        if (!provisionalItem?.description?.trim()) {
+          setters.setQuoteItems((current) => current.filter((_, itemIndex) => itemIndex !== provisionalItemIndex));
+        }
+        setProvisionalItemIndex(null);
+        setSuggestionMenuIndex(null);
+        setSuggestionMenuOpen(false);
+        suggestionFocusSuppressedRef.current = null;
+      }
     };
-    if (!Number.isInteger(activeItemIndex) && !activePreparedFor) return undefined;
+    if (!Number.isInteger(activeItemIndex) && !activePreparedFor && !Number.isInteger(provisionalItemIndex)) return undefined;
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [activeItemIndex, activePreparedFor]);
+  }, [activeItemIndex, activePreparedFor, provisionalItemIndex, quote.qItems, setters]);
 
   const documentProps = {
     quoteNumber: quote.qNumber,
@@ -89,6 +103,60 @@ export default function QuoteEditorProfessional() {
     const nextIndex = quote.qItems.length;
     setters.setQuoteItems((current) => [...current, { description, quantity: 1, unitPrice: 0 }]);
     setActiveItemIndex(nextIndex);
+  };
+
+  const beginAddItem = () => {
+    if (Number.isInteger(provisionalItemIndex)) return;
+    const nextIndex = quote.qItems.length;
+    setters.setQuoteItems((current) => [...current, { description: '', quantity: 1, unitPrice: 0 }]);
+    setProvisionalItemIndex(nextIndex);
+    setActiveItemIndex(nextIndex);
+    setSuggestionMenuIndex(nextIndex);
+    setSuggestionMenuOpen(true);
+    suggestionFocusSuppressedRef.current = null;
+  };
+
+  const selectSuggestion = (index, description) => {
+    suggestionFocusSuppressedRef.current = index;
+    setters.setQuoteItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, description } : item));
+    setProvisionalItemIndex(null);
+    setSuggestionMenuIndex(null);
+    setSuggestionMenuOpen(false);
+    setActiveItemIndex(index);
+  };
+
+  const selectCustomDescription = (index) => {
+    suggestionFocusSuppressedRef.current = index;
+    setSuggestionMenuIndex(null);
+    setSuggestionMenuOpen(false);
+    setActiveItemIndex(index);
+  };
+
+  const exitAddItem = (index = provisionalItemIndex) => {
+    if (!Number.isInteger(index)) return;
+    const provisionalItem = quote.qItems[index];
+    if (!provisionalItem?.description?.trim()) {
+      setters.setQuoteItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    }
+    setProvisionalItemIndex(null);
+    setSuggestionMenuIndex(null);
+    setSuggestionMenuOpen(false);
+    suggestionFocusSuppressedRef.current = null;
+    setActiveItemIndex((current) => current === index ? null : current);
+  };
+
+  const availableItemSuggestions = useMemo(() => {
+    const existingDescriptions = new Set((quote.qItems || []).map((item) => item.description?.trim().toLowerCase()).filter(Boolean));
+    return PHOTOGRAPHY_ITEM_SUGGESTIONS.filter((suggestion) => !existingDescriptions.has(suggestion.toLowerCase()));
+  }, [quote.qItems]);
+
+  const focusDescription = (index) => {
+    if (suggestionFocusSuppressedRef.current === index) {
+      suggestionFocusSuppressedRef.current = null;
+      return;
+    }
+    setSuggestionMenuIndex(index);
+    setSuggestionMenuOpen(true);
   };
 
   const removeItem = (index) => {
@@ -242,7 +310,16 @@ export default function QuoteEditorProfessional() {
                       onItemDragStart={setDraggedItemIndex}
                       onItemDragEnd={() => setDraggedItemIndex(null)}
                       onItemDrop={reorderItem}
-                      onAddItem={() => addItem('')}
+                      onAddItem={beginAddItem}
+                      provisionalItemIndex={provisionalItemIndex}
+                      itemSuggestions={availableItemSuggestions}
+                      suggestionMenuOpen={suggestionMenuOpen}
+                      suggestionMenuIndex={suggestionMenuIndex}
+                      onSuggestionSelect={selectSuggestion}
+                      onCustomSelect={selectCustomDescription}
+                      onDescriptionFocus={focusDescription}
+                      onDescriptionBlur={() => setSuggestionMenuOpen(false)}
+                      onExitAddItem={exitAddItem}
                       onFieldChange={updateField}
                       onOpenUsage={openUsage}
                       sourceFocus={usageOpen}

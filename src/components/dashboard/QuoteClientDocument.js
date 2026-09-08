@@ -1,4 +1,4 @@
-import { derivePricingSections, paginateQuoteItems } from './quoteEditorProfessionalModel';
+import { derivePricingSections, paginateQuoteItems, PHOTOGRAPHY_ITEM_SUGGESTIONS } from './quoteEditorProfessionalModel';
 
 const normalizeDate = (value) => {
   if (!value) return '';
@@ -31,7 +31,7 @@ function DocumentField({ editable, value, ariaLabel, className = '', onChange, t
   );
 }
 
-function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemChange, onRemoveItem, onItemDragStart, onItemDragEnd, onItemDrop, draggedItemIndex, formatMoney, currency }) {
+function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemChange, onRemoveItem, onItemDragStart, onItemDragEnd, onItemDrop, draggedItemIndex, formatMoney, currency, itemSuggestions, suggestionMenuOpen, suggestionMenuIndex, onSuggestionSelect, onCustomSelect, onDescriptionFocus, onDescriptionBlur, onExitAddItem }) {
   const sections = derivePricingSections(items);
   return sections.map((section) => (
     <tbody key={section.label || 'simple'}>
@@ -94,15 +94,39 @@ function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemC
               )}
               {active ? (
                 <input
-                  autoFocus
                   data-testid={`quote-line-description-${index}`}
                   className="professional-row-field"
                   aria-label={`Description for item ${index + 1}`}
+                  autoFocus={activeItemIndex === index}
                   value={item.description || ''}
-                  list="professional-item-suggestions"
+                  onFocus={() => onDescriptionFocus?.(index)}
+                  onBlur={onDescriptionBlur}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') onExitAddItem?.(index);
+                  }}
                   onChange={(event) => onItemChange?.(index, 'description', event.target.value)}
                 />
               ) : (item.description || 'Untitled item')}
+              {active && suggestionMenuOpen && suggestionMenuIndex === index && (
+                <div className="professional-add-item-suggestion-menu non-printing" data-testid="professional-add-item-suggestion-menu" aria-label="Line item suggestions">
+                  {itemSuggestions.map((suggestion) => (
+                    <button
+                      type="button"
+                      key={suggestion}
+                      data-testid={`professional-add-suggestion-${suggestion}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => onSuggestionSelect?.(index, suggestion)}
+                    >{suggestion}</button>
+                  ))}
+                  <button
+                    type="button"
+                    className="professional-add-item-suggestion-custom"
+                    data-testid="professional-add-suggestion-custom"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onCustomSelect?.(index)}
+                  >Custom…</button>
+                </div>
+              )}
               {active && (
                 <button type="button" className="professional-row-remove non-printing" aria-label={`Remove ${item.description || 'line item'}`} onClick={(event) => { event.stopPropagation(); onRemoveItem?.(index); }}>Remove</button>
               )}
@@ -150,6 +174,15 @@ export default function QuoteClientDocument({
   onItemDrop,
   draggedItemIndex = null,
   onAddItem,
+  provisionalItemIndex = null,
+  itemSuggestions = PHOTOGRAPHY_ITEM_SUGGESTIONS,
+  suggestionMenuOpen = false,
+  suggestionMenuIndex = null,
+  onSuggestionSelect,
+  onCustomSelect,
+  onDescriptionFocus,
+  onDescriptionBlur,
+  onExitAddItem,
   onFieldChange,
   onOpenUsage,
   onOpenIntelligence,
@@ -169,9 +202,6 @@ export default function QuoteClientDocument({
       data-page-ratio="210:297"
       data-page-count={pages.length}
     >
-      <datalist id="professional-item-suggestions">
-        {['Photography / Creative Fee', 'Photo Assistant', 'Producer', 'Digital Tech', 'Equipment / Lighting', 'Studio / Location', 'Talent', 'Styling', 'Props', 'Retouching', 'Travel / Expenses', 'Production Fee'].map((suggestion) => <option value={suggestion} key={suggestion} />)}
-      </datalist>
       {pages.map((pageItems, pageIndex) => {
         const firstPage = pageIndex === 0;
         const lastPage = pageIndex === pages.length - 1;
@@ -245,9 +275,17 @@ export default function QuoteClientDocument({
                   draggedItemIndex={draggedItemIndex}
                   formatMoney={money}
                   currency={currency}
+                  itemSuggestions={itemSuggestions}
+                  suggestionMenuOpen={suggestionMenuOpen}
+                  suggestionMenuIndex={suggestionMenuIndex}
+                  onSuggestionSelect={onSuggestionSelect}
+                  onCustomSelect={onCustomSelect}
+                  onDescriptionFocus={onDescriptionFocus}
+                  onDescriptionBlur={onDescriptionBlur}
+                  onExitAddItem={onExitAddItem}
                 />
               </table>
-              {lastPage && editable && !preview && (
+              {lastPage && editable && !preview && !Number.isInteger(provisionalItemIndex) && (
                 <button type="button" className="professional-add-item non-printing" data-testid="professional-add-item" onClick={onAddItem}>Add item</button>
               )}
               {lastPage && editable && !preview && intelligenceFinding && (
