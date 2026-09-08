@@ -4236,6 +4236,142 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   justify-content: center !important;
 }
 
+/* R56E-G app shell visual language: the shell supports the document rather than
+   behaving like a stack of SaaS cards. */
+.dashboard-sidebar-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+  padding: 8px 10px 8px 12px !important;
+  border: 0 !important;
+  border-left: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: #526071 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.84rem;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.dashboard-sidebar-nav-item:hover,
+.dashboard-sidebar-nav-item:focus-visible {
+  color: var(--text-main) !important;
+  background: rgba(99, 91, 206, 0.035) !important;
+  outline: none;
+}
+
+.dashboard-sidebar-nav-item.is-active {
+  border-left-color: var(--primary, #635bce) !important;
+  color: #1f2937 !important;
+  font-weight: 560;
+}
+
+.dashboard-sidebar-nav-item .dashboard-sidebar-nav-icon {
+  color: #5f6b7a !important;
+  transition: color 160ms ease;
+}
+
+.dashboard-sidebar-nav-item.is-active .dashboard-sidebar-nav-icon,
+.dashboard-sidebar-nav-item:hover .dashboard-sidebar-nav-icon,
+.dashboard-sidebar-nav-item:focus-visible .dashboard-sidebar-nav-icon {
+  color: var(--primary, #635bce) !important;
+}
+
+.dashboard-sidebar-collapsed .dashboard-sidebar-nav-item,
+.dashboard-sidebar-collapsed .dashboard-sidebar-nav-item.is-active {
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 8px !important;
+  border-left-color: transparent !important;
+  border-radius: 5px !important;
+}
+
+.dashboard-sidebar-collapsed .dashboard-sidebar-nav-item.is-active {
+  background: rgba(99, 91, 206, 0.055) !important;
+}
+
+.dashboard-create-quote-action {
+  min-height: 36px;
+  padding: 8px 14px !important;
+  border: 1px solid #d7d4cd !important;
+  border-radius: 4px !important;
+  color: #303846 !important;
+  background: #fffdfa !important;
+  box-shadow: none !important;
+  font-size: 0.82rem;
+  font-weight: 500 !important;
+  letter-spacing: 0;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.dashboard-create-quote-action:hover,
+.dashboard-create-quote-action:focus-visible {
+  border-color: #b9b4d9 !important;
+  background: #faf8ff !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+.dashboard-sidebar-account-action,
+.dashboard-sidebar-sign-in-action,
+.dashboard-sidebar-plan-action,
+.dashboard-sidebar-feedback {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  font-weight: 450 !important;
+}
+
+.dashboard-sidebar-account-action,
+.dashboard-sidebar-sign-in-action {
+  min-height: 34px;
+  border-color: transparent !important;
+  color: #5f6b7a !important;
+  background: transparent !important;
+}
+
+.dashboard-sidebar-account-action:hover,
+.dashboard-sidebar-account-action:focus-visible,
+.dashboard-sidebar-sign-in-action:hover,
+.dashboard-sidebar-sign-in-action:focus-visible {
+  border-color: #dedbe9 !important;
+  color: var(--text-main) !important;
+  background: #fbfaff !important;
+}
+
+.dashboard-sidebar-plan-action {
+  min-height: 34px;
+  border: 1px solid #d0cceb !important;
+  color: #5048a3 !important;
+  background: #fbfaff !important;
+}
+
+.dashboard-sidebar-plan-action:hover,
+.dashboard-sidebar-plan-action:focus-visible {
+  border-color: #afa9d8 !important;
+  background: #f6f4ff !important;
+}
+
+.dashboard-sidebar-feedback {
+  min-height: 30px;
+  border: 1px dashed #d9d6cf !important;
+  color: #5f6b7a !important;
+  background: transparent !important;
+}
+
+.dashboard-sidebar-feedback:hover,
+.dashboard-sidebar-feedback:focus-visible {
+  border-color: #b9b4d9 !important;
+  color: var(--text-main) !important;
+  background: #fbfaff !important;
+}
+
 .dashboard-wave1-overview {
   gap: 20px;
   max-width: 980px;

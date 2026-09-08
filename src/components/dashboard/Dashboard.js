@@ -4026,36 +4026,14 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               const isBPlusIcon = tab.id === 'quotes' || tab.id === 'invoices' || tab.id === 'clients';
               const iconStrokeWidth = isBPlusIcon ? (isActive ? 1.8 : 1.7) : (isActive ? 2.5 : 2);
 
-              // Identity theme accent colors
-              const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
-              const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
-
               return (
                 <React.Fragment key={tab.id}>
                   {tab.sectionBefore && <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />}
                   <button
                     onClick={() => handleDashboardTabChange(tab.id, 'sidebar')}
+                    className={`dashboard-sidebar-nav-item${isActive ? ' is-active' : ''}`}
                     aria-label={tab.label}
                     title={sidebarCollapsed ? tab.label : undefined}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      padding: '9px 14px',
-                      borderRadius: '10px',
-                      width: '100%',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      backgroundColor: isActive ? themeBg : 'transparent',
-                      color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                      border: isActive ? `1.5px solid ${themeAccent}` : '1.5px solid transparent',
-                      boxShadow: isActive ? `0 4px 14px ${themeBg}` : 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: isActive ? 600 : 500,
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative'
-                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {IconComponent && (
@@ -4093,7 +4071,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               {session?.user?.email ? (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary btn-sm dashboard-sidebar-account-action"
                   onClick={() => setAccountMenuOpen((open) => !open)}
                   aria-label="Account"
                   title={sidebarCollapsed ? 'Account' : undefined}
@@ -4124,7 +4102,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <span className="dashboard-sidebar-label">Account</span>
                 </button>
               ) : (
-                <Link href="/auth" className="btn btn-secondary btn-sm" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
+                <Link href="/auth" className="btn btn-secondary btn-sm dashboard-sidebar-sign-in-action" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
                   Sign in
                 </Link>
               )}
@@ -4205,7 +4183,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     router.push('/pricing?checkout=pro');
                   });
                 }}
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm dashboard-sidebar-plan-action"
                 style={{ 
                   width: '100%', 
                   marginBottom: '16px', 
@@ -4686,7 +4664,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Quotes</h1>
-                  <button onClick={() => initCreateQuote('quotes_header')} className="btn btn-primary">Create Quote</button>
+                  <button onClick={() => initCreateQuote('quotes_header')} className="btn btn-primary dashboard-create-quote-action">Create Quote</button>
                 </div>
 
                  {getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'loading' ? (
@@ -4704,7 +4682,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
                       Choose a shoot type, adjust deposit, delivery, usage rights, and final payment details, then save the quote to your client workflow.
                     </p>
-                    <button onClick={() => initCreateQuote('first_quote_onboarding')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
+                    <button onClick={() => initCreateQuote('first_quote_onboarding')} className="btn btn-primary btn-sm dashboard-create-quote-action" style={{ fontWeight: 700 }}>
                       Create your first quote
                     </button>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
