@@ -3011,6 +3011,8 @@
 .professional-currency-select:focus { border-bottom-color: #4f46e5; }
 
 .quote-client-document-item-row { height: 34px; border-bottom: 1px solid rgba(17, 24, 39, 0.095); transition: background-color 160ms ease; }
+.quote-client-document-item-row:has(.professional-qty-unit-menu) { position: relative; z-index: 4; }
+.quote-client-document-item-row:has(.professional-qty-unit-menu) td:nth-child(2) { z-index: 30; }
 .quote-client-document.is-editable .quote-client-document-item-row { cursor: text; }
 .quote-client-document.is-editable .quote-client-document-item-row:hover { background: rgba(79, 70, 229, 0.025); }
 .quote-client-document-item-row.is-editing { background: rgba(79, 70, 229, 0.045); }
@@ -3034,6 +3036,87 @@
 .professional-row-field[list]::-webkit-calendar-picker-indicator,
 .professional-row-field[list]::-webkit-list-button { display: none !important; }
 .quote-client-document-table td:nth-child(2) .professional-row-field-number { text-align: center; }
+
+/* QTY is a document value at rest, and a compact control only while engaged. */
+.professional-qty-resting { display: inline; max-width: 100%; white-space: nowrap; }
+.professional-qty-affordance {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: 1.35;
+  cursor: text;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.professional-qty-affordance:hover,
+.professional-qty-affordance:focus-visible { border-bottom-color: rgba(79, 70, 229, 0.52); color: #4338ca; outline: none; }
+.professional-qty-compound-mark { color: #98a2b3; font-size: 11px; }
+.professional-qty-editors { display: inline-flex; align-items: center; justify-content: center; gap: 4px; max-width: 100%; flex-wrap: wrap; }
+.professional-qty-editor { position: relative; display: inline-flex; align-items: center; gap: 3px; width: max-content; min-width: 28px; }
+.professional-qty-number {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  min-width: 28px;
+  padding: 2px 0 2px;
+  border: 0;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.58);
+  border-radius: 0;
+  color: #101828;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.professional-qty-number::-webkit-inner-spin-button,
+.professional-qty-number::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.professional-qty-number:focus { border-bottom-color: #4f46e5; }
+.professional-qty-wheel { display: inline-grid; justify-items: center; width: 28px; color: rgba(71, 84, 103, 0.42); font-size: inherit; line-height: 1.35; }
+.professional-qty-wheel-ghost { min-height: 9px; color: rgba(71, 84, 103, 0.42); font-size: 0.7em; font-weight: 400; line-height: 0.9; pointer-events: none; }
+.professional-qty-wheel .professional-qty-number { grid-row: 2; font-size: 1em; font-weight: 400; line-height: 1.35; }
+.professional-qty-wheel .professional-qty-wheel-ghost:first-child { grid-row: 1; }
+.professional-qty-wheel .professional-qty-wheel-ghost:last-child { grid-row: 3; }
+.professional-qty-unit-control { position: relative; display: inline-flex; align-items: center; }
+.professional-qty-unit-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 22px;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.18);
+  color: #667085;
+  background: transparent;
+  font-size: 9px;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.professional-qty-unit-trigger:hover,
+.professional-qty-unit-trigger:focus-visible { border-bottom-color: #4f46e5; color: #4338ca; outline: none; }
+.professional-qty-unit-trigger span { color: #98a2b3; font-size: 8px; }
+.professional-qty-unit-menu { position: fixed; top: 0; left: 0; z-index: 1200; display: flex; flex-direction: column; width: 88px; padding: 3px 0; border: 1px solid rgba(17, 24, 39, 0.13); background: rgba(255, 254, 251, 0.99); box-shadow: 0 8px 18px rgba(17, 24, 39, 0.14); transform: translateX(-50%); }
+.professional-qty-unit-menu button { width: 100%; padding: 5px 8px; border: 0; border-bottom: 1px solid rgba(17, 24, 39, 0.06); color: #344054; background: transparent; font: inherit; font-size: 10px; line-height: 1.15; text-align: left; white-space: nowrap; cursor: pointer; }
+.professional-qty-unit-menu button:last-child { border-bottom: 0; }
+.professional-qty-unit-menu .professional-qty-unit-more { margin-top: 2px; border-top: 1px solid rgba(17, 24, 39, 0.1); color: #667085; }
+.professional-qty-unit-menu button:hover,
+.professional-qty-unit-menu button:focus-visible { color: #4338ca; background: rgba(79, 70, 229, 0.06); outline: none; }
+.professional-qty-factor-actions { display: inline-flex; align-items: center; gap: 4px; }
+.professional-qty-add-factor,
+.professional-qty-remove-factor { padding: 2px 0; border: 0; color: #667085; background: transparent; font-size: 9px; line-height: 1.2; white-space: nowrap; cursor: pointer; }
+.professional-qty-add-factor:hover,
+.professional-qty-add-factor:focus-visible,
+.professional-qty-remove-factor:hover,
+.professional-qty-remove-factor:focus-visible { color: #4338ca; outline: none; }
 .professional-row-billing-unit { display: block; width: 100%; margin-top: 4px; border: 0; border-bottom: 1px solid rgba(17, 24, 39, 0.18); background: transparent; color: #667085; font-size: 10px; }
 .professional-row-billing-toggle { display: block; margin: 4px auto 0; border: 0; background: transparent; color: #4f46e5; font-size: 9px; line-height: 1.2; }
 .quote-client-document-item-row.is-editing:has(.professional-row-billing-unit) { height: auto; min-height: 50px; }
@@ -3527,8 +3610,8 @@ button.quote-client-document-summary-block:disabled { cursor: default; opacity: 
     letter-spacing: 0.13em;
   }
 
-  .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(1) { width: 37%; }
-  .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(2) { width: 13%; }
+  .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(1) { width: 32%; }
+  .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(2) { width: 18%; }
   .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(3),
   .professional-paper-layer.is-front .quote-client-document-table thead th:nth-child(4) { width: 25%; }
 

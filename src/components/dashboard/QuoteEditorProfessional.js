@@ -32,6 +32,7 @@ const USAGE_DEFAULTS = {
 export default function QuoteEditorProfessional() {
   const { quote, setters, workflow, derived, actions, scope, ui } = useQuoteEditorShared();
   const [activeItemIndex, setActiveItemIndex] = useState(null);
+  const [activeQuantityFactor, setActiveQuantityFactor] = useState(null);
   const [activePreparedFor, setActivePreparedFor] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
   const editorRef = useRef(null);
@@ -52,8 +53,10 @@ export default function QuoteEditorProfessional() {
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (Number.isInteger(activeItemIndex) && !event.target.closest?.(`[data-testid="professional-pricing-row-${activeItemIndex}"]`) && !event.target.closest?.('[data-testid="professional-add-item"]')) {
+      const insideActiveQtyMenu = event.target.closest?.('.professional-qty-unit-menu');
+      if (Number.isInteger(activeItemIndex) && !event.target.closest?.(`[data-testid="professional-pricing-row-${activeItemIndex}"]`) && !event.target.closest?.('[data-testid="professional-add-item"]') && !insideActiveQtyMenu) {
         setActiveItemIndex(null);
+        setActiveQuantityFactor(null);
       }
       if (activePreparedFor && !event.target.closest?.('[data-testid="quote-prepared-for"]')) {
         setActivePreparedFor(false);
@@ -115,6 +118,16 @@ export default function QuoteEditorProfessional() {
     const nextValue = field === 'description' ? value : (value === '' ? '' : Number(value));
     if (field !== 'description' && value !== '' && !Number.isFinite(nextValue)) return;
     setters.setQuoteItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: nextValue } : item));
+  };
+
+  const activateQuantity = (index, factor) => {
+    setActiveItemIndex(index);
+    setActiveQuantityFactor({ index, factor });
+  };
+
+  const closeQuantity = () => {
+    setActiveQuantityFactor(null);
+    setActiveItemIndex(null);
   };
 
   const addItem = (description = '') => {
@@ -321,8 +334,11 @@ export default function QuoteEditorProfessional() {
                       editable={!previewOpen}
                       preview={previewOpen}
                       activeItemIndex={activeItemIndex}
+                      activeQuantityFactor={activeQuantityFactor}
                       draggedItemIndex={draggedItemIndex}
-                      onActivateItem={setActiveItemIndex}
+                      onActivateItem={(nextIndex) => { setActiveQuantityFactor(null); setActiveItemIndex(nextIndex); }}
+                      onActivateQuantity={activateQuantity}
+                      onCloseQuantity={closeQuantity}
                       onItemChange={updateItem}
                       onRemoveItem={removeItem}
                       onItemDragStart={setDraggedItemIndex}

@@ -1,5 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { derivePricingSections, paginateQuoteItems, PHOTOGRAPHY_ITEM_SUGGESTIONS } from './quoteEditorProfessionalModel';
 import { calculateLineItemAmount, formatLineItemQuantityBasis, formatLineItemRateBasis, LINE_ITEM_BILLING_UNITS } from '../../core/quotes/lineItemBilling.js';
+import { getQuantityUnitOptions, MORE_UNITS_OPTION } from './quantityUnitOptions.mjs';
 
 const normalizeDate = (value) => {
   if (!value) return '';
@@ -32,7 +35,139 @@ function DocumentField({ editable, value, ariaLabel, className = '', onChange, t
   );
 }
 
-function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemChange, onRemoveItem, onItemDragStart, onItemDragEnd, onItemDrop, draggedItemIndex, formatMoney, currency, itemSuggestions, suggestionMenuOpen, suggestionMenuIndex, onSuggestionSelect, onCustomSelect, onDescriptionFocus, onDescriptionBlur, onExitAddItem }) {
+const quantityFactorConfig = {
+  primary: { valueKey: 'quantity', unitKey: 'billingUnit' },
+  secondary: { valueKey: 'secondaryQuantity', unitKey: 'secondaryUnit' },
+};
+
+const steppedQuantity = (value, delta) => {
+  const current = Number(value);
+  return Math.max(0, (Number.isFinite(current) ? current : 0) + delta);
+};
+
+const displayUnit = (unit, value) => unit ? `${value} ${Number(value) === 1 ? unit : ({ day: 'days', hour: 'hours', image: 'images', person: 'people', item: 'items' }[unit] || unit)}` : String(value);
+
+function QuantityUnitMenu({ index, factor, description, unit, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [menuPosition, setMenuPosition] = useState(null);
+  const triggerRef = useRef(null);
+  const menuTestId = `professional-qty-unit-menu-${index}-${factor}`;
+  const triggerTestId = `professional-qty-unit-trigger-${index}-${factor}`;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const updateMenuPosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) setMenuPosition({ top: rect.bottom + 6, left: rect.left + (rect.width / 2) });
+    };
+    const closeOnOutsidePointer = (event) => {
+      if (!event.target.closest?.(`[data-testid="${triggerTestId}"]`) && !event.target.closest?.(`[data-testid="${menuTestId}"]`)) setOpen(false);
+    };
+    updateMenuPosition();
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [menuTestId, open, triggerTestId]);
+
+  return (
+    <div className="professional-qty-unit-control">
+      <button
+        type="button"
+        className="professional-qty-unit-trigger"
+        ref={triggerRef}
+        data-testid={triggerTestId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={(event) => { event.stopPropagation(); setOpen((current) => !current); setExpanded(false); }}
+      >{unit || '+ unit'}<span aria-hidden="true">⌄</span></button>
+      {open && menuPosition && createPortal(
+        <div className="professional-qty-unit-menu non-printing" style={menuPosition} data-testid={menuTestId} role="listbox" aria-label={`Unit for ${factor} quantity ${index + 1}`}>
+          {getQuantityUnitOptions(description, expanded).map((option) => option === MORE_UNITS_OPTION ? (
+            <button
+              type="button"
+              key={MORE_UNITS_OPTION}
+              className="professional-qty-unit-more"
+              onClick={(event) => { event.stopPropagation(); setExpanded(true); }}
+            >More…</button>
+          ) : (
+            <button
+              type="button"
+              role="option"
+              aria-selected={(unit || '') === option}
+              key={option || 'none'}
+              onClick={(event) => { event.stopPropagation(); onChange(option || undefined); setOpen(false); }}
+            >{option || 'No unit'}</button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function QtyInteraction({ index, factor, description, value, unit, focused, onChange, onUnitChange, onClose }) {
+  const { valueKey } = quantityFactorConfig[factor];
+  const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const changeBy = (delta) => onChange(index, valueKey, steppedQuantity(value, delta));
+
+  return (
+    <div className={`professional-qty-editor professional-qty-editor-${factor}`} data-testid={`professional-qty-interaction-${index}-${factor}`}>
+      <div className="professional-qty-wheel" data-testid={`professional-qty-wheel-${index}-${factor}`}>
+        <span className="professional-qty-wheel-ghost">{Math.max(0, numericValue + 1)}</span>
+        <input
+        data-testid={factor === 'primary' ? `professional-pricing-quantity-${index}` : `professional-pricing-secondary-quantity-${index}`}
+        className="professional-qty-number"
+        aria-label={`${factor === 'primary' ? 'Quantity' : 'Secondary quantity'} for item ${index + 1}`}
+        type="number"
+        step="any"
+        inputMode="decimal"
+        value={value ?? ''}
+        autoFocus={focused}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => onChange(index, valueKey, event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            changeBy(event.key === 'ArrowUp' ? 1 : -1);
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose?.();
+          }
+        }}
+        onWheel={(event) => {
+          if (event.deltaY === 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          changeBy(event.deltaY < 0 ? 1 : -1);
+        }}
+        />
+        {numericValue > 0 && <span className="professional-qty-wheel-ghost">{Math.max(0, numericValue - 1)}</span>}
+      </div>
+      <QuantityUnitMenu index={index} factor={factor} description={description} unit={unit} onChange={(nextUnit) => onUnitChange(index, factor, nextUnit)} />
+    </div>
+  );
+}
+
+function RestingQtyFactor({ index, factor, value, unit, onActivate }) {
+  return (
+    <button
+      type="button"
+      className="professional-qty-affordance"
+      data-testid={`professional-qty-factor-${index}-${factor}`}
+      onClick={(event) => { event.stopPropagation(); onActivate?.(index, factor); }}
+    >{displayUnit(unit, value)}</button>
+  );
+}
+
+function PricingRows({ items, editable, activeItemIndex, activeQuantityFactor, onActivateItem, onActivateQuantity, onCloseQuantity, onItemChange, onRemoveItem, onItemDragStart, onItemDragEnd, onItemDrop, draggedItemIndex, formatMoney, currency, itemSuggestions, suggestionMenuOpen, suggestionMenuIndex, onSuggestionSelect, onCustomSelect, onDescriptionFocus, onDescriptionBlur, onExitAddItem }) {
   const sections = derivePricingSections(items);
   return sections.map((section) => (
     <tbody key={section.label || 'simple'}>
@@ -133,7 +268,32 @@ function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemC
               )}
             </td>
             <td className="quote-client-document-number-cell">
-              {active ? <><input data-testid={`professional-pricing-quantity-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Quantity for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.quantity ?? ''} onChange={(event) => onItemChange?.(index, 'quantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" data-testid={`professional-pricing-unit-${index}`} aria-label={`Billing unit for item ${index + 1}`} value={item.billingUnit || ''} onChange={(event) => onItemChange?.(index, 'billingUnit', event.target.value || undefined)}><option value="">No unit</option>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select>{item.billingUnit && <button type="button" className="professional-row-billing-toggle non-printing" onClick={() => onItemChange?.(index, 'secondaryQuantity', item.secondaryQuantity ? undefined : 1)}>{item.secondaryQuantity ? 'Remove second factor' : 'Add second factor'}</button>}{item.secondaryQuantity ? <><input className="professional-row-field professional-row-field-number" aria-label={`Secondary quantity for item ${index + 1}`} type="number" value={item.secondaryQuantity} onChange={(event) => onItemChange?.(index, 'secondaryQuantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" aria-label={`Secondary unit for item ${index + 1}`} value={item.secondaryUnit || 'day'} onChange={(event) => onItemChange?.(index, 'secondaryUnit', event.target.value)}>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select></> : null}</> : formatLineItemQuantityBasis(item)}
+              {activeQuantityFactor?.index === index ? (
+                <div className="professional-qty-editors">
+                  {activeQuantityFactor.factor === 'primary'
+                    ? <QtyInteraction index={index} factor="primary" description={item.description} value={item.quantity} unit={item.billingUnit} focused onChange={onItemChange} onUnitChange={(itemIndex, factor, value) => onItemChange?.(itemIndex, quantityFactorConfig[factor].unitKey, value)} onClose={onCloseQuantity} />
+                    : <RestingQtyFactor index={index} factor="primary" value={item.quantity} unit={item.billingUnit} onActivate={onActivateQuantity} />}
+                  {item.secondaryQuantity !== undefined && item.secondaryQuantity !== null && item.secondaryQuantity !== '' && (
+                    <>
+                      <span className="professional-qty-compound-mark" aria-hidden="true">×</span>
+                      {activeQuantityFactor.factor === 'secondary'
+                        ? <QtyInteraction index={index} factor="secondary" description={item.description} value={item.secondaryQuantity} unit={item.secondaryUnit || 'day'} focused onChange={onItemChange} onUnitChange={(itemIndex, factor, value) => onItemChange?.(itemIndex, quantityFactorConfig[factor].unitKey, value)} onClose={onCloseQuantity} />
+                        : <RestingQtyFactor index={index} factor="secondary" value={item.secondaryQuantity} unit={item.secondaryUnit || 'day'} onActivate={onActivateQuantity} />}
+                    </>
+                  )}
+                  {item.billingUnit && (
+                    <div className="professional-qty-factor-actions non-printing">
+                      {!item.secondaryQuantity && <button type="button" className="professional-qty-add-factor" data-testid={`professional-qty-add-factor-${index}`} onClick={(event) => { event.stopPropagation(); onItemChange?.(index, 'secondaryQuantity', 1); }}>+ factor</button>}
+                      {item.secondaryQuantity !== undefined && item.secondaryQuantity !== null && item.secondaryQuantity !== '' && <button type="button" className="professional-qty-remove-factor" data-testid={`professional-qty-remove-factor-${index}`} onClick={(event) => { event.stopPropagation(); onItemChange?.(index, 'secondaryQuantity', undefined); }}>remove factor</button>}
+                    </div>
+                  )}
+                </div>
+              ) : active ? <><input data-testid={`professional-pricing-quantity-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Quantity for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.quantity ?? ''} onChange={(event) => onItemChange?.(index, 'quantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" data-testid={`professional-pricing-unit-${index}`} aria-label={`Billing unit for item ${index + 1}`} value={item.billingUnit || ''} onChange={(event) => onItemChange?.(index, 'billingUnit', event.target.value || undefined)}><option value="">No unit</option>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select>{item.billingUnit && <button type="button" className="professional-row-billing-toggle non-printing" onClick={() => onItemChange?.(index, 'secondaryQuantity', item.secondaryQuantity ? undefined : 1)}>{item.secondaryQuantity ? 'Remove second factor' : 'Add second factor'}</button>}{item.secondaryQuantity ? <><input className="professional-row-field professional-row-field-number" aria-label={`Secondary quantity for item ${index + 1}`} type="number" value={item.secondaryQuantity} onChange={(event) => onItemChange?.(index, 'secondaryQuantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" aria-label={`Secondary unit for item ${index + 1}`} value={item.secondaryUnit || 'day'} onChange={(event) => onItemChange?.(index, 'secondaryUnit', event.target.value)}>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select></> : null}</> : editable ? (
+                <span className="professional-qty-resting" data-testid={`professional-qty-resting-${index}`}>
+                  <RestingQtyFactor index={index} factor="primary" value={quantity} unit={item.billingUnit} onActivate={onActivateQuantity} />
+                  {item.secondaryQuantity !== undefined && item.secondaryQuantity !== null && item.secondaryQuantity !== '' && <>{' '}<span className="professional-qty-compound-mark" aria-hidden="true">×</span>{' '}<RestingQtyFactor index={index} factor="secondary" value={item.secondaryQuantity} unit={item.secondaryUnit || 'day'} onActivate={onActivateQuantity} /></>}
+                </span>
+              ) : formatLineItemQuantityBasis(item)}
             </td>
             <td className="quote-client-document-number-cell">
               {active ? <input data-testid={`professional-pricing-rate-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Rate for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.unitPrice ?? ''} onChange={(event) => onItemChange?.(index, 'unitPrice', event.target.value)} /> : `${formatMoney(unitPrice, currency)}${formatLineItemRateBasis(item)}`}
@@ -167,7 +327,10 @@ export default function QuoteClientDocument({
   editable = false,
   preview = false,
   activeItemIndex = null,
+  activeQuantityFactor = null,
   onActivateItem,
+  onActivateQuantity,
+  onCloseQuantity,
   onItemChange,
   onRemoveItem,
   onItemDragStart,
@@ -267,7 +430,10 @@ export default function QuoteClientDocument({
                   items={pageItems}
                   editable={editable}
                   activeItemIndex={activeItemIndex}
+                  activeQuantityFactor={activeQuantityFactor}
                   onActivateItem={onActivateItem}
+                  onActivateQuantity={onActivateQuantity}
+                  onCloseQuantity={onCloseQuantity}
                   onItemChange={onItemChange}
                   onRemoveItem={onRemoveItem}
                   onItemDragStart={onItemDragStart}
