@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { getSiteUrl } from './config';
 import { deserializeQuoteNotes } from '../../components/dashboard/quoteNotes.mjs';
+import { calculateLineItemAmount, formatLineItemQuantityBasis, formatLineItemRateBasis } from '../../core/quotes/lineItemBilling.js';
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -263,12 +264,12 @@ export function getQuoteSentEmailHtml(quote, portalUrl, freelancerName) {
   const itemsRows = (Array.isArray(quote.items) ? quote.items : []).map((item) => {
     const quantity = Number(item.quantity || 1);
     const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0);
-    const amount = Number(item.amount ?? (quantity * unitPrice));
+    const amount = Number(item.amount ?? calculateLineItemAmount({ ...item, unitPrice }));
     return `
       <tr>
         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${escapeHtml(item.description || '')}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">${escapeHtml(quantity)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right;">${formatMoney(unitPrice, currencyCode)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">${escapeHtml(formatLineItemQuantityBasis(item))}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right;">${formatMoney(unitPrice, currencyCode)}${escapeHtml(formatLineItemRateBasis(item))}</td>
         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right;">${formatMoney(amount, currencyCode)}</td>
       </tr>`;
   }).join('');

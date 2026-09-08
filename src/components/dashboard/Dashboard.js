@@ -2163,7 +2163,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvItems(parsedItems.map(item => ({
       description: item.description,
       quantity: item.quantity,
-      unitPrice: item.unitPrice || (item.unit_price || 0) / 100
+      unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+      ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+      ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
     })));
     setInvTaxRate(Number(quote.tax_rate || 0));
     setInvDiscountRate(Number(quote.discount_rate || 0));
@@ -2196,7 +2198,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceFlowStage('create');
     setInvoiceFlowLocked(false);
     setShowPaymentWaitingBanner(false);
-    setInvItems(parsedItems.map(item => ({ description: item.description, quantity: item.quantity, unitPrice: item.unitPrice || (item.unit_price || 0) / 100 })));
+    setInvItems(parsedItems.map(item => ({ description: item.description, quantity: item.quantity, unitPrice: item.unitPrice || (item.unit_price || 0) / 100, ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}), ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}) })));
     setInvTaxRate(Number(invoice.tax_rate || quote.tax_rate || 0));
     setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
     handleDashboardTabChange('invoices', 'quote_conversion');
@@ -3403,6 +3405,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+        ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+        ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
       })));
       setQStatus(quote.status || 'draft');
       setSelectedQuotePresetId(parsedQuoteNotes.metadata?.quote_preset_id || '');
@@ -3442,6 +3446,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+        ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+        ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
       })));
       setInvStatus(invoice.status || 'pending');
       setInvoiceFlowStage('create');

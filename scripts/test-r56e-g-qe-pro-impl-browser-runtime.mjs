@@ -110,6 +110,7 @@ async function openExistingQuote(page, baseUrl) {
 
 async function screenshot(page, filename, fullPage = true) {
   await page.screenshot({ path: path.join(evidenceDir, filename), fullPage });
+  if (/^0[6-9]-/.test(filename)) console.log(`BILLING_SCREENSHOT_WRITTEN ${filename}`);
 }
 
 async function assertNoHorizontalOverflow(page, label) {
@@ -317,6 +318,66 @@ try {
     assert.deepEqual(simple.pageErrors, []);
     evidence.states.push('default', 'row-edit', 'add-item', 'intelligence', 'deep-edit');
   } finally { await simple.context.close(); }
+
+  const billingQuote = makeQuote({ id: 'quote-billing-basis', specified: true, number: 'QT-BILLING-001' });
+  billingQuote.items = [
+    { description: 'Photography Fee', quantity: 1, unit_price: 200000 },
+    { description: 'Studio', quantity: 2, unit_price: 250000, billingUnit: 'day' },
+    { description: 'Retouching', quantity: 8, unit_price: 12000, billingUnit: 'image' },
+    { description: 'Post-production', quantity: 12, unit_price: 15000, billingUnit: 'hour' },
+    { description: 'Photo Assistant', quantity: 2, unit_price: 50000, billingUnit: 'person', secondaryQuantity: 2, secondaryUnit: 'day' },
+  ];
+  const billing = await createDashboardPage(browser, server.baseUrl, billingQuote, { width: 1280, height: 900 });
+  try {
+    await openExistingQuote(billing.page, server.baseUrl);
+    const front = billing.page.locator('.professional-paper-layer.is-front');
+    const row = (index) => front.getByTestId(`professional-pricing-row-${index}`);
+    const text = async (index, column) => (await row(index).locator('td').nth(column).innerText()).trim();
+    assert.equal(await text(0, 1), '1'); assert.match(await text(0, 2), /2,000/); assert.match(await text(0, 3), /2,000/);
+    assert.equal(await text(1, 1), '2 days'); assert.match(await text(1, 2), /2,500\.00\/day/); assert.match(await text(1, 3), /5,000/);
+    assert.equal(await text(2, 1), '8 images'); assert.match(await text(2, 2), /120\.00\/image/); assert.match(await text(2, 3), /960/);
+    assert.equal(await text(3, 1), '12 hours'); assert.match(await text(3, 2), /150\.00\/hour/); assert.match(await text(3, 3), /1,800/);
+    assert.equal(await text(4, 1), '2 people × 2 days'); assert.match(await text(4, 2), /500\.00\/person\/day/); assert.match(await text(4, 3), /2,000/);
+    for (const [index, name] of [[0, '01-SIMPLE-QTY.png'], [1, '02-DAY-BASIS.png'], [2, '03-IMAGE-BASIS.png'], [3, '04-HOUR-BASIS.png'], [4, '05-PEOPLE-DAYS.png']]) { await row(index).scrollIntoViewIfNeeded(); await screenshot(billing.page, name, false); }
+    const reloaded = front;
+    await reloaded.getByTestId('professional-pricing-row-4').click();
+    await reloaded.getByTestId('professional-pricing-row-4').scrollIntoViewIfNeeded();
+    await screenshot(billing.page, '06-ACTIVE-BASIS-CONTROL.png', false);
+    const a4Forensic = await billing.page.locator('.professional-paper-layer.is-front .quote-client-document-page').evaluate((element) => {
+      const boundary = element.getBoundingClientRect().right;
+      const rootRect = element.getBoundingClientRect();
+      const all = [element, ...element.querySelectorAll('*')];
+      const overflowing = all.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { selector: node.id ? `#${node.id}` : node.dataset?.testid ? `[data-testid="${node.dataset.testid}"]` : node.className && typeof node.className === 'string' ? `.${node.className.trim().replace(/\\s+/g, '.')}` : node.tagName.toLowerCase(), left: rect.left, right: rect.right, width: rect.width, overflowPx: rect.right - boundary };
+      }).filter((item) => item.overflowPx > 0.5);
+      const scrollable = all.map((node) => { const rect = node.getBoundingClientRect(); return { selector: node.id ? `#${node.id}` : node.dataset?.testid ? `[data-testid="${node.dataset.testid}"]` : node.tagName.toLowerCase(), left: rect.left, right: rect.right, width: rect.width, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth }; }).filter((item) => item.scrollWidth > item.clientWidth + 0.5);
+      const pseudo = ['::before', '::after'].map((pseudoElement) => { const style = getComputedStyle(element, pseudoElement); return { pseudoElement, content: style.content, position: style.position, left: style.left, right: style.right, width: style.width, transform: style.transform }; }).filter((item) => item.content !== 'none');
+      return { root: { left: rootRect.left, right: rootRect.right, width: rootRect.width }, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth, boundary, overflowing, scrollable, pseudo };
+    });
+    console.log(`A4_FORENSIC ${JSON.stringify(a4Forensic)}`);
+    const stress = { scrollWidth: a4Forensic.scrollWidth, clientWidth: a4Forensic.clientWidth };
+    await billing.page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await billing.page.locator('.professional-paper-layer.is-front .quote-client-document-item-row').nth(4).scrollIntoViewIfNeeded();
+    assert.equal(await billing.page.locator('.professional-row-billing-unit').count(), 0);
+    assert.match(await billing.page.locator('.professional-paper-layer.is-front').getByTestId('professional-pricing-row-4').locator('td').nth(1).innerText(), /2 people × 2 days/);
+    assert.match(await billing.page.locator('.professional-paper-layer.is-front').getByTestId('professional-pricing-row-4').locator('td').nth(2).innerText(), /500\.00\/person\/day/);
+    await screenshot(billing.page, '07-READ-ONLY.png', false);
+    await screenshot(billing.page, '08-A4-WIDTH-STRESS.png', false);
+    await billing.page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await billing.page.locator('[data-quote-presentation-mode]').waitFor({ state: 'attached' });
+    const reloadedEdit = billing.page.locator('.professional-paper-layer.is-front');
+    await reloadedEdit.getByTestId('professional-pricing-row-4').click();
+    await reloadedEdit.getByTestId('professional-pricing-unit-4').selectOption('');
+    assert.equal(await reloaded.getByLabel('Secondary quantity for item 5').count(), 0);
+    await screenshot(billing.page, '09-PRIMARY-UNIT-CLEARED.png', false);
+    await billing.page.getByRole('button', { name: 'Save', exact: true }).click(); await billing.page.getByText('Saved', { exact: true }).waitFor({ state: 'visible' });
+    await openExistingQuote(billing.page, server.baseUrl);
+    assert.equal((await billing.page.locator('.professional-paper-layer.is-front').getByTestId('professional-pricing-row-4').locator('td').nth(1).innerText()).trim(), '2');
+    const printable = billing.page.locator('.quote-printable-target');
+    assert.equal(await printable.locator('.professional-row-billing-unit').count(), 0);
+    assert.deepEqual(billing.pageErrors, []);
+  } finally { await billing.context.close(); }
 
   const preparedForCheck = await createDashboardPage(browser, server.baseUrl, makeQuote({ id: 'quote-prepared-for', specified: true, number: 'QT-PREPARED-001' }), { width: 1280, height: 900 });
   try {

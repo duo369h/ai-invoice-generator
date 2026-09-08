@@ -1,3 +1,5 @@
+import { calculateLineItemAmount } from '../core/quotes/lineItemBilling.js';
+
 const ACTIVATION_EVENTS = { quote: 'first_quote_created', invoice: 'first_invoice_created' };
 
 // Beta decision: events created before consent are intentionally not backfilled.
@@ -49,7 +51,7 @@ export async function saveDashboardDocument({
   if (isDemo) {
     const id = payload.id || `mock-${Date.now()}`;
     const total = (payload.items || []).reduce(
-      (sum, item) => sum + (Number(item.quantity || 1) * Number(item.unitPrice || item.unit_price || 0) * 100),
+      (sum, item) => sum + calculateLineItemAmount({ ...item, unitPrice: Number(item.unitPrice || item.unit_price || 0) * 100 }),
       0,
     );
     const document = { id, ...payload, total, created_at: new Date().toISOString() };

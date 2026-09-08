@@ -24,6 +24,7 @@ import { assertCoreDecisionSource } from '../../../core/ai/AI_DECISION_GUARD';
 import { getSiteUrl } from '../../lib/config';
 import { recordProductAnalyticsEvent } from '../../lib/product-analytics-server';
 import { hasRecordedInvoicePayment } from '../../../core/revenue/invoicePaymentState.js';
+import { calculateLineItemAmount } from '../../../core/quotes/lineItemBilling.js';
 
 const LEGACY_INVOICE_STATUS_ALLOWLIST = new Set([
   'draft',
@@ -160,7 +161,7 @@ export async function POST(request) {
     }
 
     // Calculate subtotal and total in cents
-    const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
+    const subtotal = items.reduce((sum, item) => sum + calculateLineItemAmount({ ...item, unitPrice: Math.round(Number(item.unitPrice || item.unit_price || 0) * 100) }), 0);
     const discount_amount = Math.round(subtotal * (Number(discount_rate) / 100));
     const taxable_amount = Math.max(0, subtotal - discount_amount);
     const tax_amount = Math.round(taxable_amount * (Number(tax_rate) / 100));
@@ -183,7 +184,9 @@ export async function POST(request) {
         description: item.description,
         quantity: Number(item.quantity) || 1,
         unit_price: Math.round(Number(item.unitPrice || 0) * 100),
-        amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
+        amount: calculateLineItemAmount({ ...item, unitPrice: Math.round(Number(item.unitPrice || 0) * 100) }),
+        ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+        ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
       })),
       subtotal,
       discount_rate: Number(discount_rate),

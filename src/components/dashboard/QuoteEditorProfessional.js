@@ -9,6 +9,7 @@ import {
   reorderQuoteItems,
   resolveDesktopQuoteAction,
 } from './quoteEditorProfessionalModel';
+import { setLineItemBillingUnit } from '../../core/quotes/lineItemBilling.js';
 
 const TEMPLATE_INDEXES = [
   ['commercial-shoot', 'Commercial'],
@@ -51,7 +52,7 @@ export default function QuoteEditorProfessional() {
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (Number.isInteger(activeItemIndex) && !event.target.closest?.(`[data-testid="professional-pricing-row-${activeItemIndex}"]`)) {
+      if (Number.isInteger(activeItemIndex) && !event.target.closest?.(`[data-testid="professional-pricing-row-${activeItemIndex}"]`) && !event.target.closest?.('[data-testid="professional-add-item"]')) {
         setActiveItemIndex(null);
       }
       if (activePreparedFor && !event.target.closest?.('[data-testid="quote-prepared-for"]')) {
@@ -94,6 +95,23 @@ export default function QuoteEditorProfessional() {
   };
 
   const updateItem = (index, field, value) => {
+    if (field === 'billingUnit') {
+      setters.setQuoteItems((current) => current.map((item, itemIndex) => itemIndex === index ? setLineItemBillingUnit(item, value) : item));
+      return;
+    }
+    if (field === 'secondaryQuantity') {
+      setters.setQuoteItems((current) => current.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        if (value === undefined) return { ...item, secondaryQuantity: undefined, secondaryUnit: undefined };
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? { ...item, secondaryQuantity: parsed, secondaryUnit: item.secondaryUnit || 'day' } : item;
+      }));
+      return;
+    }
+    if (field === 'secondaryUnit') {
+      setters.setQuoteItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, secondaryUnit: value } : item));
+      return;
+    }
     const nextValue = field === 'description' ? value : (value === '' ? '' : Number(value));
     if (field !== 'description' && value !== '' && !Number.isFinite(nextValue)) return;
     setters.setQuoteItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: nextValue } : item));

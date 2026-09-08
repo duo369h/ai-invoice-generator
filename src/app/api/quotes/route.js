@@ -23,6 +23,7 @@ import {
   buildQuoteProvenanceForSave,
   isRecognizedRawClientSource,
 } from "../../../core/quotes/quoteProvenance.js";
+import { calculateLineItemAmount } from '../../../core/quotes/lineItemBilling.js';
 
 const OWNER_MUTABLE_QUOTE_STATUSES = new Set(["draft", "sent"]);
 const TERMINAL_QUOTE_STATUSES = new Set(["approved", "declined", "converted"]);
@@ -205,7 +206,7 @@ export async function POST(request) {
       return quoteSendRequiredResponse();
     }
 
-    const calculatedSubtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Math.round(Number(item.unitPrice || item.unit_price || 0) * 100)), 0);
+    const calculatedSubtotal = items.reduce((sum, item) => sum + calculateLineItemAmount({ ...item, unitPrice: Math.round(Number(item.unitPrice || item.unit_price || 0) * 100) }), 0);
     const calculatedDiscountAmount = Math.round(calculatedSubtotal * (Number(discount_rate) / 100));
     const taxableAmount = Math.max(0, calculatedSubtotal - calculatedDiscountAmount);
     const calculatedTaxAmount = Math.round(taxableAmount * (Number(tax_rate) / 100));
@@ -324,7 +325,9 @@ export async function POST(request) {
           description: item.description,
           quantity: Number(item.quantity) || 1,
           unit_price: Math.round(Number(item.unitPrice || 0) * 100),
-          amount: (Number(item.quantity) || 1) * Math.round(Number(item.unitPrice || 0) * 100)
+          amount: calculateLineItemAmount({ ...item, unitPrice: Math.round(Number(item.unitPrice || 0) * 100) }),
+          ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+          ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
         })),
         subtotal: calculatedSubtotal,
         discount_rate: Number(discount_rate),

@@ -1,5 +1,6 @@
 import { normalizeUrlList, safeUrl, sanitizePlainText } from './security.js';
 import { validateSerializedQuoteNotes } from '../../components/dashboard/quoteNotes.mjs';
+import { LINE_ITEM_BILLING_UNITS } from '../../core/quotes/lineItemBilling.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ID_RE = /^[a-zA-Z0-9_\-]{1,80}$/;
@@ -77,11 +78,25 @@ export function lineItems(items, { required = true } = {}) {
 
   return items.map((item, index) => {
     validateObject(item, `items[${index}]`);
-    return {
+    const billingUnit = item.billingUnit === undefined || item.billingUnit === null || item.billingUnit === ''
+      ? undefined
+      : enumValue(item.billingUnit, `items[${index}].billingUnit`, LINE_ITEM_BILLING_UNITS);
+    const hasSecondaryQuantity = item.secondaryQuantity !== undefined && item.secondaryQuantity !== null && item.secondaryQuantity !== '';
+    const hasSecondaryUnit = item.secondaryUnit !== undefined && item.secondaryUnit !== null && item.secondaryUnit !== '';
+    if (hasSecondaryQuantity !== hasSecondaryUnit || (hasSecondaryQuantity && !billingUnit)) {
+      throw new ValidationError(`items[${index}] secondary billing basis requires a primary unit, quantity, and unit`);
+    }
+    const normalized = {
       description: text(item.description, `items[${index}].description`, { required: true, max: 300 }),
       quantity: numberValue(item.quantity ?? 1, `items[${index}].quantity`, { min: 0.01, max: 100000, defaultValue: 1 }),
       unitPrice: numberValue(item.unitPrice ?? item.unit_price ?? 0, `items[${index}].unitPrice`, { min: 0, max: 100000000, defaultValue: 0 }),
     };
+    if (billingUnit) normalized.billingUnit = billingUnit;
+    if (hasSecondaryQuantity) {
+      normalized.secondaryQuantity = numberValue(item.secondaryQuantity, `items[${index}].secondaryQuantity`, { min: 0.01, max: 100000, defaultValue: 1 });
+      normalized.secondaryUnit = enumValue(item.secondaryUnit, `items[${index}].secondaryUnit`, LINE_ITEM_BILLING_UNITS);
+    }
+    return normalized;
   });
 }
 

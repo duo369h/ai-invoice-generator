@@ -1,4 +1,5 @@
 import { derivePricingSections, paginateQuoteItems, PHOTOGRAPHY_ITEM_SUGGESTIONS } from './quoteEditorProfessionalModel';
+import { calculateLineItemAmount, formatLineItemQuantityBasis, formatLineItemRateBasis, LINE_ITEM_BILLING_UNITS } from '../../core/quotes/lineItemBilling.js';
 
 const normalizeDate = (value) => {
   if (!value) return '';
@@ -132,12 +133,12 @@ function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemC
               )}
             </td>
             <td className="quote-client-document-number-cell">
-              {active ? <input data-testid={`professional-pricing-quantity-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Quantity for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.quantity ?? ''} onChange={(event) => onItemChange?.(index, 'quantity', event.target.value)} /> : item.quantity}
+              {active ? <><input data-testid={`professional-pricing-quantity-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Quantity for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.quantity ?? ''} onChange={(event) => onItemChange?.(index, 'quantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" data-testid={`professional-pricing-unit-${index}`} aria-label={`Billing unit for item ${index + 1}`} value={item.billingUnit || ''} onChange={(event) => onItemChange?.(index, 'billingUnit', event.target.value || undefined)}><option value="">No unit</option>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select>{item.billingUnit && <button type="button" className="professional-row-billing-toggle non-printing" onClick={() => onItemChange?.(index, 'secondaryQuantity', item.secondaryQuantity ? undefined : 1)}>{item.secondaryQuantity ? 'Remove second factor' : 'Add second factor'}</button>}{item.secondaryQuantity ? <><input className="professional-row-field professional-row-field-number" aria-label={`Secondary quantity for item ${index + 1}`} type="number" value={item.secondaryQuantity} onChange={(event) => onItemChange?.(index, 'secondaryQuantity', event.target.value)} /><select className="professional-row-billing-unit non-printing" aria-label={`Secondary unit for item ${index + 1}`} value={item.secondaryUnit || 'day'} onChange={(event) => onItemChange?.(index, 'secondaryUnit', event.target.value)}>{LINE_ITEM_BILLING_UNITS.map((unit) => <option value={unit} key={unit}>{unit}</option>)}</select></> : null}</> : formatLineItemQuantityBasis(item)}
             </td>
             <td className="quote-client-document-number-cell">
-              {active ? <input data-testid={`professional-pricing-rate-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Rate for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.unitPrice ?? ''} onChange={(event) => onItemChange?.(index, 'unitPrice', event.target.value)} /> : formatMoney(unitPrice, currency)}
+              {active ? <input data-testid={`professional-pricing-rate-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Rate for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.unitPrice ?? ''} onChange={(event) => onItemChange?.(index, 'unitPrice', event.target.value)} /> : `${formatMoney(unitPrice, currency)}${formatLineItemRateBasis(item)}`}
             </td>
-            <td className="quote-client-document-number-cell quote-client-document-amount-cell">{formatMoney(quantity * unitPrice, currency)}</td>
+            <td className="quote-client-document-number-cell quote-client-document-amount-cell">{formatMoney(calculateLineItemAmount(item), currency)}</td>
           </tr>
         );
       })}

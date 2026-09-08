@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { calculateLineItemAmount, formatLineItemQuantityBasis, formatLineItemRateBasis } from '../../core/quotes/lineItemBilling.js';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 
@@ -957,12 +958,12 @@ export default function PortalClientView({ fetchUrl, postCommentUrl, identifier 
                   <tbody style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
                     {doc.items && (Array.isArray(doc.items) ? doc.items : JSON.parse(doc.items)).map((item, idx) => {
                       const itemRate = item.unitPrice || (item.unit_price ? item.unit_price / 100 : 0);
-                      const itemAmt = item.amount ? item.amount / 100 : (item.quantity * itemRate);
+                      const itemAmt = item.amount ? item.amount / 100 : calculateLineItemAmount({ ...item, unitPrice: itemRate });
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                           <td style={{ padding: '12px 0', verticalAlign: 'top' }}>{item.description}</td>
-                          <td style={{ padding: '12px 0', textAlign: 'center', verticalAlign: 'top' }}>{item.quantity}</td>
-                          <td style={{ padding: '12px 0', textAlign: 'right', verticalAlign: 'top' }}>{currencySymbol}{itemRate.toFixed(2)}</td>
+                          <td style={{ padding: '12px 0', textAlign: 'center', verticalAlign: 'top' }}>{formatLineItemQuantityBasis(item)}</td>
+                          <td style={{ padding: '12px 0', textAlign: 'right', verticalAlign: 'top' }}>{currencySymbol}{itemRate.toFixed(2)}{formatLineItemRateBasis(item)}</td>
                           <td style={{ padding: '12px 0', textAlign: 'right', verticalAlign: 'top', fontWeight: 600 }}>{currencySymbol}{itemAmt.toFixed(2)}</td>
                         </tr>
                       );

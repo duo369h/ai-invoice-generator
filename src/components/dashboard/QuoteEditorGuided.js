@@ -6,6 +6,7 @@ import {
 import { useQuoteEditorShared } from './QuoteEditorSharedContext';
 import QuoteClientDocument from './QuoteClientDocument';
 import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
+import { calculateLineItemAmount, formatLineItemQuantityBasis, formatLineItemRateBasis } from '../../core/quotes/lineItemBilling.js';
 
 const PRIMARY_WORKFLOWS = [
   ['commercial-shoot', 'Commercial'],
@@ -313,12 +314,12 @@ export default function QuoteEditorGuided() {
         <div className="quote-guided-pricing-items" data-testid="quote-guided-pricing-items">
           {qItems.map((item, index) => {
             const isOpen = pricingOpenItem === index;
-            const lineTotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+            const lineTotal = calculateLineItemAmount(item);
             return (
               <div className={`quote-guided-pricing-item${isOpen ? ' is-open' : ''}`} key={index} data-testid={`quote-guided-pricing-item-${index}`}>
                 <div className="quote-guided-pricing-item-summary-row">
                   <button type="button" className="quote-guided-pricing-item-summary" aria-expanded={isOpen} onClick={() => openPricingItem(index)}>
-                    <span><strong>{item.description?.trim() || 'Untitled item'}</strong><small>{displayNumericDraft(item.quantity)} × {formatMoney(item.unitPrice, qCurrency)}</small></span>
+                    <span><strong>{item.description?.trim() || 'Untitled item'}</strong><small>{formatLineItemQuantityBasis(item)} × {formatMoney(item.unitPrice, qCurrency)}{formatLineItemRateBasis(item)}</small></span>
                     <strong>{formatMoney(lineTotal, qCurrency)}</strong>
                   </button>
                   <button type="button" className="quote-guided-pricing-remove-item" data-testid={`quote-guided-pricing-remove-item-${index}`} onClick={() => removePricingItem(index)} disabled={qItems.length <= 1} aria-label={`Remove ${item.description?.trim() || 'line item'}`}>×</button>

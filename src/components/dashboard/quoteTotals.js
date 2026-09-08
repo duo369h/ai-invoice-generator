@@ -1,6 +1,8 @@
+import { calculateLineItemAmount } from '../../core/quotes/lineItemBilling.js';
+
 export function calculateQuoteTotals(items = [], discountRate = 0, taxRate = 0) {
   const subtotal = items.reduce(
-    (sum, item) => sum + (Number(item?.quantity || 0) * Number(item?.unitPrice || 0)),
+    (sum, item) => sum + calculateLineItemAmount(item),
     0,
   );
   const discount = subtotal * (Number(discountRate || 0) / 100);
