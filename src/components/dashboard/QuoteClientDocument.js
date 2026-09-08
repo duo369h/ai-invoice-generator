@@ -1,3 +1,126 @@
+import { derivePricingSections, paginateQuoteItems } from './quoteEditorProfessionalModel';
+
+const normalizeDate = (value) => {
+  if (!value) return '';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
+};
+
+const usageSummary = (scope) => {
+  const usage = scope?.common?.usage_rights || {};
+  const parts = [
+    Array.isArray(usage.media_channels) ? usage.media_channels.filter(Boolean).join(' / ') : '',
+    usage.territory,
+    usage.license_duration,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Usage terms not specified';
+};
+
+function DocumentField({ editable, value, ariaLabel, className = '', onChange, type = 'text', testId }) {
+  if (!editable) return <span className={className}>{value}</span>;
+  return (
+    <input
+      className={`professional-document-field ${className}`.trim()}
+      data-testid={testId}
+      aria-label={ariaLabel}
+      type={type}
+      value={value}
+      onChange={(event) => onChange?.(event.target.value)}
+    />
+  );
+}
+
+function PricingRows({ items, editable, activeItemIndex, onActivateItem, onItemChange, onRemoveItem, onItemDragStart, onItemDragEnd, onItemDrop, draggedItemIndex, formatMoney, currency }) {
+  const sections = derivePricingSections(items);
+  return sections.map((section) => (
+    <tbody key={section.label || 'simple'}>
+      {section.label && (
+        <tr className="quote-client-document-group-row">
+          <th colSpan={4} scope="rowgroup"><span>{section.label}</span></th>
+        </tr>
+      )}
+      {section.items.map((item) => {
+        const index = item.originalIndex;
+        const active = editable && activeItemIndex === index;
+        const dragging = editable && draggedItemIndex === index;
+        const quantity = Number(item.quantity || 0);
+        const unitPrice = Number(item.unitPrice || 0);
+        return (
+          <tr
+            key={`${index}-${item.description}`}
+            className={`quote-client-document-item-row${active ? ' is-editing' : ''}`}
+            data-testid={`professional-pricing-row-${index}`}
+            data-item-index={index}
+            data-item-dragging={dragging ? 'true' : 'false'}
+            onClick={(event) => {
+              const selectedText = typeof window === 'undefined' ? '' : window.getSelection()?.toString().trim();
+              const interactiveTarget = event.target.closest?.('input, button, select, textarea');
+              if (!editable || selectedText || interactiveTarget) return;
+              onActivateItem?.(active ? null : index);
+            }}
+            onDragOver={(event) => {
+              if (!editable || draggedItemIndex === null || draggedItemIndex === index) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+            }}
+            onDrop={(event) => {
+              if (!editable) return;
+              event.preventDefault();
+              const sourceIndex = draggedItemIndex ?? Number(event.dataTransfer.getData('text/plain'));
+              if (!Number.isInteger(sourceIndex) || sourceIndex === index) return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              onItemDrop?.(sourceIndex, index, event.clientY < bounds.top + (bounds.height / 2));
+            }}
+          >
+            <td className="quote-client-document-description-cell">
+              {editable ? <span className="professional-row-paper-strip non-printing" aria-hidden="true" /> : null}
+              {editable && (
+                <button
+                  type="button"
+                  className="professional-row-drag-handle non-printing"
+                  draggable="true"
+                  aria-label={`Reorder ${item.description || 'line item'}`}
+                  data-testid={`professional-pricing-drag-handle-${index}`}
+                  onClick={(event) => event.stopPropagation()}
+                  onDragStart={(event) => {
+                    event.stopPropagation();
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', String(index));
+                    onItemDragStart?.(index);
+                  }}
+                  onDragEnd={() => onItemDragEnd?.()}
+                >⋮⋮</button>
+              )}
+              {active ? (
+                <input
+                  autoFocus
+                  data-testid={`quote-line-description-${index}`}
+                  className="professional-row-field"
+                  aria-label={`Description for item ${index + 1}`}
+                  value={item.description || ''}
+                  list="professional-item-suggestions"
+                  onChange={(event) => onItemChange?.(index, 'description', event.target.value)}
+                />
+              ) : (item.description || 'Untitled item')}
+              {active && (
+                <button type="button" className="professional-row-remove non-printing" aria-label={`Remove ${item.description || 'line item'}`} onClick={(event) => { event.stopPropagation(); onRemoveItem?.(index); }}>Remove</button>
+              )}
+            </td>
+            <td className="quote-client-document-number-cell">
+              {active ? <input data-testid={`professional-pricing-quantity-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Quantity for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.quantity ?? ''} onChange={(event) => onItemChange?.(index, 'quantity', event.target.value)} /> : item.quantity}
+            </td>
+            <td className="quote-client-document-number-cell">
+              {active ? <input data-testid={`professional-pricing-rate-${index}`} className="professional-row-field professional-row-field-number" aria-label={`Rate for item ${index + 1}`} type="number" step="any" inputMode="decimal" value={item.unitPrice ?? ''} onChange={(event) => onItemChange?.(index, 'unitPrice', event.target.value)} /> : formatMoney(unitPrice, currency)}
+            </td>
+            <td className="quote-client-document-number-cell quote-client-document-amount-cell">{formatMoney(quantity * unitPrice, currency)}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  ));
+}
+
 export default function QuoteClientDocument({
   quoteNumber,
   date,
@@ -14,92 +137,159 @@ export default function QuoteClientDocument({
   notes,
   formatMoney,
   totals,
+  scope,
+  projectName,
+  editable = false,
+  preview = false,
+  activeItemIndex = null,
+  onActivateItem,
+  onItemChange,
+  onRemoveItem,
+  onItemDragStart,
+  onItemDragEnd,
+  onItemDrop,
+  draggedItemIndex = null,
+  onAddItem,
+  onFieldChange,
+  onOpenUsage,
+  onOpenIntelligence,
+  sourceFocus = false,
+  intelligenceFinding,
+  preparedForActive = false,
+  onActivatePreparedFor,
 }) {
+  const pages = paginateQuoteItems(items);
+  const resolvedProject = projectName || scope?.common?.shoot_type || 'Photography production';
+  const money = typeof formatMoney === 'function' ? formatMoney : (value) => Number(value || 0).toFixed(2);
+
   return (
-    <article className="quote-client-document" style={{ width: '794px', padding: '44px', background: '#fffdf9', color: '#1e293b', fontFamily: 'var(--font-sans)' }}>
-      <header className="quote-client-document-header" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #cbd5e1', paddingBottom: '15px', marginBottom: '15px' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>QUOTE</h2>
-          <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Generated via Corvioz</p>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-          <p style={{ margin: 0, fontWeight: 'bold' }}>#{quoteNumber}</p>
-          <p style={{ margin: '3px 0 0 0' }}>Date: {date}</p>
-          <p style={{ margin: '3px 0 0 0' }}>Status: {status}</p>
-        </div>
-      </header>
+    <article
+      className={`quote-client-document${editable ? ' is-editable' : ''}${preview ? ' is-preview' : ''}`}
+      style={{ width: '794px' }}
+      data-page-ratio="210:297"
+      data-page-count={pages.length}
+    >
+      <datalist id="professional-item-suggestions">
+        {['Photography / Creative Fee', 'Photo Assistant', 'Producer', 'Digital Tech', 'Equipment / Lighting', 'Studio / Location', 'Talent', 'Styling', 'Props', 'Retouching', 'Travel / Expenses', 'Production Fee'].map((suggestion) => <option value={suggestion} key={suggestion} />)}
+      </datalist>
+      {pages.map((pageItems, pageIndex) => {
+        const firstPage = pageIndex === 0;
+        const lastPage = pageIndex === pages.length - 1;
+        return (
+          <section className="quote-client-document-page" data-testid={`quote-client-document-page-${pageIndex + 1}`} key={pageIndex} aria-label={`Quote page ${pageIndex + 1} of ${pages.length}`}>
+            <header className={`quote-client-document-header${firstPage ? '' : ' is-continuation'}`}>
+              <div>
+                <h2>{firstPage ? 'QUOTE' : 'QUOTE · CONTINUED'}</h2>
+                <DocumentField editable={editable && firstPage} value={quoteNumber || ''} ariaLabel="Quote number" className="quote-client-document-number" testId="quote-number-input" onChange={(value) => onFieldChange?.('number', value)} />
+              </div>
+              <div className="quote-client-document-meta">
+                <DocumentField editable={editable && firstPage} value={editable ? (date || '') : normalizeDate(date)} ariaLabel="Quote date" className="quote-client-document-date" testId="quote-date-input" onChange={(value) => onFieldChange?.('date', value)} />
+                {!firstPage && <span>Page {pageIndex + 1} of {pages.length}</span>}
+                {firstPage && status && <span className="quote-client-document-status">{status === 'draft' ? 'Draft' : status}</span>}
+              </div>
+            </header>
 
-      <div className="quote-client-document-parties" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', fontSize: '0.9rem' }}>
-        <div>
-          <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>Prepared For:</h5>
-          <p style={{ margin: 0, fontWeight: 'bold' }}>{clientName || 'Client Name'}</p>
-          <p style={{ margin: 0 }}>{clientEmail}</p>
-          <p style={{ margin: 0 }}>{clientAddress}</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-          <p style={{ margin: 0, fontWeight: 'bold' }}>{photographerName || 'Photographer'}</p>
-          <p style={{ margin: 0 }}>{photographerEmail}</p>
-        </div>
-      </div>
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '0.9rem' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
-            <th style={{ padding: '8px 0' }}>Deliverable</th>
-            <th style={{ padding: '8px 0', textAlign: 'center', width: '10%' }}>Qty</th>
-            <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Rate</th>
-            <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-              <td style={{ padding: '10px 0' }}>{item.description || 'Service / Deliverable'}</td>
-              <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
-              <td style={{ padding: '10px 0', textAlign: 'right' }}>{formatMoney(Number(item.unitPrice || 0), currency)}</td>
-              <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                {formatMoney(Number(item.quantity || 0) * Number(item.unitPrice || 0), currency)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="quote-client-document-summary" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', fontSize: '0.9rem' }}>
-        <div>
-          {notes && (
-            <>
-              <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Quote Notes:</h6>
-              <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>{notes}</p>
-            </>
-          )}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'right' }}>
-          <div style={{ width: '100%', maxWidth: '200px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span>Subtotal:</span>
-              <span>{formatMoney(totals.subtotal, currency)}</span>
-            </div>
-            {discountRate > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
-                <span>Discount ({discountRate}%):</span>
-                <span>-{formatMoney(totals.discount, currency)}</span>
+            {firstPage && (
+              <div className="quote-client-document-parties">
+                <div
+                  className={`quote-client-document-prepared-for${editable && preparedForActive ? ' is-active' : ''}`}
+                  data-testid="quote-prepared-for"
+                  data-prepared-for-active={editable && preparedForActive ? 'true' : 'false'}
+                  onClick={(event) => {
+                    const selectedText = typeof window === 'undefined' ? '' : window.getSelection()?.toString().trim();
+                    const interactiveTarget = event.target.closest?.('input, button, select, textarea');
+                    if (!editable || preparedForActive || selectedText || interactiveTarget) return;
+                    onActivatePreparedFor?.();
+                  }}
+                >
+                  <span className="quote-client-document-label">Prepared for</span>
+                  <DocumentField editable={editable && preparedForActive} value={clientName || 'Client Name'} ariaLabel="Client name" className="quote-client-document-primary" testId="quote-client-name-input" onChange={(value) => onFieldChange?.('clientName', value)} />
+                  <DocumentField editable={editable && preparedForActive} value={clientEmail || ''} ariaLabel="Client email" className="quote-client-document-secondary" type="email" onChange={(value) => onFieldChange?.('clientEmail', value)} />
+                  <DocumentField editable={editable && preparedForActive} value={clientAddress || ''} ariaLabel="Client address" className="quote-client-document-secondary" onChange={(value) => onFieldChange?.('clientAddress', value)} />
+                </div>
+                <div>
+                  <span className="quote-client-document-label">Project</span>
+                  <DocumentField editable={editable} value={resolvedProject} ariaLabel="Project" className="quote-client-document-primary" onChange={(value) => onFieldChange?.('project', value)} />
+                  <span className="quote-client-document-secondary">{photographerName || 'Photographer'}</span>
+                  {photographerEmail && <span className="quote-client-document-secondary">{photographerEmail}</span>}
+                </div>
               </div>
             )}
-            {taxRate > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                <span>Tax ({taxRate}%):</span>
-                <span>{formatMoney(totals.tax, currency)}</span>
+
+            <div className="quote-client-document-table-wrap">
+              <table className="quote-client-document-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>
+                      Rate ({editable ? (
+                        <select className="professional-currency-select" data-testid="quote-currency-select" aria-label="Quote currency" value={currency} onChange={(event) => onFieldChange?.('currency', event.target.value)}>
+                          {['USD', 'CAD', 'EUR', 'GBP', 'CNY'].map((option) => <option value={option} key={option}>{option}</option>)}
+                        </select>
+                      ) : currency})
+                    </th>
+                    <th>Amount ({currency})</th>
+                  </tr>
+                </thead>
+                <PricingRows
+                  items={pageItems}
+                  editable={editable}
+                  activeItemIndex={activeItemIndex}
+                  onActivateItem={onActivateItem}
+                  onItemChange={onItemChange}
+                  onRemoveItem={onRemoveItem}
+                  onItemDragStart={onItemDragStart}
+                  onItemDragEnd={onItemDragEnd}
+                  onItemDrop={onItemDrop}
+                  draggedItemIndex={draggedItemIndex}
+                  formatMoney={money}
+                  currency={currency}
+                />
+              </table>
+              {lastPage && editable && !preview && (
+                <button type="button" className="professional-add-item non-printing" data-testid="professional-add-item" onClick={onAddItem}>Add item</button>
+              )}
+              {lastPage && editable && !preview && intelligenceFinding && (
+                <button type="button" className="professional-intelligence-annotation non-printing" data-testid="professional-intelligence" onClick={onOpenIntelligence}>
+                  <span>Needs attention</span>
+                  <strong>{intelligenceFinding.title}</strong>
+                  <small>{intelligenceFinding.message}</small>
+                </button>
+              )}
+            </div>
+
+            {lastPage && (
+              <div className="quote-client-document-summary">
+                <div className="quote-client-document-terms">
+                  <button type="button" data-testid="professional-usage-summary" className={`quote-client-document-summary-block${sourceFocus ? ' is-source-focused' : ''}`} disabled={!editable} onClick={onOpenUsage}>
+                    <span className="quote-client-document-label">Usage</span>
+                    <strong>{usageSummary(scope)}</strong>
+                  </button>
+                  <div className="quote-client-document-summary-block">
+                    <span className="quote-client-document-label">Payment terms</span>
+                    {editable ? (
+                      <textarea className="professional-document-notes" aria-label="Payment terms and notes" value={notes || ''} onChange={(event) => onFieldChange?.('notes', event.target.value)} />
+                    ) : <strong>{notes || 'Net 30 days from invoice date.'}</strong>}
+                  </div>
+                </div>
+                <div className="quote-client-document-totals">
+                  <div><span>Subtotal</span><strong>{money(totals.subtotal, currency)}</strong></div>
+                  {discountRate > 0 && <div><span>Discount ({discountRate}%)</span><strong>−{money(totals.discount, currency)}</strong></div>}
+                  <div>
+                    <span>
+                      Tax ({editable ? <input className="professional-total-rate" data-testid="quote-tax-input" aria-label="Tax rate" inputMode="decimal" value={taxRate} onChange={(event) => onFieldChange?.('taxRate', event.target.value)} /> : taxRate}%)
+                    </span>
+                    <strong>{money(totals.tax, currency)}</strong>
+                  </div>
+                  <div className="quote-client-document-total"><span>Total ({currency})</span><strong>{money(totals.total, currency)}</strong></div>
+                </div>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
-              <span>Total:</span>
-              <span>{formatMoney(totals.total, currency)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+            <footer className="quote-client-document-page-number">{pages.length > 1 ? `${pageIndex + 1} / ${pages.length}` : ''}</footer>
+          </section>
+        );
+      })}
     </article>
   );
 }

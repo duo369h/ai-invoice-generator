@@ -98,6 +98,7 @@ import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/r
 import QuoteClientDocument from './QuoteClientDocument';
 import QuoteClientDocumentPreviewFrame from './QuoteClientDocumentPreviewFrame';
 import QuotePresentationBoundary from './QuotePresentationBoundary';
+import QuoteEditorProfessional from './QuoteEditorProfessional';
 import { createQuoteEditorSharedContract, QuoteEditorSharedProvider, validateQuoteClient } from './QuoteEditorSharedContext';
 import { calculateQuoteTotals } from './quoteTotals';
 
@@ -2672,7 +2673,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           setQQuoteProvenance(quoteProvenance);
           setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
           triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
-          if (!qId && mode === 'live') {
+          if (!qId && mode === 'live' && !guidedSave) {
             await fetchData(session?.access_token);
           }
           if (!guidedSave) {
@@ -4786,9 +4787,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
-              <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
+              <div className="quote-editor-host animate-fade-in">
                 <QuoteEditorSharedProvider value={quoteSharedContract}>
-                  <QuotePresentationBoundary>
+                  <QuotePresentationBoundary key="quote-presentation-boundary">
+                  <QuoteEditorProfessional key="professional-quote-editor-fallback" />
+                  {false && (
+                  <>
                   <div className="quote-document-first-shell">
                   <section id="quote-workspace-context" aria-labelledby="quote-workspace-context-heading" className="quote-document-first-header">
                     <div>
@@ -5412,6 +5416,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     />
                   </div>
                   </div>
+                  </>
+                  )}
                   </QuotePresentationBoundary>
                 </QuoteEditorSharedProvider>
               </div>
