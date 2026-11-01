@@ -18,16 +18,19 @@ const output = process.env.C47_ACCOUNT_MENU_OUTPUT;
 const serveOnly = process.argv.includes('--serve');
 const layerOnly = process.argv.includes('--layer-only');
 const focusOnly = process.argv.includes('--focus-only');
+const footerOnly = process.argv.includes('--footer-only');
 const records = [];
 const blockedExternal = [];
 const source = fs.readFileSync(path.join(root, 'src/components/dashboard/Dashboard.js'), 'utf8');
 const ast = ts.createSourceFile('Dashboard.jsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JSX);
 let accountMarkup;
+let footerMarkup;
 let signOut;
 function visit(node) {
   if (ts.isJsxElement(node) && node.openingElement.attributes.properties.some((p) =>
     p.name?.text === 'className' && p.initializer?.text === 'dashboard-sidebar-footer')) {
     accountMarkup = node.children.find(ts.isJsxElement)?.getText(ast);
+    footerMarkup = node.getText(ast);
   }
   if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'handleSignOut') {
     signOut = node.getText(ast);
@@ -52,6 +55,11 @@ function Fixture(){
  const [accountMenuOpen,setAccountMenuOpen]=useState(false);
  const [isSigningOut,setIsSigningOut]=useState(false);
  const isSigningOutRef=useRef(false);const accountButtonRef=useRef(null);
+ const feedbackBtnRef=useRef(null);
+ const isEntitlementLoading=false,isFreePlan=true,entitlementReady=true,planStatusLabel='Free';
+ const kernelUi={cta:()=> 'Upgrade your business'};
+ const trackUpgradeClick=()=>{};const trackEvent=()=>{};const saveSelectedPlan=()=>{};const evaluateAction=(_,fn)=>fn();
+ const openFeedbackModal=()=>{window.__feedbackCalls=(window.__feedbackCalls||0)+1;};
  const session={user:{email:query.has('long')?'very.long.account.identifier.'.repeat(6)+'@example.test':'founder.beta@example.test'}};
  const Icons={account:()=>React.createElement('svg',{'aria-hidden':true,width:18,height:18})};
  const Link=({href,children,...rest})=>React.createElement('a',{href,...rest},children);
@@ -70,7 +78,7 @@ function Fixture(){
   <div className={'dashboard-layout'+(sidebarCollapsed?' dashboard-sidebar-layout-collapsed':'')}>
    <aside className={'dashboard-sidebar-aside'+(sidebarCollapsed?' dashboard-sidebar-collapsed':'')}>
     <div><button data-testid="test-toggle" onClick={()=>setSidebarCollapsed(x=>!x)}>Toggle sidebar</button></div>
-    <div className="dashboard-sidebar-footer">${accountMarkup}</div>
+    ${footerOnly ? footerMarkup : `<div className="dashboard-sidebar-footer">${accountMarkup}</div>`}
    </aside><main className="dashboard-main-content">Local synthetic fixture only</main>${mobileMarkup}
   </div></div>;
 }
@@ -112,7 +120,7 @@ if (serveOnly) {
     ['chrome', () => pw.chromium.launch({ channel: 'chrome', headless: true })],
     ['webkit', () => pw.webkit.launch({ headless: true })],
   ];
-  const cases = layerOnly || focusOnly ? [] : [
+  const cases = layerOnly || focusOnly || footerOnly ? [] : [
     ['collapsed_desktop', 1280, 900, true, false],
     ['expanded_desktop', 1280, 900, false, false],
     ['collapsed_breakpoint', 769, 500, true, false],
@@ -123,6 +131,41 @@ if (serveOnly) {
   for (const [engine, launch] of engines) {
     const browser = await launch();
     try {
+      if (footerOnly) {
+        for (const [width,height,collapsed] of [[1280,900,true],[1280,500,true],[1024,500,true],[900,600,true],[769,500,true],[1280,900,false],[900,600,false]]) {
+          const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'});
+          await page.route('**/*',r=>r.request().url().startsWith(origin+'/')?r.continue():r.abort());
+          try {
+            await page.goto(`${origin}/?collapsed=${collapsed}`);
+            const feedback=page.getByRole('button',{name:'Share Feedback',exact:true});
+            assert.equal(await feedback.isVisible(),true,'feedback must remain visible');
+            assert.equal(await feedback.locator('svg').count(),1,'feedback must have a message-square icon');
+            assert.equal(await feedback.getAttribute('title'),'Share Feedback');
+            assert.equal(await feedback.locator('.dashboard-sidebar-feedback-label').isVisible(),!collapsed,'only the collapsed state hides the label');
+            const plan=page.locator('.dashboard-sidebar-plan-row');
+            assert.equal(await plan.locator('svg,img').count(),0,'FREE has no decorative icon');
+            assert.match(await plan.innerText(),/Free/i);
+            const geometry=await page.evaluate(()=>{
+              const aside=document.querySelector('aside').getBoundingClientRect();
+              return ['.dashboard-sidebar-plan-row','.dashboard-sidebar-feedback','.dashboard-sidebar-account-action'].map(selector=>{
+                const el=document.querySelector(selector),b=el.getBoundingClientRect(),hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
+                return {selector,x:b.x,y:b.y,right:b.right,bottom:b.bottom,inside:b.x>=aside.x&&b.right<=aside.right&&b.y>=aside.y&&b.bottom<=aside.bottom,hit:el===hit||el.contains(hit),noOverflow:el.scrollWidth<=el.clientWidth+1};
+              });
+            });
+            for(const box of geometry) assert.ok(box.inside&&box.hit&&box.noOverflow&&box.bottom<=height,JSON.stringify(box));
+            await feedback.hover();
+            await feedback.click();
+            assert.equal(await page.evaluate(()=>window.__feedbackCalls),1,'original feedback callback remains usable');
+            await page.getByRole('button',{name:'Account',exact:true}).click();
+            const signOut=page.getByRole('menuitem',{name:'Sign out',exact:true});
+            await signOut.waitFor({state:'visible'});
+            await signOut.click();
+            assert.equal(await page.evaluate(()=>window.__accountResult.signOutCalls),1);
+            records.push({engine,name:`footer_${width}x${height}_${collapsed?'collapsed':'expanded'}`,passed:true,geometry});
+          } catch(error) {records.push({engine,name:`footer_${width}x${height}_${collapsed?'collapsed':'expanded'}`,passed:false,error:error.message});}
+          finally {await page.close();}
+        }
+      }
       for (const [name, width, height, collapsed, long] of cases) {
         const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
         await page.route('**/*', (route) => {
@@ -173,7 +216,7 @@ if (serveOnly) {
           records.push({ engine, name, passed: false, error: error.message });
         } finally { await page.close(); }
       }
-      if (!layerOnly && !focusOnly) {
+      if (!layerOnly && !focusOnly && !footerOnly) {
         for (const guard of ['quote', 'invoice']) {
           const guardPage = await browser.newPage({ viewport: {width:1280,height:900} });
           await guardPage.route('**/*', (route) => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
@@ -193,7 +236,7 @@ if (serveOnly) {
           finally {await guardPage.close();}
         }
       }
-      if (!layerOnly && !focusOnly) {
+      if (!layerOnly && !focusOnly && !footerOnly) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       await page.route('**/*', (route) => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
       try {
@@ -214,7 +257,7 @@ if (serveOnly) {
       } catch (error) { records.push({ engine, name: 'open_menu_live_resize_and_escape_focus', passed: false, error: error.message }); }
       finally { await page.close(); }
       }
-      if (!focusOnly) {
+      if (!focusOnly && !footerOnly) {
       const modalPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       await modalPage.route('**/*', (route) => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
       try {
@@ -233,7 +276,7 @@ if (serveOnly) {
       } catch (error) { records.push({ engine, name: 'existing_modal_stays_above_account_popup', passed: false, error: error.message }); }
       finally { await modalPage.close(); }
       }
-      if (!layerOnly) {
+      if (!layerOnly && !footerOnly) {
       const focusPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       await focusPage.route('**/*', (route) => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
       try {

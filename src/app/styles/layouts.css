@@ -626,6 +626,56 @@
 .dashboard-sidebar-footer {
   flex-shrink: 0;
 }
+
+/* Footer geometry stays in layouts; component appearance stays in components. */
+.dashboard-sidebar-plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  margin-bottom: 8px;
+}
+
+.dashboard-sidebar-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-sidebar-feedback-icon {
+  flex: 0 0 18px;
+}
+
+.dashboard-sidebar-collapsed .dashboard-sidebar-feedback-label {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-shell .dashboard-sidebar-aside.dashboard-sidebar-collapsed .dashboard-sidebar-plan {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    padding-top: 0;
+  }
+
+  .dashboard-shell .dashboard-sidebar-collapsed .dashboard-sidebar-plan-row {
+    margin-bottom: 0;
+  }
+
+  .dashboard-shell .dashboard-sidebar-collapsed .dashboard-sidebar-plan-action {
+    display: none !important;
+  }
+
+  .dashboard-shell .dashboard-sidebar-collapsed .dashboard-sidebar-feedback {
+    margin-bottom: 0;
+  }
+}
 .dashboard-main-content {
   flex: 1;
   padding: 40px 48px;
@@ -1444,9 +1494,7 @@
 }
 
 .dashboard-sidebar-aside.dashboard-sidebar-collapsed .dashboard-sidebar-feedback {
-  display: none !important;
-  overflow: hidden;
-  font-size: 0 !important;
+  display: flex !important;
   padding-left: 8px !important;
   padding-right: 8px !important;
 }

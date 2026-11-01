@@ -4618,7 +4618,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             )}
           </div>
           <div className="dashboard-sidebar-plan">
-            <div className="dashboard-sidebar-plan-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="dashboard-sidebar-plan-row">
               <span className="dashboard-sidebar-plan-label">Plan</span>
               <span style={{ 
                 background: isEntitlementLoading || isFreePlan ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
@@ -4667,28 +4667,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               type="button"
               className="dashboard-sidebar-feedback"
               onClick={openFeedbackModal}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                width: '100%',
-                padding: '6px 12px',
-                background: 'var(--btn-secondary-bg)',
-                border: '1px dashed var(--border)',
-                borderRadius: '6px',
-                fontSize: '0.72rem',
-                fontWeight: 650,
-                color: 'var(--text-muted)',
-                marginBottom: '16px',
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'var(--transition)'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-main)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              aria-label="Share Feedback"
+              title="Share Feedback"
             >
-              Share Feedback
+              <svg className="dashboard-sidebar-feedback-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="dashboard-sidebar-feedback-label">Share Feedback</span>
             </button>
           </div>
         </div>

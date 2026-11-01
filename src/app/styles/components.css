@@ -4360,6 +4360,12 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
 
 .dashboard-sidebar-feedback {
   min-height: 30px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition);
   border: 1px dashed #d9d6cf !important;
   color: #5f6b7a !important;
   background: transparent !important;
@@ -4370,6 +4376,10 @@ html[data-theme="dark"] .blog-card-footer:hover .blog-card-cta {
   border-color: #b9b4d9 !important;
   color: var(--text-main) !important;
   background: #fbfaff !important;
+}
+
+.dashboard-sidebar-feedback-label {
+  white-space: nowrap;
 }
 
 .dashboard-wave1-overview {
