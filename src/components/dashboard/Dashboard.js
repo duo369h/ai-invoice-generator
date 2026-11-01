@@ -1,4 +1,8 @@
 'use client';
+import useQuoteDraftContinuity from './useQuoteDraftContinuity';
+import QuoteLeaveDialog from './QuoteLeaveDialog';
+import { buildQuoteDraftFingerprint } from './quoteEditorProfessionalModel';
+import { captureInvoicePdfDocument, captureQuotePdfDocument } from '../../app/lib/pdf';
 
 /*
 CORVIOZ SYSTEM LOCK v1
@@ -17,8 +21,15 @@ NO BUSINESS INFERENCE IN RUNTIME
 // V3_CONFLICT_RESOLVER_READY
 */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import IntelligenceUsageNotice from './IntelligenceUsageNotice.js';
+import {prepareSemanticAnalysis, recordAnalysisAttempt, readAnalysisOperation,fetchIntelligenceUsage,resumeAnalysisOperation} from './intelligenceBudgetClient.js';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import DashboardAccountMenu from './DashboardAccountMenu';
 import Link from 'next/link';
+import PublicProfileWorkspace from './PublicProfileWorkspace';
+import HarborMobileNavigation from './HarborMobileNavigation';
+import { getHarborFocusedContext } from './harborMobileNavigation.mjs';
 import { usePathname, useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/app/lib/supabase-client';
 
@@ -33,13 +44,21 @@ import { PricingRedirectOverlay } from '../ui/PricingRedirectOverlay';
 import { UpgradeBanner } from '../ui/UpgradeBanner';
 
 import DashboardOverview from '@/app/dashboard/components/DashboardOverview';
-import StudioSpace from '@/app/dashboard/components/StudioSpace';
+import BusinessTimezoneSetting from './BusinessTimezoneSetting';
+import ExportDownloadAction from './ExportDownloadAction';
+import InvoiceClientDocument from './InvoiceClientDocument';
+import InvoiceReviewPresentation from './InvoiceReviewPresentation';
+import { invoiceEditorViewRecord, captureInvoiceEvidence, hydrateInvoiceItems, invoiceEvidenceMatches, invoiceNotificationMessage, canRetryInvoiceNotification } from '../../core/revenue/invoiceEditorEvidence.mjs';
+import { resolveInvoiceClientDocument } from '../../core/revenue/invoiceClientDocument.mjs';
+import { calculateLineItemAmount } from '../../core/quotes/lineItemBilling.js';
+import StudioSpace, { StudioClientsEntry } from '@/app/dashboard/components/StudioSpace';
+import ClientWorkspace from './ClientWorkspace';
 // Telemetry layer purged - UI is pure render only
 const trackEvent = () => {};
 const setAnalyticsUserId = () => {};
 const clearAnalyticsUserId = () => {};
 import { clearConversionIntent, saveIntendedRoute, saveSelectedPlan } from '@/app/lib/intent-store';
-import { canAccess, getUserEntitlements } from 'lib/entitlements';
+import { getUserEntitlements } from 'lib/entitlements';
 import { sendEvent } from '../../core/analytics/eventRouter';
 
 
@@ -50,7 +69,6 @@ import useDashboardMode from '@/hooks/useDashboardMode';
 import { useRevenueAction } from '@/hooks/useRevenueAction';
 
 import { Icons } from '@/styles/icons';
-import { ClientPortalIcon } from '@/components/icons/SidebarIconsBPlus';
 import { ENTRY_AUTHORITY, applyEntryRouteTransition } from '../../core/entry/ENTRY_AUTHORITY';
 import {
   buildFirstQuoteActivationEvent,
@@ -62,6 +80,7 @@ import {
   DASHBOARD_ENTITLEMENT_STATUS,
   EMPTY_DASHBOARD_ENTITLEMENTS,
   buildDashboardEntitlementState,
+  getDashboardPdfExportDecision,
   mapEntitlementRecord,
   resolveDashboardEntitlements,
 } from '../../core/state/dashboardEntitlementState';
@@ -71,11 +90,40 @@ import {
   readEntryRevenueContext,
   updateEntryRevenueContext,
 } from '../../core/entry/ENTRY_REVENUE_CONTEXT';
-import { PHOTOGRAPHY_QUOTE_PRESETS, getPhotographyQuotePresetById } from '../../core/quotes/photographyQuotePresets';
-import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab } from './dashboardWave1.mjs';
-import { deserializeQuoteNotes as deserializeInvoiceNotes } from './quoteNotes.mjs';
+import {
+  PHOTOGRAPHY_WORKFLOW_TEMPLATES,
+  getPhotographyWorkflowTemplateById,
+} from '../../core/quotes/photographyWorkflowTemplates';
+import { buildPhotographyPreSendReview } from '../../core/quotes/photographyQuoteReview';
+import {
+  buildPhotographySemanticReviewInput,
+} from '../../core/intelligence/photographySemanticReviewInput';
+import { mergePhotographyReviewFindings } from '../../core/intelligence/semanticReviewContract';
+import {
+  createEmptyPhotographyScope,
+  derivePhotographyVertical,
+  normalizePhotographyScope,
+  setPhotographyUsageRightsStatus,
+  updatePhotographyScopeField,
+} from '../../core/quotes/photographyQuoteScope';
+import {
+  buildQuoteProvenanceForSave,
+  createLeadQuoteProvenance,
+} from '../../core/quotes/quoteProvenance.js';
+import { getDashboardTabForTool as getWave1DashboardTabForTool, getDashboardRouteForTab, getOverviewWorkDetails } from './dashboardWave1.mjs';
+import { deserializeQuoteNotes as deserializeInvoiceNotes, serializeQuoteNotes as serializeInvoiceNotes, readNarrativePaymentTermsV1, readPreparedForDisplayOverride, withNarrativePaymentTermsV1 } from './quoteNotes.mjs';
 import { getClientDocumentContinuity, getEffectiveDocumentTimestamp } from './clientDocumentContinuity.mjs';
-import { hasRecordedInvoicePayment, paymentStatusForInvoice } from '../../core/revenue/invoicePaymentState.js';
+import { getBusinessReferenceDate, addCalendarDays, normalizeDateOnly } from '../../app/lib/businessTimezone.mjs';
+import { hasRecordedInvoicePayment, paymentStatusForInvoice, resolveInvoicePaymentReadModel, summarizeInvoicePayments } from '../../core/revenue/invoicePaymentState.js';
+import QuotePresentationBoundary from './QuotePresentationBoundary';
+import QuoteEditorProfessional from './QuoteEditorProfessional';
+import ProjectCoverPicker from './ProjectCoverPicker';
+import { resolveProjectCover } from '../../core/quotes/projectCover.mjs';
+import { createQuoteEditorCoherenceSession, reviewQuotePreSend, dismissQuoteEditorFinding, getQuoteEditorFinding } from './quoteEditorCoherenceSession.js';
+import { ensureQuoteLineItemId, fetchQuoteAcceptedBaseline } from './quoteEditorProfessionalModel';
+import ProjectUnderstandingWorkspace from './ProjectUnderstandingWorkspace';
+import { createQuoteEditorSharedContract, QuoteEditorSharedProvider, validateQuoteClient } from './QuoteEditorSharedContext';
+import { calculateQuoteTotals } from './quoteTotals';
 
 // Helper functions for random generation to maintain purity in render
 const generateRandomNumberString = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -83,8 +131,58 @@ const generateMockId = () => 'mock-' + Date.now();
 const getMockDateString = () => new Date().toISOString();
 const DASHBOARD_SIDEBAR_STORAGE_KEY = 'corvioz_dashboard_sidebar_collapsed';
 const TERMINAL_QUOTE_STATUSES = new Set(['approved', 'declined', 'converted']);
+const isDevelopment = process.env.NODE_ENV === 'development';
+const DASHBOARD_DATE_LOCALE = 'en-CA';
+const DASHBOARD_MONEY_LOCALE = 'en-CA';
+const DASHBOARD_DATE_ENTRY_PATTERN = '\\d{4}-\\d{2}-\\d{2}';
 
-function ClientDocumentsPanel({
+const formatDashboardDate = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const dateOnlyMatch = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const date = dateOnlyMatch
+    ? new Date(Date.UTC(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3])))
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DASHBOARD_DATE_LOCALE, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const formatDashboardTime = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DASHBOARD_DATE_LOCALE, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const formatDashboardNumber = (value) => new Intl.NumberFormat(DASHBOARD_MONEY_LOCALE).format(Number(value) || 0);
+
+const formatDashboardMoney = (amount, currency) => {
+  const normalizedCurrency = String(currency || 'USD').trim().toUpperCase() || 'USD';
+  const numericAmount = Number(amount);
+  const safeAmount = Number.isFinite(numericAmount) ? numericAmount : 0;
+  const formattedAmount = safeAmount.toFixed(2);
+  try {
+    return new Intl.NumberFormat(DASHBOARD_MONEY_LOCALE, {
+      style: 'currency',
+      currency: normalizedCurrency,
+      currencyDisplay: 'code',
+    }).format(safeAmount);
+  } catch (_) {
+    return `${normalizedCurrency} ${formattedAmount}`;
+  }
+};
+
+export function ClientDocumentsPanel({
   client,
   quotes,
   invoices,
@@ -108,7 +206,7 @@ function ClientDocumentsPanel({
 
   const formatDocumentDate = (document) => {
     const timestamp = getEffectiveDocumentTimestamp(document);
-    return timestamp === null ? '' : new Date(timestamp).toLocaleDateString();
+    return timestamp === null ? '' : formatDashboardDate(timestamp);
   };
 
   const renderDocuments = (documents, type) => documents.map((document) => {
@@ -117,22 +215,22 @@ function ClientDocumentsPanel({
       : document.invoice_number || document.id;
     const status = type === 'quote'
       ? document.status || '—'
-      : document.payment_status || document.status || '—';
+      : document.status === 'draft' ? 'draft' : paymentStatusForInvoice(document);
     const date = formatDocumentDate(document);
     return (
       <li
         key={document.id || reference}
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '9px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '9px 0', borderBottom: '1px solid rgba(0,0,0,.05)', flexWrap: 'wrap' }}
       >
         <div style={{ minWidth: 0, flex: '1 1 180px' }}>
-          <div style={{ overflowWrap: 'anywhere', color: 'var(--text-main)', fontWeight: 650 }}>{reference}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{status}{date ? ` · ${date}` : ''}</div>
+          <div style={{ overflowWrap: 'anywhere', color: 'var(--block02-dark-ink)', fontWeight: 650 }}>{reference}</div>
+          <div style={{ color: 'var(--block02-gray-muted)', fontSize: '0.8rem' }}>{status}{date ? ` · ${date}` : ''}</div>
         </div>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
           aria-label={`Open ${type === 'quote' ? 'Quote' : 'Invoice'} ${reference}`}
-          onClick={() => onOpenDocument?.({ documentType: type, id: document.id })}
+          onClick={() => { if (onOpenDocument?.({ documentType: type, id: document.id }) === false) window.alert('This document is not available in the loaded records.'); }}
         >
           Open
         </button>
@@ -142,15 +240,15 @@ function ClientDocumentsPanel({
 
   const renderResource = ({ label, documents, more, unavailable, stale, emptyEligible, emptyMessage, loading }) => (
     <div style={{ minWidth: 0 }}>
-      <h5 style={{ margin: '0 0 6px', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</h5>
-      {loading && <p role="status" style={{ margin: '0 0 6px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Loading {label.toLowerCase()}…</p>}
-      {unavailable && <p role="alert" style={{ margin: '0 0 6px', color: 'var(--danger-text)', fontSize: '0.82rem' }}>{label} unavailable.</p>}
-      {stale && <p role="status" style={{ margin: '0 0 6px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{label} data is retained but may be stale.</p>}
-      {emptyEligible && <p style={{ margin: '0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{emptyMessage}</p>}
+      <h5 style={{ margin: '0 0 6px', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--block02-gray-muted)' }}>{label}</h5>
+      {loading && <p role="status" style={{ margin: '0 0 6px', color: 'var(--block02-gray-muted)', fontSize: '0.82rem' }}>Loading {label.toLowerCase()}…</p>}
+      {unavailable && <p role="alert" style={{ margin: '0 0 6px', color: '#b91c1c', fontSize: '0.82rem' }}>{label} unavailable.</p>}
+      {stale && <p role="status" style={{ margin: '0 0 6px', color: 'var(--block02-gray-muted)', fontSize: '0.82rem' }}>{label} data is retained but may be stale.</p>}
+      {emptyEligible && <p style={{ margin: '0', color: 'var(--block02-gray-muted)', fontSize: '0.82rem' }}>No linked {label.toLowerCase()} in the loaded records.</p>}
       {documents.length > 0 && (
         <>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{renderDocuments(documents, label === 'Quotes' ? 'quote' : 'invoice')}</ul>
-          {more > 0 && <p style={{ margin: '7px 0 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>+ {more} more {label.toLowerCase()}</p>}
+          {more > 0 && <p style={{ margin: '7px 0 0', color: 'var(--block02-gray-muted)', fontSize: '0.78rem' }}>+ {more} more loaded {label.toLowerCase()}</p>}
         </>
       )}
     </div>
@@ -160,12 +258,12 @@ function ClientDocumentsPanel({
     <section
       id={panelId}
       data-testid={panelId}
-      aria-labelledby={controlId}
-      style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', background: 'var(--background)', border: '1px solid var(--border)', overflow: 'hidden' }}
+      aria-label="Loaded document records"
+      style={{ width: '100%', padding: '14px 16px', borderRadius: '2px', background: 'var(--white)', border: '1px solid rgba(0,0,0,.05)', overflow: 'hidden' }}
     >
-      <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>Documents</h4>
+      <h4 style={{ margin: '0 0 12px', fontSize: '0.95rem', color: 'var(--block02-dark-ink)' }}>Loaded document records</h4>
       {clientDocuments.combinedEmptyEligible ? (
-        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{clientDocuments.emptyMessage}</p>
+        <p style={{ margin: 0, color: 'var(--block02-gray-muted)', fontSize: '0.85rem' }}>No linked documents in the loaded records.</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
           {renderResource({
@@ -279,10 +377,9 @@ const REVENUE_ENTRY_ROUTE_TARGETS = {
 };
 
 const INVOICE_FLOW_STAGES = [
-  { id: 'create', label: 'Create' },
+  { id: 'create', label: 'Edit' },
   { id: 'preview', label: 'Preview' },
   { id: 'send', label: 'Send' },
-  { id: 'paid', label: 'Completed' },
 ];
 
 function FirstRevenueLoopAction({ loop, onCreateQuote, onSendQuote, onCreateInvoiceDraft, onPreparePayment }) {
@@ -296,9 +393,9 @@ function FirstRevenueLoopAction({ loop, onCreateQuote, onSendQuote, onCreateInvo
       onAction: onCreateQuote,
     },
     draft: {
-      title: 'Mark your quote as sent',
-      description: 'Your quote is ready. Mark it as sent to start tracking the client decision.',
-      actionLabel: 'Mark as Sent',
+      title: 'Send your quote',
+      description: 'Your saved quote is ready to deliver to the client.',
+      actionLabel: 'Send Quote',
       onAction: onSendQuote,
     },
     sent: {
@@ -448,22 +545,18 @@ const readFirstQuoteStartedAt = () => {
   }
 };
 
-// Helpers to serialize/deserialize custom metadata in the text notes column
-const serializeInvoiceNotes = (baseNotes, metadata) => {
-  return `${baseNotes || ''}\n\n---METADATA---\n${JSON.stringify(metadata)}`;
-};
-
 // Resolve only workflow facts supported by the current invoice state.
 // Client-open activity is intentionally absent: no invoice-level open event
 // is part of the authoritative model.
-export const getInvoiceTimelineState = (invoice = {}) => {
+export const getInvoiceTimelineState = (invoice = {}, now = new Date(), options = {}) => {
   const resolvedInvoice = (typeof invoice === 'string' ? { status: invoice } : invoice) || {};
   const status = resolvedInvoice.status || 'draft';
   const created = Boolean(resolvedInvoice?.id);
-  const paymentStatus = paymentStatusForInvoice(resolvedInvoice);
+  const payment = resolveInvoicePaymentReadModel(resolvedInvoice, now, options);
+  const paymentStatus = payment.payment_status;
   const sent = created && status === 'sent';
   const completed = created && paymentStatus === 'paid';
-  const overdue = created && paymentStatus === 'overdue';
+  const overdue = created && status !== 'draft' && payment.is_overdue;
 
   return {
     progressWidth: sent && completed ? '80%' : (sent ? '40%' : '0%'),
@@ -477,8 +570,8 @@ export const getInvoiceTimelineState = (invoice = {}) => {
 };
 
 // Render interactive invoice status timeline
-const renderInvoiceTimeline = (invoice) => {
-  const { stages, progressWidth, overdue } = getInvoiceTimelineState(invoice);
+const renderInvoiceTimeline = (invoice, now, options) => {
+  const { stages, progressWidth, overdue } = getInvoiceTimelineState(invoice, now, options);
 
   return (
     <div style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--btn-secondary-bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -556,6 +649,156 @@ export function getQuotesContentState(isQuotesLoading, quoteCount) {
   return quoteCount > 0 ? 'ready' : 'empty';
 }
 
+// Display-only ledger context follows the existing notes and exact invoice lineage.
+function formatDocumentLedgerMoney(record) {
+  const total = record?.total;
+  const currency = typeof record?.currency === 'string' ? record.currency.trim().toUpperCase() : '';
+  const hasAmount = (typeof total === 'number' || (typeof total === 'string' && total.trim() !== '')) && Number.isFinite(Number(total));
+  if (!hasAmount || !/^[A-Z]{3}$/.test(currency)) return 'Total unavailable';
+  return formatDashboardMoney(Number(total) / 100, currency);
+}
+
+function getDocumentLedgerDetails(record, documentType = 'quote', quotes = [], now = new Date()) {
+  let metadata = deserializeInvoiceNotes(typeof record?.notes === 'string' ? record.notes : '').metadata;
+  if (documentType === 'invoice' && !metadata.quote_preset_id && record?.quote_id) {
+    const linkedQuote = (Array.isArray(quotes) ? quotes : []).find((quote) => quote?.id === record.quote_id);
+    if (linkedQuote) metadata = deserializeInvoiceNotes(typeof linkedQuote.notes === 'string' ? linkedQuote.notes : '').metadata;
+  }
+  const preset = getPhotographyWorkflowTemplateById(typeof metadata.quote_preset_id === 'string' ? metadata.quote_preset_id.trim() : null);
+  const scope = normalizePhotographyScope(metadata.photography_scope_v2);
+  return {
+    ...getOverviewWorkDetails(record, documentType, quotes, now),
+    title: scope.common.shoot_type || preset?.label || `Photography ${documentType}`,
+    category: preset?.label || 'Photography',
+  };
+}
+
+function DocumentLedgerStatus({ status }) {
+  const label = { draft: 'Draft', sent: 'Sent', approved: 'Approved', converted: 'Converted', declined: 'Declined', unpaid: 'Unpaid', partial: 'Partial', paid: 'Paid' }[status] || 'Status unavailable';
+  return (
+    <span className={`document-ledger-status document-ledger-status-${status || 'unknown'}`}>
+      <svg aria-hidden="true" viewBox="0 0 100 12" preserveAspectRatio="none">
+        <path opacity="0.12" d="M3 5.7 12 5.5 23 5.7 35 5.4 47 5.6 59 5.5 71 5.7 83 5.4 98 5.6 96 10.6 87 10.8 75 10.6 64 10.9 52 10.7 40 10.9 28 10.6 16 10.8 1 10.6Z" />
+        <path opacity="0.05" d="M5 6.2 19 6.4 32 6.1 46 6.3 60 6.1 74 6.4 96 6.2 94 10.1 79 9.9 64 10.2 50 10 36 10.2 21 9.9 4 10.1Z" />
+        <path opacity="0.025" d="M7 7.2 24 7 40 7.3 57 7.1 75 7.3 94 7.1 94 7.5 74 7.7 58 7.5 40 7.7 24 7.4 7 7.6Z M4 9.2 20 9.1 34 9.3 53 9.1 69 9.4 90 9.2 90 9.6 70 9.8 53 9.5 34 9.7 20 9.5 4 9.6Z" />
+        <path opacity="0.035" d="M9 6.1h2v.3H9Z M18 8.2h3v.25h-3Z M26 6.6h1.5v.35H26Z M34 9.8h2v.25h-2Z M42 7.9h3v.3h-3Z M51 6h2v.25h-2Z M59 8.7h1.5v.3H59Z M68 6.8h2.5v.25H68Z M77 9.6h3v.3h-3Z M85 8h2v.3h-2Z M92 6.6h1.5v.3H92Z" />
+      </svg>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function DocumentLedgerImageToggle({ showImages, onToggle }) {
+  return (
+    <button type="button" className="document-ledger-image-toggle" aria-pressed={showImages} aria-label={showImages ? 'Hide project images' : 'Show project images'} onClick={onToggle}>
+      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="1" /><circle cx="7" cy="7" r="1" /><path d="m4 15 4-4 3 3 2-2 3 3" /></svg>
+      {showImages ? 'Hide images' : 'Show images'}
+    </button>
+  );
+}
+
+function DocumentLedgerColumns({ showImages, documentType }) {
+  return (
+    <div className={`document-ledger-columns document-ledger-grid${showImages ? ' document-ledger-with-images' : ''}`} aria-hidden="true">
+      {showImages && <span />}
+      <span>Project / Document</span><span>Client</span><span>{documentType === 'invoice' ? 'Issued / Due' : 'Updated'}</span><span className="document-ledger-amount">Total</span><span>Status</span>
+    </div>
+  );
+}
+
+function DocumentLedgerState({ kind, documentType, onCreate, error = false }) {
+  if (kind === 'loading') {
+    return (
+      <div className="document-ledger-state document-ledger-loading" data-testid={`${documentType}s-loading`} role="status" aria-label={`Loading ${documentType}s`}>
+        <span className="document-ledger-state-title">Loading {documentType}s…</span>
+        {[0, 1, 2].map((row) => <div className="document-ledger-loading-line" key={row}><span className="skeleton animate-pulse" /><span className="skeleton animate-pulse" /><span className="skeleton animate-pulse" /></div>)}
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="document-ledger-state" role="alert">
+        <h2>{documentType === 'quote' ? 'Quotes' : 'Invoices'} unavailable</h2>
+        <p>Refresh to load your {documentType}s.</p>
+        <button type="button" onClick={onCreate} className="document-ledger-new-action">+ New {documentType}</button>
+      </div>
+    );
+  }
+  return (
+    <div className="document-ledger-state">
+      <h2><span className="document-ledger-desktop-copy">{documentType === 'quote' ? 'Your next project starts here.' : 'A clear path from work to payment.'}</span><span className="document-ledger-mobile-copy">{error ? `${documentType === 'quote' ? 'Quotes' : 'Invoices'} unavailable` : `No ${documentType}s yet.`}</span></h2>
+      <p><span className="document-ledger-desktop-copy">{documentType === 'quote' ? 'Choose a shoot preset, shape the scope, and prepare your first client quote.' : 'Create an invoice with client details, line items, a due date, and clear payment terms.'}</span><span className="document-ledger-mobile-copy">{error ? `Refresh to load your ${documentType}s.` : documentType === 'quote' ? 'New quotes will appear here.' : 'New invoices will appear here.'}</span></p>
+      <button type="button" onClick={onCreate} className="document-ledger-new-action">+ New {documentType}</button>
+    </div>
+  );
+}
+
+// Screen-only preview fitting. The canonical document measures at 1:1 first.
+function InvoicePreviewFrame({ children }) {
+  const frameRef = useRef(null);
+  useEffect(() => {
+    const frame = frameRef.current;
+    const canvas = frame?.querySelector('.invoice-preview-canvas');
+    if (!frame || !canvas) return undefined;
+    const updateFit = () => {
+      const available = frame.getBoundingClientRect().width;
+      const sourceWidth = canvas.offsetWidth;
+      if (available > 0 && sourceWidth > 0) {
+        frame.style.setProperty('--invoice-preview-scale', String(Math.min(1, available / sourceWidth)));
+      }
+    };
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(updateFit) : null;
+    observer?.observe(frame);
+    observer?.observe(canvas);
+    window.addEventListener('resize', updateFit);
+    updateFit();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateFit);
+    };
+  }, []);
+  return <div className="invoice-document-preview invoice-preview-fit" ref={frameRef} role="region" aria-label="Invoice document preview" tabIndex={0}>
+    <p className="invoice-preview-preparing" role="status">Preparing preview…</p>
+    <div className="invoice-preview-canvas">{children}</div>
+  </div>;
+}
+
+// Invoice presentation only: measure scroll-tail clearance and retain usable focus.
+function useInvoiceFloatingActions(workspaceRef, enabled) {
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!enabled || !workspace) return;
+    const actions = workspace.querySelector('.invoice-editor-actions');
+    const scroll = workspace.querySelector('.invoice-document-workspace');
+    if (!actions || !scroll) return;
+
+    const keepFocusedFieldVisible = ({ target }) => {
+      if (!scroll.contains(target) || !target?.matches?.('input, textarea, select, button, a, summary')) return;
+      const field = target.getBoundingClientRect();
+      const viewport = scroll.getBoundingClientRect();
+      const safeBottom = Math.min(viewport.bottom, actions.getBoundingClientRect().top - 16);
+      if (field.bottom > safeBottom) scroll.scrollBy({ top: Math.ceil(field.bottom - safeBottom), behavior: 'auto' });
+      else if (field.top < viewport.top + 16) scroll.scrollBy({ top: Math.floor(field.top - viewport.top - 16), behavior: 'auto' });
+    };
+    const updateClearance = () => {
+      const height = actions.getBoundingClientRect().height;
+      if (height > 0) workspace.style.setProperty('--invoice-actions-height', `${height}px`);
+      keepFocusedFieldVisible({ target: scroll.ownerDocument?.activeElement });
+    };
+    updateClearance();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(updateClearance) : null;
+    observer?.observe(actions);
+    scroll.addEventListener('focusin', keepFocusedFieldVisible);
+    window.addEventListener('resize', updateClearance);
+    return () => {
+      observer?.disconnect();
+      scroll.removeEventListener('focusin', keepFocusedFieldVisible);
+      window.removeEventListener('resize', updateClearance);
+      workspace.style.removeProperty('--invoice-actions-height');
+    };
+  }, [workspaceRef, enabled]);
+}
+
 export default function Dashboard({ mode = 'live', initialTool: routeInitialTool = null, tierPlan = null, onSuccessMoment = null }) {
 
 
@@ -604,7 +847,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [activeTab, setActiveTab] = useState(() => {
     return getDashboardTabForTool(initialTool);
   }); // overview, leads, quotes, invoices, clients, profile
-  const [expandedClientDocumentsId, setExpandedClientDocumentsId] = useState(null);
+  const [quoteLedgerImagesVisible, setQuoteLedgerImagesVisible] = useState(true);
+  const [invoiceLedgerImagesVisible, setInvoiceLedgerImagesVisible] = useState(true);
   
   const [session, setSession] = useState(null);
   const sessionRef = useRef(null);
@@ -612,6 +856,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [authChecked, setAuthChecked] = useState(previewMode);
   const [dashboardDataError, setDashboardDataError] = useState(null);
   
+  const dashboardData = useDashboardData(mode, session);
   const {
     user,
     setUser,
@@ -622,6 +867,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     quotesError,
     setQuotesError,
     invoicesError,
+    quotaError,
     invoices,
     setInvoices,
     clients,
@@ -638,13 +884,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     saveQuote,
     saveInvoice,
     saveAndSendInvoice,
+    readInvoiceStatus,
     saveCardProfile,
     deleteQuote,
     deleteInvoice,
-    saveClient,
-    deleteClient,
+    clientWorkspace,
     saveLead
-  } = useDashboardData(mode, session);
+  } = dashboardData;
 
   useEffect(() => {
     sessionRef.current = session;
@@ -681,17 +927,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const [pricingPlans, setPricingPlans] = useState([]);
 
-  useEffect(() => {
-    if (previewMode || typeof window === 'undefined') return undefined;
-
-    const syncDashboardTabFromLocation = () => {
-      const tool = new URLSearchParams(window.location.search).get('tool');
-      setActiveTab(getDashboardTabForTool(tool));
-    };
-
-    window.addEventListener('popstate', syncDashboardTabFromLocation);
-    return () => window.removeEventListener('popstate', syncDashboardTabFromLocation);
-  }, [previewMode]);
 
   useEffect(() => {
     let active = true;
@@ -860,8 +1095,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const isEntitlementLoading = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.LOADING;
   const isEntitlementError = entitlementState.status === DASHBOARD_ENTITLEMENT_STATUS.ERROR;
 
-  const isPro = entitlements.export_pdf || entitlements.client_portal;
-  const isFree = entitlementReady ? !isPro : false;
+  const { canExportPdf, hasCleanPdf } = getDashboardPdfExportDecision(entitlements);
+  const normalizedPlan = String(user?.plan || (previewMode ? 'free' : '')).toLowerCase();
+  const isFreePlan = entitlementReady && normalizedPlan === 'free';
   const firstRevenueLoop = user?.first_revenue_loop || null;
   const firstRevenueLoopActionReady = Boolean(
     firstRevenueLoop
@@ -885,16 +1121,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   );
   const planStatusLabel = isEntitlementLoading
     ? 'Loading'
-    : (isEntitlementError ? 'Unavailable' : (user?.plan || (isFree ? 'free' : 'paid')));
+    : (isEntitlementError ? 'Unavailable' : (user?.plan || (isFreePlan ? 'free' : 'paid')));
 
   const [exportCount, setExportCount] = useState(0);
-  const [showExportPurposeModal, setShowExportPurposeModal] = useState(false);
-  const [exportPurposeParams, setExportPurposeParams] = useState(null);
-  const [exportPurpose, setExportPurpose] = useState('draft');
-  const [exportSentToClient, setExportSentToClient] = useState(false);
-  const [showBusinessModeModal, setShowBusinessModeModal] = useState(false);
-  const [showStudioPreviewModal, setShowStudioPreviewModal] = useState(false);
-  const [studioPreviewActive, setStudioPreviewActive] = useState(false);
 
   const {
     evaluateAction,
@@ -914,7 +1143,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [isDebugPanelVisible, setIsDebugPanelVisible] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isDevelopment && typeof window !== 'undefined') {
       window.__corvioz_on_debug_event = () => {
         setDebugEventsCount(c => c + 1);
       };
@@ -927,33 +1156,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isDevelopment && typeof window !== 'undefined') {
       const count = Number(window.localStorage.getItem('corvioz_export_count') || 0);
       setExportCount(count);
     }
   }, []);
 
   useEffect(() => {
-    if (showExportPurposeModal) console.log('[INSTRUMENTATION] modal_rendered: ExportPurposeModal');
-  }, [showExportPurposeModal]);
-
-  useEffect(() => {
-    console.log('[INSTRUMENTATION] exportCount_updated:', exportCount);
+    if (isDevelopment) console.log('[INSTRUMENTATION] exportCount_updated:', exportCount);
   }, [exportCount]);
-
-  useEffect(() => {
-    const hasPendingQuote24h = quotes ? quotes.some(q => {
-      if (q.status !== 'sent') return false;
-      const createdTime = new Date(q.created_at);
-      const diffHrs = (Date.now() - createdTime.getTime()) / (1000 * 3600);
-      return diffHrs > 24;
-    }) : false;
-
-    if ((clients && clients.length >= 2) || hasPendingQuote24h) {
-      setStudioPreviewActive(true);
-    }
-  }, [clients, quotes]);
-
 
   const isSandboxMode = isDemo || (typeof window !== 'undefined' && window.sessionStorage.getItem('corvioz_sandbox_mode') === 'true');
   const isStudio = entitlements.crm || entitlements.automation || isSandboxMode;
@@ -962,6 +1173,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [formSuccess, setFormSuccess] = useState('');
   const [toast, setToast] = useState(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountButtonRef = useRef(null);
+  const [profileFocused, setProfileFocused] = useState(false);
+  const [isSavingLearningPreference, setIsSavingLearningPreference] = useState(false);
+  const [learningPreferenceError, setLearningPreferenceError] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const isSigningOutRef = useRef(false);
@@ -1063,7 +1278,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
       setFeedbackMessage('');
       setFeedbackModalOpen(false);
-      triggerToast('Beta feedback sent. Thank you.', 'success');
+      triggerToast('Feedback sent. Thank you.', 'success');
     } catch (err) {
       setFeedbackError(err.message || 'Feedback could not be sent.');
     } finally {
@@ -1089,30 +1304,69 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   // Visits and local rules removed to maintain pure dumb renderer
 
   // Interactive View Toggles
-  const [quoteView, setQuoteView] = useState(() => initialQuoteCreateMode ? 'create' : 'list'); // list, create, edit
+  const [quoteView, setQuoteView] = useState(() => initialQuoteCreateMode ? 'project_understanding' : 'list'); // list, create, edit
+  const [buildQuoteHandoff, setBuildQuoteHandoff] = useState(null);
+  const buildQuoteHandoffResolveRef = useRef(null);
   const [invoiceView, setInvoiceView] = useState(() => initialTool === 'invoice' ? 'create' : 'list'); // list, create, edit
   const [invoiceFlowStage, setInvoiceFlowStage] = useState(() => initialTool === 'invoice' ? 'create' : 'create');
   const [invoiceFlowLocked, setInvoiceFlowLocked] = useState(() => initialTool === 'invoice');
   const [showPaymentWaitingBanner, setShowPaymentWaitingBanner] = useState(false);
   const [isParsingLead, setIsParsingLead] = useState(null); // ID of lead parsing
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingQuote, setIsSendingQuote] = useState(false);
+  const [quotePreSendSessions, setQuotePreSendSessions] = useState(() => new Map());
+  const [quotePreSendNotice, setQuotePreSendNotice] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfExportError, setPdfExportError] = useState(null);
+  const pdfExportPendingRef = useRef(false);
+  const pdfExportDocumentRef = useRef(null);
 
   // Quote Editor State
   const [qId, setQId] = useState('');
+  const [qClientPresentation, setQClientPresentation] = useState(undefined);
+  const [qApprovedSnapshotId, setQApprovedSnapshotId] = useState(null);
+  const [projectCoverQuoteId, setProjectCoverQuoteId] = useState(null);
   const [qNumber, setQNumber] = useState(() => initialQuoteCreateMode ? generateRandomNumberString('QT') : '');
   const [qClientName, setQClientName] = useState('');
   const [qClientEmail, setQClientEmail] = useState('');
   const [qClientAddress, setQClientAddress] = useState('');
   const [qClientId, setQClientId] = useState(null);
-  const [qItems, setQItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
+  const [qPreparedForOverridePresent, setQPreparedForOverridePresent] = useState(false);
+  const [qPreparedForDisplayOverride, setQPreparedForDisplayOverride] = useState('');
+  const [persistedLineageByItemId, setPersistedLineageByItemId] = useState({});
+  const loadAcceptedBaseline = useCallback((quoteId, signal) => fetchQuoteAcceptedBaseline({ quoteId, signal, accessToken: session?.access_token }), [session?.access_token]);
+  const loadApprovedQuoteClientDocument = useCallback(async (quoteId, signal) => {
+    if (!session?.access_token) throw new Error('Sign in to preview the approved Quote.');
+    const response = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}/approved-client-document`, {
+      signal, headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) throw new Error('The approved Quote preview is unavailable.');
+    const result = await response.json();
+    if (result.approval_truth !== 'snapshot' || !result.data) throw new Error('The approved Quote preview is unavailable.');
+    return result.data;
+  }, [session?.access_token]);
+  const [qItems, setQItems] = useState(() => [ensureQuoteLineItemId({ description: '', quantity: 1, unitPrice: 0 })]);
   const [qTaxRate, setQTaxRate] = useState(0);
   const [qDiscountRate, setQDiscountRate] = useState(0);
   const [qCurrency, setQCurrency] = useState('USD');
   const [qNotes, setQNotes] = useState('');
-  const [qDate, setQDate] = useState(() => initialQuoteCreateMode ? new Date().toISOString().substring(0, 10) : '');
+  const [qNarrativePaymentTerms, setQNarrativePaymentTerms] = useState('');
+  const [qDate, setQDate] = useState('');
   const [qStatus, setQStatus] = useState('draft');
   const [selectedQuotePresetId, setSelectedQuotePresetId] = useState('');
+  const [quotePresetSelectionTouched, setQuotePresetSelectionTouched] = useState(false);
+  const [qPhotographyScope, setQPhotographyScope] = useState(() => createEmptyPhotographyScope());
+  const [qQuoteProvenance, setQQuoteProvenance] = useState(null);
+  const [usageRightsExpanded, setUsageRightsExpanded] = useState(false);
+  const [scopeFieldsExpanded, setScopeFieldsExpanded] = useState(false);
+  const [semanticReviewState, setSemanticReviewState] = useState({
+    status: 'READY',
+    inputFingerprint: null,
+    semanticFindings: [],
+  });
+  const [pendingSemanticOperation,setPendingSemanticOperation]=useState(null);
+  const [sharedModelUsage,setSharedModelUsage]=useState(null);
+  useEffect(()=>{if(!session?.access_token)return;let alive=true;fetchIntelligenceUsage({accessToken:session.access_token}).then(value=>{if(alive){setSharedModelUsage(value);if(value.active_operation?.kind==='semantic_review')setPendingSemanticOperation(value.active_operation);}}).catch(()=>{});return()=>{alive=false};},[session?.access_token]);
   const [isFirstQuoteFlow, setIsFirstQuoteFlow] = useState(initialFirstQuoteFlow);
 
   // Quote validation states
@@ -1120,10 +1374,31 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [qClientEmailTouched, setQClientEmailTouched] = useState(false);
   const [qSubmitAttempted, setQSubmitAttempted] = useState(false);
 
+  // Preserve the historical R1 source contract while the helper owns Quote totals.
+  // const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  // const qTotal = qSubtotal * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100);
+  const quoteTotals = calculateQuoteTotals(qItems, qDiscountRate, qTaxRate);
+  const quoteClientValidation = validateQuoteClient({ name: qClientName, email: qClientEmail });
+
   // Invoice Editor State
   const [invId, setInvId] = useState('');
   const [invClientId, setInvClientId] = useState(null);
-  const [pendingSendRetryInvoiceId, setPendingSendRetryInvoiceId] = useState('');
+  const [invClientSearch, setInvClientSearch] = useState('');
+  const invoiceWorkspaceRef = useRef(null);
+  useInvoiceFloatingActions(invoiceWorkspaceRef, authChecked && !isLoading && activeTab === 'invoices' && (invoiceView === 'create' || invoiceView === 'edit'));
+  const [invoiceHydratedRow, setInvoiceHydratedRow] = useState(null);
+  const invoiceEvidenceRef = useRef(null);
+  const invoiceUnknownPersistenceRef = useRef(false);
+  const [invoiceNotificationState, setInvoiceNotificationState] = useState(null);
+  const [isCheckingInvoiceStatus, setIsCheckingInvoiceStatus] = useState(false);
+  const invoiceSavePendingRef = useRef(false);
+  const invoiceBaselineRef = useRef(null);
+  const [invoiceEditorGeneration, setInvoiceEditorGeneration] = useState(0);
+  const invoiceEditStateRef = useRef(null);
+  const invoiceNavigationRef = useRef(null);
+  const invoiceNavigationBypassRef = useRef(false);
+  const [showInvoiceLeaveDialog, setShowInvoiceLeaveDialog] = useState(false);
+  const invoiceLeaveDialogRef = useRef(null);
   const [invNumber, setInvNumber] = useState(() => initialTool === 'invoice' ? generateRandomNumberString('INV') : '');
   const [invClientName, setInvClientName] = useState(() => initialTool === 'invoice' ? 'Acme Corporation' : '');
   const [invClientEmail, setInvClientEmail] = useState(() => initialTool === 'invoice' ? 'client@acme.com' : '');
@@ -1135,13 +1410,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [invDiscountRate, setInvDiscountRate] = useState(0);
   const [invCurrency, setInvCurrency] = useState('USD');
   const [invNotes, setInvNotes] = useState(() => initialTool === 'invoice' ? 'Thank you. Please review the invoice document details.' : '');
-  const [invDate, setInvDate] = useState(() => initialTool === 'invoice' ? new Date().toISOString().substring(0, 10) : '');
-  const [invDueDate, setInvDueDate] = useState(() => {
-    if (initialTool !== 'invoice') return '';
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().substring(0, 10);
-  });
+  const [invDate, setInvDate] = useState('');
+  const [invDueDate, setInvDueDate] = useState('');
   const [invPaymentTerms, setInvPaymentTerms] = useState('Net 30');
   const [invStatus, setInvStatus] = useState('pending');
   const [invPaymentLink, setInvPaymentLink] = useState('');
@@ -1152,71 +1422,191 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [recordPaymentAmount, setRecordPaymentAmount] = useState('');
   const [recordPaymentError, setRecordPaymentError] = useState('');
 
-  const getSelectedInvoice = () => invId ? invoices.find((invoice) => invoice?.id === invId) : null;
-  const isSelectedInvoiceSettled = Boolean(invId && hasRecordedInvoicePayment(getSelectedInvoice()));
-  const selectedInvoicePaymentStatus = paymentStatusForInvoice(getSelectedInvoice() || { status: invStatus });
+  const getSelectedInvoice = () => invId ? invoiceEditorViewRecord(invId, invoiceHydratedRow, invoices) : null;
+  const captureInvoiceHydration = invoice => {
+    invoiceSavePendingRef.current = false;
+    setIsSaving(false);
+    setIsCheckingInvoiceStatus(false);
+    invoiceEditStateRef.current = null;
+    invoiceEvidenceRef.current = captureInvoiceEvidence(invoice, session?.user?.id || null);
+    invoiceUnknownPersistenceRef.current = false;
+    setInvoiceHydratedRow(invoice || null);
+    setInvoiceNotificationState(null);
+    setFormError(''); setFormSuccess('');
+  };
+  const invoiceCommercialReadonly = Boolean(invId && (isDemo || previewMode ? hasRecordedInvoicePayment(getSelectedInvoice())
+    : !invoiceHydratedRow || invoiceHydratedRow.issuance_provenance !== 'created_under_contract' || invoiceHydratedRow.issued_at
+      || invoiceHydratedRow.approval_snapshot_id || invoiceNotificationState?.eligibility?.can_save === false));
+  const invoiceRetryAvailable = canRetryInvoiceNotification(invoiceNotificationState?.notification, invoiceNotificationState?.eligibility);
+  const invoiceNotificationText = invoiceNotificationMessage(invoiceNotificationState?.notification, invoiceNotificationState?.eligibility);
+  const isSelectedInvoiceSettled = Boolean(invId && (hasRecordedInvoicePayment(getSelectedInvoice()) || hasRecordedInvoicePayment(invoices.find(invoice => invoice.id === invId))));
+  const selectedInvoicePayment = resolveInvoicePaymentReadModel(getSelectedInvoice() || { status: invStatus }, new Date(), { timeZone: user?.business_timezone });
+  const selectedInvoicePaymentStatus = selectedInvoicePayment.payment_status;
+  // Only an untouched optional row is omitted from both review and persistence.
+  const invoiceEditorItems = invItems.filter(item => !(!String(item.description || '').trim()
+    && Number(item.quantity) === 1 && Number(item.unitPrice) === 0
+    && !item.secondaryQuantity && !item.billingUnit && !item.secondaryUnit));
+  const invoiceClientDocument = resolveInvoiceClientDocument({
+    invoice: getSelectedInvoice(),
+    editor: { id: invId, number: invNumber, status: invId ? invStatus : 'draft', quoteId: invQuoteId,
+      clientName: invClientName, clientEmail: invClientEmail, clientAddress: invClientAddress,
+      currency: invCurrency, date: invDate, dueDate: invDueDate, items: invoiceEditorItems,
+      discountRate: invDiscountRate, taxRate: invTaxRate, paymentTerms: invPaymentTerms,
+      notes: invNotes, paymentLink: invPaymentLink },
+    issuer: { name: user.name, email: user.email }, timeZone: user?.business_timezone,
+  });
+
+
+  const invoiceValidationMessage = invoiceClientDocument.integrity.ok ? '' : ({
+    INVALID_INVOICE_ITEMS: 'Every invoice item needs a description, a positive quantity, and a non-negative rate.',
+    INVALID_INVOICE_RATES: 'Discount and tax must be between 0 and 100%.',
+    INCOMPLETE_INVOICE_IDENTITY: 'Enter a client name, invoice number, currency, and valid invoice and due dates.',
+    INCONSISTENT_INVOICE_SETTLEMENT: 'The saved payment balance does not match this invoice. Refresh and review it before saving or sending.',
+    INVOICE_UNAVAILABLE: 'This invoice is unavailable. Reopen it before continuing.',
+  }[invoiceClientDocument.integrity.code] || 'The invoice amounts are invalid. Review the items, discount, tax, and payment balance.');
+  const [qPendingEditorDrafts, setQPendingEditorDrafts] = useState({});
+  const [quoteSaveUnknown, setQuoteSaveUnknown] = useState(false);
+  const [quoteEditorGeneration, setQuoteEditorGeneration] = useState(0);
+  const quoteDraftSnapshot = useMemo(() => ({ qId, qClientPresentation, qApprovedSnapshotId,
+    qNumber, qClientId, qClientName, qClientEmail, qClientAddress, qPreparedForOverridePresent,
+    qPreparedForDisplayOverride, qItems, persistedLineageByItemId, qTaxRate, qDiscountRate,
+    qCurrency, qNotes, qNarrativePaymentTerms, qDate, qStatus, qPhotographyScope, qQuoteProvenance, quoteSaveUnknown, qPendingEditorDrafts,
+  }), [qId, qClientPresentation, qApprovedSnapshotId, qNumber, qClientId, qClientName, qClientEmail,
+    qClientAddress, qPreparedForOverridePresent, qPreparedForDisplayOverride, qItems,
+    persistedLineageByItemId, qTaxRate, qDiscountRate, qCurrency, qNotes, qNarrativePaymentTerms,
+    qDate, qStatus, qPhotographyScope, qQuoteProvenance, quoteSaveUnknown, qPendingEditorDrafts]);
+  const quoteContinuity = useQuoteDraftContinuity({ actor: session?.user?.id || null,
+    generation: quoteEditorGeneration, active: activeTab === 'quotes' && ['edit', 'create'].includes(quoteView),
+    snapshot: quoteDraftSnapshot, fingerprint: buildQuoteDraftFingerprint(quoteDraftSnapshot) });
+  const registerQuotePendingDraft = useCallback((kind, value) => {
+    const ticket = quoteContinuity.guard.capture();
+    if (ticket.generation !== quoteEditorGeneration || ticket.actor !== (session?.user?.id || null)
+      || (sessionRef.current?.user?.id || null) !== ticket.actor) return;
+    setQPendingEditorDrafts(current => {
+      const next = { ...current };
+      if (value) next[kind] = value; else delete next[kind];
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+    });
+  }, [quoteContinuity.guard, quoteEditorGeneration, session?.user?.id]);
+  const requestQuoteNavigation = quoteContinuity.requestNavigation;
+  const suspendQuoteDraft = quoteContinuity.suspend;
+  useEffect(() => {
+    const unload = event => {
+      if (!quoteContinuity.guard.dirty && !quoteContinuity.guard.busy) return;
+      event.preventDefault(); event.returnValue = '';
+    };
+    const link = event => {
+      const anchor = event.target.closest?.('a[href]');
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download') || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.href === window.location.href || !['http:', 'https:'].includes(url.protocol)) return;
+      if (!requestQuoteNavigation(() => { window.location.href = url.href; })) { event.preventDefault(); event.stopPropagation(); }
+    };
+    window.addEventListener('beforeunload', unload);
+    document.addEventListener('click', link, true);
+    return () => { window.removeEventListener('beforeunload', unload); document.removeEventListener('click', link, true); };
+  }, [quoteContinuity.guard, requestQuoteNavigation]);
+
+  const invoiceEditSignature = JSON.stringify([invClientId, invNumber, invClientName, invClientEmail,
+    invClientAddress, invCurrency.toUpperCase(), invoiceEditorItems, invDiscountRate, invTaxRate,
+    invNotes, invDate, invDueDate, invPaymentTerms, invPaymentLink, invQuoteId, invBillingType]);
+  const invoiceEditorKey = activeTab === 'invoices' && invoiceView !== 'list'
+    ? `${session?.user?.id || 'guest'}:${invId || 'new'}:${invoiceEditorGeneration}` : null;
+  useEffect(() => {
+    if (invoiceEditorKey && invoiceBaselineRef.current?.key !== invoiceEditorKey) {
+      invoiceBaselineRef.current = { key: invoiceEditorKey, signature: invoiceEditSignature };
+    }
+    if (!invoiceEditorKey) invoiceBaselineRef.current = null;
+    invoiceEditStateRef.current = { key: invoiceEditorKey, signature: invoiceEditSignature,
+      dirty: Boolean(invoiceEditorKey && (invoiceUnknownPersistenceRef.current || invoiceBaselineRef.current?.signature !== invoiceEditSignature)),
+      actor: session?.user?.id || null, generation: invoiceEditorGeneration };
+  }, [invoiceEditorKey, invoiceEditSignature, session?.user?.id, invoiceEditorGeneration]);
+  const requestInvoiceNavigation = useCallback((action) => {
+    if (invoiceNavigationBypassRef.current) return true;
+    if (invoiceSavePendingRef.current) return false;
+    const current = invoiceEditStateRef.current;
+    if (!current?.dirty) return true;
+    invoiceNavigationRef.current = { action, key: current.key, actor: current.actor, generation: current.generation };
+    setShowInvoiceLeaveDialog(true);
+    return false;
+  }, []);
+  const handleCheckInvoiceStatus = useCallback(async () => {
+    const current = invoiceEditStateRef.current;
+    if (isDemo || previewMode || !invId || !current?.key || invoiceSavePendingRef.current) return false;
+    const actor = session?.user?.id || null;
+    const isSameEditor = () => (sessionRef.current?.user?.id || null) === actor && invoiceEditStateRef.current?.key === current.key;
+    const isCurrent = () => isSameEditor() && invoiceEditStateRef.current?.signature === current.signature;
+    setIsCheckingInvoiceStatus(true);
+    try {
+      const result = await readInvoiceStatus(invId, session?.access_token, isCurrent);
+      if (!isCurrent()) return false;
+      if (!result.success) { setFormError(result.error || 'The saved invoice status could not be verified.'); return false; }
+      setInvoiceNotificationState(result);
+      if (!invoiceEvidenceMatches(result.data, invoiceEvidenceRef.current)) {
+        setFormError('The saved invoice changed after this editor opened. Reopen it before saving or sending. Your current input is unchanged.');
+      }
+      return true;
+    } finally { if (isSameEditor()) setIsCheckingInvoiceStatus(false); }
+  }, [invId, isDemo, previewMode, readInvoiceStatus, session?.access_token, session?.user?.id]);
+  useEffect(() => {
+    if (invoiceEditorKey && invId && !isDemo && !previewMode) void handleCheckInvoiceStatus();
+    // Read on explicit opening only; edits and token refresh never submit or rehydrate a document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceEditorKey]);
+  useEffect(() => {
+    const guard = event => {
+      if (!invoiceEditStateRef.current?.dirty && !invoiceSavePendingRef.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', guard);
+    // Keep ordinary links outside the Invoice toolbar from bypassing the guard.
+    const guardLink = event => {
+      const link = event.target.closest?.('a[href]');
+      if (!link || link.target === '_blank' || link.hasAttribute('download') || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.href === window.location.href || url.protocol === 'mailto:' || url.protocol === 'tel:') return;
+      if (invoiceSavePendingRef.current || invoiceEditStateRef.current?.dirty) {
+        event.preventDefault(); event.stopPropagation();
+        requestInvoiceNavigation(() => { window.location.href = url.href; });
+      }
+    };
+    document.addEventListener('click', guardLink, true);
+    return () => { window.removeEventListener('beforeunload', guard); document.removeEventListener('click', guardLink, true); };
+  }, [requestInvoiceNavigation]);
+  useEffect(() => {
+    if (!showInvoiceLeaveDialog) return;
+    const previous = document.activeElement;
+    const dialog = invoiceLeaveDialogRef.current;
+    dialog?.querySelector('[data-invoice-continue]')?.focus();
+    const keyboard = event => {
+      if (event.key === 'Escape') { setShowInvoiceLeaveDialog(false); invoiceNavigationRef.current = null; }
+      if (event.key !== 'Tab') return;
+      const buttons = Array.from(dialog?.querySelectorAll('button:not(:disabled)') || []);
+      if (!buttons.length) { event.preventDefault(); dialog?.focus(); return; }
+      const first = buttons[0], last = buttons.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !buttons.includes(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !buttons.includes(document.activeElement))) { event.preventDefault(); first?.focus(); }
+    };
+    dialog?.addEventListener('keydown', keyboard);
+    return () => { dialog?.removeEventListener('keydown', keyboard); previous?.isConnected && previous.focus?.(); };
+  }, [showInvoiceLeaveDialog]);
+
+
+  // Focus the current Invoice stage or its validation feedback after navigation.
+  useEffect(() => {
+    if (activeTab !== 'invoices' || invoiceView === 'list') return;
+    if (showInvoiceLeaveDialog) {
+      invoiceLeaveDialogRef.current?.querySelector('[role="alert"]')?.focus();
+      return;
+    }
+    const target = invoiceWorkspaceRef.current?.querySelector(formError ? '[role="alert"]' : '[data-invoice-stage-heading]');
+    target?.focus();
+  }, [activeTab, invoiceView, invoiceFlowStage, formError, showInvoiceLeaveDialog]);
 
   // Client editor state
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientEmail, setNewClientEmail] = useState('');
-  const [newClientAddress, setNewClientAddress] = useState('');
 
-  // Card Profile Editor State
-  const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
-  const [profilePrompt, setProfilePrompt] = useState('Full-stack developer building Next.js web applications and design systems');
-  const [cpUsername, setCpUsername] = useState('');
-  const [cpName, setCpName] = useState('');
-  const [cpTitle, setCpTitle] = useState('');
-  const [cpBio, setCpBio] = useState('');
-  const [cpTags, setCpTags] = useState('');
-  const [cpEmail, setCpEmail] = useState('');
-  const [cpPhone, setCpPhone] = useState('');
-  const [cpTwitter, setCpTwitter] = useState('');
-  const [cpLinkedin, setCpLinkedin] = useState('');
-  const [cpGithub, setCpGithub] = useState('');
-  const [cpWebsite, setCpWebsite] = useState('');
-  const [cpServices, setCpServices] = useState([]);
-  const [cpPortfolio, setCpPortfolio] = useState([]);
-  // New card profile attributes
-  const [cpCoverBanner, setCpCoverBanner] = useState('');
-  const [cpAvatarUrl, setCpAvatarUrl] = useState('');
-  const [cpLocation, setCpLocation] = useState('');
-  const [cpTimezone, setCpTimezone] = useState('');
-  const [cpLanguages, setCpLanguages] = useState('');
-  const [cpAvailabilityStatus, setCpAvailabilityStatus] = useState('Available for contract');
-  const [cpResponseTime, setCpResponseTime] = useState('< 2 hours');
-  const [cpStartingPrice, setCpStartingPrice] = useState('$1,000');
-  const [cpCalendlyLink, setCpCalendlyLink] = useState('');
-  const [cpVerifiedBadge, setCpVerifiedBadge] = useState(true);
-  const [cpTopRatedBadge, setCpTopRatedBadge] = useState(false);
-  const [cpFastResponseBadge, setCpFastResponseBadge] = useState(false);
-  const [cpIsPublic, setCpIsPublic] = useState(true);
-  const [cpTestimonials, setCpTestimonials] = useState([]);
 
-  // Temp service/portfolio/testimonials add inputs
-  const [tmpSrvName, setTmpSrvName] = useState('');
-  const [tmpSrvDesc, setTmpSrvDesc] = useState('');
-  const [tmpSrvType, setTmpSrvType] = useState('fixed');
-  const [tmpSrvAmount, setTmpSrvAmount] = useState(0);
-
-  const [tmpProjTitle, setTmpProjTitle] = useState('');
-  const [tmpProjDesc, setTmpProjDesc] = useState('');
-  const [tmpProjLink, setTmpProjLink] = useState('');
-  const [tmpProjCategory, setTmpProjCategory] = useState('');
-  const [tmpProjFeatured, setTmpProjFeatured] = useState(false);
-  const [tmpProjResults, setTmpProjResults] = useState('');
-  const [tmpProjMedia, setTmpProjMedia] = useState('');
-  const [tmpSrvGroup, setTmpSrvGroup] = useState('');
-
-  const [cpBrandColor, setCpBrandColor] = useState('#4f46e5');
-  const [cpBrandSecondary, setCpBrandSecondary] = useState('#06b6d4');
-  const [cpThemePreference, setCpThemePreference] = useState('dark');
-  const [cpFontFamily, setCpFontFamily] = useState('Inter');
-  const [cpLogoUrl, setCpLogoUrl] = useState('');
-
-  const [tmpClientName, setTmpClientName] = useState('');
-  const [tmpClientProject, setTmpClientProject] = useState('');
-  const [tmpClientFeedback, setTmpClientFeedback] = useState('');
 
   // Lead CRM Editor panel states
   const [selectedLead, setSelectedLead] = useState(null);
@@ -1229,25 +1619,17 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   const [leadNotes, setLeadNotes] = useState('');
   const [leadReminderDate, setLeadReminderDate] = useState('');
 
-  // Quote scope helper prompt
-  const [quotePrompt, setQuotePrompt] = useState('');
-  const [isExpandingQuote, setIsExpandingQuote] = useState(false);
   // Modals
-  const [showReminderModal, setShowReminderModal] = useState(false);
   const [showActivationGuide, setShowActivationGuide] = useState(false);
   const [activationGuideDismissed, setActivationGuideDismissed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('corvioz_activation_dismissed') === 'true';
   });
-  const [selectedInvoiceForReminder, setSelectedInvoiceForReminder] = useState(null);
-  const [activeReminderTemplate, setActiveReminderTemplate] = useState('7');
-  const [reminderCopied, setReminderCopied] = useState(false);
   const [pendingInvoiceDraft, setPendingInvoiceDraft] = useState(null);
   const [showDraftRestorePrompt, setShowDraftRestorePrompt] = useState(false);
   const [hasSelectedPlanForFirstValue, setHasSelectedPlanForFirstValue] = useState(false);
 
   const [suggestedActionDoc, setSuggestedActionDoc] = useState(null);
-  const [postExportDoc, setPostExportDoc] = useState(null);
 
   // 10-second success flow: detect first-time guest invoice mode inside dashboard.
   const isFirstGuestFlow = !previewMode && !session && initialTool === 'invoice';
@@ -1270,15 +1652,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     };
   }, []);
 
-  const getCurrencySymbol = (cur) => {
-    switch (String(cur).toUpperCase()) {
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      case 'CNY': return '¥';
-      case 'JPY': return '¥';
-      default: return '$';
-    }
-  };
+  const getCurrencySymbol = (cur) => `${String(cur || 'USD').trim().toUpperCase() || 'USD'} `;
 
   const restoreUserIntent = useCallback((userId = null, entryState = 'AUTHENTICATED') => {
     if (typeof window === 'undefined') return;
@@ -1328,134 +1702,30 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   }, [pathname, router]);
 
-  // Dates helpers
-  const getTodayString = () => new Date().toISOString().substring(0, 10);
-  const getFutureDateString = (days) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    return d.toISOString().substring(0, 10);
-  };
+  // Account business-day reference; stored date-only values never change zone.
+  const referenceInstant = new Date();
+  const paymentOptions = { timeZone: user?.business_timezone };
+  const invoicePayment = (invoice) => resolveInvoicePaymentReadModel(invoice, referenceInstant, paymentOptions);
+  const getTodayString = () => getBusinessReferenceDate(new Date(), user?.business_timezone);
+  const getFutureDateString = (days, baseDate = getTodayString()) => addCalendarDays(baseDate, days);
 
-  // Adjust due dates based on invoice terms
-  const updateDueDateFromTerms = (terms, dateStr) => {
-    const baseDate = dateStr ? new Date(dateStr) : new Date();
-    if (isNaN(baseDate.getTime())) return;
-    if (terms === 'Due on Receipt') setInvDueDate(dateStr);
-    else if (terms === 'Net 15') {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + 15);
-      setInvDueDate(d.toISOString().substring(0, 10));
-    } else if (terms === 'Net 30') {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + 30);
-      setInvDueDate(d.toISOString().substring(0, 10));
-    } else if (terms === 'Net 60') {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + 60);
-      setInvDueDate(d.toISOString().substring(0, 10));
-    }
-  };
-
-  const defaultProfileTemplate = {
-    username: 'alex-morgan',
-    name: 'Alex Morgan',
-    title: 'Full-Stack Developer & SaaS Designer',
-    bio: 'I help early-stage startups design, build, and deploy premium Next.js applications and custom Tailwind CSS design systems.',
-    tags: ['React', 'Next.js', 'Figma', 'UI/UX', 'Tailwind'],
-    email: 'alex@example.com',
-    phone: '+1 (555) 123-4567',
-    cover_banner: 'linear-gradient(135deg, #6366f1, #06b6d4)',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-    location: 'Remote / San Francisco',
-    timezone: 'PST (UTC-8)',
-    languages: 'English, Spanish',
-    availability_status: 'Available for contract',
-    response_time: '< 2 hours',
-    starting_price: '$1,500',
-    calendly_link: 'https://calendly.com/alex-morgan',
-    social_links: {
-      twitter: 'https://twitter.com/alexmorgan',
-      linkedin: 'https://linkedin.com/in/alexmorgan',
-      github: 'https://github.com/alexmorgan',
-      website: 'https://alexmorgan.dev'
-    },
-    services: [
-      { name: 'SaaS MVP Development', description: 'Complete development of a responsive web app from Figma designs.', type: 'fixed', amount: 5000 },
-      { name: 'UI/UX Design & Prototyping', description: 'High-fidelity Figma mockups, user flows, and wireframes.', type: 'hourly', amount: 95 }
-    ],
-    portfolio: [
-      { title: 'Corvioz Photography Business Dashboard', description: 'A conversion-first platform for photographers.', link: 'https://corvioz.com' }
-    ],
-    testimonials: [
-      { quote: 'Alex delivered our MVP in record time. The quality of code and communication was outstanding.', client: 'Sarah Chen, CEO at Acme AI' }
-    ],
-    is_public: true
-  };
-
-  const initProfileStates = useCallback((parsed) => {
-    if (!parsed) return;
-    if (parsed.username) {
-      setCpUsername(parsed.username);
-    } else {
-      setCpUsername(current => {
-        if (current) return current;
-        const slug = (parsed.name || '')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
-        return slug || 'photographer';
-      });
-    }
-    setCpName(parsed.name || '');
-    setCpTitle(parsed.title || '');
-    setCpBio(parsed.bio || '');
-    setCpTags(Array.isArray(parsed.tags) ? parsed.tags.join(', ') : (typeof parsed.tags === 'string' ? JSON.parse(parsed.tags || '[]').join(', ') : ''));
-    setCpEmail(parsed.contact_email || parsed.email || '');
-    setCpPhone(parsed.contact_phone || '');
-    const links = parsed.social_links || {};
-    setCpTwitter(links.twitter || '');
-    setCpLinkedin(links.linkedin || '');
-    setCpGithub(links.github || '');
-    setCpWebsite(links.website || '');
-    setCpBrandColor(links.brand_color || '#4f46e5');
-    setCpBrandSecondary(links.brand_secondary || '#06b6d4');
-    setCpThemePreference(links.theme_preference || 'dark');
-    setCpFontFamily(links.font_family || 'Inter');
-    setCpLogoUrl(links.logo_url || '');
-    setCpServices(Array.isArray(parsed.services) ? parsed.services : JSON.parse(parsed.services || '[]'));
-    setCpPortfolio(Array.isArray(parsed.portfolio) ? parsed.portfolio : JSON.parse(parsed.portfolio || '[]'));
-
-    // Sleek new details
-    setCpCoverBanner(parsed.cover_banner || '');
-    setCpAvatarUrl(parsed.avatar_url || '');
-    setCpLocation(parsed.location || '');
-    setCpTimezone(parsed.timezone || '');
-    setCpLanguages(parsed.languages || '');
-    setCpAvailabilityStatus(parsed.availability_status || 'Available for contract');
-    setCpResponseTime(parsed.response_time || '< 2 hours');
-    setCpStartingPrice(parsed.starting_price || '$1,000');
-    setCpCalendlyLink(parsed.calendly_link || '');
-    setCpVerifiedBadge(parsed.verified_badge !== false);
-    setCpTopRatedBadge(parsed.top_rated_badge === true);
-    setCpFastResponseBadge(parsed.fast_response_badge === true);
-    setCpIsPublic(parsed.is_public !== false);
-    setCpTestimonials(Array.isArray(parsed.testimonials) ? parsed.testimonials : JSON.parse(parsed.testimonials || '[]'));
-  }, [
-    setCpUsername, setCpName, setCpTitle, setCpBio, setCpTags, setCpEmail, setCpPhone,
-    setCpTwitter, setCpLinkedin, setCpGithub, setCpWebsite, setCpServices, setCpPortfolio,
-    setCpCoverBanner, setCpAvatarUrl, setCpLocation, setCpTimezone, setCpLanguages,
-    setCpAvailabilityStatus, setCpResponseTime, setCpStartingPrice, setCpCalendlyLink,
-    setCpVerifiedBadge, setCpTopRatedBadge, setCpFastResponseBadge, setCpIsPublic, setCpTestimonials
-  ]);
-
-  // Sync profile data to local state variables, ensuring First Value Moment (FVM) with pre-filled examples
+  // Wait for the owned profile before initializing route-entry defaults.
   useEffect(() => {
-    if (cardProfile && Object.keys(cardProfile).length > 0) {
-      initProfileStates(cardProfile);
-    } else {
-      initProfileStates(defaultProfileTemplate);
+    if (!authChecked || (!user?.id && !previewMode)) return;
+    const today = getBusinessReferenceDate(new Date(), user?.business_timezone);
+    if (initialQuoteCreateMode && !qDate) setQDate(today);
+    if (initialTool === 'invoice' && !invDate) {
+      invoiceBaselineRef.current = null;
+      setInvDate(today);
+      setInvDueDate(addCalendarDays(today, 30));
     }
-  }, [cardProfile, initProfileStates]);
+  }, [authChecked, user?.id, user?.business_timezone]);
+
+  const updateDueDateFromTerms = (terms, dateStr) => {
+    const baseDate = normalizeDateOnly(dateStr);
+    const days = { 'Due on Receipt': 0, 'Net 7': 7, 'Net 14': 14, 'Net 15': 15, 'Net 30': 30, 'Net 60': 60 }[terms];
+    if (baseDate && days !== undefined) setInvDueDate(addCalendarDays(baseDate, days));
+  };
 
   const clearDashboardData = useCallback(() => {
     invalidateDashboardData();
@@ -1470,17 +1740,35 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, [invalidateDashboardData, setDashboardDataError, setUser, setLeads, setQuotes, setQuotesError, setInvoices, setClients, setCardProfile]);
 
   const resetAccountScopedState = useCallback(() => {
+    invoiceNavigationRef.current = null;
+    invoiceEvidenceRef.current = null;
+    invoiceUnknownPersistenceRef.current = false;
+    setInvoiceHydratedRow(null);
+    setInvoiceNotificationState(null);
+    invoiceBaselineRef.current = null;
+    setShowInvoiceLeaveDialog(false);
+    invoiceSavePendingRef.current = false;
+    setIsSaving(false);
+    setQPendingEditorDrafts({});
     setQuoteView('list');
     setInvoiceView('list');
     setInvoiceFlowStage('create');
     setInvoiceFlowLocked(false);
     setQId('');
+    setQClientPresentation(undefined);
+    setQApprovedSnapshotId(null);
+    setPersistedLineageByItemId({});
     setQClientId(null);
+    setQPhotographyScope(createEmptyPhotographyScope());
+    setQQuoteProvenance(null);
+    setSelectedQuotePresetId('');
+    setQuotePresetSelectionTouched(false);
+    setUsageRightsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setInvId('');
     setInvClientId(null);
     setInvQuoteId(null);
-    setExpandedClientDocumentsId(null);
-  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setInvId, setInvClientId, setInvQuoteId, setExpandedClientDocumentsId]);
+  }, [setQuoteView, setInvoiceView, setInvoiceFlowStage, setInvoiceFlowLocked, setQId, setQClientId, setQPhotographyScope, setQQuoteProvenance, setSelectedQuotePresetId, setQuotePresetSelectionTouched, setUsageRightsExpanded, setSemanticReviewState, setInvId, setInvClientId, setInvQuoteId]);
 
   const getDashboardTabs = useCallback((state) => {
     return [
@@ -1492,11 +1780,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     ];
   }, []);
 
-  const handleDashboardTabChange = useCallback((tab, source = 'dashboard') => {
-    if (invoiceFlowLocked && activeTab === 'invoices' && invoiceView !== 'list' && source !== 'invoice_flow_exit') {
-      setActiveTab('invoices');
-      triggerToast('Continue the invoice, save a draft, or use Exit to dashboard.', 'info');
-      return;
+  const handleDashboardTabChange = useCallback(function changeDashboardTab(tab, source = 'dashboard') {
+    if (tab !== activeTab && !clientWorkspace.controller.canLeave(false)) {
+      if (clientWorkspace.controller.getSnapshot().saving || !window.confirm('Discard unsaved client changes?')) return false;
+      clientWorkspace.controller.cancel(true);
+    }
+    if (tab !== activeTab && activeTab === 'quotes') {
+      if (!requestQuoteNavigation(() => changeDashboardTab(tab, source === 'history' ? 'quote_leave_history' : source))) return false;
+      setQPendingEditorDrafts({});
+      setQuoteView('list');
+    }
+    if (tab !== activeTab && activeTab === 'invoices') {
+      if (!requestInvoiceNavigation(() => changeDashboardTab(tab, source === 'history' ? 'invoice_leave_history' : source))) return false;
+      setInvoiceView('list');
+      setInvoiceFlowLocked(false);
     }
 
     let resolvedTab = tab;
@@ -1514,14 +1811,44 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
     trackEvent('dashboard_tab_click', { tab: resolvedTab, source });
     setActiveTab(resolvedTab);
-    if (!previewMode && pathname === '/dashboard' && typeof window !== 'undefined') {
+    if (source !== 'history' && !previewMode && pathname === '/dashboard' && typeof window !== 'undefined') {
       const nextRoute = getDashboardRouteForTab(resolvedTab);
       const currentRoute = `${window.location.pathname}${window.location.search}`;
       if (currentRoute !== nextRoute) router.push(nextRoute);
     }
     setFormError('');
     setFormSuccess('');
-  }, [activeTab, invoiceFlowLocked, invoiceView, pathname, previewMode, router, triggerToast]);
+    return true;
+  }, [activeTab, pathname, previewMode, router, clientWorkspace.controller, requestInvoiceNavigation, requestQuoteNavigation]);
+
+  useEffect(() => {
+    if (previewMode) return;
+    const syncDashboardTabFromLocation = event => {
+      if (quoteContinuity.guard.dirty || quoteContinuity.guard.busy) {
+        const destination = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (!requestQuoteNavigation(() => { setQuoteView('list'); router.push(destination); })) {
+          event.stopImmediatePropagation();
+          router.replace(getDashboardRouteForTab(activeTab));
+          return;
+        }
+      }
+      const nextTab = getDashboardTabForTool(new URLSearchParams(window.location.search).get('tool'));
+      if (nextTab !== activeTab && handleDashboardTabChange(nextTab, 'history') === false) {
+        router.replace(getDashboardRouteForTab(activeTab));
+      }
+    };
+    window.addEventListener('popstate', syncDashboardTabFromLocation, true);
+    return () => window.removeEventListener('popstate', syncDashboardTabFromLocation, true);
+  }, [activeTab, handleDashboardTabChange, previewMode, router, quoteContinuity.guard, requestQuoteNavigation]);
+
+  const harborFocusedContext = getHarborFocusedContext({
+    activeTab, quoteView, invoiceView, clientMode: clientWorkspace.state.mode, profileFocused,
+    quoteAvailable: (!session || entitlements.invoice || canAccessFirstRevenueQuotes)
+      && (Boolean(session) || ['create', 'project_understanding'].includes(quoteView)),
+    invoiceAvailable: (!session || entitlements.invoice || canAccessFirstRevenueInvoices)
+      && (Boolean(session) || invoiceView === 'create'),
+    clientAvailable: Boolean(session) || isSandboxMode,
+  });
 
   const renderPaidLockState = (title, description, targetPlan = 'pro') => {
     if (isEntitlementLoading) {
@@ -1694,6 +2021,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleSignOut = async () => {
+    if (!requestQuoteNavigation(handleSignOut)) return false;
+    if (!requestInvoiceNavigation(handleSignOut)) return false;
     if (isSigningOutRef.current) return;
     isSigningOutRef.current = true;
     setIsSigningOut(true);
@@ -1709,6 +2038,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
       clearAnalyticsUserId();
       clearDashboardData();
+      resetAccountScopedState();
       router.replace('/auth');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -1797,6 +2127,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       if (!nextSession && !sessionRef.current) {
         setAuthChecked(false);
       }
+      if (isAccountSwitch || authEventAction === 'clear') suspendQuoteDraft();
       if (isAccountSwitch) {
         clearDashboardData();
         resetAccountScopedState();
@@ -1837,6 +2168,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       } else {
         clearAnalyticsUserId();
         clearDashboardData();
+        resetAccountScopedState();
         if (!isSigningOutRef.current) {
           redirectToAuth('dashboard_session_auth_guard');
         }
@@ -1850,7 +2182,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       listener?.subscription?.unsubscribe();
       invalidateDashboardData({ updateState: false, resetQuotesInitialLoad: true });
     };
-  }, [clearDashboardData, fetchData, invalidateDashboardData, pathname, previewMode, redirectToAuth, resetAccountScopedState, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast]);
+  }, [clearDashboardData, fetchData, invalidateDashboardData, pathname, previewMode, redirectToAuth, resetAccountScopedState, router, supabaseClient, trackDashboardViewOnce, restoreUserIntent, triggerToast, suspendQuoteDraft]);
 
   useEffect(() => {
     if (previewMode) return;
@@ -1865,7 +2197,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   }, [initialTool, previewMode]);
 
   useEffect(() => {
-    if (previewMode) return;
+    if (previewMode || !isDevelopment) return;
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('corvioz_usage_stats', JSON.stringify({
         invoicesCount: invoices.length,
@@ -1898,19 +2230,31 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const resetQuoteCreateState = () => {
     setQId('');
+    setQClientPresentation(undefined);
+    setQApprovedSnapshotId(null);
+    setPersistedLineageByItemId({});
     setQClientId(null);
     setQNumber(generateRandomNumberString('QT'));
     setQClientName('');
     setQClientEmail('');
     setQClientAddress('');
-    setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
+    setQPreparedForOverridePresent(false);
+    setQPreparedForDisplayOverride('');
+    setQItems([ensureQuoteLineItemId({ description: '', quantity: 1, unitPrice: 0 })]);
     setQTaxRate(0);
     setQDiscountRate(0);
     setQCurrency('USD');
     setQNotes('');
+    setQNarrativePaymentTerms('');
     setQDate(getTodayString());
     setQStatus('draft');
     setSelectedQuotePresetId('');
+    if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
+    if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
+    if (typeof setQQuoteProvenance === 'function') setQQuoteProvenance(null);
+    if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
+    if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setIsFirstQuoteFlow(false);
     setQClientNameTouched(false);
     setQClientEmailTouched(false);
@@ -1918,9 +2262,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const resetInvoiceCreateState = () => {
+    captureInvoiceHydration(null);
+    setInvoiceEditorGeneration(value => value + 1);
     setInvId('');
     setInvClientId(null);
-    setPendingSendRetryInvoiceId('');
     setInvNumber(generateRandomNumberString('INV'));
     setInvClientName('Acme Corporation');
     setInvClientEmail('client@acme.com');
@@ -1943,6 +2288,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleRestorePendingInvoiceDraft = () => {
+    if (!requestInvoiceNavigation(handleRestorePendingInvoiceDraft)) return false;
     if (!pendingInvoiceDraft) return;
 
     resetInvoiceCreateState();
@@ -1957,7 +2303,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvTaxRate(pendingInvoiceDraft.tax_rate || 0);
     setInvPaymentTerms(pendingInvoiceDraft.payment_terms || 'Net 30');
     setInvDate(pendingInvoiceDraft.invoice_date || getTodayString());
-    setInvDueDate(pendingInvoiceDraft.due_date || getFutureDateString(30));
+    setInvDueDate(pendingInvoiceDraft.due_date || getFutureDateString(30, normalizeDateOnly(pendingInvoiceDraft.invoice_date) || getTodayString()));
     setInvPaymentLink(pendingInvoiceDraft.payment_link || '');
 
     const parsedNotes = deserializeInvoiceNotes(pendingInvoiceDraft.notes || '');
@@ -1971,14 +2317,27 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   // AI Generate Quote From Lead
+  const quoteGenerationRequestRef = useRef(0);
   const handleAiQuoteGeneration = async (lead) => {
+    if (!requestQuoteNavigation(() => handleAiQuoteGeneration(lead))) return false;
+    const operation = ++quoteGenerationRequestRef.current;
+    const ticket = quoteContinuity.guard.capture();
+    const actor = session?.user?.id || null;
+    const isCurrent = () => quoteGenerationRequestRef.current === operation && quoteContinuity.guard.isSameSession(ticket)
+      && (sessionRef.current?.user?.id || null) === actor;
     trackEvent('create_quote_click', { source: 'ai_generator' });
     evaluateAction('create_quote', async () => {
+      if (!isCurrent()) return false;
       if (!session) {
         setIsParsingLead(lead.id);
         setTimeout(() => {
+          if (!isCurrent()) return;
           setIsParsingLead(null);
+          setQPendingEditorDrafts({});
+          setQuoteSaveUnknown(false);
+          setQuoteEditorGeneration(value => value + 1);
           resetQuoteCreateState();
+          setQQuoteProvenance(createLeadQuoteProvenance(lead.id));
           setQClientName(lead.client_name || lead.name || 'Mock Client');
           setQClientEmail(lead.client_email || lead.email || 'client@example.com');
           setQClientAddress(lead.client_address || '123 Enterprise Way');
@@ -1987,9 +2346,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           setQDate(getTodayString());
           setQStatus('draft');
           setQItems([
-            { description: 'Phase 1: Brand Strategy & Mockups', quantity: 1, unitPrice: 1500 },
-            { description: 'Phase 2: Custom Core Frontend Engineering', quantity: 1, unitPrice: 2500 },
-            { description: 'Phase 3: Integration & Launch Clearance', quantity: 1, unitPrice: 1000 }
+            ensureQuoteLineItemId({ description: 'Phase 1: Brand Strategy & Mockups', quantity: 1, unitPrice: 0 }),
+            ensureQuoteLineItemId({ description: 'Phase 2: Custom Core Frontend Engineering', quantity: 1, unitPrice: 0 }),
+            ensureQuoteLineItemId({ description: 'Phase 3: Integration & Launch Clearance', quantity: 1, unitPrice: 0 })
           ]);
           setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'quote_generated', pipeline_status: 'Quote Sent' } : l));
           handleDashboardTabChange('quotes', 'lead_ai_quote');
@@ -2006,11 +2365,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           body: JSON.stringify({ message_text: lead.message })
         });
 
+        if (!isCurrent()) return false;
         if (res.ok) {
           const { parsed_data } = await res.json();
+          if (!isCurrent()) return false;
           if (parsed_data) {
+            setIsParsingLead(null);
             // Pre-populate Quote Editor states
-            resetQuoteCreateState();
+            setQPendingEditorDrafts({});
+          setQuoteSaveUnknown(false);
+          setQuoteEditorGeneration(value => value + 1);
+          resetQuoteCreateState();
+            setQQuoteProvenance(createLeadQuoteProvenance(lead.id));
             setQNumber(generateRandomNumberString('QT'));
             setQClientName(parsed_data.client_name || lead.name || '');
             setQClientEmail(parsed_data.client_email || lead.email || '');
@@ -2021,13 +2387,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             setQStatus('draft');
 
             if (parsed_data.items && parsed_data.items.length > 0) {
-              setQItems(parsed_data.items.map(i => ({
+              setQItems(parsed_data.items.map(i => ensureQuoteLineItemId({
                 description: i.description,
                 quantity: i.quantity || 1,
-                unitPrice: i.unitPrice || 0
+                unitPrice: 0
               })));
             } else {
-              setQItems([{ description: `Consulting: ${lead.message.substring(0, 30)}...`, quantity: 1, unitPrice: 1000 }]);
+              setQItems([ensureQuoteLineItemId({ description: `Consulting: ${lead.message.substring(0, 30)}...`, quantity: 1, unitPrice: 0 })]);
             }
 
             // Move to quote tab and open editor
@@ -2036,21 +2402,26 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
             // Update Lead Status to 'quote_generated'
             await saveLead({ id: lead.id, status: 'quote_generated' }, session?.access_token);
+            if (!isCurrent()) return false;
             triggerToast('AI successfully parsed visitor inquiry into a Quote draft!', 'success');
           }
         } else {
           triggerToast('Failed to generate Quote using AI. You can write the Quote manually.', 'error');
         }
       } catch (error) {
+        if (!isCurrent()) return false;
         console.error(error);
         triggerToast('Error during AI Quote parsing.', 'error');
       } finally {
-        setIsParsingLead(null);
+        if (isCurrent()) setIsParsingLead(null);
       }
     });
   };
 
   const openInvoiceFromQuote = (quote, { firstRevenueDraft = false } = {}) => {
+    if (!requestInvoiceNavigation(() => openInvoiceFromQuote(quote, { firstRevenueDraft }))) return false;
+    captureInvoiceHydration(null);
+    setInvoiceEditorGeneration(value => value + 1);
     setInvId('');
     setInvClientId(quote.client_id || null);
     setInvNumber(generateRandomNumberString('INV'));
@@ -2058,7 +2429,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvClientEmail(quote.client_email || '');
     setInvClientAddress(quote.client_address || '');
     setInvCurrency(quote.currency || 'USD');
-    setInvNotes(quote.notes || '');
+    setInvNotes(deserializeInvoiceNotes(quote.notes || '').notes);
     setInvDate(getTodayString());
     setInvDueDate(getFutureDateString(30));
     setInvPaymentTerms('Net 30');
@@ -2073,7 +2444,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvItems(parsedItems.map(item => ({
       description: item.description,
       quantity: item.quantity,
-      unitPrice: item.unitPrice || (item.unit_price || 0) / 100
+      unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+      ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+      ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
     })));
     setInvTaxRate(Number(quote.tax_rate || 0));
     setInvDiscountRate(Number(quote.discount_rate || 0));
@@ -2084,20 +2457,23 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     triggerToast('Quote loaded into Invoice builder. Add invoice terms and click save.', 'success');
   };
 
-  const openInvoiceDraft = (invoice, quote) => {
+  const openInvoiceDraft = (invoice, quote, created = true) => {
+    if (!requestInvoiceNavigation(() => openInvoiceDraft(invoice, quote, created))) return false;
+    setInvoiceEditorGeneration(value => value + 1);
+    captureInvoiceHydration(invoice);
     const parsedItems = Array.isArray(invoice.items) ? invoice.items : [];
     const deserialized = deserializeInvoiceNotes(invoice.notes || '');
     setInvId(invoice.id);
-    setInvClientId(invoice.client_id || quote.client_id || null);
+    setInvClientId(invoice.client_id || null);
     setInvNumber(invoice.invoice_number || generateRandomNumberString('INV'));
-    setInvClientName(invoice.client_name || quote.client_name || '');
-    setInvClientEmail(invoice.client_email || quote.client_email || '');
-    setInvClientAddress(invoice.client_address || quote.client_address || '');
-    setInvCurrency(invoice.currency || quote.currency || 'USD');
-    setInvNotes(deserialized.notes || quote.notes || '');
+    setInvClientName(invoice.client_name || '');
+    setInvClientEmail(invoice.client_email || '');
+    setInvClientAddress(invoice.client_address || '');
+    setInvCurrency(invoice.currency || 'USD');
+    setInvNotes(deserialized.notes || '');
     setInvBillingType(deserialized.billing_type);
     setInvDate(invoice.invoice_date || getTodayString());
-    setInvDueDate(invoice.due_date || getFutureDateString(30));
+    setInvDueDate(invoice.due_date || '');
     setInvPaymentTerms(invoice.payment_terms || 'Net 30');
     setInvStatus('draft');
     setInvQuoteId(quote.id);
@@ -2105,51 +2481,127 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvoiceFlowStage('create');
     setInvoiceFlowLocked(false);
     setShowPaymentWaitingBanner(false);
-    setInvItems(parsedItems.map(item => ({ description: item.description, quantity: item.quantity, unitPrice: item.unitPrice || (item.unit_price || 0) / 100 })));
-    setInvTaxRate(Number(invoice.tax_rate || quote.tax_rate || 0));
-    setInvDiscountRate(Number(invoice.discount_rate || quote.discount_rate || 0));
+    setInvItems(hydrateInvoiceItems(parsedItems));
+    setInvTaxRate(Number(invoice.tax_rate ?? 0));
+    setInvDiscountRate(Number(invoice.discount_rate ?? 0));
     handleDashboardTabChange('invoices', 'quote_conversion');
     setInvoiceView('create');
-    triggerToast('Invoice draft created. Review and save it before sending.', 'success');
+    triggerToast(created ? 'Invoice draft created. Review the saved document before sending.' : 'Existing Invoice draft opened. Review it before sending.', 'success');
   };
 
   const handleConvertQuoteToInvoice = async (quote) => {
+    const initiatingUserId = session?.user?.id || null;
+    const isCurrentActor = () => (sessionRef.current?.user?.id || null) === initiatingUserId;
+    if (!isCurrentActor()) return false;
     trackEvent('create_invoice_click', { source: 'quote_convert' });
     if (quote.status !== 'approved') return;
+    if (quote.has_linked_invoice !== false) {
+      triggerToast('Invoice conversion eligibility is unavailable. Refresh and review this Quote.', 'info');
+      return false;
+    }
     try {
       const response = await fetch(`/api/quotes/${quote.id}/invoice-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       const result = await response.json().catch(() => ({}));
+      if (!isCurrentActor()) return false;
       if (!response.ok) throw new Error(result.error || 'Unable to create Invoice draft');
-      openInvoiceDraft(result.invoice, quote);
-      await fetchData(session?.access_token);
+      await fetchData(session?.access_token).catch(() => null);
+      if (!isCurrentActor()) return false;
+      setInvoices(current => [...current.filter(invoice => invoice.id !== result.invoice.id), result.invoice]);
+      if (result.created === false) {
+        openDocument({ documentType: 'invoice', id: result.invoice.id, invoiceSnapshot: result.invoice });
+        triggerToast('Existing Invoice opened.', 'success');
+      } else {
+        openInvoiceDraft(result.invoice, quote, true);
+      }
     } catch (error) {
+      if (!isCurrentActor()) return false;
       triggerToast(error.message || 'Unable to create Invoice draft.', 'error');
     }
   };
 
+  const dismissQuotePreSendFinding = () => {
+    if (!quotePreSendNotice) return;
+    const { quoteId, finding, scope: savedScope } = quotePreSendNotice;
+    const current = quotePreSendSessions.get(quoteId);
+    if (!current) return;
+    const next = dismissQuoteEditorFinding(current, finding);
+    setQuotePreSendSessions(current => new Map(current).set(quoteId, next));
+    const remaining = getQuoteEditorFinding(next, savedScope);
+    setQuotePreSendNotice(remaining ? { quoteId, finding: remaining, scope: savedScope } : null);
+  };
+
+  const handleSendQuote = async (quoteOverride = null, editorReview = null) => {
+    // Delivery and revalidation use the same current saved row, never an override's draft scope.
+    const quoteId = quoteOverride?.id || qId;
+    const quote = quoteId ? quotes.find((item) => item.id === quoteId) : null;
+    if (!quote) {
+      triggerToast('Save the Quote before sending it.', 'info');
+      return false;
+    }
+    if (quote.status !== 'draft') {
+      triggerToast('Only a saved draft Quote can be sent.', 'info');
+      return false;
+    }
+    if (!quote.client_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quote.client_email.trim())) {
+      triggerToast('Add a valid client email before sending the Quote.', 'error');
+      return false;
+    }
+
+    let preSend;
+    let savedScope;
+    try {
+      savedScope = deserializeInvoiceNotes(quote.notes || '').metadata?.photography_scope_v2;
+      const current = editorReview?.coherenceSession
+        || quotePreSendSessions.get(quote.id)
+        || createQuoteEditorCoherenceSession();
+      preSend = reviewQuotePreSend(current, savedScope);
+    } catch {
+      // Auxiliary pure review failure preserves existing delivery authority; no new judgment.
+      console.warn('H01.7 local pre-send evaluation unavailable; existing send checks retained.');
+    }
+    if (preSend) {
+      if (editorReview?.onCoherenceReview) editorReview.onCoherenceReview(preSend.session);
+      else setQuotePreSendSessions(current => new Map(current).set(quote.id, preSend.session));
+      const finding = getQuoteEditorFinding(preSend.session, savedScope);
+      setQuotePreSendNotice(!editorReview && finding ? { quoteId: quote.id, finding, scope: savedScope } : null);
+      if (finding) return false;
+    }
+
+    setIsSendingQuote(true);
+    setFormError('');
+    try {
+      const quoteResponse = await fetch(`/api/quotes/${quote.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const quoteResult = await quoteResponse.json().catch(() => ({}));
+      if (!quoteResponse.ok) throw new Error(quoteResult.error || 'Unable to send Quote.');
+
+      const sentQuote = quoteResult.data || quoteResult;
+      if (qId === quote.id) setQStatus(sentQuote.status || 'sent');
+      await fetchData(session?.access_token);
+      const recipient = sentQuote.client_email || quote.client_email;
+      setFormSuccess(`Quote sent to ${recipient}.`);
+      triggerToast(`Quote sent to ${recipient}.`, 'success');
+      return true;
+    } catch (error) {
+      console.error(error);
+      setFormError(error.message || 'Unable to send Quote.');
+      triggerToast(error.message || 'Unable to send Quote.', 'error');
+      return false;
+    } finally {
+      setIsSendingQuote(false);
+    }
+  };
+
   const handleSendFirstRevenueQuote = async () => {
-    if (!firstRevenueLoop?.can_send_quote || !firstRevenueLoop.quote_id) return;
+    if (!firstRevenueLoop?.can_send_quote || !firstRevenueLoop.quote_id) return false;
     const quote = quotes.find((item) => item.id === firstRevenueLoop.quote_id);
     if (!quote) {
       triggerToast('Your first quote is still loading. Refresh and try again.', 'error');
-      return;
+      return false;
     }
-
-    try {
-      const quoteResponse = await fetch('/api/quotes', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: quote.id, status: 'sent' })
-      });
-      const quoteData = await quoteResponse.json().catch(() => ({}));
-      if (!quoteResponse.ok) throw new Error(quoteData.error || 'Unable to mark quote as sent');
-
-      await fetchData(session?.access_token);
-      triggerToast('Quote marked as sent.', 'success');
-    } catch (error) {
-      console.error(error);
-      triggerToast(error.message || 'Unable to update quote status.', 'error');
-    }
+    return handleSendQuote(quote);
   };
 
   const handleOpenFirstRevenueInvoiceDraft = () => {
@@ -2163,12 +2615,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handlePrepareFirstRevenuePayment = () => {
+    if (!requestInvoiceNavigation(handlePrepareFirstRevenuePayment)) return false;
+    setInvoiceEditorGeneration(value => value + 1);
     if (!firstRevenueLoop?.can_prepare_payment || !firstRevenueLoop.invoice_id) return;
     const invoice = invoices.find((item) => item.id === firstRevenueLoop.invoice_id);
     if (!invoice) {
       triggerToast('Your linked invoice is still loading. Refresh and try again.', 'error');
       return;
     }
+    captureInvoiceHydration(invoice);
     setInvId(invoice.id);
     setInvClientId(invoice.client_id || null);
     setInvNumber(invoice.invoice_number);
@@ -2182,16 +2637,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setInvTaxRate(Number(invoice.tax_rate || 0));
     setInvDiscountRate(Number(invoice.discount_rate || 0));
     setInvDate(invoice.invoice_date || getTodayString());
-    setInvDueDate(invoice.due_date || getFutureDateString(30));
+    setInvDueDate(invoice.due_date || '');
     setInvPaymentTerms(invoice.payment_terms || 'Net 30');
     setInvPaymentLink(invoice.payment_link || '');
     setInvQuoteId(invoice.quote_id || null);
     const itemsParsed = Array.isArray(invoice.items) ? invoice.items : JSON.parse(invoice.items || '[]');
-    setInvItems(itemsParsed.map(item => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice || (item.unit_price || 0) / 100
-    })));
+    setInvItems(hydrateInvoiceItems(itemsParsed));
     setInvStatus(invoice.status);
     setInvoiceFlowStage('create');
     setInvoiceFlowLocked(true);
@@ -2255,47 +2706,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
-  const handleCopyPortalLink = async (resourceId, resourceType) => {
-    const actionName = resourceType === 'invoice' ? 'send_invoice' : 'client_portal';
-    evaluateAction(actionName, async () => {
-      if (!session) {
-        try {
-          const token = `sandbox-${resourceType}-${resourceId}`;
-          const portalUrl = `${window.location.origin}/portal/${token}`;
-          await navigator.clipboard.writeText(portalUrl);
-          triggerToast('Secure client portal link (Sandbox Mode) copied to clipboard!', 'success');
-        } catch (err) {
-          console.error(err);
-          triggerToast('Error copying portal link.', 'error');
-        }
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/portal/token/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            resource_id: resourceId,
-            resource_type: resourceType
-          })
-        });
-        
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to generate portal token');
-        }
-        
-        const portalUrl = `${window.location.origin}/portal/${data.token}`;
-        await navigator.clipboard.writeText(portalUrl);
-        triggerToast('Secure client portal link copied to clipboard!', 'success');
-      } catch (err) {
-        console.error(err);
-        triggerToast(err.message || 'Error generating portal link.', 'error');
-      }
-    });
-  };
-
   const handleViewLead = (lead) => {
     const crm = getLeadCRMFields(lead);
     setSelectedLead(lead);
@@ -2309,72 +2719,217 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     setShowLeadModal(true);
   };
 
-  // Quote presets are data records so future verticals can add config without branching UI logic.
-  const handleApplyQuotePreset = (presetId) => {
-    const preset = getPhotographyQuotePresetById(presetId);
-    if (preset) {
-      setSelectedQuotePresetId(preset.id);
-      setQCurrency(preset.defaultCurrency || qCurrency);
-      setQItems(preset.defaultLineItems.map(item => ({ ...item })));
-      setQNotes([
-        `${preset.name} terms`,
-        '',
-        ...preset.defaultContractClauses.map((clause) => `- ${clause}`),
-      ].join('\n'));
-      triggerToast(`Applied "${preset.name}" quote preset.`, 'success');
+  const updateQPhotographyScope = (field, value) => {
+    setQPhotographyScope((currentScope) => updatePhotographyScopeField(currentScope, field, value));
+  };
+
+  const handleUsageRightsStatusChange = (status) => {
+    const result = setPhotographyUsageRightsStatus(qPhotographyScope, status);
+    if (result.requiresConfirmation) {
+      const confirmed = typeof window !== 'undefined' && window.confirm(
+        'Changing Usage Rights to Not applicable will clear the existing usage details. Continue?'
+      );
+      if (!confirmed) return;
+      setQPhotographyScope(setPhotographyUsageRightsStatus(qPhotographyScope, status, { confirmClear: true }).scope);
+    } else {
+      setQPhotographyScope(result.scope);
+    }
+    setUsageRightsExpanded(status === 'specified');
+  };
+
+  const getCurrentSemanticReviewFingerprint = useCallback(() => {
+    if (!selectedQuotePresetId) return null;
+    try {
+      return buildPhotographySemanticReviewInput({
+        templateId: selectedQuotePresetId,
+        scope: qPhotographyScope,
+        lineItems: qItems,
+        publicNotes: qNotes,
+        currency: qCurrency,
+      }).inputFingerprint;
+    } catch (_) {
+      return null;
+    }
+  }, [qPhotographyScope, qItems, qNotes, qCurrency, selectedQuotePresetId]);
+
+  const currentSemanticReviewFingerprint = getCurrentSemanticReviewFingerprint();
+
+  const handleRunSemanticReview = async () => {
+    if (!session?.access_token) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: currentSemanticReviewFingerprint, semanticFindings: [] });
+      triggerToast('Sign in to run Review with Corvioz.', 'info');
+      return;
+    }
+    if (!selectedQuotePresetId) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: null, semanticFindings: [] });
+      triggerToast('Choose a photography workflow before running semantic review.', 'info');
+      return;
+    }
+    let input;
+    try {
+      input = buildPhotographySemanticReviewInput({
+        templateId: selectedQuotePresetId,
+        scope: qPhotographyScope,
+        lineItems: qItems,
+        publicNotes: qNotes,
+        currency: qCurrency,
+      });
+    } catch (error) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: currentSemanticReviewFingerprint, semanticFindings: [] });
+      triggerToast(error.message || 'Review input needs attention.', 'error');
+      return;
+    }
+
+    setSemanticReviewState({ status: 'REVIEWING', inputFingerprint: input.inputFingerprint, semanticFindings: [] });
+    const analysisScope = `semantic:${user?.id || 'session'}:${qId || 'draft'}:${input.inputFingerprint}`;
+    try {
+      const prepared=await prepareSemanticAnalysis({scope:analysisScope,accessToken:session.access_token});
+      if(prepared.recoveredResult){setSemanticReviewState(prepared.recoveredResult);triggerToast('Saved review recovered. No additional model analysis was used.','success');return;}
+      const {attempt,usage}=prepared;
+      triggerToast(`${usage.available} model analyses remaining. This review uses 1.`, 'info');
+      const response = await fetch('/api/intelligence/photography-quote-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          'Idempotency-Key': attempt.key,
+        },
+        body: JSON.stringify({
+          templateId: selectedQuotePresetId,
+          scope: input.scope,
+          lineItems: input.lineItems,
+          publicNotes: input.publicNotes,
+          currency: input.currency,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if(result.operation)recordAnalysisAttempt({scope:analysisScope,operationId:result.operation.operation_id,status:result.operation.status});
+      if (response.status === 202) { const saved=await readAnalysisOperation({operationId:result.operation?.operation_id,key:attempt.key,accessToken:session.access_token}); if(saved.status==='SUCCEEDED'&&saved.result){setSemanticReviewState(saved.result);return;} throw new Error('Analysis completion is awaiting confirmation. Check status before trying again; no automatic resend will occur.'); }
+      if (!response.ok) throw new Error(result.error || 'Review with Corvioz is unavailable.');
+      setSemanticReviewState({
+        status: result.status || 'UNAVAILABLE_OR_ERROR',
+        inputFingerprint: result.inputFingerprint || input.inputFingerprint,
+        semanticFindings: Array.isArray(result.semanticFindings) ? result.semanticFindings : [],
+      });
+      if (result.status === 'COMPLETE') {
+        triggerToast('Review with Corvioz is complete.', 'success');
+      } else {
+        triggerToast('Semantic review is unavailable. Structured checks remain active.', 'info');
+      }
+    } catch (error) {
+      setSemanticReviewState({ status: 'UNAVAILABLE_OR_ERROR', inputFingerprint: input.inputFingerprint, semanticFindings: [] });
+      triggerToast(error.message || 'Review with Corvioz is unavailable.', 'error');
+    }
+  };
+
+  // Templates guide Scope capture. They never write line items, rates, or terms.
+  const handleApplyQuotePreset = (templateId, { suppressSuccessFeedback = false } = {}) => {
+    const workflowTemplate = getPhotographyWorkflowTemplateById(templateId);
+    if (workflowTemplate) {
+      setSelectedQuotePresetId(workflowTemplate.id);
+      setQuotePresetSelectionTouched(true);
+      setScopeFieldsExpanded(false);
+      if (!suppressSuccessFeedback) triggerToast(`Applied "${workflowTemplate.label}" workflow template.`, 'success');
       sendEvent('TEMPLATE_VIEWED', {
-        template_type: 'quote_preset',
-        preset_id: preset.id,
-        preset_name: preset.name,
+        template_type: 'photography_workflow_template',
+        preset_id: workflowTemplate.id,
+        preset_name: workflowTemplate.label,
         source: isFirstQuoteFlow ? 'first_quote_onboarding' : 'quote_create',
       });
     }
   };
 
-  const handleSkipQuotePreset = () => {
+  const handleSkipQuotePreset = ({ suppressFeedback = false } = {}) => {
     setSelectedQuotePresetId('');
-    setQItems([{ description: '', quantity: 1, unitPrice: 0 }]);
+    setQuotePresetSelectionTouched(true);
+    setQItems([ensureQuoteLineItemId({ description: '', quantity: 1, unitPrice: 0 })]);
     setQNotes('');
-    triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
-  };
-
-  const handleAiScopeExpansion = () => {
-    if (!quotePrompt) return;
-    setIsExpandingQuote(true);
-
-    setTimeout(() => {
-      setQItems([
-        { description: `Shoot planning and client alignment for "${quotePrompt}"`, quantity: 1, unitPrice: 450 },
-        { description: 'Photography shoot coverage', quantity: 1, unitPrice: 1200 },
-        { description: 'Delivery, usage rights, and final image handoff', quantity: 1, unitPrice: 650 }
-      ]);
-      setQNotes(`Shoot scope prepared from: "${quotePrompt}". Include deposit terms, delivery timeline, usage rights, and final payment terms before sending.`);
-      setIsExpandingQuote(false);
-      setQuotePrompt('');
-      triggerToast('Scope helper complete. Project milestones and document details have been loaded.', 'success');
-    }, 1200);
+    setQNarrativePaymentTerms('');
+    setScopeFieldsExpanded(false);
+    if (!suppressFeedback) triggerToast('Blank quote ready. Add your shoot, deposit, delivery, and usage rights details.', 'info');
   };
 
   // Save Quote
-  const handleSaveQuote = async () => {
+  const persistQuoteDraft = async (options = {}) => {
+    const initiatingUserId = session?.user?.id || null;
+    const isCurrentActor = () => (sessionRef.current?.user?.id || null) === initiatingUserId
+      && quoteContinuity.guard.isCurrent(options.quoteTicket);
+    if (!isCurrentActor()) return false;
+    // Shared editor saves retain their own actions/freshness UI after persistence.
+    const stayInEditor = options?.stayInEditor === true;
     const performSave = async () => {
+      if (!isCurrentActor()) return false;
       setQSubmitAttempted(true);
       setFormError('');
       setFormSuccess('');
       
       // Inline validation check before saving
-      const isEmailInvalid = qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim());
-      if (!qClientName || !qClientName.trim() || isEmailInvalid) {
+      const clientValidation = validateQuoteClient({ name: qClientName, email: qClientEmail });
+      if (!clientValidation.isValid) {
         setFormError('Please resolve all validation errors before saving.');
-        return;
+        return false;
       }
       if (!qItems || qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) {
         setFormError('Please add at least one item with a description.');
-        return;
+        return false;
       }
+
+      let currentEditCount = 0;
+      let existingMetadata = {};
+      if (qId) {
+        const existingQuote = quotes.find(q => q.id === qId);
+        if (existingQuote) {
+          const existingMeta = deserializeInvoiceNotes(existingQuote.notes);
+          existingMetadata = existingMeta.metadata || {};
+          currentEditCount = (existingMeta.edit_count || 0) + 1;
+        }
+      }
+
+      const selectedQuotePreset = getPhotographyWorkflowTemplateById(selectedQuotePresetId);
+      const presetSelectionWasTouched = typeof quotePresetSelectionTouched !== 'undefined' && quotePresetSelectionTouched;
+      const presetId = presetSelectionWasTouched
+        ? (selectedQuotePreset?.id || null)
+        : (existingMetadata.quote_preset_id ?? selectedQuotePreset?.id ?? null);
+      const presetName = presetSelectionWasTouched
+        ? (selectedQuotePreset?.label || null)
+        : (existingMetadata.quote_preset_name ?? selectedQuotePreset?.label ?? null);
+      const workflowTerms = presetSelectionWasTouched
+        ? (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : [])
+        : (existingMetadata.workflow_terms || (selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []));
+      const scopeValue = typeof qPhotographyScope !== 'undefined' ? qPhotographyScope : null;
+      const normalizedScope = typeof normalizePhotographyScope === 'function' && scopeValue
+        ? normalizePhotographyScope(scopeValue)
+        : scopeValue;
+      const existingScope = existingMetadata.photography_scope_v2 && typeof normalizePhotographyScope === 'function'
+        ? normalizePhotographyScope(existingMetadata.photography_scope_v2)
+        : existingMetadata.photography_scope_v2 || null;
+      const quoteProvenance = buildQuoteProvenanceForSave({
+        existingProvenance: existingMetadata.quote_provenance_v1,
+        draftProvenance: qQuoteProvenance,
+        existingScope,
+        currentScope: normalizedScope,
+      });
+      const nextMetadata = {
+        ...existingMetadata,
+        edit_count: currentEditCount,
+        comments: existingMetadata.comments || [],
+        files: existingMetadata.files || [],
+        quote_preset_id: presetId,
+        quote_preset_name: presetName,
+        workflow_terms: workflowTerms,
+        photography_scope_v2: normalizedScope,
+        quote_provenance_v1: quoteProvenance,
+      };
+      if (qPreparedForOverridePresent) {
+        nextMetadata.prepared_for_display_override_v1 = qPreparedForDisplayOverride;
+      } else {
+        delete nextMetadata.prepared_for_display_override_v1;
+      }
+      const notesWithMeta = serializeInvoiceNotes(qNotes, withNarrativePaymentTermsV1(nextMetadata, qNarrativePaymentTerms));
 
       const payload = {
         id: qId || undefined,
+        ...(!qId && qClientPresentation !== undefined ? { client_presentation: qClientPresentation } : {}),
         client_id: qClientId || null,
         quote_number: qNumber,
         client_name: qClientName.trim(),
@@ -2384,7 +2939,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         discount_rate: qDiscountRate,
         tax_rate: qTaxRate,
         currency: qCurrency,
-        notes: qNotes,
+        notes: notesWithMeta,
         status: qStatus
       };
 
@@ -2397,47 +2952,22 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           saveIntendedRoute('/dashboard', 'guest_quote_save');
           triggerToast('Quote draft saved locally! Please sign up to save it securely to your account.', 'success');
           setTimeout(() => {
-            redirectToAuth('guest_quote_save');
+            if (isCurrentActor()) redirectToAuth('guest_quote_save');
           }, 1500);
         } catch (err) {
           console.error(err);
           setFormError('Failed to save quote draft locally.');
+          return false;
         }
-        return;
+        return true;
       }
 
       setIsSaving(true);
       try {
-        let currentEditCount = 0;
-        let existingComments = [];
-        let existingFiles = [];
-        if (qId) {
-          const existingQuote = quotes.find(q => q.id === qId);
-          if (existingQuote) {
-            const existingMeta = deserializeInvoiceNotes(existingQuote.notes);
-            currentEditCount = (existingMeta.edit_count || 0) + 1;
-            existingComments = existingMeta.comments || [];
-            existingFiles = existingMeta.files || [];
-          }
-        }
-
-        const selectedQuotePreset = getPhotographyQuotePresetById(selectedQuotePresetId);
-        const notesWithMeta = serializeInvoiceNotes(qNotes, {
-          edit_count: currentEditCount,
-          comments: existingComments,
-          files: existingFiles,
-          quote_preset_id: selectedQuotePreset?.id || null,
-          quote_preset_name: selectedQuotePreset?.name || null,
-          workflow_terms: selectedQuotePreset ? ['shoot', 'deposit', 'delivery', 'usage_rights', 'final_payment'] : []
-        });
-
-        const payloadWithMeta = {
-          ...payload,
-          notes: notesWithMeta
-        };
-
-        const res = await saveQuote(payloadWithMeta, session?.access_token);
+        const res = await saveQuote(payload, session?.access_token, isCurrentActor);
+        if (!isCurrentActor()) return false;
         if (res.success) {
+          const savedQuoteId = res.data?.id || qId;
           if (qId) {
             trackEvent('quote_edited', {
               user_id: user?.id,
@@ -2456,10 +2986,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               quote_number: qNumber,
               currency: qCurrency,
               quote_preset_id: selectedQuotePreset?.id || null,
-              quote_preset_name: selectedQuotePreset?.name || null,
+              quote_preset_name: selectedQuotePreset?.label || null,
               sandbox: isDemo
             });
-            if (await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent })) {
+            const activationClaimed = await claimAndEmitFirstActivation({ documentType: 'quote', documentNumber: qNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent: (...args) => { if (isCurrentActor()) sendEvent(...args); } });
+            if (!isCurrentActor()) return false;
+            if (activationClaimed) {
               sendEvent('QUOTE_CREATED_INTENT', { documentType: 'quote', quote_number: qNumber, source: 'auth_flow' });
               sendEvent('FIRST_ACTION_TAKEN', { action: 'first_quote_created' });
               const startedAt = readFirstQuoteStartedAt();
@@ -2480,12 +3012,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 }).catch((error) => {
                   console.error('Failed to record first quote activation:', error);
                 });
+                if (!isCurrentActor()) return false;
               }
               sendEvent('signup_to_first_quote_completed', {
                 quote_number: qNumber,
                 quote_id: res.data?.id || qId || null,
                 preset_id: selectedQuotePreset?.id || null,
-                preset_name: selectedQuotePreset?.name || 'Blank Quote',
+                preset_name: selectedQuotePreset?.label || 'Blank Quote',
                 started_at: startedAt,
                 completed_at: completedAt,
                 delta_ms: Number.isFinite(deltaMs) ? deltaMs : null,
@@ -2494,64 +3027,102 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               });
             }
           }
-          setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!');
-          triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved successfully!', 'success');
-          if (!qId && mode === 'live') {
-            await fetchData(session?.access_token);
+          if (!qId && savedQuoteId) setQId(savedQuoteId);
+          if (res.data?.id) {
+            setQuotes((current) => [...current.filter((record) => record.id !== res.data.id), res.data]);
+            if (res.data.client_presentation !== undefined) setQClientPresentation(res.data.client_presentation);
           }
-          setSuggestedActionDoc({
-            type: 'quote',
-            number: qNumber,
-            id: res.data?.id || qId || 'mock-id',
-            elementId: 'printable-quote'
-          });
+          setQQuoteProvenance(quoteProvenance);
+          if (res.data?.created_at) setQDate(res.data.created_at.substring(0, 10));
+          setFormSuccess(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved and verified.');
+          triggerToast(isDemo ? 'Quote saved successfully (Sandbox Mode)!' : 'Quote saved and verified.', 'success');
+          if (!qId && mode === 'live' && !stayInEditor) {
+            await fetchData(session?.access_token);
+            if (!isCurrentActor()) return false;
+          }
+          if (!stayInEditor) {
+            setSuggestedActionDoc({
+              type: 'quote',
+              number: qNumber,
+              id: res.data?.id || qId || 'mock-id',
+              elementId: 'printable-quote'
+            });
+          }
           setFormSuccess('');
+          return true;
         } else {
+          if (res.persistence === 'unknown') { quoteContinuity.guard.markUnknown(options.quoteTicket, res.quoteId); setQuoteSaveUnknown(true); if (res.quoteId && !qId) setQId(res.quoteId); }
           setFormError(res.error || 'Failed to save quote. Please verify all inputs.');
+          return false;
         }
       } catch (e) {
         console.error(e);
+        if (!isCurrentActor()) return false;
         setFormError('Network error when saving quote.');
+        return false;
       } finally {
-        setIsSaving(false);
+        if (isCurrentActor()) setIsSaving(false);
       }
     };
 
     if (!qId) {
-      evaluateAction('create_quote', () => {
-        performSave();
+      let resolveSave;
+      const saveResult = new Promise((resolve) => { resolveSave = resolve; });
+      const decision = await evaluateAction('create_quote', () => {
+        performSave().then(resolveSave).catch(() => resolveSave(false));
       });
+      if (!decision) resolveSave(false);
+      return saveResult;
     } else {
-      performSave();
+      return performSave();
     }
   };
 
-  // Save Invoice
-  const handleSaveInvoice = async ({ advanceToSend = false, exitAfterSave = false } = {}) => {
-    const performSave = async () => {
-      if (typeof isSelectedInvoiceSettled !== 'undefined' && isSelectedInvoiceSettled) {
-        setFormError('This Invoice has recorded payment and is read-only.');
-        return false;
-      }
-      setFormError('');
-      setFormSuccess('');
-      if (!invClientName || !invClientName.trim()) {
-        setFormError('Please enter a recipient client name.');
-        return false;
-      }
-      if (!invItems || invItems.length === 0 || invItems.every(item => !item.description || !item.description.trim())) {
-        setFormError('Please add at least one item with a description.');
-        return false;
-      }
-      if (!invDate) {
-        setFormError('Please specify an invoice date.');
-        return false;
-      }
-      if (!invDueDate) {
-        setFormError('Please specify an invoice due date.');
-        return false;
-      }
+  const handleSaveQuote = async (options = {}) => {
+    if (Object.keys(qPendingEditorDrafts).length) { setFormError('Apply or cancel the open sheet edits before saving the Quote.'); return false; }
+    if (quoteSaveUnknown) { setFormError('The previous save outcome is unknown. Reopen the saved Quote before saving again. Your current input remains open.'); return false; }
+    const ticket = quoteContinuity.guard.beginSave();
+    if (!ticket) return false;
+    let success = false;
+    try { success = await persistQuoteDraft({ ...options, quoteTicket: ticket }); }
+    finally { success = quoteContinuity.finishSave(ticket, success); }
+    if (success && options.leaveAfterSave) quoteContinuity.leaveAfterSave(ticket);
+    return success;
+  };
 
+  // Capture the actor, editor and hydration proof before any asynchronous operation.
+  const handleSaveInvoice = async ({ advanceToSend = false, explicitRetry = false, exitAfterSave = false, showCompletion = true } = {}) => {
+    if (invoiceSavePendingRef.current) return false;
+    const intendedSignature = invoiceEditSignature;
+    let intendedEditorKey = invoiceEditStateRef.current?.key;
+    const initiatingUserId = session?.user?.id || null;
+    const evidence = invoiceEvidenceRef.current;
+    const unchanged = Boolean(invId && invoiceBaselineRef.current?.key === intendedEditorKey && invoiceBaselineRef.current?.signature === intendedSignature);
+    const isSameEditor = () => (sessionRef.current?.user?.id || null) === initiatingUserId && invoiceEditStateRef.current?.key === intendedEditorKey;
+    const isCurrentActor = () => isSameEditor() && invoiceEditStateRef.current?.signature === intendedSignature;
+    if (!isCurrentActor()) return false;
+    const performSave = async () => {
+      if (!isCurrentActor() || invoiceSavePendingRef.current) return false;
+      if (invoiceUnknownPersistenceRef.current) {
+        setFormError('The previous outcome is unknown. Check status and reopen the saved invoice before attempting another save. Your input remains open.');
+        return false;
+      }
+      if (isSelectedInvoiceSettled) { setFormError('This Invoice has recorded payment and is read-only.'); return false; }
+      setFormError(''); setFormSuccess('');
+      if (!invoiceClientDocument.integrity.ok) { setFormError(invoiceValidationMessage); return false; }
+      if (advanceToSend && !invClientEmail.trim()) {
+        setFormError(invId ? 'This saved invoice has no recipient email. Sending is unavailable; its saved recipient cannot be changed.' : 'Add a recipient email before sending. You can still save and download this invoice.');
+        return false;
+      }
+      if (invId && !isDemo && !previewMode && (!evidence || evidence.id !== invId || evidence.actor !== initiatingUserId)) {
+        setFormError('Reopen this invoice to verify its saved content and revision.'); return false;
+      }
+      if (invId && invoiceCommercialReadonly && !(advanceToSend && unchanged)) {
+        setFormError('This invoice is read-only. Its saved document cannot be changed.'); return false;
+      }
+      if (explicitRetry && (!unchanged || !invoiceRetryAvailable)) {
+        setFormError('A verified retry is unavailable for this editor. Check status and reopen the saved invoice.'); return false;
+      }
       if (!session) {
         // Guest mode save intercept
         try {
@@ -2565,15 +3136,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             client_name: invClientName.trim(),
             client_email: invClientEmail.trim(),
             client_address: invClientAddress.trim(),
-            currency: invCurrency,
-            items: invItems.filter(item => item.description && item.description.trim()),
+            currency: invCurrency.toUpperCase(),
+            items: invoiceEditorItems,
             discount_rate: invDiscountRate,
             tax_rate: invTaxRate,
             invoice_number: invNumber,
             payment_terms: invPaymentTerms,
             notes: notesWithMeta,
             invoice_date: invDate || getTodayString(),
-            due_date: invDueDate || getFutureDateString(30),
+            due_date: invDueDate || getFutureDateString(30, normalizeDateOnly(invDate) || getTodayString()),
             doc_type: 'invoice',
             payment_link: invPaymentLink
           };
@@ -2585,12 +3156,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'guest_flow' });
             sendEvent('FIRST_ACTION_TAKEN', { action: 'first_invoice_created' });
           }
-          trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
+          trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency.toUpperCase(), sandbox: isDemo });
 
           saveIntendedRoute('/dashboard', 'guest_invoice_save');
           triggerToast('Invoice draft saved locally! Please sign up to save it securely to your account.', 'success');
           setTimeout(() => {
-            redirectToAuth('guest_invoice_save');
+            if (isCurrentActor()) redirectToAuth('guest_invoice_save');
           }, 1500);
           return true;
         } catch (err) {
@@ -2600,290 +3171,132 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         }
       }
 
+      invoiceSavePendingRef.current = true;
       setIsSaving(true);
+      const isNewInvoice = !invId;
       try {
-        const isNewInvoice = !invId;
-        let currentEditCount = 0;
-        let existingComments = [];
-        let existingFiles = [];
-        if (invId) {
-          const existingInv = invoices.find(i => i.id === invId);
-          if (existingInv) {
-            const existingMeta = deserializeInvoiceNotes(existingInv.notes);
-            currentEditCount = (existingMeta.edit_count || 0) + 1;
-            existingComments = existingMeta.comments || [];
-            existingFiles = existingMeta.files || [];
+        let res;
+        if (advanceToSend && invId && unchanged) {
+          // The approved first Send is a verified read/no-op before any notes or amount construction.
+          res = await saveAndSendInvoice(null, session?.access_token, invId, explicitRetry, isCurrentActor, { evidence, unchanged: true, simulatedInvoice: isDemo || previewMode ? invoiceHydratedRow : null });
+        } else {
+          const originalNotes = invoiceHydratedRow?.notes || '';
+          const originalMetadata = deserializeInvoiceNotes(originalNotes).metadata || {};
+          const notesWithMeta = invId && unchanged ? originalNotes : serializeInvoiceNotes(invNotes, {
+            ...originalMetadata,
+            billing_type: invBillingType === 'recurring' ? 'standard' : invBillingType,
+            billing_mode: 'manual',
+            edit_count: isNewInvoice ? 0 : (Number(originalMetadata.edit_count) || 0) + 1,
+          });
+          const payload = {
+            id: invId || undefined, ...(invId ? { expected_revision: evidence?.revision } : {}),
+            client_id: invClientId, client_name: invClientName.trim(), client_email: invClientEmail.trim(),
+            client_address: invClientAddress.trim(), currency: invCurrency.toUpperCase(), items: invoiceEditorItems,
+            discount_rate: invDiscountRate, tax_rate: invTaxRate, invoice_number: invNumber, payment_terms: invPaymentTerms,
+            notes: notesWithMeta, invoice_date: invDate || getTodayString(),
+            due_date: invDueDate || getFutureDateString(30, normalizeDateOnly(invDate) || getTodayString()),
+            doc_type: 'invoice', payment_link: invPaymentLink,
+          };
+          res = advanceToSend
+            ? await saveAndSendInvoice(payload, session?.access_token, invId, false, isCurrentActor)
+            : await saveInvoice(payload, session?.access_token, isCurrentActor);
+        }
+        if (!isCurrentActor()) return false;
+        const confirmed = res.readbackVerified === true || isDemo || previewMode;
+        // A later notification failure cannot erase an already verified creation.
+        const confirmedDocument = confirmed ? res.data : res.savedDocument?.persistence === 'confirmed' && res.savedDocument?.readbackVerified === true ? res.savedDocument.data : null;
+        if (confirmedDocument?.id) {
+          const savedInvoiceId = confirmedDocument.id;
+          const nextEvidence = captureInvoiceEvidence(confirmedDocument, initiatingUserId);
+          if (!nextEvidence && !isDemo && !previewMode) { setFormError('Invoice save could not be verified. Your edits remain open.'); return false; }
+          invoiceEvidenceRef.current = nextEvidence;
+          setInvoiceHydratedRow(confirmedDocument);
+          setInvoiceNotificationState({ notification: res.notification, eligibility: res.eligibility });
+          intendedEditorKey = `${initiatingUserId || 'guest'}:${savedInvoiceId}:${invoiceEditorGeneration}`;
+          invoiceEditStateRef.current = { ...invoiceEditStateRef.current, key: intendedEditorKey, dirty: false };
+          invoiceBaselineRef.current = { key: intendedEditorKey, signature: intendedSignature };
+          if (isNewInvoice) setInvId(savedInvoiceId);
+          if (confirmed && res.statusPersisted) setInvStatus(confirmedDocument.status || 'sent');
+          if (isNewInvoice) {
+            trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency.toUpperCase(), sandbox: isDemo });
+            if (typeof window !== 'undefined') window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
+            const activationClaimed = await claimAndEmitFirstActivation({ documentType: 'invoice', documentNumber: invNumber, token: session?.access_token, isDemo, isPreview: previewMode,
+              sendEvent: (...args) => { if (isCurrentActor()) sendEvent(...args); } });
+            if (!isCurrentActor()) return false;
+            if (activationClaimed && typeof window !== 'undefined') {
+              window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
+              sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
+              sendEvent('FIRST_ACTION_TAKEN', { action: 'first_invoice_created' });
+            }
           }
         }
-
-        const notesWithMeta = serializeInvoiceNotes(invNotes, {
-          billing_type: invBillingType === 'recurring' ? 'standard' : invBillingType,
-          billing_mode: 'manual',
-          edit_count: currentEditCount,
-          comments: existingComments,
-          files: existingFiles
-        });
-
-        const payload = {
-          id: invId || undefined,
-          client_id: invClientId,
-          client_name: invClientName.trim(),
-          client_email: invClientEmail.trim(),
-          client_address: invClientAddress.trim(),
-          currency: invCurrency,
-          items: invItems.filter(item => item.description && item.description.trim()),
-          discount_rate: invDiscountRate,
-          tax_rate: invTaxRate,
-          invoice_number: invNumber,
-          payment_terms: invPaymentTerms,
-          notes: notesWithMeta,
-          invoice_date: invDate || getTodayString(),
-          due_date: invDueDate || getFutureDateString(30),
-          doc_type: 'invoice',
-          payment_link: invPaymentLink
-        };
-
-        const retrySendOnly = advanceToSend && pendingSendRetryInvoiceId === invId;
-        const res = advanceToSend
-          ? await saveAndSendInvoice(payload, session?.access_token, invId, retrySendOnly)
-          : await saveInvoice(payload, session?.access_token);
-        if (res.success) {
-          const savedInvoiceId = res?.data?.id || res?.id || res?.invoiceId || invId || '';
-          if (savedInvoiceId && isNewInvoice) {
-            setInvId(savedInvoiceId);
+        if (!res.success || !confirmed) {
+          if (res.persistence === 'unknown' || (res.success && !confirmed)) {
+            invoiceUnknownPersistenceRef.current = true;
+            if (invoiceEditStateRef.current) invoiceEditStateRef.current.dirty = true;
           }
-          if (advanceToSend) setPendingSendRetryInvoiceId('');
-          if (isNewInvoice) {
-            trackEvent('invoice_created', { invoice_number: invNumber, currency: invCurrency, sandbox: isDemo });
-            if (typeof window !== 'undefined') {
-              window.sessionStorage.setItem('corvioz_invoice_creation_completed', 'true');
-            }
-            if (await claimAndEmitFirstActivation({ documentType: 'invoice', documentNumber: invNumber, token: session?.access_token, isDemo, isPreview: previewMode, sendEvent })) {
-              if (typeof window !== 'undefined') {
-                window.sessionStorage.setItem('corvioz_first_invoice_created', 'true');
-                sendEvent('INVOICE_CREATED_INTENT', { documentType: 'invoice', invoice_number: invNumber, source: 'auth_flow' });
-                sendEvent('FIRST_ACTION_TAKEN', { action: 'first_invoice_created' });
-              }
-            }
-          }
-          const successMessage = advanceToSend
-            ? (isDemo ? 'Invoice sent successfully (Sandbox Mode)!' : 'Invoice sent successfully!')
-            : (isDemo ? 'Invoice saved successfully (Sandbox Mode)!' : 'Invoice saved successfully!');
-          setFormSuccess(successMessage);
-          triggerToast(successMessage, 'success');
-          setSuggestedActionDoc({
-            type: 'invoice',
-            number: invNumber,
-            id: savedInvoiceId || 'mock-id',
-            elementId: 'printable-invoice'
-          });
-          setFormSuccess('');
-          return true;
-        } else {
-          if (res.saved) {
-            if (res.invoiceId && isNewInvoice) setInvId(res.invoiceId);
-            if (res.retrySendOnly && res.invoiceId) setPendingSendRetryInvoiceId(res.invoiceId);
-            setFormError('Invoice was saved, but sending failed.');
-          } else if (res.error === 'QUOTA_EXCEEDED') {
-            evaluateAction('create_invoice');
-          } else {
-            setFormError(res.error || 'Failed to save invoice. Please verify all inputs.');
-          }
+          if (advanceToSend && res.notification) setInvoiceNotificationState({ notification: res.notification, eligibility: res.eligibility });
+          setFormError(res.error || 'Invoice save could not be verified. Your edits remain open.');
           return false;
         }
-      } catch (e) {
-        console.error(e);
-        setFormError('Network error when saving invoice.');
+        const successMessage = advanceToSend
+          ? (isDemo ? 'Invoice marked sent in Sandbox Mode. No email was sent.' : previewMode ? 'Invoice marked sent in Preview Mode. No email was sent.' : 'Email notification accepted; delivery is unverified.')
+          : (isDemo ? 'Invoice saved in Sandbox Mode.' : previewMode ? 'Invoice saved in Preview Mode. No account data changed.' : 'Invoice saved and verified.');
+        setFormSuccess(successMessage); triggerToast(successMessage, 'success');
+        if (showCompletion && !advanceToSend) setSuggestedActionDoc({ type: 'invoice', simulated: isDemo || previewMode, created: isNewInvoice, number: invNumber, id: res.data.id, elementId: 'printable-invoice' });
+        return true;
+      } catch {
+        if (!isCurrentActor()) return false;
+        invoiceUnknownPersistenceRef.current = true;
+        if (invoiceEditStateRef.current) invoiceEditStateRef.current.dirty = true;
+        setFormError('The save or notification outcome is unknown. Your edits remain open. Check status before continuing.');
         return false;
       } finally {
-        setIsSaving(false);
+        if (isSameEditor()) { invoiceSavePendingRef.current = false; setIsSaving(false); }
       }
     };
-
-    const finishSave = () => {
-      performSave().then((saved) => {
-        if (!saved) return;
-        if (advanceToSend) {
-          setInvoiceFlowStage('send');
-          setShowPaymentWaitingBanner(true);
-          setInvStatus('sent');
-        }
-        if (exitAfterSave) {
-          handleExitInvoiceFlow();
-        }
-      });
-    };
-
-    if (!invId) {
-      const isFirstRevenueInvoiceDraft = Boolean(
-        canCreateFirstRevenueInvoiceDraft && invQuoteId === firstRevenueLoop?.quote_id
-      );
-      if (isFirstRevenueInvoiceDraft) {
-        finishSave();
-      } else {
-        evaluateAction('create_invoice', finishSave);
-      }
-    } else {
+    const finishSave = async () => {
       const saved = await performSave();
-      if (!saved) return false;
-      if (advanceToSend) {
-        setInvoiceFlowStage('send');
-        setShowPaymentWaitingBanner(true);
-        setInvStatus('sent');
-      }
+      if (!saved || !isCurrentActor()) return false;
+      if (advanceToSend) { setInvoiceFlowStage('send'); setShowPaymentWaitingBanner(false); setInvStatus('sent'); }
       if (exitAfterSave) {
-        handleExitInvoiceFlow();
+        invoiceNavigationBypassRef.current = true;
+        try { handleExitInvoiceFlow(); } finally { invoiceNavigationBypassRef.current = false; }
       }
       return true;
+    };
+    if (!invId) {
+      if (canCreateFirstRevenueInvoiceDraft && invQuoteId === firstRevenueLoop?.quote_id) return finishSave();
+      let saving;
+      await evaluateAction('create_invoice', () => { if (isCurrentActor()) saving = finishSave(); });
+      return saving ? await saving : false;
     }
+    return finishSave();
   };
 
-  // Generate Card Profile using AI
-  const handleGenerateProfile = async (e) => {
-    if (e) e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-
-    if (!profilePrompt.trim()) {
-      setFormError('Please enter a description for AI profile generation.');
-      return;
-    }
-
-    // Paywall Emotional Trigger (PET): Trigger upgrade on second generation attempt
-    if (typeof window !== 'undefined') {
-      const attempts = Number(window.localStorage.getItem('corvioz_profile_generation_attempts') || 0);
-      if (attempts >= 1 && isFree) {
-        setFormError('Daily limit reached. Upgrade when you need repeated client workflow support.');
-        setModalProps({
-          title: "Upgrade Plan",
-          description: "Unlock professional branding, an indexable Public Profile, and more quote drafts for repeated client delivery workflows.",
-          lockedFeatureValue: "SEO-boosted Public Profile and more AI creations",
-          limit: "profile",
-          source: "profile_generation_gate"
-        });
-        setActiveModal('upgrade');
-        return;
-      }
-    }
-
-    setIsGeneratingProfile(true);
+  const handleLearningPreferenceChange = async (event) => {
+    const value = event.target.checked;
+    setIsSavingLearningPreference(true);
+    setLearningPreferenceError('');
     try {
-      const response = await fetch('/api/card-profile/generate', {
-        method: 'POST',
+      const response = await fetch('/api/user', {
+        method: 'PATCH',
+        credentials: 'same-origin',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({
-          raw_text: profilePrompt
-        })
+        body: JSON.stringify({ intelligence_learning_opt_in: value }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        if (data.code === 'REVENUE_LOCK_BLOCKED') {
-          setModalProps({
-            title: "Upgrade Plan",
-            description: "Unlock professional branding, an indexable Public Profile, and more quote drafts for repeated client delivery workflows.",
-            lockedFeatureValue: "SEO-boosted Public Profile and more AI creations",
-            limit: "profile",
-            source: "profile_generation_gate"
-          });
-          setActiveModal('upgrade');
-          setFormError(data.error || 'Daily limit reached. Upgrade when you need repeated client workflow support.');
-        } else {
-          setFormError(data.error || 'Failed to generate profile. Please try again.');
-        }
-        return;
+      const body = await response.json();
+      if (!response.ok || typeof body.intelligence_learning_opt_in !== 'boolean') {
+        throw new Error('Unable to save this preference. Try again.');
       }
-
-      // Populate local states with AI results
-      initProfileStates(data.parsed_data);
-      setFormSuccess('Profile generated successfully! Edit below and click Save.');
-      trackEvent('profile_generated', { source: 'ai_generator' });
-
-      // Increment attempts counter
-      if (typeof window !== 'undefined') {
-        const attempts = Number(window.localStorage.getItem('corvioz_profile_generation_attempts') || 0);
-        window.localStorage.setItem('corvioz_profile_generation_attempts', String(attempts + 1));
-      }
-    } catch (err) {
-      console.error(err);
-      setFormError('A network error occurred. Please try again.');
+      setUser((current) => current ? { ...current, intelligence_learning_opt_in: body.intelligence_learning_opt_in } : current);
+    } catch {
+      setLearningPreferenceError('Could not save your preference. Your last saved choice is still shown.');
     } finally {
-      setIsGeneratingProfile(false);
-    }
-  };
-
-  // Save Card Profile
-  const handleSaveCardProfile = async () => {
-    setFormError('');
-    setFormSuccess('');
-    const usernameClean = String(cpUsername || '').toLowerCase().trim();
-    if (!usernameClean) {
-      setFormError('Please specify a profile username.');
-      return;
-    }
-    if (!/^[a-z0-9_-]{3,40}$/.test(usernameClean)) {
-      setFormError('Username must be 3-40 characters and only contain letters, numbers, hyphens, or underscores.');
-      return;
-    }
-    if (!cpName || !cpName.trim()) {
-      setFormError('Please enter your professional name.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const payload = {
-        username: usernameClean,
-        name: cpName.trim(),
-        title: cpTitle.trim(),
-        bio: cpBio.trim(),
-        tags: cpTags.split(',').map(t => t.trim()).filter(Boolean),
-        contact_email: cpEmail.trim(),
-        contact_phone: cpPhone.trim(),
-        social_links: {
-          twitter: cpTwitter.trim(),
-          linkedin: cpLinkedin.trim(),
-          github: cpGithub.trim(),
-          website: cpWebsite.trim(),
-          brand_color: cpBrandColor,
-          brand_secondary: cpBrandSecondary,
-          theme_preference: cpThemePreference,
-          font_family: cpFontFamily,
-          logo_url: cpLogoUrl
-        },
-        services: cpServices,
-        portfolio: cpPortfolio,
-        cover_banner: cpCoverBanner,
-        avatar_url: cpAvatarUrl,
-        location: cpLocation.trim(),
-        timezone: cpTimezone.trim(),
-        languages: cpLanguages.trim(),
-        availability_status: cpAvailabilityStatus,
-        response_time: cpResponseTime,
-        starting_price: cpStartingPrice,
-        calendly_link: cpCalendlyLink.trim(),
-        verified_badge: cpVerifiedBadge,
-        top_rated_badge: cpTopRatedBadge,
-        fast_response_badge: cpFastResponseBadge,
-        is_public: cpIsPublic,
-        testimonials: cpTestimonials
-      };
-
-      const res = await saveCardProfile(payload, session?.access_token);
-      if (res.success) {
-        trackEvent('profile_created', { username: usernameClean, is_public: cpIsPublic, sandbox: isDemo });
-        setFormSuccess(isDemo ? 'Public profile updated successfully (Sandbox Mode)!' : 'Public profile updated successfully!');
-        setTimeout(() => setFormSuccess(''), 3000);
-      } else {
-        setFormError(res.error || 'Failed to save profile. Please check if the username is already taken.');
-      }
-    } catch (e) {
-      console.error(e);
-      setFormError('Error updating profile card.');
-    } finally {
-      setIsSaving(false);
+      setIsSavingLearningPreference(false);
     }
   };
 
@@ -2937,108 +3350,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
-  // Save Client Details
-  const handleSaveClient = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-    if (!newClientName || !newClientName.trim()) {
-      setFormError('Please enter a client name.');
-      return;
-    }
-
-    try {
-      const currentClientCount = clients ? clients.length : 0;
-      const userPlan = String(user?.plan || 'free').toLowerCase();
-
-      if ((userPlan === 'free' || userPlan === 'starter') && currentClientCount >= 0) {
-        setModalProps({
-          title: "Upgrade to Pro",
-          description: "Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.",
-          lockedFeatureValue: "Clients Directory & Client Records",
-          limit: "client_limit",
-          source: "client_creation_gate",
-          targetPlan: "pro"
-        });
-        setActiveModal('upgrade');
-        setFormError('Client directory requires Pro plan.');
-        return;
-      }
-
-      if (userPlan === 'pro' && currentClientCount >= 1) {
-        setModalProps({
-          title: "Studio is coming soon",
-          description: "Additional multi-client workspace capacity is planned for Studio and is not available for purchase yet.",
-          lockedFeatureValue: "Additional client workspace capacity",
-          limit: "client_limit",
-          source: "client_creation_gate",
-          targetPlan: "support"
-        });
-        setActiveModal('upgrade');
-        setFormError('Additional multi-client workspace capacity is coming soon.');
-        return;
-      }
-
-      if (userPlan === 'studio' && currentClientCount >= 100) {
-        setModalProps({
-          title: "Client limit reached",
-          description: "Your active client list has reached the current plan limit. Contact support if you need room for more clients.",
-          lockedFeatureValue: "Additional client capacity",
-          limit: "workspace_limit",
-          source: "client_creation_gate",
-          targetPlan: "support"
-        });
-        setActiveModal('upgrade');
-        setFormError('Client limit reached. Contact support if you need room for more clients.');
-        return;
-      }
-
-      const payload = {
-        name: newClientName.trim(),
-        email: newClientEmail.trim(),
-        address: newClientAddress.trim()
-      };
-
-      const res = await saveClient(payload, session?.access_token);
-      if (res.success) {
-        setNewClientName('');
-        setNewClientEmail('');
-        setNewClientAddress('');
-        setFormSuccess(isDemo ? 'Client created successfully (Sandbox Mode)!' : 'Client created successfully!');
-        setTimeout(() => setFormSuccess(''), 3000);
-
-        if (currentClientCount === 0) {
-          setShowBusinessModeModal(true);
-          trackEvent('business_mode_activated', { source: 'first_client_creation' });
-        } else if (currentClientCount === 1) {
-          setShowStudioPreviewModal(true);
-          setStudioPreviewActive(true);
-          trackEvent('studio_preview_triggered', { source: 'second_client_creation' });
-        }
-      } else {
-        setFormError(res.error || 'Failed to save client.');
-      }
-    } catch (e) {
-      console.error(e);
-      setFormError(e?.message || 'Failed to save client.');
-    }
-  };
-
-  const handleDeleteClient = async (id) => {
-    if (!confirm('Are you sure you want to delete this client?')) return;
-    try {
-      const res = await deleteClient(id, session?.access_token);
-      if (res.success) {
-        triggerToast(isDemo ? 'Client deleted (Sandbox Mode).' : 'Client deleted successfully.', 'info');
-      } else {
-        triggerToast(res.error || 'Failed to delete client.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      triggerToast('Error deleting client.', 'error');
-    }
-  };
-
   const handleDeleteQuote = async (id) => {
     if (!confirm('Are you sure you want to delete this quote?')) return;
     try {
@@ -3056,148 +3367,155 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const handleDeleteInvoice = async (id) => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
+    const actor = session?.user?.id || null;
+    const editorKey = invoiceEditStateRef.current?.key;
+    const signature = invoiceEditStateRef.current?.signature;
+    const isCurrent = () => (sessionRef.current?.user?.id || null) === actor && invoiceEditStateRef.current?.key === editorKey && invoiceEditStateRef.current?.signature === signature;
+    const revision = id === invId ? invoiceEvidenceRef.current?.revision : invoices.find(invoice => invoice.id === id)?.document_revision;
     try {
-      const res = await deleteInvoice(id, session?.access_token);
-      if (res.success) {
-        triggerToast(isDemo ? 'Invoice deleted (Sandbox Mode).' : 'Invoice deleted successfully.', 'info');
-      } else {
-        triggerToast(res.error || 'Failed to delete invoice.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      triggerToast('Error deleting invoice.', 'error');
-    }
+      const res = await deleteInvoice(id, session?.access_token, revision, isCurrent);
+      if (!isCurrent()) return;
+      triggerToast(res.success ? (isDemo ? 'Invoice deleted (Sandbox Mode).' : 'Invoice deleted successfully.') : res.error || 'Failed to delete invoice.', res.success ? 'info' : 'error');
+    } catch { if (isCurrent()) triggerToast('The deletion outcome is unknown. Refresh and review the saved invoice.', 'error'); }
   };
 
-  // PDF download trigger
-  const handlePdfDownload = async (elementId, name) => {
-    await handleExportAttempt(elementId, name);
-  };
+  // Keep deferred commercial callbacks tied to the document currently on screen.
+  useEffect(() => {
+    pdfExportDocumentRef.current = {
+      quote: { id: qId, number: qNumber, status: qStatus, approvedSnapshotId: qApprovedSnapshotId },
+      invoice: invoiceClientDocument.identity || { id: invId, number: invNumber, status: invStatus },
+    };
+  }, [qId, qNumber, qStatus, qApprovedSnapshotId, invId, invNumber, invStatus, invoiceClientDocument.identity]);
 
   const handleExportAttempt = async (elementId, name, resourceId = null) => {
-    console.log('[INSTRUMENTATION] export_attempt triggered', { name, resourceId });
-    if (previewMode) {
-      await triggerActualPdfDownload(elementId, name, false, resourceId);
-      return;
+    if (pdfExportPendingRef.current) return false;
+    const documentType = elementId === 'printable-quote' ? 'quote' : elementId === 'printable-invoice' ? 'invoice' : null;
+    if (documentType === 'invoice' && resourceId === '') resourceId = null;
+    const fail = (message) => {
+      setPdfExportError({ elementId, name, message });
+      triggerToast(message, 'error');
+      return false;
+    };
+    const documentAvailable = () => {
+      const current = pdfExportDocumentRef.current?.[documentType];
+      if (!current || !current.number || name !== `${documentType}_${current.number}`
+        || (resourceId !== null && resourceId !== current.id)) {
+        return fail('This document is unavailable. Open it again and try downloading.');
+      }
+      const target = document.getElementById(elementId);
+      if (!target || target.querySelector('.quote-client-document-error, .invoice-client-document-error')) {
+        return fail('This document is unavailable. Open it again and try downloading.');
+      }
+      return true;
+    };
+    let sealedInvoice = null;
+    const invoiceSourceMatches = identity => {
+      const current = pdfExportDocumentRef.current?.invoice;
+      const target = document.getElementById('printable-invoice');
+      return Boolean(current && target && ['id','number','status','quoteId','approvalSnapshotId','paymentFingerprint'].every(key => (current[key] || null) === (identity[key] || null))
+        && target.getAttribute('data-invoice-id') === (identity.id || '')
+        && target.getAttribute('data-invoice-number') === identity.number
+        && target.getAttribute('data-invoice-status') === identity.status
+        && target.getAttribute('data-approval-snapshot-id') === (identity.approvalSnapshotId || '')
+        && target.getAttribute('data-payment-fingerprint') === (identity.paymentFingerprint || ''));
+    };
+    let sealedQuote = null;
+    const quoteSourceMatches = (identity) => {
+      const current = pdfExportDocumentRef.current?.quote;
+      // Edits and preference changes retain the sealed document. A different
+      // Quote or approval state cannot inherit a pending export or retry.
+      const target = document.getElementById(elementId);
+      return Boolean(current && target && current.id === identity.id && current.number === identity.number
+        && current.status === identity.status && current.approvedSnapshotId === identity.approvedSnapshotId
+        && target.getAttribute('data-quote-id') === (identity.id || '')
+        && target.getAttribute('data-quote-status') === identity.status
+        && target.getAttribute('data-approved-snapshot-id') === (['approved', 'converted'].includes(identity.status) ? identity.approvedSnapshotId || '' : ''));
+    };
+    if (!documentAvailable()) return false;
+    if (!previewMode && !canExportPdf) return fail('PDF export permission is unavailable. Check your account access and try again.');
+
+    if (documentType === 'quote') {
+      try { sealedQuote = captureQuotePdfDocument(elementId, pdfExportDocumentRef.current.quote); }
+      catch (error) { return fail(error.message); }
     }
 
-    const watermarkFree = user?.id ? await canAccess(user.id, 'export_pdf') : false;
+    if (documentType === 'invoice') {
+      try { sealedInvoice = captureInvoicePdfDocument(elementId, pdfExportDocumentRef.current.invoice); }
+      catch (error) { return fail(error.message); }
+    }
 
-    // Save parameters and show modal to select export purpose
-    setExportPurposeParams({ elementId, name, resourceId, watermarkFree });
-    setExportPurpose('draft');
-    setExportSentToClient(false);
-    setShowExportPurposeModal(true);
-  };
-
-  const handleConfirmExport = async () => {
-    if (!exportPurposeParams) return;
-    const { elementId, name, resourceId, watermarkFree } = exportPurposeParams;
-    setShowExportPurposeModal(false);
-
-    const documentType = name.startsWith('quote_') ? 'quote' : 'invoice';
-    const currentCount = Number(window.localStorage.getItem('corvioz_export_count') || 0);
-    const newCount = currentCount + 1;
-
-    let clientContextId = null;
-    let followUpState = 'none';
-
-    if (resourceId) {
-      if (documentType === 'invoice') {
-        const inv = invoices.find(i => i.id === resourceId);
-        if (inv) {
-          clientContextId = inv.client_id || inv.client_name || inv.client_email;
-          followUpState = inv.status;
-        }
-      } else if (documentType === 'quote') {
-        const q = quotes.find(qi => qi.id === resourceId);
-        if (q) {
-          clientContextId = q.client_id || q.client_name || q.client_email;
-          followUpState = q.status;
-        }
+    pdfExportPendingRef.current = true;
+    setIsDownloadingPdf(true);
+    setPdfExportError(null);
+    let downloadTask = null;
+    let observedExportCount = null;
+    let evaluationFinished = false;
+    let started = false;
+    const download = () => {
+      if (started) return downloadTask;
+      if (evaluationFinished && pdfExportPendingRef.current) return false;
+      if (sealedInvoice ? !invoiceSourceMatches(sealedInvoice.identity) : sealedQuote ? !quoteSourceMatches(sealedQuote.identity) : !documentAvailable()) {
+        return fail('This document changed. Open it again and try downloading.');
+      }
+      started = true;
+      pdfExportPendingRef.current = true;
+      setIsDownloadingPdf(true);
+      setPdfExportError(null);
+      downloadTask = triggerActualPdfDownload(elementId, name, hasCleanPdf, resourceId, observedExportCount, sealedQuote ? { document: sealedQuote, validateSource: quoteSourceMatches } : sealedInvoice ? { document: sealedInvoice, validateSource: invoiceSourceMatches } : null).finally(() => {
+        pdfExportPendingRef.current = false;
+        setIsDownloadingPdf(false);
+      });
+      return downloadTask;
+    };
+    try {
+      if (previewMode) return await download();
+      const currentCount = isDevelopment
+        ? Number(window.localStorage.getItem('corvioz_export_count') || 0)
+        : exportCount;
+      const newCount = currentCount + 1;
+      observedExportCount = newCount;
+      if (isDevelopment) window.localStorage.setItem('corvioz_export_count', String(newCount));
+      setExportCount(newCount);
+      // Observe the actual attempt without inventing intent or claiming delivery.
+      await evaluateAction('export_pdf', download, {
+        document_type: documentType,
+        export_count: newCount,
+        source: 'document_download',
+      });
+      evaluationFinished = true;
+      if (downloadTask) return await downloadTask;
+      return fail('Download has not started. Check the account access message and try again.');
+    } catch {
+      return fail('PDF download could not start. Try again.');
+    } finally {
+      evaluationFinished = true;
+      if (!downloadTask) {
+        pdfExportPendingRef.current = false;
+        setIsDownloadingPdf(false);
       }
     }
-    
-    if (!clientContextId) {
-      clientContextId = documentType === 'invoice' ? (invClientName || invClientEmail || 'guest') : (qClientName || qClientEmail || 'guest');
-    }
-
-    const telemetryPayload = {
-      document_type: documentType,
-      export_count: newCount,
-      purpose: exportPurpose,
-      sent_to_client: exportSentToClient,
-      client_context_id: clientContextId,
-      follow_up_state: followUpState,
-      watermark_free: watermarkFree,
-      source: 'export_purpose_modal'
-    };
-
-    await evaluateAction('export_pdf', async (shouldProceedWithoutWatermark) => {
-      window.localStorage.setItem('corvioz_export_count', String(newCount));
-      setExportCount(newCount);
-      sendEvent('FIRST_ACTION_TAKEN', { action: 'export_pdf', documentType, export_count: newCount, source: 'export_purpose_modal' });
-      const downloadWatermarkFree = !isFree || shouldProceedWithoutWatermark;
-      await triggerActualPdfDownload(elementId, name, downloadWatermarkFree, resourceId);
-    }, telemetryPayload);
   };
 
-  const triggerActualPdfDownload = async (elementId, name, watermarkFree, resourceId = null) => {
-    setIsDownloadingPdf(true);
+  const triggerActualPdfDownload = async (elementId, name, watermarkFree, resourceId = null, observedExportCount = null, quoteRequest = null) => {
     try {
       const { generatePDF } = await import('@/app/lib/pdf');
-      await generatePDF(elementId, `${name}.pdf`, watermarkFree);
-      // For first-time guest flow, show success state instead of post-export modal
-      if (isFirstGuestFlow) {
-        triggerToast('✔ Invoice created! PDF is downloading.', 'success');
-      } else {
-        triggerToast(`${name.startsWith('quote_') ? 'Quote' : 'Invoice'} PDF exported successfully!`, 'success');
-        setPostExportDoc({
-          id: resourceId,
-          type: name.startsWith('quote_') ? 'quote' : 'invoice',
-          number: name.split('_')[1]
-        });
-      }
+      const fileName = quoteRequest && elementId === 'printable-invoice' ? `invoice_${quoteRequest.document.documentNumber}.pdf` : quoteRequest ? `quote_${quoteRequest.document.documentNumber}.pdf` : `${name}.pdf`;
+      await generatePDF(elementId, fileName, watermarkFree, quoteRequest);
+      if (!previewMode) sendEvent('FIRST_ACTION_TAKEN', {
+        action: 'export_pdf', documentType: elementId === 'printable-quote' ? 'quote' : 'invoice', export_count: observedExportCount, source: 'document_download',
+      });
+      triggerToast(`${elementId === 'printable-quote' ? 'Quote' : 'Invoice'} PDF download started.`, 'success');
+      return true;
     } catch (err) {
-      console.error(err);
-      triggerToast('Error exporting PDF document.', 'error');
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  };
-
-  // Copy customized reminder
-  const openReminderModalFor = (invoice) => {
-    setSelectedInvoiceForReminder(invoice);
-    setActiveReminderTemplate('7');
-    setReminderCopied(false);
-    setShowReminderModal(true);
-  };
-
-  const getReminderEmailContent = () => {
-    if (!selectedInvoiceForReminder) return { subject: '', body: '' };
-    const inv = selectedInvoiceForReminder;
-    const invNo = inv.invoice_number;
-    const amountStr = `${getCurrencySymbol(inv.currency)}${(inv.total / 100).toFixed(2)}`;
-    const cliName = inv.client_name;
-    const bName = inv.business_name || user.name || 'Photographer';
-    const due = inv.due_date || 'Receipt';
-
-    if (activeReminderTemplate === '7') {
-      return {
-        subject: `Friendly Reminder: Document #${invNo} needs review`,
-        body: `Hi ${cliName},\n\nHope you are doing well.\n\nThis is a quick friendly reminder that document #${invNo} for ${amountStr} was due on ${due} and is now a week overdue.\n\nCould you please review the document status and let me know if you need another copy or any clarification?\n\nThank you!\n\nBest regards,\n${bName}`
-      };
-    } else if (activeReminderTemplate === '14') {
-      return {
-        subject: `Follow-up: Document #${invNo} is 14 days overdue`,
-        body: `Hi ${cliName},\n\nI am writing to follow up on document #${invNo} for ${amountStr} which was due on ${due}. It is now 14 days past due.\n\nWe would appreciate it if you could review the document as soon as possible. Please confirm when it has been reviewed, or let me know if there are any questions blocking review.\n\nThank you for your prompt attention to this matter.\n\nRegards,\n${bName}`
-      };
-    } else {
-      return {
-        subject: `Final Follow-up: Document #${invNo} needs review`,
-        body: `Hi ${cliName},\n\nThis is a final follow-up regarding document #${invNo} of ${amountStr} which was due on ${due}. This document is now 30 days past due.\n\nPlease review the document instructions provided. If review is not completed, we may need to pause current work or revisit the project timeline.\n\nRegards,\n${bName}`
-      };
+      const message = err?.status === 401 ? 'Sign in again, then retry the PDF download.'
+        : err?.status === 403 ? 'PDF export permission was denied. Check your account access before retrying.'
+        : err?.status === 404 ? 'This document is unavailable. Open it again and try downloading.'
+        : elementId === 'printable-invoice' && err?.status === 409 && quoteRequest?.document?.identity?.id ? 'This Invoice changed or has unsaved edits. Save any pending edits, reopen Preview and retry.'
+        : elementId === 'printable-invoice' && err?.status === 409 ? 'This Draft changed. Reopen Preview and retry.'
+        : 'PDF download failed. Try again. If it continues, review the document in Preview.';
+      setPdfExportError({ elementId, name, message });
+      triggerToast(message, 'error');
+      return false;
     }
   };
 
@@ -3216,7 +3534,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const addItem = (editorType) => {
     if (editorType === 'quote') {
-      setQItems([...qItems, { description: '', quantity: 1, unitPrice: 0 }]);
+      setQItems([...qItems, ensureQuoteLineItemId({ description: '', quantity: 1, unitPrice: 0 })]);
     } else {
       setInvItems([...invItems, { description: '', quantity: 1, unitPrice: 0 }]);
     }
@@ -3230,39 +3548,89 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
   };
 
+  const clientWorkspaceProps = {
+    controller: clientWorkspace.controller,
+    writable: clientWorkspace.writable,
+    readOnlyMessage: clientWorkspace.readOnlyMessage,
+    renderDocuments: client => <ClientDocumentsPanel
+      client={client} quotes={quotes} invoices={invoices}
+      isQuotesLoading={isQuotesLoading} isInvoicesLoading={isInvoicesLoading}
+      quotesError={quotesError} invoicesError={invoicesError}
+      controlId={`client-documents-${client.id}`} panelId={`client-documents-panel-${client.id}`}
+      onOpenDocument={openDocument}
+    />,
+    onCreateQuote: client => initCreateQuote({ source: 'client_workspace', clientContext: {
+      client_id: client.id, client_name: client.name,
+      client_email: client.email || '', client_address: client.address || '',
+    } }),
+    onBill: client => initCreateInvoice({ source: 'client_bill', clientContext: {
+      client_id: client.id, client_name: client.name,
+      client_email: client.email || '', client_address: client.address || '',
+    } }),
+  };
+
   // Render components based on auth status and tabs
   const getActiveLeads = () => leads;
   const getActiveQuotes = () => quotes;
   const getActiveInvoices = () => invoices;
-  const getActiveClients = () => clients;
+  const getActiveClients = () => clients.filter(client => !client.archived_at);
   const getActiveProfile = () => cardProfile;
 
-  const openDocument = ({ documentType, id } = {}) => {
+  const openDocument = ({ documentType, id, invoiceSnapshot = null } = {}) => {
+    if (!requestInvoiceNavigation(() => openDocument({ documentType, id, invoiceSnapshot }))) return false;
+    if (!requestQuoteNavigation(() => openDocument({ documentType, id, invoiceSnapshot }))) return false;
     if (!id) return false;
 
     if (documentType === 'quote') {
       const quote = quotes.find((document) => document?.id === id);
       if (!quote) return false;
 
-      const itemsParsed = Array.isArray(quote.items) ? quote.items : JSON.parse(quote.items || '[]');
+      const itemsParsed = (Array.isArray(quote.items) ? quote.items : JSON.parse(quote.items || '[]')).map((item) => ensureQuoteLineItemId(item));
+      setPersistedLineageByItemId(Object.fromEntries(itemsParsed.map((item) => [item.id, Array.isArray(item.source_component_refs) ? [...item.source_component_refs] : []])));
+      setQPendingEditorDrafts({});
+      setQuoteSaveUnknown(false);
+      setQuoteEditorGeneration(value => value + 1);
       setQId(quote.id);
+      setQClientPresentation(Object.prototype.hasOwnProperty.call(quote, 'client_presentation') ? quote.client_presentation : undefined);
+      setQApprovedSnapshotId(quote.approved_snapshot_id || null);
       setQNumber(quote.quote_number || '');
       setQClientName(quote.client_name || '');
       setQClientEmail(quote.client_email || '');
       setQClientAddress(quote.client_address || '');
       setQClientId(quote.client_id || null);
       setQCurrency(quote.currency || 'USD');
-      setQNotes(quote.notes || '');
+      const parsedQuoteNotes = deserializeInvoiceNotes(quote.notes || '');
+      const preparedForOverride = readPreparedForDisplayOverride(parsedQuoteNotes.metadata);
+      setQPreparedForOverridePresent(preparedForOverride.overridePresent);
+      setQPreparedForDisplayOverride(preparedForOverride.overrideValue);
+      const quoteScope = parsedQuoteNotes.metadata?.photography_scope_v2;
+      setQQuoteProvenance(parsedQuoteNotes.metadata?.quote_provenance_v1 || null);
+      if (typeof setQPhotographyScope === 'function') {
+        if (quoteScope && typeof normalizePhotographyScope === 'function') {
+          setQPhotographyScope(normalizePhotographyScope(quoteScope));
+        } else if (typeof createEmptyPhotographyScope === 'function') {
+          setQPhotographyScope(createEmptyPhotographyScope());
+        }
+      }
+      if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(Boolean(quoteScope?.common?.usage_rights?.status === 'specified'));
+      if (typeof setScopeFieldsExpanded === 'function') setScopeFieldsExpanded(false);
+      setQNotes(parsedQuoteNotes.notes);
+      setQNarrativePaymentTerms(readNarrativePaymentTermsV1(parsedQuoteNotes.metadata));
       setQTaxRate(Number(quote.tax_rate || 0));
       setQDiscountRate(Number(quote.discount_rate || 0));
       setQDate(quote.created_at?.substring(0, 10) || '');
       setQItems(itemsParsed.map((item) => ({
+        id: ensureQuoteLineItemId(item).id,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
+        ...(item.billingUnit ? { billingUnit: item.billingUnit } : {}),
+        ...(item.secondaryQuantity ? { secondaryQuantity: item.secondaryQuantity, secondaryUnit: item.secondaryUnit } : {}),
+        ...(Array.isArray(item.source_component_refs) ? { source_component_refs: [...item.source_component_refs] } : {}),
       })));
       setQStatus(quote.status || 'draft');
-      setSelectedQuotePresetId('');
+      setSelectedQuotePresetId(parsedQuoteNotes.metadata?.quote_preset_id || '');
+      if (typeof setQuotePresetSelectionTouched === 'function') setQuotePresetSelectionTouched(false);
       setIsFirstQuoteFlow(false);
       setQClientNameTouched(false);
       setQClientEmailTouched(false);
@@ -3273,11 +3641,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     }
 
     if (documentType === 'invoice') {
-      const invoice = invoices.find((document) => document?.id === id);
+      const invoice = invoiceSnapshot?.id === id ? invoiceSnapshot : invoices.find((document) => document?.id === id);
       if (!invoice) return false;
 
       const deserialized = deserializeInvoiceNotes(invoice.notes);
       const itemsParsed = Array.isArray(invoice.items) ? invoice.items : JSON.parse(invoice.items || '[]');
+      captureInvoiceHydration(invoice);
+      setInvoiceEditorGeneration(value => value + 1);
       setInvId(invoice.id);
       setInvClientId(invoice.client_id || null);
       setInvNumber(invoice.invoice_number || '');
@@ -3289,16 +3659,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       setInvBillingType(deserialized.billing_type);
       setInvTaxRate(Number(invoice.tax_rate || 0));
       setInvDiscountRate(Number(invoice.discount_rate || 0));
-      setInvDate(invoice.invoice_date || invoice.created_at?.substring(0, 10) || getTodayString());
-      setInvDueDate(invoice.due_date || getFutureDateString(30));
+      let invoiceDate = invoice.invoice_date;
+      if (!invoiceDate && invoice.created_at) {
+        try { invoiceDate = getBusinessReferenceDate(invoice.created_at, user?.business_timezone); } catch { /* Invalid legacy instant: use current business day below. */ }
+      }
+      setInvDate(invoiceDate || getTodayString());
+      setInvDueDate(invoice.due_date || '');
       setInvPaymentTerms(invoice.payment_terms || 'Net 30');
       setInvPaymentLink(invoice.payment_link || '');
       setInvQuoteId(invoice.quote_id || null);
-      setInvItems(itemsParsed.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice || (item.unit_price || 0) / 100,
-      })));
+      setInvItems(hydrateInvoiceItems(itemsParsed));
       setInvStatus(invoice.status || 'pending');
       setInvoiceFlowStage('create');
       setInvoiceFlowLocked(true);
@@ -3311,21 +3681,49 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     return false;
   };
 
+  useEffect(() => {
+    if (buildQuoteHandoff?.status !== 'opening') return;
+    if (quotes === buildQuoteHandoff.previousQuotes && !quotesError) return;
+    const quote = quotes.find((document) => document?.id === buildQuoteHandoff.quoteId);
+    let opened = false;
+    try {
+      // Resume the explicit editor-opening request only after the persisted quote list refreshes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      opened = quote ? openDocument({ documentType: 'quote', id: buildQuoteHandoff.quoteId }) : false;
+    } catch {
+      opened = false;
+    }
+    setBuildQuoteHandoff(null);
+    const resolve = buildQuoteHandoffResolveRef.current;
+    buildQuoteHandoffResolveRef.current = null;
+    resolve?.(Boolean(opened));
+  }, [buildQuoteHandoff, quotes, quotesError]);
+
   // Document total computations
   const currentInvoices = getActiveInvoices();
-  const totalPaid = currentInvoices.filter(i => (i.payment_status || i.status) === 'paid').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalPending = currentInvoices.filter(i => ['pending', 'sent', 'unpaid', 'partial'].includes(i.payment_status || i.status)).reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalOverdue = currentInvoices.filter(i => (i.payment_status || i.status) === 'overdue').reduce((sum, i) => sum + (i.total || 0), 0) / 100;
-  const totalVolume = totalPaid + totalPending + totalOverdue;
+  const invoiceTotals = summarizeInvoicePayments(currentInvoices, referenceInstant, paymentOptions);
+  const totalPaid = invoiceTotals.paidCents / 100;
+  const totalPending = invoiceTotals.outstandingCents / 100;
+  const totalOverdue = invoiceTotals.overdueCents / 100;
+  const totalVolume = invoiceTotals.totalCents / 100;
 
   // Init blank Quote
   const initCreateQuote = (options = 'quick_action') => {
+    if (!requestQuoteNavigation(() => initCreateQuote(options))) return false;
+    const quoteTicket = quoteContinuity.guard.capture();
+    const initiatingUserId = session?.user?.id || null;
+    const isCurrentActor = () => (sessionRef.current?.user?.id || null) === initiatingUserId;
+    if (!isCurrentActor()) return false;
     const normalizedOptions = typeof options === 'string' ? { source: options } : (options || {});
     const quoteSource = normalizedOptions.source || 'quick_action';
     const clientContext = normalizedOptions.clientContext || null;
     trackEvent('create_quote_click', { source: quoteSource });
     trackEvent('quick_action_click', { action: 'create_quote', source: quoteSource });
     evaluateAction('create_quote', () => {
+      if (!isCurrentActor() || !quoteContinuity.guard.isSameSession(quoteTicket)) return false;
+      setQPendingEditorDrafts({});
+      setQuoteSaveUnknown(false);
+      setQuoteEditorGeneration(value => value + 1);
       resetQuoteCreateState();
       if (clientContext?.client_id) {
         setQClientId(clientContext.client_id);
@@ -3335,12 +3733,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       }
       setIsFirstQuoteFlow(quoteSource === 'first_quote_onboarding');
       handleDashboardTabChange('quotes', quoteSource);
-      setQuoteView('create');
+      setQuoteView('project_understanding');
     });
   };
 
   // Init blank Invoice
   const openInvoiceBuilder = (source = 'quick_action', clientContext = null) => {
+    if (!requestInvoiceNavigation(() => openInvoiceBuilder(source, clientContext))) return false;
     resetInvoiceCreateState();
     if (clientContext?.client_id) {
       setInvClientId(clientContext.client_id);
@@ -3353,6 +3752,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const initCreateInvoice = (options = {}) => {
+    const initiatingUserId = session?.user?.id || null;
+    const isCurrentActor = () => (sessionRef.current?.user?.id || null) === initiatingUserId;
+    if (!isCurrentActor()) return false;
     const normalizedOptions = typeof options === 'string' ? { source: options } : (options || {});
     const source = normalizedOptions.source || 'quick_action';
     const clientContext = normalizedOptions.clientContext || null;
@@ -3360,7 +3762,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     trackEvent('quick_action_click', { action: 'create_invoice', source });
     evaluateAction(
       'create_invoice',
-      () => openInvoiceBuilder(source, clientContext),
+      () => { if (isCurrentActor()) openInvoiceBuilder(source, clientContext); },
       clientContext?.client_id ? { client_id: clientContext.client_id } : {}
     );
   };
@@ -3371,10 +3773,37 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleCancelQuote = () => {
+    if (!requestQuoteNavigation(handleCancelQuote)) return false;
+    setQPendingEditorDrafts({});
+    if (typeof setQPhotographyScope === 'function') setQPhotographyScope(createEmptyPhotographyScope());
+    if (typeof setUsageRightsExpanded === 'function') setUsageRightsExpanded(false);
+    if (typeof setSemanticReviewState === 'function') setSemanticReviewState({ status: 'READY', inputFingerprint: null, semanticFindings: [] });
     setQuoteView('list');
   };
 
+  const handleBuildQuoteEditorNavigation = async ({ quoteId, retryOpenOnly = false } = {}) => {
+    if (!quoteId || (buildQuoteHandoffResolveRef.current && !retryOpenOnly)) return false;
+    const previousQuotes = quotes;
+    const opening = new Promise((resolve) => {
+      buildQuoteHandoffResolveRef.current = resolve;
+    });
+    setBuildQuoteHandoff({ quoteId, status: 'refreshing', previousQuotes });
+    try {
+      const refreshed = await fetchData(session?.access_token);
+      if (refreshed?.error) throw refreshed.error;
+      setBuildQuoteHandoff({ quoteId, status: 'opening', previousQuotes });
+      return await opening;
+    } catch {
+      setBuildQuoteHandoff(null);
+      const resolve = buildQuoteHandoffResolveRef.current;
+      buildQuoteHandoffResolveRef.current = null;
+      resolve?.(false);
+      return false;
+    }
+  };
+
   const handleCancelInvoice = () => {
+    if (!requestInvoiceNavigation(handleCancelInvoice)) return false;
     setInvoiceFlowLocked(false);
     setInvoiceFlowStage('create');
     setShowPaymentWaitingBanner(false);
@@ -3382,6 +3811,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
   };
 
   const handleExitInvoiceFlow = () => {
+    if (!requestInvoiceNavigation(handleExitInvoiceFlow)) return false;
     setInvoiceFlowLocked(false);
     setInvoiceFlowStage('create');
     setShowPaymentWaitingBanner(false);
@@ -3389,8 +3819,26 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     handleDashboardTabChange('overview', 'invoice_flow_exit');
   };
 
+  const resumeInvoiceNavigation = () => {
+    const pending = invoiceNavigationRef.current;
+    const current = invoiceEditStateRef.current;
+    if (!pending || pending.generation !== current?.generation || pending.actor !== current?.actor) return false;
+    invoiceNavigationRef.current = null;
+    setShowInvoiceLeaveDialog(false);
+    invoiceNavigationBypassRef.current = true;
+    try {
+      setInvoiceView('list');
+      setInvoiceFlowLocked(false);
+      return pending.action();
+    } finally { invoiceNavigationBypassRef.current = false; }
+  };
+
   const getInvoiceTotals = () => {
-    const subtotal = invItems.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0);
+    if (invoiceClientDocument.integrity.ok) {
+      const { subtotal, discount, tax, total } = invoiceClientDocument.totals;
+      return { subtotal: subtotal / 100, discount: discount / 100, tax: tax / 100, total: total / 100 };
+    }
+    const subtotal = invItems.reduce((sum, item) => sum + calculateLineItemAmount(item), 0);
     const discounted = subtotal * (1 - Number(invDiscountRate || 0) / 100);
     const tax = discounted * Number(invTaxRate || 0) / 100;
     return {
@@ -3401,118 +3849,192 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     };
   };
 
-  const isInvoiceDraftReady = () => {
-    return Boolean(
-      invClientName &&
-      invClientName.trim() &&
-      invItems &&
-      invItems.length > 0 &&
-      invItems.some(item => item.description && item.description.trim()) &&
-      invDate &&
-      invDueDate
-    );
-  };
+  const isInvoiceDraftReady = () => Boolean(invoiceClientDocument.integrity.ok);
 
   const goToInvoicePreview = () => {
     setFormError('');
     if (!isInvoiceDraftReady()) {
-      setFormError('Complete the client, line items, invoice date, and due date before preview.');
+      setFormError(invoiceValidationMessage);
       return;
     }
     setInvoiceFlowStage('preview');
   };
 
-  const renderInvoiceFlowStepper = () => {
-    const currentIndex = INVOICE_FLOW_STAGES.findIndex(stage => stage.id === invoiceFlowStage);
-    return (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        gap: '8px',
-        marginBottom: '20px'
-      }}>
-        {INVOICE_FLOW_STAGES.map((stage, index) => {
-          const isDone = index < currentIndex;
-          const isActive = stage.id === invoiceFlowStage;
-          return (
-            <div key={stage.id} style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: isActive ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-              background: isActive ? 'var(--primary-glow)' : (isDone ? 'var(--success-glow)' : 'var(--bg-surface)'),
-              color: isActive ? 'var(--primary)' : (isDone ? 'var(--success)' : 'var(--text-muted)'),
-              fontSize: '0.78rem',
-              fontWeight: 800,
-              textAlign: 'center'
-            }}>
-              {index + 1}. {stage.label}
-            </div>
-          );
-        })}
-      </div>
-    );
+  const handleInvoiceStageClick = event => {
+    const stage = event.currentTarget.dataset.invoiceStage;
+    if (stage === 'create') setInvoiceFlowStage('create');
+    else if (stage === 'preview') goToInvoicePreview();
+    else handleSaveInvoice({ advanceToSend: true });
   };
 
-  const renderInvoiceReadonlyPreview = ({ compact = false } = {}) => {
+  const renderInvoiceFlowStepper = () => (
+    <nav className="invoice-workflow-navigation" aria-label="Invoice workflow">
+      {INVOICE_FLOW_STAGES.map(stage => (
+        <button key={stage.id} type="button" aria-current={stage.id === invoiceFlowStage ? 'page' : undefined}
+          disabled={isSaving || (stage.id === 'send' && invoiceFlowStage !== 'preview')}
+          data-invoice-stage={stage.id} onClick={handleInvoiceStageClick}>{stage.label}</button>
+      ))}
+    </nav>
+  );
+
+  // One paper surface for inline editing and the existing preview/send stages.
+  const renderInvoicePaper = ({ readonly = false, compact = false } = {}) => {
+    const locked = readonly || isSelectedInvoiceSettled || invoiceCommercialReadonly;
+    const identityLocked = locked || Boolean(invId);
     const totals = getInvoiceTotals();
+    const sourceQuote = invQuoteId ? quotes.find(quote => quote.id === invQuoteId) : null;
+    const status = invStatus === 'draft' || !invId ? 'draft' : selectedInvoicePaymentStatus;
+    const presetTerms = ['Due on Receipt', 'Net 7', 'Net 14', 'Net 30'];
+    const termDays = { 'Due on Receipt': 0, 'Net 7': 7, 'Net 14': 14, 'Net 30': 30 }[invPaymentTerms];
+    const issueDate = normalizeDateOnly(invDate);
+    const dueDateIsDerived = issueDate && termDays !== undefined && invDueDate === addCalendarDays(issueDate, termDays);
+    const clientSearch = invClientSearch.trim().toLowerCase();
+    const availableClients = getActiveClients();
+    const matchingClients = availableClients.filter(client => [client.name, client.email].some(value => String(value || '').toLowerCase().includes(clientSearch)));
+    // Recorded amounts come only from the existing payment read model.
+    const paid = selectedInvoicePayment.amount_paid_cents / 100;
+    const balance = isSelectedInvoiceSettled ? selectedInvoicePayment.amount_due_cents / 100 : totals.total;
     return (
-      <div className="card" style={{
-        padding: compact ? '18px' : '24px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '10px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
-          <div>
-            <p style={{ margin: '0 0 4px 0', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Invoice</p>
-            <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.1rem' }}>{invNumber || 'Draft invoice'}</h3>
+      <article className={`invoice-paper${compact ? ' invoice-paper-compact' : ''}`} aria-label="Invoice document" data-readonly={locked} aria-busy={isSaving}>
+        <fieldset className="invoice-worksheet-fields" disabled={isSaving}>
+        <legend className="invoice-sr-only">Invoice details</legend>
+        <header className="invoice-paper-header">
+          <div className="invoice-issuer">
+            <strong>{invoiceClientDocument.issuer?.name || user.name || 'Photographer'}</strong>
+            {(invoiceClientDocument.issuer?.email || user.email) && <span>{invoiceClientDocument.issuer?.email || user.email}</span>}
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: '0 0 4px 0', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Due</p>
-            <strong style={{ color: 'var(--text-main)' }}>{invDueDate || 'Not set'}</strong>
+          <div className="invoice-document-identity">
+            <h1 id="invoice-editor-heading" data-invoice-stage-heading tabIndex={-1}>Invoice</h1>
+            <span className="invoice-number" aria-label="Invoice number">{invNumber}</span>
+            {!locked && <details className="invoice-secondary-control invoice-number-override">
+              <summary>Override number</summary>
+              <label>Invoice number<input className="invoice-document-input" aria-label="Invoice number" readOnly={locked} value={invNumber} onChange={e => setInvNumber(e.target.value)} required /></label>
+            </details>}
+            <div className="invoice-status-line">
+              <DocumentLedgerStatus status={status} />
+              {invStatus === 'sent' && <span>Sent</span>}
+              {selectedInvoicePayment.is_overdue && invStatus !== 'draft' && invId && <span className="document-ledger-urgency">Overdue</span>}
+            </div>
           </div>
+        </header>
+        {isFreePlan && <p className="invoice-platform-credit">Made with Corvioz</p>}
+        {sourceQuote && (
+          <p className="invoice-source-reference">
+            From Quote <span>{sourceQuote.quote_number || 'Linked Quote'}</span>
+          </p>
+        )}
+        <section className="invoice-payment-overview" aria-label="Payment overview">
+          <dl>
+            <div><dt>Due date</dt><dd>{invDueDate || '—'}</dd></div>
+            <div><dt>Payment</dt><dd><DocumentLedgerStatus status={selectedInvoicePaymentStatus} /><small>Paid {formatDashboardMoney(paid, invCurrency)}</small></dd></div>
+            <div><dt>Invoice total</dt><dd>{formatDashboardMoney(totals.total, invCurrency)}</dd></div>
+            <div className="invoice-payment-overview-balance"><dt>Balance due</dt><dd>{formatDashboardMoney(balance, invCurrency)}</dd></div>
+          </dl>
+        </section>
+        <div className="invoice-parties-and-terms">
+          <section className="invoice-bill-to" id="invoice-recipient" aria-label="Bill to">
+            <div className="invoice-section-heading"><h3>Bill to</h3>
+            {!identityLocked && getActiveClients().length > 0 && (
+              <details className="invoice-client-picker" onToggle={e => { if (!e.currentTarget.open) setInvClientSearch(''); }}>
+                <summary>{invClientName ? 'Change client' : 'Select existing client'}</summary>
+                <div className="invoice-client-search">
+                  <input type="search" className="invoice-document-input" aria-label="Search existing clients" readOnly={locked} placeholder="Search name or email" value={invClientSearch} onChange={e => setInvClientSearch(e.target.value)} />
+                  <div className="invoice-client-results" aria-label="Existing clients">
+                    {matchingClients.map(cli => {
+                      const recipientAvailable = cli.client_kind !== 'company' && Array.isArray(cli.contacts) && cli.contacts.length === 0;
+                      return <button key={cli.id} type="button" disabled={!recipientAvailable || isSaving} onClick={e => {
+                        if (!recipientAvailable || isSaving) return;
+                        setInvClientId(cli.id);
+                        setInvClientName(cli.name);
+                        setInvClientEmail(cli.email || '');
+                        setInvClientAddress(cli.address || '');
+                        e.currentTarget.closest('details').open = false;
+                        setInvClientSearch('');
+                      }}><strong>{cli.name}</strong>{cli.email && <span>{cli.email}</span>}{!recipientAvailable && <span>Recipient selection unavailable for this record</span>}</button>;
+                    })}
+                    {matchingClients.length === 0 && <p role="status">No matching clients. You can enter the billing details below.</p>}
+                  </div>
+                </div>
+              </details>
+            )}
+            </div>
+            <label>Client name<input className="invoice-document-input invoice-client-name" aria-label="Client name" value={invClientName} readOnly={identityLocked} onChange={e => setInvClientName(e.target.value)} placeholder="Client name" autoComplete="off" required /></label>
+            <label>Client email<input type="email" className="invoice-document-input" aria-label="Client email" value={invClientEmail} readOnly={identityLocked} onChange={e => setInvClientEmail(e.target.value)} placeholder="name@example.com" autoComplete="off" /></label>
+            <label>Client address<textarea className="invoice-document-input" aria-label="Client address" rows={2} value={invClientAddress} readOnly={identityLocked} onChange={e => setInvClientAddress(e.target.value)} placeholder="Billing address (optional)" autoComplete="off" /></label>
+          </section>
+          <section className="invoice-terms" aria-label="Invoice terms">
+            <h3>Dates &amp; terms</h3>
+            <div className="invoice-summary-date-grid">
+              <label>Issue date<input type="text" className="invoice-document-input" aria-label="Issue date" value={invDate} disabled={locked} onFocus={e => { e.currentTarget.dataset.deriveDueDate = !invId && dueDateIsDerived ? 'true' : 'false'; }} onBlur={e => { delete e.currentTarget.dataset.deriveDueDate; }} onChange={e => { if (!invId && dueDateIsDerived) e.currentTarget.dataset.deriveDueDate = 'true'; setInvDate(e.target.value); if (!invId && e.currentTarget.dataset.deriveDueDate === 'true') updateDueDateFromTerms(invPaymentTerms, e.target.value); }} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" /></label>
+              <label>Due date<input type="text" className="invoice-document-input" aria-label="Due date" aria-describedby={locked ? undefined : 'invoice-due-date-help'} value={invDueDate} disabled={locked} readOnly={Boolean(dueDateIsDerived)} onChange={e => { setInvPaymentTerms('Custom'); setInvDueDate(e.target.value); }} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" /></label>
+            </div>
+            {!locked && <div className="invoice-field-help" id="invoice-due-date-help">
+              <span>{dueDateIsDerived ? 'From issue date + payment terms' : 'Stored or custom due date'}</span>
+              {dueDateIsDerived && <button type="button" onClick={() => setInvPaymentTerms('Custom')}>Set custom due date</button>}
+            </div>}
+            <label>Payment terms
+              <select className="invoice-document-input invoice-select" aria-label="Payment terms" value={presetTerms.includes(invPaymentTerms) ? invPaymentTerms : 'Custom'} disabled={locked} onChange={e => { setInvPaymentTerms(e.target.value); updateDueDateFromTerms(e.target.value, invDate); }}>
+                <option value="Due on Receipt">Due on receipt</option><option value="Net 7">Net 7</option><option value="Net 14">Net 14</option><option value="Net 30">Net 30</option><option value="Custom">Custom</option>
+              </select>
+            </label>
+            {!presetTerms.includes(invPaymentTerms) && <label>Custom terms<input className="invoice-document-input" aria-label="Custom payment terms" value={invPaymentTerms} readOnly={locked} maxLength={80} onChange={e => setInvPaymentTerms(e.target.value)} placeholder="Payment terms for this invoice" /></label>}
+            {identityLocked ? <div className="invoice-currency-output">Currency <span>{invCurrency}</span></div> : <div className="invoice-currency-control">
+              <label>Currency<select className="invoice-document-input invoice-select" aria-label="Currency" value={invCurrency.toUpperCase()} disabled={locked} onChange={e => setInvCurrency(e.target.value)}>
+                <option value="USD">USD — US Dollar</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="AUD">AUD — Australian Dollar</option>
+                <option value="SGD">SGD — Singapore Dollar</option>
+                {invCurrency && !['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'SGD'].includes(invCurrency.toUpperCase()) && <option value={invCurrency.toUpperCase()}>{invCurrency.toUpperCase()}</option>}
+              </select></label>
+            </div>}
+          </section>
         </div>
-
-        <div style={{ marginBottom: '18px' }}>
-          <p style={{ margin: '0 0 4px 0', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Client</p>
-          <p style={{ margin: 0, color: 'var(--text-main)', fontWeight: 750 }}>{invClientName || 'Client name'}</p>
-          {invClientEmail && <p style={{ margin: '2px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{invClientEmail}</p>}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
-          {invItems.filter(item => item.description && item.description.trim()).map((item, index) => (
-            <div key={`${item.description}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: 'var(--text-soft)', fontSize: '0.85rem' }}>
-              <span>{item.description} × {item.quantity || 0}</span>
-              <strong style={{ color: 'var(--text-main)' }}>{getCurrencySymbol(invCurrency)}{(Number(item.quantity || 0) * Number(item.unitPrice || 0)).toFixed(2)}</strong>
+        <section className="invoice-line-items" id="invoice-items" aria-label="Line items">
+          <div className="invoice-section-heading"><h3>Services &amp; line items</h3><span className="invoice-section-meta">{invCurrency}</span></div>
+          <div className="invoice-item-columns" aria-hidden="true"><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span /></div>
+          {invItems.map((item, index) => (
+            <div key={index} className="invoice-item-row">
+              <div className="invoice-item-description">
+                <div className="invoice-item-copy" aria-hidden="true">
+                  <span className="invoice-item-title">{item.description?.split('\n')[0] || 'Service description'}</span>
+                  {item.description?.includes('\n') && <span className="invoice-item-support">{item.description.split('\n').slice(1).join('\n')}</span>}
+                </div>
+                <textarea className="invoice-document-input" aria-label={`Line item ${index + 1} description`} placeholder="Service description" rows={2} value={item.description} readOnly={locked} onChange={e => handleItemChange('invoice', index, 'description', e.target.value)} required />
+                {item.billingUnit && <small>{item.billingUnit}{item.secondaryQuantity ? ` · ${item.secondaryQuantity} ${item.secondaryUnit || ''}` : ''}</small>}
+              </div>
+              <label className="invoice-item-quantity"><span>Qty</span><input type="number" className="invoice-document-input" aria-label={`Line item ${index + 1} quantity`} step="any" inputMode="decimal" value={item.quantity} readOnly={locked} onChange={e => handleItemChange('invoice', index, 'quantity', Number(e.target.value))} required /></label>
+              <label className="invoice-item-rate"><span>Rate</span><input type="number" className="invoice-document-input" aria-label={`Line item ${index + 1} rate`} step="any" inputMode="decimal" value={item.unitPrice} readOnly={locked} onChange={e => handleItemChange('invoice', index, 'unitPrice', Number(e.target.value))} required /></label>
+              <div className="invoice-item-amount"><span>Amount</span><strong>{formatDashboardMoney(invoiceClientDocument.integrity.ok && invoiceClientDocument.items[invoiceEditorItems.indexOf(item)] ? invoiceClientDocument.items[invoiceEditorItems.indexOf(item)].amount / 100 : calculateLineItemAmount(item), invCurrency)}</strong></div>
+              {!locked && <button type="button" className="invoice-remove-item" aria-label={`Remove line item ${index + 1}`} onClick={() => removeItem('invoice', index)}>&times;</button>}
             </div>
           ))}
+          {!locked && <button type="button" className="invoice-add-item" onClick={() => addItem('invoice')}><span aria-hidden="true">+</span> Add line item</button>}
+        </section>
+        <div className="invoice-document-footer">
+          <section className="invoice-notes" id="invoice-notes" aria-label="Invoice notes">
+            <div className="invoice-section-heading"><h3>Notes</h3></div>
+            <textarea className="invoice-document-input" aria-label="Invoice notes" rows={3} value={invNotes} readOnly={locked} onChange={e => setInvNotes(e.target.value)} placeholder="Document notes for the client..." />
+            <label>Client document link<input type="url" className="invoice-document-input" aria-label="Client document link" placeholder="Optional external document link" value={invPaymentLink} readOnly={locked} onChange={e => setInvPaymentLink(e.target.value)} /></label>
+          </section>
+          <section className="invoice-financials" aria-label="Invoice totals">
+            <h3>Invoice summary</h3>
+            <div><span>Subtotal</span><span>{formatDashboardMoney(totals.subtotal, invCurrency)}</span></div>
+            {(!readonly || invDiscountRate > 0) && <div><label>Discount <input type="number" className="invoice-document-input invoice-percent" aria-label="Discount rate (%)" step="any" inputMode="decimal" value={invDiscountRate} readOnly={locked} onChange={e => setInvDiscountRate(Number(e.target.value))} />%</label><span>−{formatDashboardMoney(totals.discount, invCurrency)}</span></div>}
+            {(!readonly || invTaxRate > 0) && <div><label>Tax <input type="number" className="invoice-document-input invoice-percent" aria-label="Tax rate (%)" min="0" max="100" step="any" value={invTaxRate} readOnly={locked} onChange={e => setInvTaxRate(Number(e.target.value))} />%</label><span>{formatDashboardMoney(totals.tax, invCurrency)}</span></div>}
+            <div className="invoice-total"><span>Total</span><span>{formatDashboardMoney(totals.total, invCurrency)}</span></div>
+            <div><span>Paid</span><span>{formatDashboardMoney(paid, invCurrency)}</span></div>
+            <div className="invoice-balance-due"><span>Balance due</span><strong>{formatDashboardMoney(balance, invCurrency)}</strong></div>
+          </section>
         </div>
-
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.84rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Subtotal</span>
-            <span>{getCurrencySymbol(invCurrency)}{totals.subtotal.toFixed(2)}</span>
-          </div>
-          {Number(invDiscountRate || 0) > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
-              <span>Discount</span>
-              <span>-{getCurrencySymbol(invCurrency)}{totals.discount.toFixed(2)}</span>
-            </div>
-          )}
-          {Number(invTaxRate || 0) > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Tax</span>
-              <span>{getCurrencySymbol(invCurrency)}{totals.tax.toFixed(2)}</span>
-            </div>
-          )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 800, fontSize: '1rem', marginTop: '6px' }}>
-            <span>Total</span>
-            <span>{getCurrencySymbol(invCurrency)}{totals.total.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
+        </fieldset>
+      </article>
     );
   };
+
+
+  const renderInvoiceReadonlyPreview = () => <InvoiceReviewPresentation document={invoiceClientDocument}><InvoicePreviewFrame><InvoiceClientDocument key={JSON.stringify(invoiceClientDocument)} document={invoiceClientDocument} /></InvoicePreviewFrame></InvoiceReviewPresentation>;
 
   const hasNoData = !isLoading && getActiveQuotes().length === 0 && getActiveInvoices().length === 0;
   const shouldShowActivationGuide = !activationGuideDismissed && (showActivationGuide || hasNoData) && activeTab === 'overview' && !previewMode;
@@ -3523,11 +4045,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
   const activeClientsCount = clients ? clients.length : 0;
   const activeInvoicesCount = invoices ? invoices.length : 0;
-  const hasOverdueInvoices = invoices ? invoices.some(inv => {
-    if ((inv.payment_status || inv.status) === 'paid' || !inv.due_date) return false;
-    const dueDate = new Date(inv.due_date);
-    return dueDate < new Date();
-  }) : false;
+  const hasOverdueInvoices = invoices.some(inv => inv.status !== 'draft' && invoicePayment(inv).is_overdue);
 
   const isStudioMode = activeClientsCount >= 3 || activeInvoicesCount >= 5 || hasOverdueInvoices;
   const businessModeBadge = isStudioMode ? 'Business Mode' : 'Photographer Mode';
@@ -3615,8 +4133,283 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
     );
   }
 
+  const qScopeCommon = qPhotographyScope.common;
+  const selectedWorkflowTemplate = getPhotographyWorkflowTemplateById(selectedQuotePresetId);
+  const selectedQuoteVertical = selectedWorkflowTemplate?.label || derivePhotographyVertical(selectedQuotePresetId);
+  const emphasizedScopeFields = new Set(selectedWorkflowTemplate?.scopeEmphasis || [
+    'shoot_type',
+    'shoot_date',
+    'primary_location',
+    'coverage_expectation',
+    'deliverables',
+    'delivery_deadline',
+  ]);
+  const shouldShowScopeField = (field) => scopeFieldsExpanded || emphasizedScopeFields.has(field);
+  const scopeField = (field, element) => shouldShowScopeField(field) ? element : null;
+  const qScopeInput = (field, label, type = 'text', placeholder = '', suggestions = []) => (
+    <div className="input-group" key={field}>
+      <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
+      <input
+        id={`quote-scope-${field}`}
+        type={type === 'date' ? 'text' : type}
+        className="form-input"
+        value={qScopeCommon[field] ?? ''}
+        onChange={(event) => updateQPhotographyScope(field, event.target.value)}
+        placeholder={type === 'date' ? 'YYYY-MM-DD' : placeholder}
+        inputMode={type === 'date' ? 'numeric' : undefined}
+        pattern={type === 'date' ? DASHBOARD_DATE_ENTRY_PATTERN : undefined}
+        maxLength={type === 'date' ? 10 : undefined}
+        data-dashboard-date-entry={type === 'date' ? 'english' : undefined}
+        list={suggestions.length > 0 ? `quote-scope-${field}-suggestions` : undefined}
+        min={type === 'number' ? 0 : undefined}
+        step={type === 'number' ? 1 : undefined}
+      />
+      {suggestions.length > 0 && (
+        <datalist id={`quote-scope-${field}-suggestions`}>
+          {suggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+        </datalist>
+      )}
+    </div>
+  );
+  const qScopeListInput = (field, label, placeholder) => (
+    <div className="input-group" key={field}>
+      <label className="input-label" htmlFor={`quote-scope-${field}`}>{label}</label>
+      <textarea
+        id={`quote-scope-${field}`}
+        className="form-textarea"
+        value={(qScopeCommon[field] || []).join('\n')}
+        onChange={(event) => updateQPhotographyScope(field, event.target.value.split('\n'))}
+        placeholder={placeholder}
+        rows={3}
+      />
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px' }}>One item per line</span>
+    </div>
+  );
+  const preSendReviewFindings = buildPhotographyPreSendReview({
+    scope: qPhotographyScope,
+    templateId: selectedQuotePresetId,
+  });
+  const semanticReviewIsCurrent = semanticReviewState.status === 'COMPLETE'
+    && semanticReviewState.inputFingerprint === currentSemanticReviewFingerprint;
+  const semanticReviewDisplayStatus = semanticReviewState.status === 'COMPLETE' && !semanticReviewIsCurrent
+    ? 'STALE'
+    : semanticReviewState.status;
+  const reviewFindings = mergePhotographyReviewFindings({
+    deterministicFindings: preSendReviewFindings,
+    semanticFindings: semanticReviewIsCurrent ? semanticReviewState.semanticFindings : [],
+  });
+  const semanticReviewStatusCopy = {
+    READY: 'Ready to run a focused semantic review of this draft.',
+    REVIEWING: 'Reviewing the current Scope, line items and Public Notes…',
+    COMPLETE: semanticReviewIsCurrent ? 'Semantic review complete. You remain the final authority.' : 'This review is stale because the draft changed.',
+    STALE: 'The draft changed. Run Review with Corvioz again to refresh semantic findings.',
+    UNAVAILABLE_OR_ERROR: 'Semantic review is unavailable. Structured checks remain active.',
+  };
+  const reviewCategoryLabels = {
+    NEEDS_ATTENTION: 'Needs attention',
+    CONFIRM: 'Confirm',
+    IMPROVE: 'Improve',
+  };
+  const reviewCategoryOrder = ['NEEDS_ATTENTION', 'CONFIRM', 'IMPROVE'];
+  const projectCoverQuote = quotes.find((record) => record.id === projectCoverQuoteId);
+  const handleSelectProjectCover = async (quoteId, assetId) => {
+    if (!session?.access_token || isDemo || previewMode) throw new Error('Sign in to change this project cover.');
+    const response = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}/project-cover`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ asset_id: assetId }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || 'Unable to change project cover.');
+    setQuotes((current) => current.map((record) => {
+      if (record.id !== quoteId) return record;
+      return { ...record, project_cover_v1: body.project_cover_v1 };
+    }));
+  };
+  const handleUploadProjectCover = async (quoteId, derivatives, onCommitted) => {
+    const token = session?.access_token;
+    if (!token || isDemo || previewMode) throw new Error('Sign in to upload a project cover.');
+    const quote = quotes.find((record) => record.id === quoteId);
+    if (!quote) throw new Error('Quote not found. Reload and try again.');
+    const current = quote.project_cover_v1;
+    const revision = current == null ? 0 : current.revision;
+    if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('The current project-cover revision is unavailable. Reload before uploading.');
+    const form = new FormData();
+    form.append('cover', derivatives.cover, 'cover.jpg');
+    form.append('thumbnail', derivatives.thumbnail, 'thumbnail.jpg');
+    form.append('expected_revision', String(revision));
+    onCommitted?.({ phase: 'uploading', message: 'Uploading your photo…' });
+    const response = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}/project-cover/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 409 || body.code === 'PROJECT_COVER_CONFLICT') {
+      await fetchData(token).catch(() => null);
+      throw new Error(body.error || 'The project cover changed. Reload and retry.');
+    }
+    if (!response.ok) throw new Error(body.error || 'Unable to upload the project cover.');
+    const returned = body.project_cover_v1;
+    if (body.cover_committed === true && body.media_ready === false && body.warning_code === 'PROJECT_COVER_SIGN_FAILED') {
+      setQuotes((currentQuotes) => currentQuotes.map((record) => record.id === quoteId
+        ? { ...record, project_cover_v1: returned } : record));
+      onCommitted?.({ phase: 'refreshing', revision: returned?.revision, message: 'Photo saved. Refreshing preview…' });
+      await fetchData(token).catch(() => null);
+      return { keepOpen: true, revision: returned?.revision, notice: 'Photo saved, but the preview is temporarily unavailable.' };
+    }
+    if (!returned || typeof returned.coverSrc !== 'string' || typeof returned.thumbnailSrc !== 'string') {
+      throw new Error(body.error || 'The server did not return a usable project-cover preview.');
+    }
+    setQuotes((currentQuotes) => currentQuotes.map((record) => record.id === quoteId
+      ? { ...record, project_cover_v1: returned } : record));
+    return { keepOpen: false };
+  };
+
+  const saveQuoteClientPresentation = async (presentation) => {
+    const ticket = quoteContinuity.guard.capture();
+    const isCurrentQuote = () => quoteContinuity.guard.isCurrent(ticket)
+      && (sessionRef.current?.user?.id || null) === ticket.actor;
+    if (!isCurrentQuote()) return false;
+
+    if (qStatus === 'approved' || qStatus === 'converted') throw new Error('The approved client view is locked.');
+    if (!qId) {
+      setQClientPresentation(presentation);
+      return true;
+    }
+    if (!session?.access_token) throw new Error('Sign in to save the client view.');
+    const response = await fetch('/api/quotes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ id: qId, client_presentation: presentation }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!isCurrentQuote()) return false;
+    if (!response.ok || !result.id) throw new Error('Unable to save the client view. Please try again.');
+    setQClientPresentation(result.client_presentation);
+    setQuotes((current) => current.map((record) => record.id === qId ? { ...record, client_presentation: result.client_presentation } : record));
+    return true;
+  };
+
+  // This factory only forwards actions; it never invokes the export callback or reads its refs.
+  // eslint-disable-next-line react-hooks/refs
+  const quoteSharedContract = createQuoteEditorSharedContract({
+    quote: {
+      editorGeneration: quoteEditorGeneration,
+      qPendingEditorDrafts,
+      projectCover: resolveProjectCover(quotes.find((record) => record.id === qId) || { notes: serializeInvoiceNotes('', { quote_preset_id: selectedQuotePresetId }) }),
+      qId,
+      qClientPresentation,
+      qApprovedSnapshotId,
+      qNumber,
+      qClientId,
+      qClientName,
+      qClientEmail,
+      qClientAddress,
+      qPreparedForOverridePresent,
+      qPreparedForDisplayOverride,
+      qItems,
+      persistedLineageByItemId,
+      qTaxRate,
+      qDiscountRate,
+      qCurrency,
+      qNotes,
+      qNarrativePaymentTerms,
+      qDate,
+      qStatus,
+      qPhotographyScope,
+      photographerName: user?.name || 'Photographer',
+      photographerEmail: user?.email || '',
+      availableClients: clients,
+      persistedRecipient: quotes.find(record => record.id === qId) || null,
+    },
+    setters: {
+      setQuoteNumber: setQNumber,
+      setQuoteClientId: setQClientId,
+      setQuoteClientName: setQClientName,
+      setQuoteClientEmail: setQClientEmail,
+      setQuoteClientAddress: setQClientAddress,
+      setQuotePreparedForOverridePresent: setQPreparedForOverridePresent,
+      setQuotePreparedForDisplayOverride: (value) => {
+        setQPreparedForOverridePresent(true);
+        setQPreparedForDisplayOverride(value);
+      },
+      resetQuotePreparedForDisplayOverride: () => {
+        setQPreparedForOverridePresent(false);
+        setQPreparedForDisplayOverride('');
+      },
+      setQuoteItems: setQItems,
+      setQuoteTaxRate: setQTaxRate,
+      setQuoteDiscountRate: setQDiscountRate,
+      setQuoteCurrency: setQCurrency,
+      setQuoteNotes: setQNotes,
+      setQuoteNarrativePaymentTerms: setQNarrativePaymentTerms,
+      setQuoteDate: setQDate,
+      setQuotePhotographyScope: setQPhotographyScope,
+    },
+    validation: {
+      clientNameTouched: qClientNameTouched,
+      clientEmailTouched: qClientEmailTouched,
+      submitAttempted: qSubmitAttempted,
+      clientNameRequired: true,
+      clientEmailOptional: true,
+      validateClient: validateQuoteClient,
+      setQuoteClientNameTouched: setQClientNameTouched,
+      setQuoteClientEmailTouched: setQClientEmailTouched,
+      sendRequiresSavedDraft: true,
+    },
+    workflow: {
+      selectedQuotePresetId,
+      quotePresetSelectionTouched,
+      templates: PHOTOGRAPHY_WORKFLOW_TEMPLATES,
+      applyPreset: handleApplyQuotePreset,
+      skipPreset: handleSkipQuotePreset,
+      usageClearingConfirmation: handleUsageRightsStatusChange,
+    },
+    derived: {
+      totals: quoteTotals,
+      calculateTotals: calculateQuoteTotals,
+      formatMoney: formatDashboardMoney,
+      selectedQuoteVertical,
+      currentSemanticReviewFingerprint,
+      reviewFindings,
+      reviewStatus: semanticReviewDisplayStatus,
+      reviewStatusCopy: semanticReviewStatusCopy[semanticReviewDisplayStatus] || semanticReviewStatusCopy.READY,
+    },
+    actions: {
+      openProjectCover: qId && session?.access_token && !isDemo && !previewMode ? () => setProjectCoverQuoteId(qId) : null,
+      loadAcceptedBaseline,
+      registerPendingDraft: registerQuotePendingDraft,
+      save: () => handleSaveQuote({ stayInEditor: true }),
+      saveClientPresentation: saveQuoteClientPresentation,
+      loadApprovedClientDocument: loadApprovedQuoteClientDocument,
+      send: handleSendQuote,
+      exportPdf: (elementId, name, resourceId) => handleExportAttempt(elementId, name, resourceId),
+      runSemanticReview: handleRunSemanticReview,
+      cancel: handleCancelQuote,
+      convertToInvoice: handleConvertQuoteToInvoice,
+    },
+    scope: {
+      updateField: updateQPhotographyScope,
+      setUsageRightsStatus: handleUsageRightsStatusChange,
+    },
+    ui: {
+      quoteDirty: quoteContinuity.dirty,
+      quoteCommercialDirty: quoteContinuity.guard.commercialDirty,
+      formError,
+      formSuccess,
+      isSaving,
+      isSendingQuote,
+      isDownloadingPdf,
+      canExportPdf,
+      hasCleanPdf,
+      pdfExportError: pdfExportError?.elementId === 'printable-quote' && pdfExportError.name === `quote_${qNumber}` ? pdfExportError.message : '',
+    },
+  });
+
   return (
-    <div 
+    <div
+      className="dashboard-shell" data-harbor-focused={Boolean(harborFocusedContext)}
       onClickCapture={previewMode ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}
       style={{ 
         display: 'flex', 
@@ -3627,6 +4420,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         position: 'relative'
       }}
     >
+      {pendingSemanticOperation && <IntelligenceUsageNotice usage={sharedModelUsage} operation={pendingSemanticOperation} onCheck={async()=>{try{const op=await readAnalysisOperation({operationId:pendingSemanticOperation.operation_id,accessToken:session?.access_token});if(op.status==='SUCCEEDED'&&op.result){setSemanticReviewState(op.result);setPendingSemanticOperation(null);}else setPendingSemanticOperation(op);}catch(error){triggerToast(error.message,'info');}}} onResume={async()=>{try{const result=await resumeAnalysisOperation({operationId:pendingSemanticOperation.operation_id,accessToken:session?.access_token});setSemanticReviewState(result);setPendingSemanticOperation(null);}catch(error){triggerToast(error.message,'info');}}} />}
+
+      {projectCoverQuote && <ProjectCoverPicker key={projectCoverQuote.id} quote={projectCoverQuote} onSelect={handleSelectProjectCover} onUpload={handleUploadProjectCover} onClose={() => setProjectCoverQuoteId(null)} />}
       {isSandboxMode && (
         <div className="dashboard-sandbox-banner" style={{
           background: 'var(--warning-glow)',
@@ -3674,11 +4470,13 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
       )}
       <div className={`dashboard-layout${sidebarCollapsed ? ' dashboard-sidebar-layout-collapsed' : ''}`} style={{ flex: 1 }}>
 
+      <div className="harbor-mobile-brand" aria-label="Corvioz" role="img"><span className="logo-wordmark" aria-hidden="true">Corvioz</span></div>
+
       {/* Sidebar navigation */}
-      <aside className={`dashboard-sidebar-aside${sidebarCollapsed ? ' dashboard-sidebar-collapsed' : ''}`}>
-        <div>
+      <aside className={`dashboard-sidebar-aside${sidebarCollapsed ? ' dashboard-sidebar-collapsed' : ''}`} aria-label="Dashboard navigation">
+        <div className="dashboard-sidebar-body">
           {/* Logo */}
-          <div className="dashboard-sidebar-logo" style={{ marginBottom: '24px' }}>
+          <div className="dashboard-sidebar-logo">
             <Logo className="dashboard-sidebar-wordmark" size={20} style={{ fontSize: '1.1rem' }} />
             <span className="dashboard-sidebar-mark" aria-label="Corvioz" role="img">
               <img src="/brand/corvioz-icon-small.svg" alt="" aria-hidden="true" />
@@ -3688,6 +4486,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               className="dashboard-sidebar-toggle"
               data-testid="dashboard-sidebar-collapse"
               aria-expanded={!sidebarCollapsed}
+              aria-controls="dashboard-primary-navigation"
               aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               onClick={toggleSidebar}
@@ -3698,49 +4497,28 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           </div>
 
           {/* Navigation Links */}
-          <nav className="dashboard-sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <nav id="dashboard-primary-navigation" className="dashboard-sidebar-nav" aria-label="Primary">
             {getDashboardTabs(kernelUi).map(tab => {
               const IconComponent = Icons[tab.id];
               const isActive = activeTab === tab.id;
-              const iconColor = isActive ? '#4F46E5' : '#59677c';
+              const iconColor = isActive ? 'var(--primary)' : 'var(--text-muted)';
               // B+ icon set (Quote/Invoice/Clients) uses its own stroke-width
               // convention (1.7 default / 1.8 active) per the approved design
               // handoff. Other tabs (e.g. profile) keep their existing values.
               const isBPlusIcon = tab.id === 'quotes' || tab.id === 'invoices' || tab.id === 'clients';
               const iconStrokeWidth = isBPlusIcon ? (isActive ? 1.8 : 1.7) : (isActive ? 2.5 : 2);
 
-              // Identity theme accent colors
-              const themeAccent = activeTheme === 'starter' ? 'var(--primary)' : activeTheme === 'pro' ? 'var(--success)' : 'var(--accent)';
-              const themeBg = activeTheme === 'starter' ? 'var(--primary-glow)' : activeTheme === 'pro' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(6, 182, 212, 0.05)';
-
               return (
                 <React.Fragment key={tab.id}>
-                  {tab.sectionBefore && <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />}
                   <button
                     onClick={() => handleDashboardTabChange(tab.id, 'sidebar')}
+                    className={`dashboard-sidebar-nav-item${isActive ? ' is-active' : ''}`}
+                    type="button"
                     aria-label={tab.label}
+                    aria-current={isActive ? 'page' : undefined}
                     title={sidebarCollapsed ? tab.label : undefined}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      padding: '9px 14px',
-                      borderRadius: '10px',
-                      width: '100%',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      backgroundColor: isActive ? themeBg : 'transparent',
-                      color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                      border: isActive ? `1.5px solid ${themeAccent}` : '1.5px solid transparent',
-                      boxShadow: isActive ? `0 4px 14px ${themeBg}` : 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: isActive ? 600 : 500,
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative'
-                    }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="dashboard-sidebar-nav-content">
                       {IconComponent && (
                         <span
                           className="dashboard-sidebar-nav-icon"
@@ -3766,75 +4544,18 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               );
             })}
 
-            <Link
-              href="/client-portal"
-              onClick={(e) => {
-                e.preventDefault();
-                evaluateAction('client_portal', () => {
-                  router.push('/client-portal');
-                });
-              }}
-              aria-label="Client Portal: external pages shared with clients"
-              title="External pages shared with clients"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                textDecoration: 'none',
-                transition: 'var(--transition)'
-              }}
-            >
-              <ClientPortalIcon size={16} strokeWidth={1.7} style={{ opacity: 0.6 }} />
-              <span className="dashboard-sidebar-label">Client Portal</span>
-            </Link>
-
-            <div style={{ margin: '12px 0', borderTop: '1px solid var(--border)' }} />
-            <button
-              type="button"
-              onClick={() => handleDashboardTabChange('profile', 'sidebar_settings')}
-              aria-label="Settings"
-              title={sidebarCollapsed ? 'Settings' : undefined}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8.5px 12px',
-                borderRadius: '8px',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: 'var(--text-muted)',
-                border: '1px solid transparent',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'var(--transition)'
-              }}
-            >
-              <Icons.settings size={16} strokeWidth={2} style={{ opacity: 0.6 }} />
-              <span className="dashboard-sidebar-label">Settings</span>
-            </button>
           </nav>
         </div>
 
         {/* Footer info */}
         <div className="dashboard-sidebar-footer">
-          <div style={{ marginBottom: '16px', position: 'relative' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="dashboard-sidebar-account">
+            <div className="dashboard-sidebar-account-control">
               {session?.user?.email ? (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary btn-sm dashboard-sidebar-account-action"
+                  ref={accountButtonRef}
                   onClick={() => setAccountMenuOpen((open) => !open)}
                   aria-label="Account"
                   title={sidebarCollapsed ? 'Account' : undefined}
@@ -3865,31 +4586,20 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <span className="dashboard-sidebar-label">Account</span>
                 </button>
               ) : (
-                <Link href="/auth" className="btn btn-secondary btn-sm" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
+                <Link href="/auth" className="btn btn-secondary btn-sm dashboard-sidebar-sign-in-action" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
                   Sign in
                 </Link>
               )}
             </div>
 
             {accountMenuOpen && session?.user?.email && (
-              <div
-                role="menu"
-                aria-label="Account menu"
-                className="card animate-fade-in"
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  bottom: '42px',
-                  zIndex: 20,
-                  minWidth: '190px',
-                  padding: '8px',
-                  background: 'var(--background-card)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-lg)'
-                }}
+              <DashboardAccountMenu
+                anchorRef={accountButtonRef}
+                sidebarCollapsed={sidebarCollapsed}
+                onClose={() => setAccountMenuOpen(false)}
               >
-                <div style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <div className="dashboard-account-menu-identity">
+                  <div className="dashboard-account-menu-email">
                     {session.user.email}
                   </div>
                 </div>
@@ -3900,31 +4610,19 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   onClick={() => {
                     handleSignOut();
                   }}
-                  style={{
-                    width: '100%',
-                    padding: '9px 10px',
-                    borderRadius: '6px',
-                    color: 'var(--text-main)',
-                    background: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    fontSize: '0.82rem',
-                    fontWeight: 650,
-                    cursor: isSigningOut ? 'not-allowed' : 'pointer',
-                    opacity: isSigningOut ? 0.7 : 1
-                  }}
+                  className="dashboard-account-menu-sign-out"
                 >
                   {isSigningOut ? 'Signing out…' : 'Sign out'}
                 </button>
-              </div>
+              </DashboardAccountMenu>
             )}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px' }}>
+          <div className="dashboard-sidebar-plan">
             <div className="dashboard-sidebar-plan-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span className="dashboard-sidebar-plan-label">Plan</span>
               <span style={{ 
-                background: isEntitlementLoading || isFree ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
-                color: isEntitlementLoading || isFree ? 'var(--text-muted)' : 'var(--success)',
+                background: isEntitlementLoading || isFreePlan ? 'var(--btn-secondary-bg)' : 'var(--success-glow)',
+                color: isEntitlementLoading || isFreePlan ? 'var(--text-muted)' : 'var(--success)',
                 fontSize: '0.65rem', 
                 padding: '2px 8px', 
                 borderRadius: '99px', 
@@ -3934,7 +4632,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 {planStatusLabel}
               </span>
             </div>
-            {entitlementReady && isFree && (
+            {entitlementReady && isFreePlan && (
               <Link
                 href="/pricing?checkout=pro"
                 onClick={(e) => {
@@ -3946,7 +4644,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     router.push('/pricing?checkout=pro');
                   });
                 }}
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm dashboard-sidebar-plan-action"
                 style={{ 
                   width: '100%', 
                   marginBottom: '16px', 
@@ -3990,14 +4688,67 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-main)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
             >
-              Share Beta Feedback
+              Share Feedback
             </button>
           </div>
         </div>
       </aside>
 
+      {quoteContinuity.dialogOpen && <QuoteLeaveDialog busy={isSaving}
+        canSave={!Object.keys(qPendingEditorDrafts).length && !quoteSaveUnknown && Boolean(session) && !['approved', 'converted', 'declined'].includes(qStatus) && validateQuoteClient({ name: qClientName, email: qClientEmail }).isValid}
+        error={formError} onContinue={quoteContinuity.cancel} onDiscard={quoteContinuity.discard}
+        onSave={() => handleSaveQuote({ stayInEditor: true, leaveAfterSave: true })} />}
+      {quoteContinuity.recovery && quoteView === 'list' && <div className="quote-recovery-notice" role="status">
+        <span>An unsaved Quote from this account is retained in this page.</span>
+        <button type="button" onClick={() => {
+          if (!requestQuoteNavigation(() => {})) return;
+          const draft = quoteContinuity.guard.restoreRecovery(session?.user?.id);
+          if (!draft) return;
+          setQPendingEditorDrafts(draft.qPendingEditorDrafts || {});
+          setQuoteSaveUnknown(Boolean(draft.quoteSaveUnknown));
+          setQuoteEditorGeneration(value => value + 1);
+          setQId(draft.qId); setQClientPresentation(draft.qClientPresentation); setQApprovedSnapshotId(draft.qApprovedSnapshotId);
+          setQNumber(draft.qNumber); setQClientId(draft.qClientId); setQClientName(draft.qClientName);
+          setQClientEmail(draft.qClientEmail); setQClientAddress(draft.qClientAddress);
+          setQPreparedForOverridePresent(draft.qPreparedForOverridePresent); setQPreparedForDisplayOverride(draft.qPreparedForDisplayOverride);
+          setQItems(draft.qItems); setPersistedLineageByItemId(draft.persistedLineageByItemId);
+          setQTaxRate(draft.qTaxRate); setQDiscountRate(draft.qDiscountRate); setQCurrency(draft.qCurrency);
+          setQNotes(draft.qNotes); setQNarrativePaymentTerms(draft.qNarrativePaymentTerms); setQDate(draft.qDate);
+          setQStatus(draft.qStatus); setQPhotographyScope(draft.qPhotographyScope); setQQuoteProvenance(draft.qQuoteProvenance);
+          quoteContinuity.guard.clearRecovery(session?.user?.id);
+          handleDashboardTabChange('quotes'); setQuoteView('edit');
+        }}>Restore unsaved Quote</button>
+        <button type="button" onClick={() => { quoteContinuity.guard.clearRecovery(session?.user?.id); quoteContinuity.cancel(); }}>Discard retained Quote</button>
+      </div>}
+      <HarborMobileNavigation activeTab={activeTab} focusedContext={harborFocusedContext}
+        onNavigate={handleDashboardTabChange} signedIn={Boolean(session?.user?.email)}
+        accountOpen={accountMenuOpen} onAccountOpenChange={setAccountMenuOpen}
+        accountEmail={session?.user?.email} isSigningOut={isSigningOut} onSignOut={handleSignOut} />
+
       {/* Main dashboard content */}
       <Container className="dashboard-main-content" style={{ overflowY: 'auto' }}>
+        <header className="dashboard-shell-topbar non-printing" aria-label="Current location">
+          <span className="dashboard-shell-topbar-label">Workspace</span>
+          <span className="dashboard-shell-topbar-divider" aria-hidden="true">/</span>
+          <span className="dashboard-shell-topbar-location">
+            {getDashboardTabs(kernelUi).find(tab => tab.id === activeTab)?.label}
+          </span>
+        </header>
+        {quotePreSendNotice && (
+          <div className="professional-editor-feedback is-error non-printing" role="status" data-testid="quote-pre-send-finding">
+            <strong>{quotePreSendNotice.finding.title}</strong>
+            <p>{quotePreSendNotice.finding.message}</p>
+            <p>{quotePreSendNotice.finding.recommendedAction}</p>
+            <p>Review or dismiss this finding, then retry Send Quote.</p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
+                openDocument({ documentType: 'quote', id: quotePreSendNotice.quoteId });
+                setQuotePreSendNotice(null);
+              }}>Review fields</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={dismissQuotePreSendFinding}>Dismiss for this session</button>
+            </div>
+          </div>
+        )}
         {!session && !isSigningOut && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1))',
@@ -4092,16 +4843,21 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             {/* Smart insights and AI panels removed for pure dumb rendering */}
             <DashboardOverview
               data={{
+                businessTimezone: user?.business_timezone,
                 quotes: getActiveQuotes(),
                 invoices: currentInvoices,
+                quota: user?.quota || null,
+                plan: user?.plan || tierPlan,
+                invoicesError,
+                quotaError,
                 leads: getActiveLeads(),
                 clients: getActiveClients(),
                 totalPaid,
                 activeProfile: getActiveProfile(),
                 isLoading: isRefreshing,
-                error: dashboardDataError || (isEntitlementError ? 'entitlement_unavailable' : null),
+                error: dashboardDataError || quotesError || invoicesError || (isEntitlementError ? 'entitlement_unavailable' : null),
                 quoteError: quotesError,
-                isFree,
+                isFree: isFreePlan,
                 exportCount,
                 businessModeBadge,
                 tierPlan,
@@ -4114,8 +4870,24 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 createInvoice: initCreateInvoice,
                 createFirstInvoice: initFirstValueInvoice,
                 configureProfile: () => handleDashboardTabChange('profile', 'overview_quick_action'),
-                openQuotes: () => handleDashboardTabChange('quotes', 'overview'),
-                openInvoices: () => handleDashboardTabChange('invoices', 'overview'),
+                openQuotes: ({ id } = {}) => {
+                  if (id) {
+                    return openDocument({ documentType: 'quote', id });
+                  }
+                  return handleDashboardTabChange('quotes', 'overview');
+                },
+                createInvoiceFromQuote: ({ id } = {}) => {
+                  const quote = getActiveQuotes().find((item) => item?.id === id);
+                  if (quote) return handleConvertQuoteToInvoice(quote);
+                  triggerToast('This Quote is no longer available. Refresh and try again.', 'error');
+                  return false;
+                },
+                openInvoices: ({ id } = {}) => {
+                  if (id) {
+                    return openDocument({ documentType: 'invoice', id });
+                  }
+                  return handleDashboardTabChange('invoices', 'overview');
+                },
                 retryDashboard: async () => {
                   setDashboardDataError(null);
                   const snapshot = await fetchData(session?.access_token);
@@ -4137,9 +4909,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   const lead = getActiveLeads().find((item) => item.id === id);
                   if (lead) handleAiQuoteGeneration(lead);
                 },
-                copyPortalLink: ({ id, type } = {}) => {
-                  if (id && type) handleCopyPortalLink(id, type);
-                },
               }}
             />
           </>
@@ -4157,7 +4926,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Leads Pipeline CRM</h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
                   Track client inquiry cycles and project records. Active Document Total: <strong style={{ color: 'var(--accent)' }}>
-                    ${getActiveLeads().reduce((sum, l) => sum + Number(getLeadCRMFields(l).value || 0), 0).toLocaleString()}
+                    {formatDashboardNumber(getActiveLeads().reduce((sum, l) => sum + Number(getLeadCRMFields(l).value || 0), 0))}
                   </strong>
                 </p>
               </div>
@@ -4170,7 +4939,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 </svg>
                 <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Convert casual inquiries into structured client projects with a visual, kanban-style sales CRM.</p>
                 <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                  Every project inquiry submitted through your public profile page lands here automatically. Track stages from negotiation to won and generate AI-driven estimate drafts.
+                  Every project inquiry submitted through your public profile page lands here automatically. Track stages from negotiation to won and prepare quote drafts.
                 </p>
                 <button onClick={() => handleDashboardTabChange('profile', 'leads_empty_state')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
                   Set Up & Share Public Profile
@@ -4207,7 +4976,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                             <div key={lead.id} className="kanban-card" style={{ borderLeft: `3px solid ${col.color}` }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                                 <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{lead.name}</span>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>${Number(crm.value || 0).toLocaleString()}</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>{formatDashboardNumber(crm.value || 0)}</span>
                               </div>
                               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                                 {lead.message}
@@ -4225,7 +4994,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                               {/* Reminder Notification */}
                               {crm.reminderDate && (
                                 <div style={{ fontSize: '0.65rem', color: 'var(--warning-text, #fbbf24)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
-                                  <span>Reminder: {new Date(crm.reminderDate).toLocaleDateString()}</span>
+                              <span>Reminder: {formatDashboardDate(crm.reminderDate)}</span>
                                 </div>
                               )}
 
@@ -4258,7 +5027,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                                       title="AI Generate Quote Draft"
                                     >
                                       <span>{isParsingLead === lead.id ? 'Generating...' : 'AI Quote'}</span>
-                                      {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
+                                      {isFreePlan && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
                                     </button>
                                   )}
                                 </div>
@@ -4305,8 +5074,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
             {/* Lead CRM Details Modal */}
             {showLeadModal && selectedLead && (
-              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 5, 8, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
-                <div className="card animate-fade-in" style={{ maxWidth: '520px', width: '90%', padding: '32px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="dashboard-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 5, 8, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+                <div className="card animate-fade-in dashboard-modal-card" style={{ maxWidth: '520px', width: '90%', padding: '32px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>CRM Lead: {selectedLead.name}</h3>
                     <button onClick={() => { setShowLeadModal(false); setSelectedLead(null); }} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>&times;</button>
@@ -4335,7 +5104,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                         </select>
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Lead Value ($)</label>
+                        <label className="input-label">Lead Value (amount)</label>
                         <input type="number" className="form-input" placeholder="Budget value e.g. 2500" value={leadValue} onChange={e => setLeadValue(Number(e.target.value))} />
                       </div>
                     </div>
@@ -4354,11 +5123,11 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div className="input-group">
                         <label className="input-label">Last Contact Date</label>
-                        <input type="date" className="form-input" value={leadLastContactDate} onChange={e => setLeadLastContactDate(e.target.value)} />
+                        <input type="text" className="form-input" value={leadLastContactDate} onChange={e => setLeadLastContactDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                       </div>
                       <div className="input-group">
                         <label className="input-label">Follow-up Reminder Date</label>
-                        <input type="date" className="form-input" value={leadReminderDate} onChange={e => setLeadReminderDate(e.target.value)} />
+                        <input type="text" className="form-input" value={leadReminderDate} onChange={e => setLeadReminderDate(e.target.value)} placeholder="YYYY-MM-DD" inputMode="numeric" pattern={DASHBOARD_DATE_ENTRY_PATTERN} maxLength={10} data-dashboard-date-entry="english" />
                       </div>
                     </div>
 
@@ -4400,579 +5169,112 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         )}
 
         {activeTab === 'quotes' && (
-          !session && quoteView !== 'create' ? (
+          !session && quoteView !== 'create' && quoteView !== 'project_understanding' ? (
             renderGuestLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.')
           ) : session && !entitlements.invoice && !canAccessFirstRevenueQuotes ? (
             renderPaidLockState('Quotes', 'Prepare shoot scope, deposit terms, delivery timelines, usage rights, and final payment details.', 'pro')
           ) : (
             <div className="animate-fade-in">
             {quoteView === 'list' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Quotes</h1>
-                  <button onClick={() => initCreateQuote('quotes_header')} className="btn btn-primary">Create Quote</button>
-                </div>
-
-                 {getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'loading' ? (
-                  <div className="card" data-testid="quotes-loading" style={{ padding: '24px', border: '1px solid var(--border)' }}>
-                    <div className="skeleton animate-pulse" style={{ height: '18px', width: '34%', marginBottom: '16px' }}></div>
-                    <div className="skeleton animate-pulse" style={{ height: '48px', width: '100%', marginBottom: '10px' }}></div>
-                    <div className="skeleton animate-pulse" style={{ height: '48px', width: '100%' }}></div>
+              <div className="dashboard-document-ledger" data-document-type="quote" data-has-documents={getActiveQuotes().length > 0}>
+                <div className="document-ledger-header">
+                  <div><h1>Quotes</h1><p>Scope, terms, and the work ahead.</p></div>
+                  <div className="document-ledger-header-actions">
+                    <DocumentLedgerImageToggle showImages={quoteLedgerImagesVisible} onToggle={() => setQuoteLedgerImagesVisible((visible) => !visible)} />
+                    <button type="button" onClick={() => initCreateQuote('quotes_header')} className="document-ledger-new-action document-ledger-desktop-create">+ New quote</button>
+                    <button type="button" onClick={() => initCreateQuote(getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'empty' ? 'first_quote_onboarding' : 'quotes_header')} className="document-ledger-new-action document-ledger-mobile-create">+ New quote</button>
                   </div>
+                </div>
+                {getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'loading' ? (
+                  <DocumentLedgerState kind="loading" documentType="quote" />
                 ) : getQuotesContentState(isQuotesLoading, getActiveQuotes().length) === 'empty' ? (
-                  <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                    <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Create your first photography quote from a shoot preset.</p>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Choose a shoot type, adjust deposit, delivery, usage rights, and final payment details, then save the quote to your client workflow.
-                    </p>
-                    <button onClick={() => initCreateQuote('first_quote_onboarding')} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      Create your first quote
-                    </button>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      Start with Wedding Shoot, Portrait Session, Event Photography, Commercial Shoot, or Product Photography.
-                    </p>
+                  <div className="quotes-ledger-empty-state">
+                    <DocumentLedgerState kind="empty" documentType="quote" error={Boolean(quotesError)} onCreate={() => initCreateQuote('first_quote_onboarding')} />
+                    {isLive && session?.user?.id && session?.access_token
+                      && user?.id === session.user.id && user?.hasActivated
+                      && entitlementReady && !isEntitlementLoading && !isEntitlementError
+                      && (entitlements.invoice || canAccessFirstRevenueQuotes)
+                      && dashboardData.quotesLoadProvenance?.accountId === session.user.id
+                      && !isLoading && !isQuotesLoading && !isRefreshing
+                      && !quotesError && !invoicesError && !quotaError && !dashboardDataError
+                      && getActiveQuotes().length === 0 && (
+                        <img
+                          className="quotes-ledger-empty-artwork"
+                          src="/illustrations/quotes-empty/quotes-v03-256-q95.webp"
+                          srcSet="/illustrations/quotes-empty/quotes-v03-256-q95.webp 256w, /illustrations/quotes-empty/quotes-v03-512-q95.webp 512w, /illustrations/quotes-empty/quotes-v03-1024-q95.webp 1024w"
+                          sizes="(max-width: 767px) 160px, 260px"
+                          width="260"
+                          height="260"
+                          alt=""
+                          draggable={false}
+                          onError={(event) => { event.currentTarget.hidden = true; }}
+                        />
+                      )}
                   </div>
                 ) : (
-                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
-                    <table>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--btn-secondary-bg)' }}>
-                          <th style={{ padding: '14px 18px' }}>Quote #</th>
-                          <th style={{ padding: '14px 18px' }}>Recipient Client</th>
-                          <th style={{ padding: '14px 18px' }}>Document Total</th>
-                          <th style={{ padding: '14px 18px' }}>Status</th>
-                          <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getActiveQuotes().map((q) => (
-                          <tr key={q.id} style={{ borderBottom: '1px solid var(--border)' }} className="table-row-hover">
-                            <td style={{ padding: '14px 18px', fontWeight: 700, color: 'var(--text-main)' }}>{q.quote_number}</td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ fontWeight: 600 }}>{q.client_name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{q.client_email}</div>
-                            </td>
-                            <td style={{ padding: '14px 18px', fontWeight: 600 }}>
-                              {getCurrencySymbol(q.currency)}{(q.total / 100).toFixed(2)}
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <span
-                                className="badge"
-                                style={{
-                                  fontSize: '0.7rem',
-                                  backgroundColor: q.status === 'converted' ? 'var(--success-glow)' : 'var(--btn-secondary-bg)',
-                                  color: q.status === 'converted' ? 'var(--success-text)' : 'var(--text-muted)'
-                                }}
-                              >
-                                {q.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button
-                                  onClick={() => {
-                                    openDocument({ documentType: 'quote', id: q.id });
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleCopyPortalLink(q.id, 'quote')}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ color: 'var(--accent)' }}
-                                >
-                                  Copy Link
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteQuote(q.id)}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ color: 'var(--danger)' }}
-                                >
-                                  Delete
-                                </button>
-                                {q.status === 'approved' && (
-                                  <button onClick={() => handleConvertQuoteToInvoice(q)} className="btn btn-primary btn-sm">
-                                    Create Invoice Draft
-                                  </button>
-                                )}
+                  <div className="document-ledger-list" aria-label="Quotes">
+                    <DocumentLedgerColumns showImages={quoteLedgerImagesVisible} documentType="quote" />
+                    {getActiveQuotes().map((q) => {
+                      const detail = getDocumentLedgerDetails(q, 'quote', quotes, referenceInstant);
+                      const ledgerContextId = `quote-ledger-${q.id}`;
+                      const canDeleteQuote = (q.status === 'draft' || q.status === 'sent') && q.id !== firstRevenueLoop?.quote_id && q.has_linked_invoice !== true && q.is_prequote_identity !== true && !invoices.some((inv) => inv.quote_id === q.id);
+                      return (
+                        <div key={q.id} className="document-ledger-row">
+                          <button type="button" className={`document-ledger-entry document-ledger-grid${quoteLedgerImagesVisible ? ' document-ledger-with-images' : ''}`} aria-label={`Open quote ${q.quote_number || q.id}`} aria-describedby={`${ledgerContextId}-project ${ledgerContextId}-client ${ledgerContextId}-date ${ledgerContextId}-amount ${ledgerContextId}-status`} onClick={() => {
+                            openDocument({ documentType: 'quote', id: q.id });
+                          }}>
+                            {quoteLedgerImagesVisible && <span className="document-ledger-cover"><img src={detail.coverSrc} alt="" loading="lazy" /></span>}
+                            <span id={`${ledgerContextId}-project`} className="document-ledger-project"><strong>{q.quote_number || 'Quote'}</strong><span className="document-ledger-project-title">{detail.title}</span><span className="document-ledger-category">{detail.category}</span></span>
+                            <span id={`${ledgerContextId}-client`} className="document-ledger-client"><strong>{q.client_name || 'Client not specified'}</strong>{q.client_email && <span>{q.client_email}</span>}</span>
+                            <span id={`${ledgerContextId}-date`} className="document-ledger-date"><span className="document-ledger-mobile-label">Updated</span>{formatDashboardDate(detail.updatedAt) || 'Date not specified'}</span>
+                            <span id={`${ledgerContextId}-amount`} className="document-ledger-amount"><span className="document-ledger-mobile-label">Total</span>{formatDocumentLedgerMoney(q)}</span>
+                            <span id={`${ledgerContextId}-status`} className="document-ledger-status-cell"><DocumentLedgerStatus status={q.status} /></span>
+                          </button>
+                          {(q.status === 'draft' || canDeleteQuote || (q.status === 'approved' && q.has_linked_invoice === false) || (session?.access_token && !isDemo && !previewMode)) && (
+                            <details className="document-ledger-overflow" onClick={(event) => { event.stopPropagation(); if (event.target.closest('button, a')) event.currentTarget.removeAttribute('open'); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute('open'); }} onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.removeAttribute('open'); event.currentTarget.querySelector('summary')?.focus(); } }}>
+                              <summary aria-label={`Actions for quote ${q.quote_number || q.id}`}><span aria-hidden="true">···</span></summary>
+                              <div className="document-ledger-menu">
+                                {session?.access_token && !isDemo && !previewMode && <button type="button" onClick={() => setProjectCoverQuoteId(q.id)}>Change project cover</button>}
+                                {q.status === 'draft' && <button type="button" onClick={() => handleSendQuote(q)} disabled={isSendingQuote || !q.client_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email.trim())}>{isSendingQuote ? 'Sending...' : 'Send Quote'}</button>}
+                                {q.status === 'approved' && q.has_linked_invoice === false && <button type="button" onClick={() => handleConvertQuoteToInvoice(q)}>Create Invoice Draft</button>}
+                                {canDeleteQuote && <button type="button" className="document-ledger-delete" onClick={() => handleDeleteQuote(q.id)}>Delete</button>}
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             )}
 
+            {/* Project Understanding Workspace View */}
+            {quoteView === 'project_understanding' && (
+              <ProjectUnderstandingWorkspace
+                onStartBlankQuote={() => setQuoteView('create')}
+                onBuildQuoteSuccess={handleBuildQuoteEditorNavigation}
+                onCancel={handleCancelQuote}
+                accessToken={session?.access_token}
+                clientContext={{
+                  id: qClientId,
+                  name: qClientName,
+                  email: qClientEmail,
+                  address: qClientAddress,
+                  isFirstQuoteFlow,
+                }}
+              />
+            )}
+
             {/* Quote Create / Edit View */}
             {(quoteView === 'create' || quoteView === 'edit') && (
-              <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                    {quoteView === 'create' ? 'Create Quote' : `Edit Quote ${qNumber}`}
-                  </h2>
-                  <button onClick={handleCancelQuote} className="btn btn-secondary btn-sm">Cancel</button>
-                </div>
-
-                {formError && (
-                  <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formError}
-                  </div>
-                )}
-                {formSuccess && (
-                  <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formSuccess}
-                  </div>
-                )}
-
-                {/* Quick Presets & Scope Helper */}
-                <div className="card glass-panel" style={{ padding: '20px', marginBottom: '28px', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '12px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Choose a photography quote preset
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Start with a shoot type, or skip presets and build a blank quote. Presets add line items plus deposit, delivery, and usage rights notes.
-                  </p>
-
-                  {/* Presets Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-                    {PHOTOGRAPHY_QUOTE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleApplyQuotePreset(preset.id)}
-                        className={selectedQuotePresetId === preset.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                        style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
-                      >
-                        <strong>{preset.name}</strong>
-                        <span style={{ fontWeight: 500, opacity: 0.82 }}>{preset.description}</span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={handleSkipQuotePreset}
-                      className={!selectedQuotePresetId ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                      style={{ minHeight: '92px', alignItems: 'flex-start', justifyContent: 'flex-start', flexDirection: 'column', gap: '6px', fontSize: '0.8rem', textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.35 }}
-                    >
-                      <strong>Blank Quote</strong>
-                      <span style={{ fontWeight: 500, opacity: 0.82 }}>Skip presets and enter your own shoot, deposit, delivery, and usage rights details.</span>
-                    </button>
-                  </div>
-
-                  {/* AI Prompt Input */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ flex: 1, position: 'relative' }}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Describe your shoot (e.g. 'portrait session with 10 retouched images and gallery delivery')..."
-                        value={quotePrompt}
-                        onChange={(e) => setQuotePrompt(e.target.value)}
-                        style={{ paddingRight: '100px' }}
-                      />
-                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Shoot Helper
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAiScopeExpansion}
-                      disabled={isExpandingQuote || !quotePrompt}
-                      className="btn btn-primary btn-sm"
-                      style={{ height: '42px', padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      {isExpandingQuote ? 'Preparing...' : 'Prepare Shoot Scope'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="dashboard-grid-2col">
-                  {/* Left Form */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Existing Client (optional)</label>
-                        <select
-                          className="form-input"
-                          value={qClientId ?? ''}
-                          onChange={e => {
-                            const nextId = e.target.value;
-                            setQClientId(nextId === '' ? null : nextId);
-                            const client = clients.find(item => item.id === nextId);
-                            if (client) {
-                              setQClientName(client.name || '');
-                              setQClientEmail(client.email || '');
-                              setQClientAddress(client.address || '');
-                            }
-                          }}
-                        >
-                          <option value="">No linked Client (legacy/manual Quote)</option>
-                          {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
-                        </select>
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Quote Number</label>
-                        <input type="text" className="form-input" value={qNumber} onChange={e => setQNumber(e.target.value)} required />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Currency</label>
-                        <select className="form-select" value={qCurrency} onChange={e => setQCurrency(e.target.value)}>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="GBP">GBP (£)</option>
-                          <option value="CNY">CNY (¥)</option>
-                          {qCurrency && !['USD', 'EUR', 'GBP', 'CNY'].includes(qCurrency) && (
-                            <option value={qCurrency}>{qCurrency}</option>
-                          )}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Client Specifications</h3>
-                      <div className="input-group">
-                        <label className="input-label">Client Name</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={qClientName}
-                          onChange={e => {
-                            setQClientName(e.target.value);
-                            setQClientNameTouched(true);
-                          }}
-                          onBlur={() => setQClientNameTouched(true)}
-                          required
-                          placeholder="e.g. Wayne Enterprises"
-                          style={{
-                            borderColor: (qSubmitAttempted || qClientNameTouched) && !qClientName.trim() ? 'var(--danger)' : 'var(--border)'
-                          }}
-                        />
-                        {(qSubmitAttempted || qClientNameTouched) && !qClientName.trim() && (
-                          <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                            Recipient client name is required.
-                          </span>
-                        )}
-                      </div>
-                      {getActiveClients().length > 0 && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Quick Select:</span>
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {getActiveClients().map(cli => (
-                              <button
-                                key={cli.id}
-                                type="button"
-                                onClick={() => {
-                                  setQClientId(cli.id);
-                                  setQClientName(cli.name);
-                                  setQClientEmail(cli.email || '');
-                                  setQClientAddress(cli.address || '');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '2px 8px', fontSize: '0.75rem', borderRadius: '4px', height: 'auto', lineHeight: '1.2' }}
-                              >
-                                {cli.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="input-group">
-                        <label className="input-label">Client Email</label>
-                        <input
-                          type="email"
-                          className="form-input"
-                          value={qClientEmail}
-                          onChange={e => {
-                            setQClientEmail(e.target.value);
-                            setQClientEmailTouched(true);
-                          }}
-                          onBlur={() => setQClientEmailTouched(true)}
-                          placeholder="e.g. client@wayne.com"
-                          style={{
-                            borderColor: (qSubmitAttempted || qClientEmailTouched) && qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim()) ? 'var(--danger)' : 'var(--border)'
-                          }}
-                        />
-                        {(qSubmitAttempted || qClientEmailTouched) && qClientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(qClientEmail.trim()) && (
-                          <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                            Please enter a valid email address.
-                          </span>
-                        )}
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Client Address</label>
-                        <input type="text" className="form-input" value={qClientAddress} onChange={e => setQClientAddress(e.target.value)} placeholder="e.g. 1007 Mountain Dr, Gotham" />
-                      </div>
-                    </div>
-
-                    {/* Line Items */}
-                    <div>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Line Items</h3>
-                      {qSubmitAttempted && (qItems.length === 0 || qItems.every(item => !item.description || !item.description.trim())) && (
-                        <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 600 }}>
-                          Please add at least one line item with a description.
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {qItems.map((item, index) => (
-                          <div key={index} className="items-editor-row">
-                            <input type="text" className="form-input" placeholder="Service / Deliverable description" value={item.description} onChange={e => handleItemChange('quote', index, 'description', e.target.value)} required />
-                            <input type="number" className="form-input" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange('quote', index, 'quantity', Number(e.target.value))} required />
-                            <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} onChange={e => handleItemChange('quote', index, 'unitPrice', Number(e.target.value))} required />
-                            <button onClick={() => removeItem('quote', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>
-                          </div>
-                        ))}
-                      </div>
-                      <button onClick={() => addItem('quote')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>
-                    </div>
-                  </div>
-
-                  {/* Right Summary Card */}
-                  <div>
-                    <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
-                      <div className="input-group">
-                        <label className="input-label">Tax Rate (%)</label>
-                        <input type="number" className="form-input" value={qTaxRate} onChange={e => setQTaxRate(Number(e.target.value))} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Discount Rate (%)</label>
-                        <input type="number" className="form-input" value={qDiscountRate} onChange={e => setQDiscountRate(Number(e.target.value))} />
-                      </div>
-                      <div className="input-group" style={{ marginBottom: '20px' }}>
-                        <label className="input-label">Quote Status</label>
-                        {TERMINAL_QUOTE_STATUSES.has(qStatus) ? (
-                          <div className="form-input" aria-label="Client/system status (read-only)">
-                            {qStatus}
-                          </div>
-                        ) : (
-                          <select className="form-select" value={qStatus} onChange={e => setQStatus(e.target.value)}>
-                            <option value="draft">Draft</option>
-                            <option value="sent">Sent</option>
-                          </select>
-                        )}
-                      </div>
-
-                      {/* Calculations */}
-                      {(() => {
-                        const qSubtotal = qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-                        const qTotal = qSubtotal * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100);
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Subtotal:</span>
-                              <span>{getCurrencySymbol(qCurrency)}{qSubtotal.toFixed(2)}</span>
-                            </div>
-                            {qDiscountRate > 0 && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
-                                <span>Discount ({qDiscountRate}%):</span>
-                                <span>-{getCurrencySymbol(qCurrency)}{(qSubtotal * qDiscountRate / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                            {qTaxRate > 0 && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Tax ({qTaxRate}%):</span>
-                                <span>{getCurrencySymbol(qCurrency)}{(qSubtotal * (1 - qDiscountRate / 100) * qTaxRate / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px', color: 'var(--accent)' }}>
-                              <span>Total:</span>
-                              <span>{getCurrencySymbol(qCurrency)}{qTotal.toFixed(2)}</span>
-                            </div>
-                            {qItems.length > 0 && qSubtotal > 0 && (
-                              <div style={{ 
-                                marginTop: '12px', 
-                                padding: '10px 12px', 
-                                background: 'var(--success-glow)', 
-                                border: '1px solid var(--success)', 
-                                borderRadius: '6px',
-                                color: 'var(--success)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600
-                              }}>
-                                This quote could be valued at {getCurrencySymbol(qCurrency)}{(qSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(qCurrency)}{(qSubtotal * 1.15).toFixed(2)} range
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      <div className="input-group" style={{ marginTop: '20px' }}>
-                        <label className="input-label">Quote Notes</label>
-                        <textarea className="form-textarea" value={qNotes} onChange={e => setQNotes(e.target.value)} placeholder="Proposed document stages, terms, and client notes..." />
-                      </div>
-
-                      <button onClick={handleSaveQuote} disabled={isSaving} className="btn btn-primary" style={{ width: '100%', marginTop: '20px' }}>
-                        {isSaving ? 'Saving...' : 'Save Quote'}
-                      </button>
-
-                      {/* PDF render target (hidden preview for html2pdf screenshot) */}
-                      <div style={{ display: 'none' }}>
-                        <div id="printable-quote" style={{ padding: '40px', background: '#fff', color: '#1e293b', fontFamily: 'monospace', width: '794px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #cbd5e1', paddingBottom: '15px', marginBottom: '15px' }}>
-                            <div>
-                              <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>QUOTE</h2>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Generated via Corvioz</p>
-                            </div>
-                            <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>#{qNumber}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Date: {qDate || getTodayString()}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Status: {qStatus}</p>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>Prepared For:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{qClientName || 'Client Name'}</p>
-                              <p style={{ margin: 0 }}>{qClientEmail}</p>
-                              <p style={{ margin: 0 }}>{qClientAddress}</p>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Photographer'}</p>
-                              <p style={{ margin: 0 }}>{user.email}</p>
-                            </div>
-                          </div>
-
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
-                                <th style={{ padding: '8px 0' }}>Deliverable</th>
-                                <th style={{ padding: '8px 0', textAlign: 'center', width: '10%' }}>Qty</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Rate</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {qItems.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                                  <td style={{ padding: '10px 0' }}>{item.description || 'Service / Deliverable'}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                                    {getCurrencySymbol(qCurrency)}{Number(item.unitPrice || 0).toFixed(2)}
-                                  </td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                                    {getCurrencySymbol(qCurrency)}{(item.quantity * Number(item.unitPrice || 0)).toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              {qNotes && (
-                                <>
-                                  <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Quote Notes:</h6>
-                                  <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4' }}>{qNotes}</p>
-                                </>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'right' }}>
-                              <div style={{ width: '100%', maxWidth: '200px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                  <span>Subtotal:</span>
-                                  <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)).toFixed(2)}</span>
-                                </div>
-                                {qDiscountRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
-                                    <span>Discount ({qDiscountRate}%):</span>
-                                    <span>-{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * qDiscountRate / 100).toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {qTaxRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                    <span>Tax ({qTaxRate}%):</span>
-                                    <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * qTaxRate / 100).toFixed(2)}</span>
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
-                                  <span>Total:</span>
-                                  <span>{getCurrencySymbol(qCurrency)}{(qItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - qDiscountRate / 100) * (1 + qTaxRate / 100)).toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Preview Context & Ambient Hint */}
-                      <div style={{ 
-                        marginTop: '16px', 
-                        padding: '10px 12px', 
-                        background: 'var(--primary-glow)', 
-                        border: '1.5px solid var(--border)', 
-                        borderRadius: '6px', 
-                        fontSize: '0.8rem',
-                        color: 'var(--text-soft)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                          <span className="animate-pulse" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-                          Client-ready preview building...
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Track client review status after document delivery.
-                        </div>
-                      </div>
-
-                      {/* PDF download trigger button */}
-                      <div style={{ marginTop: '12px' }}>
-                        {!entitlements.export_pdf ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                            <button
-                              onClick={() => handleExportAttempt('printable-quote', `quote_${qNumber}`, qId)}
-                              disabled={isDownloadingPdf}
-                              className="btn btn-secondary"
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                            >
-                              {isDownloadingPdf ? 'Generating PDF...' : 'Watermarked PDF export'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                trackEvent('pro_upgrade_view', { source: 'dashboard_quote_clean_export' });
-                                router.push('/pricing?checkout=pro');
-                              }}
-                              className="btn btn-primary"
-                              style={{ 
-                                width: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                gap: '6px',
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                fontWeight: 700
-                              }}
-                            >
-                              Export Client-Ready Pro (Clean)
-                            </button>
-                            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
-                              Client-visible watermark will appear
-                            </p>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleExportAttempt('printable-quote', `quote_${qNumber}`, qId)}
-                            disabled={isDownloadingPdf}
-                            className="btn btn-primary"
-                            style={{ width: '100%' }}
-                          >
-                            {isDownloadingPdf ? 'Generating PDF...' : 'Download Client-Ready PDF'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="quote-editor-host animate-fade-in">
+                <QuoteEditorSharedProvider key={quoteEditorGeneration} value={quoteSharedContract}>
+                  <QuotePresentationBoundary key="quote-presentation-boundary">
+                  <QuoteEditorProfessional key="professional-quote-editor-fallback" />
+                  
+                  </QuotePresentationBoundary>
+                </QuoteEditorSharedProvider>
               </div>
             )}
             </div>
@@ -4987,148 +5289,65 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           ) : (
             <div className="animate-fade-in">
               {invoiceView === 'list' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Invoice Documents</h1>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button 
+              <div className="dashboard-document-ledger" data-document-type="invoice" data-has-documents={getActiveInvoices().length > 0}>
+                <div className="document-ledger-header">
+                  <div><h1>Invoices</h1><p>Client documents, due dates, and settlement.</p></div>
+                  <div className="document-ledger-header-actions">
+                    <DocumentLedgerImageToggle showImages={invoiceLedgerImagesVisible} onToggle={() => setInvoiceLedgerImagesVisible((visible) => !visible)} />
+                    <button type="button" className="document-ledger-quiet-action document-ledger-batch-unavailable"
                       onClick={() => {
-                        if (entitlements.automation) {
-                          triggerToast('Batch export generated successfully. Files compiled for document review.', 'success');
-                        } else {
-                          setModalProps({
-                            title: "Batch export is coming soon",
-                            description: "Batch invoice export is planned for Studio and is not available for purchase yet.",
-                            lockedFeatureValue: "Batch Invoice PDF Export",
-                            limit: "batch_export",
-                            source: "batch_export_gate",
-                            targetPlan: "support"
-                          });
-                          setActiveModal('upgrade');
-                        }
+                        setModalProps({
+                          title: "Batch export is coming soon",
+                          description: "Batch invoice export is planned for Studio and is not available for purchase yet.",
+                          lockedFeatureValue: "Batch Invoice PDF Export",
+                          limit: "batch_export",
+                          source: "batch_export_gate",
+                          targetPlan: "support"
+                        });
+                        setActiveModal('upgrade');
                       }}
-                      className="btn btn-secondary"
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      Batch Export
-                    </button>
-                    <button onClick={initCreateInvoice} className="btn btn-secondary">Create Invoice</button>
+                    >Batch Export</button>
+                    <button type="button" onClick={initCreateInvoice} className="document-ledger-new-action">+ New invoice</button>
                   </div>
                 </div>
-
-                {getActiveInvoices().length === 0 ? (
-                  <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                    <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Move approved work into a clear invoice path with simple client-ready terms.</p>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Use the example preview to start faster, then adjust the client, line items, due date, and invoice notes.
-                    </p>
-                    <button onClick={initCreateInvoice} className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      Create your first invoice
-                    </button>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '16px', marginBottom: 0 }}>
-                      Keep client review clear with a document your client can understand.
-                    </p>
-                  </div>
+                {isInvoicesLoading ? (
+                  <DocumentLedgerState kind="loading" documentType="invoice" />
+                ) : getActiveInvoices().length === 0 ? (
+                  <DocumentLedgerState kind="empty" documentType="invoice" error={Boolean(invoicesError)} onCreate={initCreateInvoice} />
                 ) : (
-                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background-card)' }}>
-                    <table>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--btn-secondary-bg)' }}>
-                          <th style={{ padding: '14px 18px' }}>Invoice #</th>
-                          <th style={{ padding: '14px 18px' }}>Recipient Client</th>
-                          <th style={{ padding: '14px 18px' }}>Issue & Due dates</th>
-                          <th style={{ padding: '14px 18px' }}>Document Total</th>
-                          <th style={{ padding: '14px 18px' }}>Status</th>
-                          <th style={{ padding: '14px 18px', textAlign: 'right' }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getActiveInvoices().map((inv) => (
-                          <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }} className="table-row-hover">
-                            <td style={{ padding: '14px 18px', fontWeight: 700, color: 'var(--text-main)' }}>{inv.invoice_number}</td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ fontWeight: 600 }}>{inv.client_name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{inv.client_email}</div>
-                            </td>
-                            <td style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                              <div>Issued: {new Date(inv.invoice_date || inv.created_at).toLocaleDateString()}</div>
-                              <div style={{ marginTop: '2px' }}>Due: {new Date(inv.due_date).toLocaleDateString()}</div>
-                            </td>
-                            <td style={{ padding: '14px 18px', fontWeight: 600 }}>
-                              {getCurrencySymbol(inv.currency)}{(inv.total / 100).toFixed(2)}
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <span
-                                className="badge"
-                                style={{
-                                  fontSize: '0.7rem',
-                                  backgroundColor: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-glow)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-glow)' : 'var(--btn-secondary-bg)'),
-                                  color: (inv.payment_status || inv.status) === 'paid' ? 'var(--success-text)' : ((inv.payment_status || inv.status) === 'overdue' ? 'var(--danger-text)' : 'var(--text-muted)')
-                                }}
-                              >
-                                {inv.payment_status || inv.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                <button
-                                  onClick={() => {
-                                    openDocument({ documentType: 'invoice', id: inv.id });
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleCopyPortalLink(inv.id, 'invoice')}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ color: 'var(--accent)' }}
-                                >
-                                  Copy Link
-                                </button>
-                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
-                                  <button
-                                    onClick={() => openRecordPaymentModal(inv)}
-                                    disabled={isRecordingPayment}
-                                    className="btn btn-primary btn-sm"
-                                  >
-                                    {isRecordingPayment ? 'Recording...' : 'Record Payment'}
-                                  </button>
-                                )}
-                                {['sent', 'unpaid', 'partial', 'overdue', 'pending'].includes(inv.payment_status || inv.status) && (
-                                  <button
-                                    onClick={() => {
-                                      evaluateAction('payment_reminder', () => {
-                                        openReminderModalFor(inv);
-                                      });
-                                    }}
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                    title="Send Client Follow-up"
-                                  >
-                                    <span>🔔 Reminder</span>
-                                    {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.55rem', padding: '0px 3px', borderRadius: '3px', scale: '0.9' }}>Pro</span>}
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteInvoice(inv.id)}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ color: 'var(--danger)' }}
-                                >
-                                  Delete
-                                </button>
-                                {inv.payment_link && (
-                                  <a href={inv.payment_link} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ color: 'var(--accent)' }}>Client Link</a>
-                                )}
+                  <div className="document-ledger-list" aria-label="Invoices">
+                    <DocumentLedgerColumns showImages={invoiceLedgerImagesVisible} documentType="invoice" />
+                    {getActiveInvoices().map((inv) => {
+                      const detail = getDocumentLedgerDetails(inv, 'invoice', quotes, referenceInstant);
+                      const ledgerContextId = `invoice-ledger-${inv.id}`;
+                      const payment = invoicePayment(inv);
+                      const settlementStatus = inv.status === 'draft' ? 'draft' : payment.payment_status;
+                      const isOverdue = inv.status !== 'draft' && settlementStatus !== 'paid' && payment.is_overdue;
+                      return (
+                        <div key={inv.id} className="document-ledger-row">
+                          <button type="button" className={`document-ledger-entry document-ledger-grid${invoiceLedgerImagesVisible ? ' document-ledger-with-images' : ''}`} aria-label={`Open invoice ${inv.invoice_number || inv.id}`} aria-describedby={`${ledgerContextId}-project ${ledgerContextId}-client ${ledgerContextId}-date ${ledgerContextId}-amount ${ledgerContextId}-status`} onClick={() => {
+                            openDocument({ documentType: 'invoice', id: inv.id });
+                          }}>
+                            {invoiceLedgerImagesVisible && <span className="document-ledger-cover"><img src={detail.coverSrc} alt="" loading="lazy" /></span>}
+                            <span id={`${ledgerContextId}-project`} className="document-ledger-project"><strong>{inv.invoice_number || 'Invoice'}</strong><span className="document-ledger-project-title">{detail.title}</span><span className="document-ledger-category">{detail.category}</span></span>
+                            <span id={`${ledgerContextId}-client`} className="document-ledger-client"><strong>{inv.client_name || 'Client not specified'}</strong>{inv.client_email && <span>{inv.client_email}</span>}</span>
+                            <span id={`${ledgerContextId}-date`} className="document-ledger-date"><span>Issued {formatDashboardDate(inv.invoice_date || inv.created_at) || '—'}</span><span>Due {formatDashboardDate(inv.due_date) || '—'}</span></span>
+                            <span id={`${ledgerContextId}-amount`} className="document-ledger-amount"><span className="document-ledger-mobile-label">Total</span>{formatDocumentLedgerMoney(inv)}</span>
+                            <span id={`${ledgerContextId}-status`} className="document-ledger-status-cell"><DocumentLedgerStatus status={settlementStatus} />{isOverdue && <span className="document-ledger-urgency">Overdue</span>}</span>
+                          </button>
+                          {(['unpaid', 'partial'].includes(settlementStatus) || !hasRecordedInvoicePayment(inv) || inv.payment_link) && (
+                            <details className="document-ledger-overflow" onClick={(event) => { event.stopPropagation(); if (event.target.closest('button, a')) event.currentTarget.removeAttribute('open'); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.removeAttribute('open'); }} onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.removeAttribute('open'); event.currentTarget.querySelector('summary')?.focus(); } }}>
+                              <summary aria-label={`Actions for invoice ${inv.invoice_number || inv.id}`}><span aria-hidden="true">···</span></summary>
+                              <div className="document-ledger-menu">
+                                {['unpaid', 'partial'].includes(settlementStatus) && <button type="button" onClick={() => openRecordPaymentModal(inv)} disabled={isRecordingPayment}>{isRecordingPayment ? 'Recording...' : 'Record Payment'}</button>}
+                                {inv.payment_link && <a href={inv.payment_link} target="_blank" rel="noreferrer">Client Link</a>}
+                                {!hasRecordedInvoicePayment(inv) && <button type="button" className="document-ledger-delete" onClick={() => handleDeleteInvoice(inv.id)}>Delete</button>}
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -5136,638 +5355,139 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
             {/* Invoice Create / Edit View */}
             {(invoiceView === 'create' || invoiceView === 'edit') && (
-              <div className="card animate-fade-in" style={{ background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                      {invoiceFlowStage === 'paid' ? 'Document Completed' : invoiceFlowStage === 'send' ? 'Send Document' : invoiceFlowStage === 'preview' ? 'Preview Document' : isSelectedInvoiceSettled ? `View Invoice ${invNumber}` : (invoiceView === 'create' ? 'Create Document' : `Edit Document ${invNumber}`)}
-                    </h2>
-                    <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      {isSelectedInvoiceSettled ? 'This Invoice has recorded payment and is read-only.' : 'Create, preview, send, then mark completed when the client review is done.'}
-                    </p>
+              <div className="invoice-workspace animate-fade-in" ref={invoiceWorkspaceRef} aria-busy={isSaving}>
+                {showInvoiceLeaveDialog && createPortal(<div className="invoice-leave-overlay">
+                  <section className="invoice-leave-dialog" ref={invoiceLeaveDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="invoice-leave-title" aria-describedby="invoice-leave-description">
+                    <h2 id="invoice-leave-title">Save your invoice changes?</h2>
+                    <p id="invoice-leave-description">Your invoice has unsaved changes. Save them before leaving, discard them, or continue editing.</p>
+                    {formError && <p role="alert" tabIndex={-1}>{formError}</p>}
+                    <div>
+                      <button type="button" data-invoice-continue disabled={isSaving} onClick={() => { invoiceNavigationRef.current = null; setShowInvoiceLeaveDialog(false); }}>Continue editing</button>
+                      <button type="button" disabled={isSaving} onClick={resumeInvoiceNavigation}>Discard changes</button>
+                      <button type="button" disabled={isSaving || isSelectedInvoiceSettled} onClick={async () => {
+                        if (await handleSaveInvoice({ showCompletion: false })) resumeInvoiceNavigation();
+                      }}>{isSaving ? 'Saving…' : 'Save and leave'}</button>
+                    </div>
+                  </section>
+                </div>, document.body)}
+                <header className="invoice-workspace-toolbar non-printing" aria-label="Invoice editor toolbar">
+                  <div className="invoice-editor-location"><span>Invoices</span><span aria-hidden="true">/</span><h2>{isSelectedInvoiceSettled ? `View Invoice ${invNumber}` : invNumber}</h2></div>
+                  {!isSelectedInvoiceSettled && renderInvoiceFlowStepper()}
+                  <div className="invoice-editor-navigation">
+                    <button type="button" disabled={isSaving} onClick={handleCancelInvoice}>Back to invoices</button>
+                    <button type="button" disabled={isSaving} onClick={handleExitInvoiceFlow}>Dashboard</button>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={handleCancelInvoice} className="btn btn-secondary btn-sm">Cancel</button>
-                    <button onClick={handleExitInvoiceFlow} className="btn btn-secondary btn-sm">Exit to dashboard</button>
-                  </div>
-                </div>
-
-                {!isSelectedInvoiceSettled && renderInvoiceFlowStepper()}
-
+                </header>
+                <div className="invoice-document-workspace" role="region" aria-label="Invoice document workspace" tabIndex={0}>
+                {invoiceFlowStage !== 'create' && <h1 className="invoice-sr-only" data-invoice-stage-heading tabIndex={-1}>{invoiceFlowStage === 'preview' ? 'Review invoice' : invoiceFlowStage === 'paid' ? 'Payment recorded' : 'Invoice marked sent'}</h1>}
                 {invoiceView === 'create' && !session && (
-                  <div style={{
-                    backgroundColor: 'var(--primary-glow)',
-                    border: '1.5px solid var(--primary)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: 'var(--text-main)',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
+                  <div className="invoice-workspace-notice">
                     <span className="product-state-mark">Info</span>
-                      <span>You don&apos;t need an account to start. Create your client document, download the PDF, or sign up to save it. Note: The form is pre-filled with sample data (e.g. Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
+                      <span>You don&apos;t need an account to start. Create and preview your client document, then sign up or sign in to save it to your account or download the PDF with export access. Draft PDF downloads don&apos;t require saving first. Note: The form is pre-filled with sample data (e.g. Acme Corporation) to demonstrate the layout. Replace these fields with your own details.</span>
                   </div>
                 )}
 
                 {formError && (
-                  <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formError}
+                  <div className="invoice-workspace-notice is-error" role="alert" tabIndex={-1}>
+                    <strong>{formError}</strong>
                   </div>
                 )}
-                {formSuccess && (
-                  <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                    {formSuccess}
-                  </div>
-                )}
-
-                {isSelectedInvoiceSettled && invoiceFlowStage === 'create' && (
-                  <div role="status" style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 700 }}>
-                    Read only · Recorded payment
-                  </div>
-                )}
-
-                {showPaymentWaitingBanner && invoiceFlowStage === 'send' && (
-                  <div style={{
-                    padding: '14px 16px',
-                    background: 'var(--warning-glow)',
-                    border: '1px solid var(--warning-border)',
-                    borderRadius: '10px',
-                    color: 'var(--warning-text)',
-                    marginBottom: '18px',
-                    fontSize: '0.86rem',
-                    fontWeight: 750
-                  }}>
-                    Waiting for client review
-                  </div>
-                )}
+                {formSuccess && <div className="invoice-workspace-notice is-success" role="status">{formSuccess}</div>}
+                {invoiceNotificationText && <div className="invoice-workspace-notice" role="status">{invoiceNotificationText}</div>}
+                {invoiceCommercialReadonly && !isSelectedInvoiceSettled && !invoiceNotificationText && <div className="invoice-workspace-notice" role="status">Read only · Saved document. An unchanged approved invoice may still be sent when verified.</div>}
+                {isSelectedInvoiceSettled && invoiceFlowStage === 'create' && <div className="invoice-workspace-notice is-success" role="status">Read only · Recorded payment</div>}
+                {showPaymentWaitingBanner && invoiceFlowStage === 'send' && <div className="invoice-workspace-notice" role="status">Waiting for client review</div>}
 
                 {invoiceFlowStage === 'preview' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                  <div className="invoice-stage-panel">
                     {renderInvoiceReadonlyPreview()}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => setInvoiceFlowStage('create')} className="btn btn-secondary">Back to create</button>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveInvoice({ advanceToSend: true })}
-                        disabled={isSaving}
-                        className="btn btn-primary"
-                        style={{ fontWeight: 800 }}
-                      >
-                        {isSaving ? 'Saving...' : 'Send Document'}
-                      </button>
-                    </div>
+
                   </div>
                 )}
 
                 {invoiceFlowStage === 'send' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                  <div className="invoice-stage-panel">
                     {renderInvoiceReadonlyPreview({ compact: true })}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => setInvoiceFlowStage('preview')} className="btn btn-secondary">Back to preview</button>
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+
+                  </div>
+                )}
+
+                {invoiceFlowStage === 'paid' && (
+                  <div className="invoice-stage-panel">
+                    {renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus }, referenceInstant, paymentOptions)}
+                    {renderInvoiceReadonlyPreview({ compact: true })}
+                    <div className="invoice-workspace-notice is-success" role="status">
+                      Completed document recorded as a read-only state.
+                    </div>
+
+                  </div>
+                )}
+
+
+                <div className="dashboard-grid-2col invoice-editor-grid" hidden={invoiceFlowStage !== 'create'}>
+                  {renderInvoicePaper()}
+
+                </div>
+                      {/* Measurable canonical Invoice source; never display:none. */}
+                      <div className="invoice-pdf-render-target" aria-hidden="true">
+                        <InvoiceClientDocument document={invoiceClientDocument} print />
+                      </div>
+
+                </div>
+                <div className="invoice-editor-actions">
+                <div className="invoice-export-action" data-export-state={pdfExportError?.elementId === 'printable-invoice' && pdfExportError.name === `invoice_${invNumber}` && pdfExportError.message ? 'error' : !canExportPdf ? 'access' : 'ready'}>
+                <ExportDownloadAction
+                  documentType="invoice" number={invNumber}
+                  pending={isDownloadingPdf} canExport={canExportPdf} branding={hasCleanPdf ? 'clean' : 'branded'}
+                  error={pdfExportError?.elementId === 'printable-invoice' && pdfExportError.name === `invoice_${invNumber}` ? pdfExportError.message : ''}
+                  onDownload={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
+                />
+                </div>
+                  <div className="invoice-footer-controls">
+                    {invId && !isDemo && !previewMode && <button type="button" className="btn btn-secondary" disabled={isSaving || isCheckingInvoiceStatus} onClick={handleCheckInvoiceStatus}>{isCheckingInvoiceStatus ? 'Checking status…' : 'Check status'}</button>}
+                    {invoiceFlowStage === 'create' && !isSelectedInvoiceSettled && (
+                      <>
+                      {isSaving && <div className="invoice-save-guidance" role="status"><p>Saving your invoice…</p></div>}
+                      <div className="invoice-stage-action-group">
+                        <button type="button" onClick={() => handleSaveInvoice({ exitAfterSave: true })} disabled={isSaving || invoiceCommercialReadonly} className="btn btn-secondary">{isSaving ? 'Saving...' : 'Save invoice'}</button>
+                        <button type="button" disabled={isSaving} onClick={goToInvoicePreview} className="btn btn-primary">Continue to preview <span aria-hidden="true">→</span></button>
+                      </div>
+                      </>
+                    )}
+                    {invoiceFlowStage === 'preview' && (
+                    <div className="invoice-stage-actions">
+                      {!isSelectedInvoiceSettled && <button type="button" disabled={isSaving || invoiceCommercialReadonly} onClick={() => handleSaveInvoice({ showCompletion: false })} className="btn btn-secondary">Save invoice</button>}
+                      <button type="button" disabled={isSaving} onClick={() => setInvoiceFlowStage('create')} className="btn btn-secondary">Back to edit</button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveInvoice({ advanceToSend: true, explicitRetry: invoiceRetryAvailable })}
+                        disabled={isSaving || isSelectedInvoiceSettled || (Boolean(invId) && !isDemo && !previewMode && invoiceNotificationState?.eligibility?.can_send !== true && !invoiceRetryAvailable)}
+                        className="btn btn-primary"
+                      >
+                        {isSaving ? 'Sending…' : invoiceRetryAvailable ? 'Retry notification' : 'Send Document'}
+                      </button>
+                    </div>
+                    )}
+                    {invoiceFlowStage === 'send' && (
+                    <div className="invoice-stage-actions">
+                      <button type="button" disabled={isSaving} onClick={() => setInvoiceFlowStage('preview')} className="btn btn-secondary">Back to preview</button>
+                      <div className="invoice-stage-action-group">
                         <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-secondary">Exit to dashboard</button>
                         <button
                           type="button"
                           onClick={() => openRecordPaymentModal(invoices.find((invoice) => invoice.id === invId) || { id: invId, currency: invCurrency, total: 0 })}
                           className="btn btn-primary"
-                          style={{ fontWeight: 800 }}
-                        >
+                          >
                           Record Payment
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {invoiceFlowStage === 'paid' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                    {renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus })}
-                    {renderInvoiceReadonlyPreview({ compact: true })}
-                    <div style={{
-                      padding: '14px 16px',
-                      background: 'var(--success-glow)',
-                      border: '1px solid var(--success)',
-                      borderRadius: '10px',
-                      color: 'var(--success)',
-                      fontSize: '0.86rem',
-                      fontWeight: 800
-                    }}>
-                      Completed document recorded as a read-only state.
-                    </div>
-                    <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-primary" style={{ alignSelf: 'flex-start', fontWeight: 800 }}>
+                    )}
+                    {invoiceFlowStage === 'paid' && (
+                    <button type="button" onClick={handleExitInvoiceFlow} className="btn btn-primary">
                       Exit to dashboard
                     </button>
-                  </div>
-                )}
-
-                {invoiceFlowStage === 'create' && renderInvoiceTimeline(getSelectedInvoice() || { status: invStatus })}
-
-                <div className="dashboard-grid-2col invoice-editor-grid" style={invoiceFlowStage === 'create' ? undefined : { display: 'none' }}>
-                  {/* Left Form */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Invoice Number</label>
-                        <input type="text" className="form-input" value={invNumber} readOnly={isSelectedInvoiceSettled} onChange={e => setInvNumber(e.target.value)} required />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Currency</label>
-                        <select className="form-select" value={invCurrency} disabled={isSelectedInvoiceSettled} onChange={e => setInvCurrency(e.target.value)}>
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="GBP">GBP (£)</option>
-                          <option value="CNY">CNY (¥)</option>
-                          {invCurrency && !['USD', 'EUR', 'GBP', 'CNY'].includes(invCurrency) && (
-                            <option value={invCurrency}>{invCurrency}</option>
-                          )}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Client Specifications</h3>
-                      <div className="input-group">
-                        <label className="input-label">Client Name</label>
-                        <input type="text" className="form-input" value={invClientName} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientName(e.target.value)} required placeholder="e.g. Tony Stark" />
-                      </div>
-                      {!isSelectedInvoiceSettled && getActiveClients().length > 0 && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Quick Select:</span>
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {getActiveClients().map(cli => (
-                              <button
-                                key={cli.id}
-                                type="button"
-                                onClick={() => {
-                                  setInvClientId(cli.id);
-                                  setInvClientName(cli.name);
-                                  setInvClientEmail(cli.email || '');
-                                  setInvClientAddress(cli.address || '');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '2px 8px', fontSize: '0.75rem', borderRadius: '4px', height: 'auto', lineHeight: '1.2' }}
-                              >
-                                {cli.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="input-group">
-                        <label className="input-label">Client Email</label>
-                        <input type="email" className="form-input" value={invClientEmail} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientEmail(e.target.value)} placeholder="e.g. tony@stark.com" />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Client Address</label>
-                        <input type="text" className="form-input" value={invClientAddress} readOnly={isSelectedInvoiceSettled} onChange={e => setInvClientAddress(e.target.value)} placeholder="e.g. Malibu Malibu, CA" />
-                      </div>
-                    </div>
-
-                    {/* Line Items */}
-                    <div>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Line Items</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {invItems.map((item, index) => (
-                          <div key={index} className="items-editor-row">
-                            <input type="text" className="form-input" placeholder="Service description" value={item.description} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'description', e.target.value)} required />
-                            <input type="number" className="form-input" placeholder="Qty" value={item.quantity} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'quantity', Number(e.target.value))} required />
-                            <input type="number" className="form-input" placeholder="Rate" value={item.unitPrice} readOnly={isSelectedInvoiceSettled} onChange={e => handleItemChange('invoice', index, 'unitPrice', Number(e.target.value))} required />
-                            {!isSelectedInvoiceSettled && <button onClick={() => removeItem('invoice', index)} style={{ color: 'var(--danger)', fontSize: '1.25rem', cursor: 'pointer' }}>&times;</button>}
-                          </div>
-                        ))}
-                      </div>
-                      {!isSelectedInvoiceSettled && <button onClick={() => addItem('invoice')} className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}>+ Add Item</button>}
-                    </div>
-
-                    {/* Client Document Link */}
-                    <div className="card" style={{ padding: '20px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', textTransform: 'uppercase' }}>
-                        Client Document Link
-                      </h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                        Add an optional external client document link
-                      </p>
-                      <input
-                        type="url"
-                        className="form-input"
-                        placeholder="https://example.com/client-document"
-                        value={invPaymentLink}
-                        readOnly={isSelectedInvoiceSettled}
-                        onChange={e => setInvPaymentLink(e.target.value)}
-                      />
-	                    </div>
-                  </div>
-
-                  {/* Right Summary Card */}
-                  <div>
-                    <div className="card" style={{ padding: '24px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-                      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Summary</h3>
-                      <div className="input-group">
-                        <label className="input-label">Invoice Terms</label>
-                        <select
-                          className="form-select"
-                          value={invPaymentTerms || 'Net 30'}
-                          disabled={isSelectedInvoiceSettled}
-                          onChange={e => {
-                            setInvPaymentTerms(e.target.value);
-                            updateDueDateFromTerms(e.target.value, invDate);
-                          }}
-                        >
-                          <option value="Due on Receipt">Due on Receipt</option>
-                          <option value="Net 15">Net 15</option>
-                          <option value="Net 30">Net 30</option>
-                          <option value="Net 60">Net 60</option>
-                          {invPaymentTerms && !['Due on Receipt', 'Net 15', 'Net 30', 'Net 60'].includes(invPaymentTerms) && (
-                            <option value={invPaymentTerms}>{invPaymentTerms}</option>
-                          )}
-                        </select>
-                      </div>
-                      <div className="invoice-summary-date-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div className="input-group">
-                          <label className="input-label">Issue Date</label>
-                          <input type="date" className="form-input" value={invDate} disabled={isSelectedInvoiceSettled} onChange={e => { setInvDate(e.target.value); updateDueDateFromTerms(invPaymentTerms, e.target.value); }} />
-                        </div>
-                        <div className="input-group">
-                          <label className="input-label">Due Date</label>
-                          <input type="date" className="form-input" value={invDueDate} disabled={isSelectedInvoiceSettled} onChange={e => setInvDueDate(e.target.value)} />
-                        </div>
-                      </div>
-
-                      <div className="input-group">
-                        <label className="input-label">Tax Rate (%)</label>
-                        <input type="number" className="form-input" value={invTaxRate} readOnly={isSelectedInvoiceSettled} onChange={e => setInvTaxRate(Number(e.target.value))} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Discount Rate (%)</label>
-                        <input type="number" className="form-input" value={invDiscountRate} readOnly={isSelectedInvoiceSettled} onChange={e => setInvDiscountRate(Number(e.target.value))} />
-                      </div>
-                      <div className="input-group" style={{ marginBottom: '20px' }}>
-                        <label className="input-label">Invoice Status</label>
-                        <div style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg-surface)',
-                          color: 'var(--text-muted)',
-                          fontSize: '0.85rem',
-                          fontWeight: 750
-                        }}>
-                          {isSelectedInvoiceSettled
-                            ? 'Read only · Recorded payment'
-                            : invStatus === 'sent'
-                              ? 'Sent'
-                              : selectedInvoicePaymentStatus === 'overdue'
-                                ? 'Overdue'
-                                : 'Pending until sent'}
-                        </div>
-                      </div>
-
-                      {/* Calculations */}
-                      {(() => {
-                        const invSubtotal = invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-                        const invTotal = invSubtotal * (1 - invDiscountRate / 100) * (1 + invTaxRate / 100);
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', fontSize: '0.85rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span>Subtotal:</span>
-                              <span>{getCurrencySymbol(invCurrency)}{invSubtotal.toFixed(2)}</span>
-                            </div>
-                            {invDiscountRate > 0 && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
-                                <span>Discount ({invDiscountRate}%):</span>
-                                <span>-{getCurrencySymbol(invCurrency)}{(invSubtotal * invDiscountRate / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                            {invTaxRate > 0 && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Tax ({invTaxRate}%):</span>
-                                <span>{getCurrencySymbol(invCurrency)}{(invSubtotal * (1 - invDiscountRate / 100) * invTaxRate / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px', color: 'var(--accent)' }}>
-                              <span>Total:</span>
-                              <span>{getCurrencySymbol(invCurrency)}{invTotal.toFixed(2)}</span>
-                            </div>
-                            {invItems.length > 0 && invSubtotal > 0 && (
-                              <div style={{ 
-                                marginTop: '12px', 
-                                padding: '10px 12px', 
-                                background: 'var(--success-glow)', 
-                                border: '1px solid var(--success)', 
-                                borderRadius: '6px',
-                                color: 'var(--success)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600
-                              }}>
-                                This invoice could be valued at {getCurrencySymbol(invCurrency)}{(invSubtotal * 0.95).toFixed(2)} - {getCurrencySymbol(invCurrency)}{(invSubtotal * 1.15).toFixed(2)} range
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      <div className="input-group" style={{ marginTop: '20px' }}>
-                        <label className="input-label">Invoice Notes</label>
-                        <textarea className="form-textarea" value={invNotes} readOnly={isSelectedInvoiceSettled} onChange={e => setInvNotes(e.target.value)} placeholder="Document notes for the client..." />
-                      </div>
-
-                      {!isSelectedInvoiceSettled && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-                          <button
-                            type="button"
-                            onClick={goToInvoicePreview}
-                            className="btn btn-primary"
-                            style={{ width: '100%', fontWeight: 800 }}
-                          >
-                            Continue to preview
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSaveInvoice({ exitAfterSave: true })}
-                            disabled={isSaving}
-                            className="btn btn-secondary"
-                            style={{ width: '100%' }}
-                          >
-                            {isSaving ? 'Saving...' : 'Save draft'}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* PDF render target (hidden preview for html2pdf screenshot) */}
-                      <div style={{ display: 'none' }}>
-                        <div id="printable-invoice" style={{ padding: '40px', background: '#fff', color: '#1e293b', fontFamily: 'monospace', width: '794px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #cbd5e1', paddingBottom: '15px', marginBottom: '15px' }}>
-                            <div>
-                              <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>INVOICE</h2>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Generated via Corvioz</p>
-                            </div>
-                            <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>#{invNumber}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Date: {invDate}</p>
-                              <p style={{ margin: '3px 0 0 0' }}>Due Date: {invDueDate}</p>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>Billed To:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{invClientName}</p>
-                              <p style={{ margin: 0 }}>{invClientEmail}</p>
-                              <p style={{ margin: 0 }}>{invClientAddress}</p>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <h5 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.75rem' }}>From:</h5>
-                              <p style={{ margin: 0, fontWeight: 'bold' }}>{user.name || 'Photographer'}</p>
-                              <p style={{ margin: 0 }}>{user.email}</p>
-                            </div>
-                          </div>
-
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#64748b' }}>
-                                <th style={{ padding: '8px 0' }}>Description</th>
-                                <th style={{ padding: '8px 0', textAlign: 'center', width: '10%' }}>Qty</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Rate</th>
-                                <th style={{ padding: '8px 0', textAlign: 'right', width: '20%' }}>Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {invItems.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                                  <td style={{ padding: '10px 0' }}>{item.description}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'center' }}>{item.quantity}</td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                                    {getCurrencySymbol(invCurrency)}{Number(item.unitPrice || 0).toFixed(2)}
-                                  </td>
-                                  <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
-                                    {getCurrencySymbol(invCurrency)}{(item.quantity * Number(item.unitPrice || 0)).toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', fontSize: '0.9rem' }}>
-                            <div>
-                              {invNotes && (
-                                <>
-                                  <h6 style={{ margin: '0 0 4px 0', textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem' }}>Invoice Notes:</h6>
-                                  <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.4' }}>{invNotes}</p>
-                                </>
-                              )}
-                              {invPaymentLink && (
-                                <div style={{ marginTop: '15px', padding: '10px', background: 'var(--btn-secondary-bg)', border: '1px dashed var(--border)', borderRadius: '4px' }}>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', display: 'block', color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Client Document Link:</span>
-                                  <a href={invPaymentLink} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#4f46e5', textDecoration: 'underline', wordBreak: 'break-all' }}>{invPaymentLink}</a>
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', textAlign: 'right' }}>
-                              <div style={{ width: '100%', maxWidth: '200px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                  <span>Subtotal:</span>
-                                  <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)).toFixed(2)}</span>
-                                </div>
-                                {invDiscountRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#e11d48' }}>
-                                    <span>Discount ({invDiscountRate}%):</span>
-                                    <span>-{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * invDiscountRate / 100).toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {invTaxRate > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                    <span>Tax ({invTaxRate}%):</span>
-                                    <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * invTaxRate / 100).toFixed(2)}</span>
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '2px solid #0f172a', fontWeight: 'bold', fontSize: '1.05rem', color: '#0f172a' }}>
-                                  <span>Total:</span>
-                                  <span>{getCurrencySymbol(invCurrency)}{(invItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0) * (1 - invDiscountRate / 100) * (1 + invTaxRate / 100)).toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Preview Context & Ambient Hint */}
-                      <div style={{ 
-                        marginTop: '16px', 
-                        padding: '10px 12px', 
-                        background: 'var(--primary-glow)', 
-                        border: '1.5px solid var(--border)', 
-                        borderRadius: '6px', 
-                        fontSize: '0.8rem',
-                        color: 'var(--text-soft)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                          <span className="animate-pulse" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-                          Client-ready preview building...
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          Track client review status after document delivery.
-                        </div>
-                      </div>
-
-                      {/* PDF download trigger button */}
-                      <div style={{ marginTop: '12px' }}>
-                        {firstFlowExportDone ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }} className="animate-fade-in">
-                            <div style={{
-                              padding: '14px 16px',
-                              background: 'rgba(16, 185, 129, 0.1)',
-                              border: '1.5px solid var(--success)',
-                              borderRadius: '10px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px'
-                            }}>
-                              <span style={{ fontSize: '1.2rem' }}>✔</span>
-                              <div>
-                                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--success)' }}>Invoice created successfully</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Your PDF is ready.</div>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                padding: '10px',
-                                borderRadius: '8px',
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                fontWeight: 700,
-                                fontSize: '0.85rem',
-                                textDecoration: 'none',
-                                textAlign: 'center',
-                                cursor: 'pointer'
-                              }}
-                              onClick={() => {
-                                trackEvent('cta_click', { cta_name: 'Create another invoice', source: 'first_flow_success' });
-                                openInvoiceBuilder();
-                              }}
-                            >
-                              + Create another invoice
-                            </button>
-                            <button
-                              onClick={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
-                              disabled={isDownloadingPdf}
-                              className="btn btn-secondary"
-                              style={{ width: '100%', fontSize: '0.8rem' }}
-                            >
-                              {isDownloadingPdf ? 'Generating PDF...' : 'Download again'}
-                            </button>
-                            
-                            {isFree && (
-                              <div style={{
-                                padding: '14px',
-                                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
-                                borderRadius: '10px',
-                                border: '1px solid rgba(79, 70, 229, 0.3)',
-                                marginTop: '12px',
-                                textAlign: 'left'
-                              }}>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  Level Up Your Business Profile
-                                </div>
-                                <p style={{ fontSize: '0.78rem', color: 'var(--text-soft)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
-                                  Upgrade to Pro for clean PDF exports, Client Portal, and quote approval.
-                                </p>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <Link
-                                    href="/pricing"
-                                    onClick={() => trackEvent('upgrade_trigger_clicked', { plan: 'free', target_plan: 'pro', offer_type: 'soft_banner', cta_text: 'Get Pro' })}
-                                    style={{
-                                      flex: 1,
-                                      padding: '6px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      textAlign: 'center',
-                                      background: 'var(--primary)',
-                                      color: '#fff',
-                                      borderRadius: '6px',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    Get Pro
-                                  </Link>
-                                  <Link
-                                    href="/pricing?checkout=pro"
-                                    onClick={() => trackEvent('upgrade_trigger_clicked', { plan: 'free', target_plan: 'pro', offer_type: 'soft_banner', cta_text: 'Get Pro' })}
-                                    style={{
-                                      flex: 1,
-                                      padding: '6px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      textAlign: 'center',
-                                      background: 'rgba(255, 255, 255, 0.1)',
-                                      color: '#fff',
-                                      borderRadius: '6px',
-                                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    See pricing
-                                  </Link>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : !entitlements.export_pdf ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                            <button
-                              onClick={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
-                              disabled={isDownloadingPdf}
-                              className="btn btn-secondary"
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                            >
-                              {isDownloadingPdf ? 'Generating PDF...' : 'Watermarked PDF export'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                trackEvent('pro_upgrade_view', { source: 'dashboard_invoice_clean_export' });
-                                router.push('/pricing?checkout=pro');
-                              }}
-                              className="btn btn-primary"
-                              style={{ 
-                                width: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                gap: '6px',
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                fontWeight: 700
-                              }}
-                            >
-                              Export Client-Ready Pro (Clean)
-                            </button>
-                            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px', margin: 0 }}>
-                              Client-visible watermark will appear
-                            </p>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleExportAttempt('printable-invoice', `invoice_${invNumber}`, invId)}
-                            disabled={isDownloadingPdf}
-                            className="btn btn-primary"
-                            style={{ width: '100%' }}
-                          >
-                            {isDownloadingPdf ? 'Generating PDF...' : 'Download Client-Ready PDF'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5778,690 +5498,55 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 
         {activeTab === 'clients' && (
           !session && !isSandboxMode ? (
-            renderGuestLockState('Clients Directory', 'Store client document details, default currencies, email contacts, and view active milestone histories to organize client admin.')
-          ) : (activeTheme === 'studio') ? (
-            <StudioSpace
-              clients={getActiveClients()}
-              invoices={invoices}
-              quotes={quotes}
-              leads={leads}
-              getCurrencySymbol={getCurrencySymbol}
-              onCopyPortalLink={handleCopyPortalLink}
-              triggerToast={triggerToast}
-              isSandbox={isSandboxMode}
-              isStudioPreview={false}
-              businessModeBadge={businessModeBadge}
-              onUpgrade={() => {}}
-              onTabChange={(tab) => handleDashboardTabChange(tab, 'studio')}
-              cpLogoUrl={cpLogoUrl}
-              setCpLogoUrl={setCpLogoUrl}
-              cpBrandColor={cpBrandColor}
-              setCpBrandColor={setCpBrandColor}
-              cpBrandSecondary={cpBrandSecondary}
-              setCpBrandSecondary={setCpBrandSecondary}
-              cpFontFamily={cpFontFamily}
-              setCpFontFamily={setCpFontFamily}
-              cpThemePreference={cpThemePreference}
-              setCpThemePreference={setCpThemePreference}
-              cpName={cpName}
-              cpTitle={cpTitle}
-              handleSaveCardProfile={handleSaveCardProfile}
-              isSaving={isSaving}
-              cpPortfolio={cpPortfolio}
-              newClientName={newClientName}
-              setNewClientName={setNewClientName}
-              newClientEmail={newClientEmail}
-              setNewClientEmail={setNewClientEmail}
-              newClientAddress={newClientAddress}
-              setNewClientAddress={setNewClientAddress}
-              handleSaveClient={handleSaveClient}
-              handleDeleteClient={handleDeleteClient}
-              formError={formError}
-              formSuccess={formSuccess}
-              initCreateInvoice={initCreateInvoice}
-              initCreateQuote={initCreateQuote}
-              isQuoteDataLoading={isQuotesLoading}
-              isInvoiceDataLoading={isInvoicesLoading}
-              quoteDataError={quotesError}
-              invoiceDataError={invoicesError}
-            />
+            renderGuestLockState('Clients Directory', 'Save client details for your documents.')
+          ) : activeTheme === 'studio' ? (
+            <StudioClientsEntry {...clientWorkspaceProps} />
           ) : (
-            <div className="animate-fade-in">
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.02em' }}>Client Directory</h1>
-
-            <div className="dashboard-grid-2fr-1fr" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))' }}>
-              {/* Directory List */}
-              <div>
-                {getActiveClients().length === 0 ? (
-                  <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                    <svg style={{ width: '48px', height: '48px', color: 'var(--text-soft)', margin: '0 auto 16px', display: 'block', opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H7m0-3a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 700 }}>Manage client records in one centralized directory to prepare quotes and documents quickly.</p>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '20px', maxWidth: '440px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.45 }}>
-                      Add client contacts, company details, and default terms to generate customized documents in seconds without repetitive copy-pasting.
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-soft)', fontWeight: 700 }}>
-                      👉 Enter client details in the form on the right to save your first contact.
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '12px', marginBottom: 0 }}>
-                      Privacy-focused client data controls. Client details are encrypted and stored in your private database.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {getActiveClients().map((cli) => {
-                      const isDocumentsExpanded = expandedClientDocumentsId === cli.id;
-                      const documentsControlId = `client-documents-toggle-${cli.id}`;
-                      const documentsPanelId = `client-documents-panel-${cli.id}`;
-                      return (
-                        <div key={cli.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-                            <div style={{ minWidth: 0 }}>
-                              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', overflowWrap: 'anywhere' }}>{cli.name}</h3>
-                              <p style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '2px', overflowWrap: 'anywhere' }}>{cli.email}</p>
-                              {cli.address && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', overflowWrap: 'anywhere' }}>{cli.address}</p>}
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                              <button
-                                id={documentsControlId}
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                aria-expanded={isDocumentsExpanded}
-                                aria-controls={documentsPanelId}
-                                aria-label={`${isDocumentsExpanded ? 'Hide' : 'View'} documents for ${cli.name}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setExpandedClientDocumentsId(isDocumentsExpanded ? null : cli.id);
-                                }}
-                              >
-                                {isDocumentsExpanded ? 'Hide documents' : 'View documents'}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  initCreateInvoice({
-                                    source: 'client_bill',
-                                    clientContext: {
-                                      client_id: cli.id,
-                                      client_name: cli.name,
-                                      client_email: cli.email || '',
-                                      client_address: cli.address || '',
-                                    },
-                                  });
-                                  trackEvent('quick_action_click', { action: 'bill_client' });
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                Bill
-                              </button>
-                              <button onClick={() => handleDeleteClient(cli.id)} style={{ color: 'var(--danger)', fontSize: '0.85rem', padding: '0 8px', cursor: 'pointer' }}>Delete</button>
-                            </div>
-                          </div>
-                          {isDocumentsExpanded && (
-                            <ClientDocumentsPanel
-                              client={cli}
-                              quotes={quotes}
-                              invoices={invoices}
-                              isQuotesLoading={isQuotesLoading}
-                              isInvoicesLoading={isInvoicesLoading}
-                              quotesError={quotesError}
-                              invoicesError={invoicesError}
-                              onOpenDocument={openDocument}
-                              controlId={documentsControlId}
-                              panelId={documentsPanelId}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Add Client Card */}
-              <div>
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.01em' }}>Save Client Profile</h3>
-                  
-                  {formError && (
-                    <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                      {formError}
-                    </div>
-                  )}
-                  {formSuccess && (
-                    <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                      {formSuccess}
-                    </div>
-                  )}
-                  
-                  <form onSubmit={handleSaveClient} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="input-group">
-                      <label className="input-label">Client Name</label>
-                      <input type="text" className="form-input" value={newClientName} onChange={e => setNewClientName(e.target.value)} required placeholder="e.g. Wayne Enterprises" />
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">Client Email</label>
-                      <input type="email" className="form-input" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} placeholder="e.g. Bruce@wayne.com" />
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">Client Address</label>
-                      <textarea className="form-textarea" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} placeholder="Mailing / company address..." />
-                    </div>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }}>Save Client</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-            </div>
+            <ClientWorkspace {...clientWorkspaceProps} />
           )
         )}
 
-        {/* TAB 6: PUBLIC PROFILE CARD CONFIGURATION */}
-        {activeTab === 'profile' && (
-          !session ? (
-            renderGuestLockState('Public Profile Setup', 'Configure your services, display starting prices, enable Calendly integrations, and showcase customer testimonials on a search-optimized URL.')
-          ) : (
-            <div className="animate-fade-in">
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '24px', letterSpacing: '-0.02em' }}>Public Profile Setup</h1>
+        {/* The contextual owner workspace remains mounted across Harbor navigation to retain unsaved edits. */}
+        {session && <div hidden={!['profile', 'portfolio', 'brand'].includes(activeTab)}>
+          <PublicProfileWorkspace key={session.user.id}
+            onFocusedEditingChange={setProfileFocused}
+            accountId={session.user.id} accessToken={session.access_token} plan={user?.plan || 'free'}
+            crm={entitlements.crm === true} permissionsReady={entitlementReady}
+            isCurrentActor={id => sessionRef.current?.user?.id === id}
+            mode={mode} saveProfile={saveCardProfile} initialProfile={mode === 'live' ? null : cardProfile} />
+          <details className="pp-account-settings"><summary>Account timezone &amp; privacy settings</summary>
+            <BusinessTimezoneSetting key={user?.id || session.user.id}
+              businessTimezone={user?.business_timezone} accessToken={session?.access_token}
+              onSaved={value => setUser(current => current ? { ...current, business_timezone: value } : current)} />
 
-            {formError && (
-              <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                {formError}
-              </div>
-            )}
-            {formSuccess && (
-              <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-                {formSuccess}
-              </div>
-            )}
-
-            {/* AI Profile Generator (Guided Action Lock & First Value Moment) */}
-            <div className="card animate-fade-in" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>AI Public Profile Generator</h3>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                    Describe your freelance services in a few words. Let AI instantly generate a complete Public Profile.
-                  </p>
-                </div>
-                {isFree && (
-                  <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
-                    1 Generation Attempt Free
-                  </span>
-                )}
-              </div>
-
-              <form onSubmit={handleGenerateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <textarea
-                  className="form-textarea"
-                  value={profilePrompt}
-                  onChange={(e) => setProfilePrompt(e.target.value)}
-                  placeholder="e.g. Full-stack developer building Next.js web applications and design systems"
-                  rows={2}
-                  style={{ width: '100%', fontSize: '0.85rem' }}
+            <section className="card" aria-labelledby="learning-preference-heading" style={{ padding: '20px 24px', marginBottom: '24px' }}>
+              <h2 id="learning-preference-heading" style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 8px' }}>Privacy &amp; Data</h2>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontWeight: 700 }}>
+                <input
+                  type="checkbox"
+                  aria-label="Help improve Corvioz Intelligence"
+                  checked={user?.intelligence_learning_opt_in === true}
+                  disabled={typeof user?.intelligence_learning_opt_in !== 'boolean' || isSavingLearningPreference}
+                  onChange={handleLearningPreferenceChange}
                 />
-                
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="submit"
-                    disabled={isGeneratingProfile}
-                    className="btn btn-primary"
-                    style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700 }}
-                  >
-                    {isGeneratingProfile ? 'Generating Profile...' : 'Generate for me'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('profile-attributes-card');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="btn btn-secondary"
-                    style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700 }}
-                  >
-                    Edit manually
-                  </button>
-                </div>
-              </form>
-            </div>
+                <span>Help improve Corvioz Intelligence</span>
+              </label>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: '8px 0 0 27px' }}>
+                Participation is optional and off by default; collection also requires Corvioz’s global server-side gate. If enabled, privacy-minimized structured workflow and decision signals may be collected to improve Corvioz and Photography Intelligence. Current learning telemetry excludes raw briefs, client details, and quote pricing. You can turn this preference off at any time.
+              </p>
+              <p role="status" aria-live="polite" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '8px 0 0 27px' }}>
+                {isSavingLearningPreference
+                  ? 'Saving… the displayed choice is still your last saved preference.'
+                  : typeof user?.intelligence_learning_opt_in === 'boolean'
+                    ? `Saved preference: ${user.intelligence_learning_opt_in ? 'On' : 'Off'}.`
+                    : 'Loading your saved preference…'}
+              </p>
+              {learningPreferenceError && <p role="alert" style={{ fontSize: '0.78rem', color: 'var(--danger-text)', margin: '8px 0 0 27px' }}>{learningPreferenceError}</p>}
+            </section>
 
-            <div className="dashboard-grid-2col">
-
-              {/* Card Profile Fields */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-                {/* Public Link Generator */}
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>Shareable URL</h3>
-                  {cpUsername ? (
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        readOnly
-                        className="form-input"
-                        style={{ background: 'var(--btn-secondary-bg)', color: 'var(--accent)', fontWeight: 600 }}
-                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${cpUsername}`}
-                      />
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/profile/${cpUsername}`);
-                          triggerToast('Profile Card Link copied!', 'success');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        Copy URL
-                      </button>
-                    </div>
-                  ) : (
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Select a username below to initialize your public business landing page URL.</p>
-                  )}
-                </div>
-                
-                {/* Brand Kit Card — deferred until the Studio tier is available. */}
-                {SHOW_DEFERRED_BRAND_KIT && (
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>Brand</span> Brand Kit & Logo Customization
-                    </h3>
-                    {!entitlements.automation && (
-                      <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
-                        Studio Pack
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.4' }}>
-                    Upload your custom logo, configure brand colors, and set up custom typography styles for Client Portals, quotes, and invoices.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (entitlements.automation) {
-                        triggerToast('Brand assets settings loaded. Ready to apply custom typography and logo.', 'success');
-                      } else {
-                        setModalProps({
-                          title: "Brand Kit is coming soon",
-                          description: "Custom brand kits are planned for Studio and are not available for purchase yet.",
-                          lockedFeatureValue: "Brand Kit & Logo Customization",
-                          limit: "brand_kit",
-                          source: "brand_kit_gate",
-                          targetPlan: "support"
-                        });
-                        setActiveModal('upgrade');
-                      }
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%', fontWeight: 700 }}
-                  >
-                    Configure Brand Kit
-                  </button>
-                </div>
-                )}
-
-                {/* Profile Details Card */}
-                <div id="profile-attributes-card" className="card" style={{ padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '20px' }}>Landing Page Attributes</h3>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Username (URL Slug)</label>
-                        <input type="text" className="form-input" placeholder="e.g. alex-morgan" value={cpUsername} onChange={e => setCpUsername(e.target.value)} required />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Display Name</label>
-                        <input type="text" className="form-input" placeholder="e.g. Alex Morgan" value={cpName} onChange={e => setCpName(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>Cover Banner CSS Background</span>
-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.65rem', padding: '1px 4px', borderRadius: '4px', scale: '0.9' }}>Pro</span>}
-                        </label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          placeholder={isFree ? "Default gradient (Upgrade to customize)" : "e.g. linear-gradient(135deg, #6366f1, #06b6d4)"} 
-                          value={isFree ? "" : cpCoverBanner} 
-                          disabled={isFree}
-                          onChange={e => setCpCoverBanner(e.target.value)} 
-                        />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Avatar Image URL</label>
-                        <input type="text" className="form-input" placeholder="e.g. https://example.com/avatar.jpg" value={cpAvatarUrl} onChange={e => setCpAvatarUrl(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Professional Subtitle</label>
-                      <input type="text" className="form-input" placeholder="e.g. Full-Stack Developer & SaaS Designer" value={cpTitle} onChange={e => setCpTitle(e.target.value)} />
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Value Proposition (Bio)</label>
-                      <textarea className="form-textarea" placeholder="Detail your experience, value proposition, and availability..." value={cpBio} onChange={e => setCpBio(e.target.value)} />
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Expertise Tags (Comma separated)</label>
-                      <input type="text" className="form-input" placeholder="React, Node.js, Figma, UI/UX" value={cpTags} onChange={e => setCpTags(e.target.value)} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Location</label>
-                        <input type="text" className="form-input" placeholder="e.g. Remote / London" value={cpLocation} onChange={e => setCpLocation(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Timezone</label>
-                        <input type="text" className="form-input" placeholder="e.g. GMT+1" value={cpTimezone} onChange={e => setCpTimezone(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Languages</label>
-                        <input type="text" className="form-input" placeholder="e.g. English, French" value={cpLanguages} onChange={e => setCpLanguages(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Starting Price</label>
-                        <input type="text" className="form-input" placeholder="e.g. $1,500" value={cpStartingPrice} onChange={e => setCpStartingPrice(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Avg Response Time</label>
-                        <input type="text" className="form-input" placeholder="e.g. < 2 hours" value={cpResponseTime} onChange={e => setCpResponseTime(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Availability Status</label>
-                        <select className="form-select" value={cpAvailabilityStatus} onChange={e => setCpAvailabilityStatus(e.target.value)}>
-                          <option value="Available for contract">Available for contract</option>
-                          <option value="High availability">High availability</option>
-                          <option value="Busy / Retainer only">Busy / Retainer only</option>
-                          <option value="Vacation / Offline">Vacation / Offline</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Calendly Booking Link URL</label>
-                      <input type="url" className="form-input" placeholder="e.g. https://calendly.com/your-username" value={cpCalendlyLink} onChange={e => setCpCalendlyLink(e.target.value)} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">Contact Email</label>
-                        <input type="email" className="form-input" value={cpEmail} onChange={e => setCpEmail(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Contact Phone</label>
-                        <input type="text" className="form-input" value={cpPhone} onChange={e => setCpPhone(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">GitHub Username</label>
-                        <input type="text" className="form-input" value={cpGithub} onChange={e => setCpGithub(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Twitter Username</label>
-                        <input type="text" className="form-input" value={cpTwitter} onChange={e => setCpTwitter(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <div className="input-group">
-                        <label className="input-label">LinkedIn Username</label>
-                        <input type="text" className="form-input" value={cpLinkedin} onChange={e => setCpLinkedin(e.target.value)} />
-                      </div>
-                      <div className="input-group">
-                        <label className="input-label">Website URL</label>
-                        <input type="url" className="form-input" value={cpWebsite} onChange={e => setCpWebsite(e.target.value)} />
-                      </div>
-                    </div>
-
-                    {/* Trust Badges Config */}
-                    <div className="card" style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <span className="input-label" style={{ fontSize: '0.65rem' }}>Profile Badges</span>
-                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
-                          <input type="checkbox" checked={isFree ? false : cpVerifiedBadge} disabled={isFree} onChange={e => setCpVerifiedBadge(e.target.checked)} />
-                          <span>Verified badge</span>
-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
-                          <input type="checkbox" checked={isFree ? false : cpTopRatedBadge} disabled={isFree} onChange={e => setCpTopRatedBadge(e.target.checked)} />
-                          <span>Top Rated badge</span>
-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isFree ? 'not-allowed' : 'pointer', opacity: isFree ? 0.7 : 1 }}>
-                          <input type="checkbox" checked={isFree ? false : cpFastResponseBadge} disabled={isFree} onChange={e => setCpFastResponseBadge(e.target.checked)} />
-                          <span>Fast Response badge</span>
-                          {isFree && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', fontSize: '0.6rem', padding: '1px 4px', borderRadius: '4px', scale: '0.85' }}>Pro</span>}
-                        </label>
-	                      </div>
-	                    </div>
-
-	                    <div className="card" style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)' }}>
-	                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
-	                        <input type="checkbox" checked={cpIsPublic} onChange={e => setCpIsPublic(e.target.checked)} />
-	                        Publish this profile
-	                      </label>
-	                      <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '8px 0 0' }}>
-	                        Published, complete profiles can be indexed. Unpublished or incomplete profiles stay noindex.
-	                      </p>
-	                    </div>
-
-	                    <button onClick={handleSaveCardProfile} disabled={isSaving} className="btn btn-primary" style={{ marginTop: '12px', width: '100%' }}>
-                      {isSaving ? 'Updating...' : 'Save Public Card Profile'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Services & Portfolios Builders */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-                {/* Services Section */}
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.01em' }}>Services List</h3>
-
-                  {/* Service list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    {cpServices.map((srv, idx) => (
-                      <div key={idx} style={{ padding: '10px 12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{srv.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>${srv.rate_amount} / {srv.rate_type}</div>
-                        </div>
-                        <button
-                          onClick={() => setCpServices(cpServices.filter((_, i) => i !== idx))}
-                          style={{ color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add service form */}
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input type="text" className="form-input" placeholder="Service Name (e.g. Next.js Development)" value={tmpSrvName} onChange={e => setTmpSrvName(e.target.value)} />
-                    <input type="text" className="form-input" placeholder="Service description..." value={tmpSrvDesc} onChange={e => setTmpSrvDesc(e.target.value)} />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
-                      <input type="number" className="form-input" placeholder="Amount (e.g. 1500)" value={tmpSrvAmount} onChange={e => setTmpSrvAmount(Number(e.target.value))} />
-                      <select className="form-select" value={tmpSrvType} onChange={e => setTmpSrvType(e.target.value)}>
-                        <option value="fixed">Fixed</option>
-                        <option value="hourly">Hourly</option>
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tmpSrvName || tmpSrvAmount <= 0) return;
-                        setCpServices([...cpServices, { id: `srv_${Date.now()}`, name: tmpSrvName, description: tmpSrvDesc, rate_type: tmpSrvType, rate_amount: tmpSrvAmount }]);
-                        setTmpSrvName('');
-                        setTmpSrvDesc('');
-                        setTmpSrvAmount(0);
-                      }}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      + Add Service
-                    </button>
-                  </div>
-                </div>
-
-                {/* Portfolio Section */}
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.01em' }}>Portfolio Showcase</h3>
-
-                  {/* Portfolio List */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    {cpPortfolio.map((p, idx) => (
-                      <div key={idx} style={{ padding: '10px 12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {p.title}
-                            {p.featured && <span style={{ fontSize: '0.65rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>★ Featured</span>}
-                          </div>
-                          {p.category && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Category: {p.category}</div>}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => {
-                              const newPort = [...cpPortfolio];
-                              const temp = newPort[idx];
-                              newPort[idx] = newPort[idx - 1];
-                              newPort[idx - 1] = temp;
-                              setCpPortfolio(newPort);
-                            }}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-soft)', cursor: idx === 0 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: idx === 0 ? 0.3 : 1, padding: '2px 4px' }}
-                            title="Move Up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === cpPortfolio.length - 1}
-                            onClick={() => {
-                              const newPort = [...cpPortfolio];
-                              const temp = newPort[idx];
-                              newPort[idx] = newPort[idx + 1];
-                              newPort[idx + 1] = temp;
-                              setCpPortfolio(newPort);
-                            }}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-soft)', cursor: idx === cpPortfolio.length - 1 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: idx === cpPortfolio.length - 1 ? 0.3 : 1, padding: '2px 4px' }}
-                            title="Move Down"
-                          >
-                            ▼
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCpPortfolio(cpPortfolio.filter((_, i) => i !== idx))}
-                            style={{ color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem', background: 'transparent', border: 'none', marginLeft: '6px' }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add portfolio form */}
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input type="text" className="form-input" placeholder="Project Title" value={tmpProjTitle} onChange={e => setTmpProjTitle(e.target.value)} />
-                    <input type="text" className="form-input" placeholder="Project description..." value={tmpProjDesc} onChange={e => setTmpProjDesc(e.target.value)} />
-                    <input type="url" className="form-input" placeholder="Project URL Link" value={tmpProjLink} onChange={e => setTmpProjLink(e.target.value)} />
-                    
-                    {activeTheme !== 'starter' && (
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Project Category (e.g. Design)" value={tmpProjCategory} onChange={e => setTmpProjCategory(e.target.value)} />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                          <input type="checkbox" checked={tmpProjFeatured} onChange={e => setTmpProjFeatured(e.target.checked)} />
-                          Featured Work
-                        </label>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tmpProjTitle) return;
-                        setCpPortfolio([...cpPortfolio, {
-                          title: tmpProjTitle,
-                          description: tmpProjDesc,
-                          link: tmpProjLink,
-                          category: tmpProjCategory || '',
-                          featured: !!tmpProjFeatured
-                        }]);
-                        setTmpProjTitle('');
-                        setTmpProjDesc('');
-                        setTmpProjLink('');
-                        setTmpProjCategory('');
-                        setTmpProjFeatured(false);
-                      }}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      + Add Project
-                    </button>
-                  </div>
-                </div>
-
-                {/* Testimonials Section */}
-                <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.01em' }}>Testimonials / Client Reviews</h3>
-
-                  {/* Testimonial List */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    {cpTestimonials.map((t, idx) => (
-                      <div key={idx} style={{ padding: '10px 12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{t.client_name} ({t.client_project})</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>&quot;{t.feedback}&quot;</div>
-                        </div>
-                        <button
-                          onClick={() => setCpTestimonials(cpTestimonials.filter((_, i) => i !== idx))}
-                          style={{ color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem' }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add testimonial form */}
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input type="text" className="form-input" placeholder="Client Name (e.g. Pepper Potts)" value={tmpClientName} onChange={e => setTmpClientName(e.target.value)} />
-                    <input type="text" className="form-input" placeholder="Project Name (e.g. Stark Staging Audit)" value={tmpClientProject} onChange={e => setTmpClientProject(e.target.value)} />
-                    <textarea className="form-textarea" placeholder="Client feedback details..." value={tmpClientFeedback} onChange={e => setTmpClientFeedback(e.target.value)} style={{ minHeight: '60px' }} />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tmpClientName || !tmpClientFeedback) return;
-                        setCpTestimonials([...cpTestimonials, { client_name: tmpClientName, client_project: tmpClientProject, feedback: tmpClientFeedback }]);
-                        setTmpClientName('');
-                        setTmpClientProject('');
-                        setTmpClientFeedback('');
-                      }}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      + Add Testimonial
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-            </div>
-          )
-        )}
+          </details>
+        </div>}
+        {!session && activeTab === 'profile' && renderGuestLockState('Public Profile', 'Sign in to edit your public profile.')}
 
         {/* TAB 7: STUDIO SPACE */}
         {activeTab === 'studio' && (
@@ -6469,15 +5554,16 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             renderGuestLockState('Studio Space', 'Centralized client management for multiple client records, overdue management, and reminder communications.')
           ) : (
             <StudioSpace
+              businessTimezone={user?.business_timezone}
               clients={getActiveClients()}
               invoices={invoices}
               quotes={quotes}
               leads={leads}
               getCurrencySymbol={getCurrencySymbol}
-              onCopyPortalLink={handleCopyPortalLink}
               triggerToast={triggerToast}
               isSandbox={isSandboxMode}
-              isStudioPreview={studioPreviewActive && !isStudio}
+              isStudioPreview={false}
+              clientWorkspaceProps={clientWorkspaceProps}
               businessModeBadge={businessModeBadge}
               onUpgrade={() => {
                 setModalProps({
@@ -6488,449 +5574,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
               }}
               onTabChange={(tab) => handleDashboardTabChange(tab, 'studio')}
             />
-          )
-        )}
-
-        {/* TAB 8: STUDIO PORTFOLIO MANAGER */}
-        {activeTab === 'portfolio' && (
-          !session && !isSandboxMode ? (
-            renderGuestLockState('Studio Showcase Manager', 'Configure case studies, results tracking, and media showcases.')
-          ) : (
-            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>Agency Showcase Manager</h1>
-                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>Publish grouped services, client testimonials, and featured work with results metrics.</p>
-              </div>
-
-              {formError && (
-                <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {formError}
-                </div>
-              )}
-              {formSuccess && (
-                <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {formSuccess}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px', alignItems: 'start' }}>
-                
-                {/* Left Column: Editor controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  
-                  {/* Landing slug */}
-                  <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Agency URL Slug</h3>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>corvioz.com/profile/</span>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        style={{ flex: 1 }} 
-                        placeholder="e.g. alpha-digital" 
-                        value={cpUsername} 
-                        onChange={e => setCpUsername(e.target.value)} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Grouped Services */}
-                  <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Service Offerings</h3>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                      {cpServices.map((srv, idx) => (
-                        <div key={srv.id || idx} style={{ padding: '12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{srv.name} <span style={{ fontSize: '0.7rem', color: 'var(--primary)', background: 'var(--primary-glow)', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{srv.group || 'General'}</span></div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-soft)' }}>${srv.rate_amount} &bull; {srv.rate_type}</div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setCpServices(cpServices.filter((_, i) => i !== idx))}
-                            style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <input type="text" className="form-input" placeholder="Service Name" value={tmpSrvName} onChange={e => setTmpSrvName(e.target.value)} />
-                        <input type="text" className="form-input" placeholder="Group (e.g. Design Services)" value={tmpSrvGroup} onChange={e => setTmpSrvGroup(e.target.value)} />
-                      </div>
-                      <textarea className="form-textarea" placeholder="Service description..." value={tmpSrvDesc} onChange={e => setTmpSrvDesc(e.target.value)} style={{ minHeight: '60px' }} />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <select className="form-select" value={tmpSrvType} onChange={e => setTmpSrvType(e.target.value)}>
-                          <option value="fixed">Flat Package Fee</option>
-                          <option value="hourly">Hourly Rate</option>
-                        </select>
-                        <input type="number" className="form-input" placeholder="Amount ($)" value={tmpSrvAmount || ''} onChange={e => setTmpSrvAmount(Number(e.target.value))} />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!tmpSrvName || tmpSrvAmount <= 0) return;
-                          setCpServices([...cpServices, {
-                            id: `srv_${Date.now()}`,
-                            name: tmpSrvName,
-                            description: tmpSrvDesc,
-                            rate_type: tmpSrvType,
-                            rate_amount: tmpSrvAmount,
-                            group: tmpSrvGroup || 'General'
-                          }]);
-                          setTmpSrvName('');
-                          setTmpSrvDesc('');
-                          setTmpSrvAmount(0);
-                          setTmpSrvGroup('');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        + Add Service
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Portfolio Case Studies */}
-                  <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Visual Case Studies</h3>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                      {cpPortfolio.map((p, idx) => (
-                        <div key={idx} style={{ padding: '12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {p.title}
-                              {p.featured && <span style={{ fontSize: '0.65rem', background: 'var(--accent-glow)', color: 'var(--accent)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>★ Featured</span>}
-                            </div>
-                            {p.results && <div style={{ fontSize: '0.72rem', color: 'var(--success)', fontWeight: 600 }}>Results: {p.results}</div>}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              disabled={idx === 0}
-                              onClick={() => {
-                                const newP = [...cpPortfolio];
-                                const temp = newP[idx];
-                                newP[idx] = newP[idx - 1];
-                                newP[idx - 1] = temp;
-                                setCpPortfolio(newP);
-                              }}
-                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: idx === 0 ? 'default' : 'pointer' }}
-                            >
-                              ▲
-                            </button>
-                            <button
-                              type="button"
-                              disabled={idx === cpPortfolio.length - 1}
-                              onClick={() => {
-                                const newP = [...cpPortfolio];
-                                const temp = newP[idx];
-                                newP[idx] = newP[idx + 1];
-                                newP[idx + 1] = temp;
-                                setCpPortfolio(newP);
-                              }}
-                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: idx === cpPortfolio.length - 1 ? 'default' : 'pointer' }}
-                            >
-                              ▼
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCpPortfolio(cpPortfolio.filter((_, i) => i !== idx))}
-                              style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', marginLeft: '6px' }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <input type="text" className="form-input" placeholder="Project Title" value={tmpProjTitle} onChange={e => setTmpProjTitle(e.target.value)} />
-                      <input type="text" className="form-input" placeholder="Project Description" value={tmpProjDesc} onChange={e => setTmpProjDesc(e.target.value)} />
-                      <input type="url" className="form-input" placeholder="Case Study URL (Optional)" value={tmpProjLink} onChange={e => setTmpProjLink(e.target.value)} />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <input type="text" className="form-input" placeholder="Category (e.g. Web Dev)" value={tmpProjCategory} onChange={e => setTmpProjCategory(e.target.value)} />
-                        <input type="text" className="form-input" placeholder="Results / Metrics (e.g. +82% Load Speed)" value={tmpProjResults} onChange={e => setTmpProjResults(e.target.value)} />
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '12px', alignItems: 'center' }}>
-                        <input type="url" className="form-input" placeholder="Video Embed URL (Vimeo/YouTube)" value={tmpProjMedia} onChange={e => setTmpProjMedia(e.target.value)} />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer', userSelect: 'none' }}>
-                          <input type="checkbox" checked={tmpProjFeatured} onChange={e => setTmpProjFeatured(e.target.checked)} />
-                          Featured Work
-                        </label>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!tmpProjTitle) return;
-                          setCpPortfolio([...cpPortfolio, {
-                            title: tmpProjTitle,
-                            description: tmpProjDesc,
-                            link: tmpProjLink,
-                            category: tmpProjCategory || '',
-                            featured: !!tmpProjFeatured,
-                            results: tmpProjResults || '',
-                            media_embed: tmpProjMedia || ''
-                          }]);
-                          setTmpProjTitle('');
-                          setTmpProjDesc('');
-                          setTmpProjLink('');
-                          setTmpProjCategory('');
-                          setTmpProjFeatured(false);
-                          setTmpProjResults('');
-                          setTmpProjMedia('');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        + Add Case Study
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Testimonials */}
-                  <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Testimonials & Reviews</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                      {cpTestimonials.map((t, idx) => (
-                        <div key={idx} style={{ padding: '12px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.client_name} &bull; <span style={{ color: 'var(--text-muted)' }}>{t.client_project}</span></div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-soft)', fontStyle: 'italic' }}>&quot;{t.feedback}&quot;</div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setCpTestimonials(cpTestimonials.filter((_, i) => i !== idx))}
-                            style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <input type="text" className="form-input" placeholder="Client Name" value={tmpClientName} onChange={e => setTmpClientName(e.target.value)} />
-                        <input type="text" className="form-input" placeholder="Project Role / Name" value={tmpClientProject} onChange={e => setTmpClientProject(e.target.value)} />
-                      </div>
-                      <textarea className="form-textarea" placeholder="Client feedback details..." value={tmpClientFeedback} onChange={e => setTmpClientFeedback(e.target.value)} style={{ minHeight: '60px' }} />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!tmpClientName || !tmpClientFeedback) return;
-                          setCpTestimonials([...cpTestimonials, {
-                            client_name: tmpClientName,
-                            client_project: tmpClientProject,
-                            feedback: tmpClientFeedback
-                          }]);
-                          setTmpClientName('');
-                          setTmpClientProject('');
-                          setTmpClientFeedback('');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        + Add Testimonial
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Right Column: Settings */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'sticky', top: '24px' }}>
-                  <div className="card" style={{ padding: '24px', background: 'var(--background-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Publish Details</h3>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: '1.4' }}>Save changes to update your live agency profile. This is instantly reflected on your custom Public Profile link.</p>
-                    
-                    <div className="input-group">
-                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Availability Status</label>
-                      <input type="text" className="form-input" value={cpAvailabilityStatus} onChange={e => setCpAvailabilityStatus(e.target.value)} />
-                    </div>
-                    
-                    <div className="input-group">
-                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Response target</label>
-                      <input type="text" className="form-input" value={cpResponseTime} onChange={e => setCpResponseTime(e.target.value)} />
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Starting Project Price</label>
-                      <input type="text" className="form-input" value={cpStartingPrice} onChange={e => setCpStartingPrice(e.target.value)} />
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label" style={{ fontSize: '0.72rem' }}>Calendly Booking URL</label>
-                      <input type="url" className="form-input" value={cpCalendlyLink} onChange={e => setCpCalendlyLink(e.target.value)} placeholder="https://calendly.com/your-team" />
-                    </div>
-
-                    <button
-                      onClick={handleSaveCardProfile}
-                      disabled={isSaving}
-                      className="btn btn-primary"
-                      style={{ width: '100%', fontWeight: 700, padding: '12px' }}
-                    >
-                      {isSaving ? 'Saving Changes...' : 'Save Public Profile'}
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )
-        )}
-
-        {/* TAB 9: STUDIO BRAND KIT */}
-        {activeTab === 'brand' && (
-          !session && !isSandboxMode ? (
-            renderGuestLockState('Brand Kit Settings', 'White-label client invoice documents, quote layouts, and custom theme presets.')
-          ) : (
-            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>Agency Brand Kit</h1>
-                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>Configure white-labeled assets, brand color variables, custom fonts, and profile styles.</p>
-              </div>
-
-              {formError && (
-                <div style={{ padding: '12px 16px', background: 'var(--danger-glow)', border: '1px solid var(--danger-border)', borderRadius: '6px', color: 'var(--danger-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {formError}
-                </div>
-              )}
-              {formSuccess && (
-                <div style={{ padding: '12px 16px', background: 'var(--success-glow)', border: '1px solid var(--success-border)', borderRadius: '6px', color: 'var(--success-text)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {formSuccess}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' }}>
-                
-                {/* Brand controls */}
-                <div className="card" style={{ padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Theme & Colors</h3>
-                  
-                  <div className="input-group">
-                    <label className="input-label">Agency Logo URL</label>
-                    <input 
-                      type="url" 
-                      className="form-input" 
-                      placeholder="https://..." 
-                      value={cpLogoUrl} 
-                      onChange={e => setCpLogoUrl(e.target.value)} 
-                    />
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-soft)', marginTop: '4px' }}>Renders on public landing header and in invoice PDFs.</span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div className="input-group">
-                      <label className="input-label">Primary Color</label>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input type="color" value={cpBrandColor || '#4f46e5'} onChange={e => setCpBrandColor(e.target.value)} style={{ width: '40px', height: '40px', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', padding: 0, background: 'none' }} />
-                        <input type="text" className="form-input" value={cpBrandColor} onChange={e => setCpBrandColor(e.target.value)} style={{ flex: 1, fontFamily: 'monospace' }} />
-                      </div>
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">Secondary Color</label>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input type="color" value={cpBrandSecondary || '#06b6d4'} onChange={e => setCpBrandSecondary(e.target.value)} style={{ width: '40px', height: '40px', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', padding: 0, background: 'none' }} />
-                        <input type="text" className="form-input" value={cpBrandSecondary} onChange={e => setCpBrandSecondary(e.target.value)} style={{ flex: 1, fontFamily: 'monospace' }} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div className="input-group">
-                      <label className="input-label">Typography Font</label>
-                      <select className="form-select" value={cpFontFamily} onChange={e => setCpFontFamily(e.target.value)}>
-                        <option value="Inter">Inter (Sans-Serif)</option>
-                        <option value="Outfit">Outfit (Agency Clean)</option>
-                        <option value="Playfair Display">Playfair Display (Premium Editorial)</option>
-                      </select>
-                    </div>
-                    <div className="input-group">
-                      <label className="input-label">Theme Preference</label>
-                      <select className="form-select" value={cpThemePreference} onChange={e => setCpThemePreference(e.target.value)}>
-                        <option value="dark">Sleek Dark Mode</option>
-                        <option value="light">Crisp Light Mode</option>
-                        <option value="glass">Glassmorphism Aesthetic</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleSaveCardProfile}
-                    disabled={isSaving}
-                    className="btn btn-primary"
-                    style={{ width: '100%', fontWeight: 700, padding: '12px', marginTop: '12px' }}
-                  >
-                    {isSaving ? 'Saving Assets...' : 'Apply Brand Settings'}
-                  </button>
-                </div>
-
-                {/* Brand Preview */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'sticky', top: '24px' }}>
-                  <div className="card" style={{ 
-                    padding: '32px', 
-                    background: cpThemePreference === 'light' ? '#ffffff' : (cpThemePreference === 'glass' ? 'rgba(30, 41, 59, 0.4)' : '#0f172a'),
-                    color: cpThemePreference === 'light' ? '#1e293b' : '#f8fafc',
-                    border: '1px solid var(--border)',
-                    borderRadius: '16px',
-                    fontFamily: cpFontFamily === 'Outfit' ? '"Outfit", sans-serif' : (cpFontFamily === 'Playfair Display' ? '"Playfair Display", serif' : 'var(--font-sans)'),
-                    backdropFilter: cpThemePreference === 'glass' ? 'blur(16px)' : 'none',
-                    boxShadow: 'var(--shadow-lg)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '20px' }}>
-                      <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8, fontWeight: 700 }}>White-Label Web Preview</span>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: cpBrandColor || '#4f46e5' }}></span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                      {cpLogoUrl ? (
-                        <img src={cpLogoUrl} alt="Logo" style={{ height: '40px', objectFit: 'contain' }} />
-                      ) : (
-                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: `linear-gradient(135deg, ${cpBrandColor || '#4f46e5'}, ${cpBrandSecondary || '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800 }}>A</div>
-                      )}
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>{cpName || 'Alpha Agency'}</h4>
-                        <span style={{ fontSize: '0.72rem', color: cpThemePreference === 'light' ? '#64748b' : '#94a3b8' }}>{cpTitle || 'Studio Dashboard'}</span>
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 24px 0', opacity: 0.9 }}>
-                      This live preview displays how your public landing page, milestone portals, and itemized client receipts will adapt to your agency brand colors, logo, and selected typography.
-                    </p>
-
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button style={{
-                        flex: 1,
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: cpBrandColor || '#4f46e5',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '0.8rem'
-                      }}>
-                        Primary Button
-                      </button>
-                      <button style={{
-                        flex: 1,
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: `1px solid ${cpBrandColor || 'var(--border)'}`,
-                        background: 'transparent',
-                        color: cpThemePreference === 'light' ? cpBrandColor : '#fff',
-                        fontWeight: 600,
-                        fontSize: '0.8rem'
-                      }}>
-                        Outline CTA
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
           )
         )}
 
@@ -6950,15 +5593,15 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Document Total</span>
                   <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--primary)' }}>
-                    ${leads.reduce((sum, l) => {
+                    {formatDashboardNumber(leads.reduce((sum, l) => {
                       const utm = typeof l.source_utm === 'object' ? l.source_utm : JSON.parse(l.source_utm || '{}');
                       return sum + Number(utm.lead_value || l.lead_value || 0);
-                    }, 0).toLocaleString()}
+                    }, 0))}
                   </h3>
                 </div>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acquisition Cost (CAC)</span>
-                  <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>$240.00</h3>
+                  <h3 style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0 0 0', color: 'var(--success)' }}>240.00 · Currency not specified</h3>
                 </div>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deal Close Velocity</span>
@@ -6976,12 +5619,12 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0 }}>Monthly Client Workflow Growth</h3>
                   <div style={{ display: 'flex', gap: '20px', height: '200px', alignItems: 'flex-end', borderBottom: '1px solid var(--border)', paddingBottom: '10px', paddingTop: '20px' }}>
                     {[
-                      { month: 'Jan', val: 40, amt: '$4,000' },
-                      { month: 'Feb', val: 55, amt: '$5,500' },
-                      { month: 'Mar', val: 78, amt: '$7,800' },
-                      { month: 'Apr', val: 62, amt: '$6,200' },
-                      { month: 'May', val: 95, amt: '$9,500' },
-                      { month: 'Jun', val: 120, amt: '$12,000' },
+                      { month: 'Jan', val: 40, amt: '4,000 · Currency not specified' },
+                      { month: 'Feb', val: 55, amt: '5,500 · Currency not specified' },
+                      { month: 'Mar', val: 78, amt: '7,800 · Currency not specified' },
+                      { month: 'Apr', val: 62, amt: '6,200 · Currency not specified' },
+                      { month: 'May', val: 95, amt: '9,500 · Currency not specified' },
+                      { month: 'Jun', val: 120, amt: '12,000 · Currency not specified' },
                     ].map((bar, idx) => (
                       <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%', justifyContent: 'flex-end' }}>
                         <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-soft)' }}>{bar.amt}</span>
@@ -7130,7 +5773,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             aria-modal="true"
             aria-labelledby="beta-feedback-title"
             onSubmit={submitBetaFeedback}
-            className="card"
+            className="card dashboard-modal-card"
             style={{
               width: 'min(100%, 520px)',
               padding: '28px',
@@ -7145,10 +5788,10 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
               <div>
                 <h3 id="beta-feedback-title" style={{ margin: '0 0 8px', fontSize: '1.15rem', fontWeight: 850 }}>
-                  Share Beta Feedback
+                  Share Feedback
                 </h3>
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
-                  Tell us what broke, what felt unclear, or what should improve before the beta opens wider.
+                  Tell us what broke, what felt unclear, or what we can improve.
                 </p>
               </div>
               <button
@@ -7189,7 +5832,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 onChange={(e) => setFeedbackCategory(e.target.value)}
               >
                 <option>Dashboard</option>
-                <option>Client Portal</option>
+                <option>Client-facing page</option>
                 <option>Quote</option>
                 <option>Invoice</option>
                 <option>Pricing</option>
@@ -7244,6 +5887,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           aria-modal="true"
           aria-labelledby="record-payment-title"
           data-testid="record-payment-modal"
+          className="dashboard-modal-overlay"
           style={{
             position: 'fixed',
             top: 0,
@@ -7259,7 +5903,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           }}
         >
           <form
-            className="card animate-fade-in"
+            className="card animate-fade-in dashboard-modal-card"
             onSubmit={(event) => {
               event.preventDefault();
               handleRecordPayment(recordPaymentInvoice);
@@ -7311,373 +5955,28 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         </div>
       )}
 
-      {/* Reminder Text Copy Modal */}
-      {showReminderModal && selectedInvoiceForReminder && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-fade-in" style={{ maxWidth: '600px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Send Overdue Reminder</h3>
-              <button onClick={() => setShowReminderModal(false)} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer' }}>&times;</button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              {[
-                { id: '7', label: '7 Days Overdue' },
-                { id: '14', label: '14 Days Overdue' },
-                { id: '30', label: '30 Days Overdue' }
-              ].map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => { setActiveReminderTemplate(t.id); setReminderCopied(false); }}
-                  className="btn btn-secondary btn-sm"
-                  style={{
-                    backgroundColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'rgba(255,255,255,0.02)',
-                    borderColor: activeReminderTemplate === t.id ? 'var(--primary)' : 'var(--border)'
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ padding: '16px', background: 'var(--btn-secondary-bg)', border: '1px solid var(--border)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '20px', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
-              <div style={{ fontWeight: 'bold', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
-                Subject: {getReminderEmailContent().subject}
-              </div>
-              <div>{getReminderEmailContent().body}</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => {
-                  const content = `Subject: ${getReminderEmailContent().subject}\n\n${getReminderEmailContent().body}`;
-                  navigator.clipboard.writeText(content);
-                  setReminderCopied(true);
-                }}
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
-                {reminderCopied ? 'Copied Content!' : 'Copy to Clipboard'}
-              </button>
-              <button onClick={() => setShowReminderModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Paywall Modals */}
-      <UpgradeModal
-        isOpen={activeModal === 'upgrade'}
-        onClose={() => setActiveModal(null)}
-        title={modalProps.title}
-        description={modalProps.description}
-        lockedFeatureValue={modalProps.lockedFeatureValue}
-        limit={modalProps.limit}
-        source={modalProps.source}
-        explanation={modalProps.explanation}
-        targetPlan={modalProps.targetPlan || 'pro'}
-      />
-
-      <ExportRestrictionModal
-        isOpen={activeModal === 'export'}
-        onClose={() => {
-          setActiveModal(null);
-        }}
-        onDownloadFree={() => {
-          if (modalProps.onDownloadFree) {
-            modalProps.onDownloadFree();
-          }
-          setActiveModal(null);
-        }}
-        source={modalProps.source}
-        explanation={modalProps.explanation}
-        documentType={modalProps.documentType}
-      />
-
-      <PricingUpsellModal
-        isOpen={activeModal === 'pricing_upsell'}
-        onClose={() => setActiveModal(null)}
-        source={modalProps.source}
-        explanation={modalProps.explanation}
-      />
-
-      <PricingRedirectOverlay
-        isOpen={activeModal === 'redirect_overlay'}
-        explanation={modalProps.explanation}
-      />
-
-      {showExportPurposeModal && (
-        <div role="dialog" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(3, 7, 18, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="card animate-fade-in" style={{
-            maxWidth: '460px',
-            width: '95%',
-            padding: '28px',
-            background: 'var(--bg-card, #111827)',
-            border: '1px solid var(--border, #1f2937)',
-            borderRadius: '16px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5)',
-            fontFamily: 'Outfit, sans-serif'
-          }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main, #f9fafb)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📦</span> Specify Export Context
-            </h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 20px 0', lineHeight: 1.4 }}>
-              Before exporting, please indicate the business context of this action. This helps keep your workflow history accurate.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-soft, #d1d5db)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  Export Purpose
-                </label>
-                <select
-                  value={exportPurpose}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setExportPurpose(val);
-                    if (val === 'client send' || val === 'final invoice') {
-                      setExportSentToClient(true);
-                    } else {
-                      setExportSentToClient(false);
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-surface, #030712)',
-                    border: '1px solid var(--border, #1f2937)',
-                    color: 'var(--text-main, #f9fafb)',
-                    fontSize: '0.85rem',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="draft">📝 Internal Draft Export</option>
-                  <option value="client send">Send to Client Review</option>
-                  <option value="final invoice">Final Accounting Invoice</option>
-                  <option value="revision export">🔄 Scope Revision / Edit Update</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border, #1f2937)' }}>
-                <input
-                  type="checkbox"
-                  id="sent-to-client-checkbox"
-                  checked={exportSentToClient}
-                  onChange={(e) => setExportSentToClient(e.target.checked)}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    accentColor: 'var(--primary, #4F46E5)',
-                    cursor: 'pointer'
-                  }}
-                />
-                <label htmlFor="sent-to-client-checkbox" style={{ fontSize: '0.8rem', color: 'var(--text-soft, #d1d5db)', cursor: 'pointer', select: 'none', lineHeight: 1.3 }}>
-                  This document will be delivered to the client
-                </label>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-              <button
-                onClick={() => setShowExportPurposeModal(false)}
-                className="btn btn-secondary"
-                style={{ flex: 1, padding: '10px 0', fontSize: '0.85rem', fontWeight: 600 }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmExport}
-                className="btn btn-primary"
-                style={{ flex: 1, padding: '10px 0', fontSize: '0.85rem', fontWeight: 700, background: 'var(--primary, #4F46E5)', color: '#fff' }}
-              >
-                Confirm &amp; Export
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-
-      {/* 3. Business Mode Activated Modal (1st Client created) */}
-      {showBusinessModeModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(3, 7, 18, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="card animate-fade-in" style={{
-            maxWidth: '460px',
-            width: '95%',
-            padding: '28px',
-            background: 'var(--bg-card, #111827)',
-            border: '1px solid var(--border, #1f2937)',
-            borderRadius: '16px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5)',
-            fontFamily: 'Outfit, sans-serif'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <span className="product-state-mark">Pro</span>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
-                Business Mode Activated
-              </h3>
-            </div>
-            
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-soft, #d1d5db)', margin: '0 0 16px 0', lineHeight: 1.45, textAlign: 'center' }}>
-              Congratulations on creating your first client profile! You are moving from ad-hoc tasks to an organized photography business.
-            </p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 20px 0', lineHeight: 1.4, textAlign: 'center' }}>
-              To support this growth, the <strong>Pro Plan</strong> adds clean PDF exports, Client Portal, quote approval, and clearer client records.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <Link
-                href="/pricing?checkout=pro"
-                onClick={() => {
-                  setShowBusinessModeModal(false);
-                  saveSelectedPlan('pro', 'business_mode_modal');
-                  trackUpgradeClick('business_mode_modal', 'pro');
-                }}
-                className="btn btn-primary"
-                style={{ width: '100%', textAlign: 'center', textDecoration: 'none', padding: '10px 0', fontSize: '0.85rem', fontWeight: 700, background: 'var(--primary, #4F46E5)', color: '#fff' }}
-              >
-                Upgrade to Pro
-              </Link>
-              <button
-                onClick={() => setShowBusinessModeModal(false)}
-                className="btn btn-secondary"
-                style={{ width: '100%', padding: '10px 0', fontSize: '0.82rem', fontWeight: 600 }}
-              >
-                Continue to Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Studio Preview Welcome Modal (2nd Client created) */}
-      {showStudioPreviewModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(3, 7, 18, 0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="card animate-fade-in" style={{
-            maxWidth: '480px',
-            width: '95%',
-            padding: '32px',
-            background: 'var(--bg-card, #111827)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            borderRadius: '20px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5)',
-            fontFamily: 'Outfit, sans-serif'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <span className="product-state-mark studio-modal-mark">Studio</span>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-main, #f9fafb)' }}>
-                Scale Operations with Studio
-              </h3>
-            </div>
-            
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-soft, #d1d5db)', margin: '0 0 16px 0', lineHeight: 1.45, textAlign: 'center' }}>
-              With 2+ clients in your roster, managing individual contracts gets complex. To help you manage this scale, we have unlocked a **Preview** of the **Service Business Studio**.
-            </p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #9ca3af)', margin: '0 0 24px 0', lineHeight: 1.4, textAlign: 'center' }}>
-              Explore the Client Status Board, Overdue Invoice Tracker, and communications center. Studio is positioned as a comprehensive hub for your multi-client workflow operations.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => {
-                  setShowStudioPreviewModal(false);
-                  handleDashboardTabChange('studio', 'studio_welcome_modal');
-                }}
-                className="btn btn-secondary"
-                style={{ flex: 1, padding: '10px 0', fontSize: '0.82rem', fontWeight: 700 }}
-              >
-                Explore Preview
-              </button>
-              <button
-                type="button"
-                disabled
-                className="btn btn-primary"
-                style={{ flex: 1, padding: '10px 0', fontSize: '0.82rem', fontWeight: 700, background: 'var(--surface-muted, #374151)', color: 'var(--text-muted, #9ca3af)', border: '1px solid var(--border)', cursor: 'not-allowed', opacity: 0.8 }}
-              >
-                Studio — Coming Soon
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {suggestedActionDoc && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-fade-in" style={{ maxWidth: '500px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center' }}>
+        <div className="dashboard-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-fade-in dashboard-modal-card" style={{ maxWidth: '500px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center' }}>
               <span className="product-state-mark">Done</span>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-main)' }}>
-              {suggestedActionDoc.type === 'invoice' ? 'Invoice Ready!' : 'Quote Ready!'}
+              {suggestedActionDoc.type === 'invoice' ? suggestedActionDoc.simulated ? 'Sample Invoice Ready' : suggestedActionDoc.created === false ? 'Invoice Saved' : 'Invoice Ready!' : 'Quote Ready!'}
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 24px 0', lineHeight: 1.4 }}>
-              Your document draft #{suggestedActionDoc.number} has been created successfully. What would you like to do next?
+              {suggestedActionDoc.type === 'invoice' && suggestedActionDoc.simulated
+                ? `Your sample Invoice #${suggestedActionDoc.number} is ready. No account data changed.`
+                : suggestedActionDoc.type === 'invoice' && suggestedActionDoc.created === false
+                ? `Your Invoice #${suggestedActionDoc.number} has been saved and verified. What would you like to do next?`
+                : `Your document draft #${suggestedActionDoc.number} has been created successfully. What would you like to do next?`}
             </p>
 
-            {suggestedActionDoc.type === 'quote' && isFree && (
-              <div style={{
-                background: 'var(--primary-glow)',
-                border: '1.5px solid var(--primary)',
-                borderRadius: '8px',
-                padding: '10px 14px',
-                marginBottom: '18px',
-                fontSize: '0.8rem',
-                color: 'var(--text-soft)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                justifyContent: 'center',
-                textAlign: 'left'
-              }}>
-                <span>Pro</span>
-                <span>Pro users get quote approval tracking and client-ready delivery records.</span>
-              </div>
-            )}
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-              {/* Option 1: Send to Client */}
+              {/* Option 1: Open the saved document */}
               <button
                 onClick={() => {
-	                  handleCopyPortalLink(suggestedActionDoc.id, suggestedActionDoc.type);
-	                  setSuggestedActionDoc(null);
-	                  if (suggestedActionDoc.type === 'invoice') setInvoiceView('list');
-	                  else setQuoteView('list');
+                  const docInfo = suggestedActionDoc;
+                  setSuggestedActionDoc(null);
+                  openDocument({ documentType: docInfo.type, id: docInfo.id });
                 }}
                 className="btn btn-primary animate-pulse-subtle"
                 style={{ 
@@ -7697,8 +5996,8 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                   cursor: 'pointer'
                 }}
               >
-                <span>Link</span>
-                <span>Send to Client (Copy Portal Link)</span>
+                <span>Open</span>
+                <span>Open {suggestedActionDoc.type === 'invoice' ? 'Invoice' : 'Quote'}</span>
               </button>
 
               {/* Option 2: Export PDF */}
@@ -7707,8 +6006,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
 	                  const docInfo = suggestedActionDoc;
 	                  setSuggestedActionDoc(null);
 	                  await handleExportAttempt(docInfo.elementId, `${docInfo.type}_${docInfo.number}`, docInfo.id);
-	                  if (docInfo.type === 'invoice') setInvoiceView('list');
-	                  else setQuoteView('list');
+
                 }}
                 className="btn btn-secondary"
                 style={{ 
@@ -7724,9 +6022,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 }}
               >
                 <span>Export</span>
-                <span>{!entitlements.export_pdf ? 'Watermarked PDF export' : 'Export Client-Ready PDF'}</span>
+                <span>{hasCleanPdf ? 'Export Clean PDF' : 'Export Watermarked PDF'}</span>
               </button>
-              {!entitlements.export_pdf && (
+              {!hasCleanPdf && (
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '-8px 0 0 0', textAlign: 'center' }}>
                   Client-visible watermark will appear
                 </p>
@@ -7756,7 +6054,7 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
                 }}
               >
                 <span>📝</span>
-                <span>{suggestedActionDoc.type === 'invoice' ? 'Improve quote follow-up' : 'Create Invoice'}</span>
+                <span>{suggestedActionDoc.type === 'invoice' ? 'Create Quote' : 'Create Invoice'}</span>
               </button>
             </div>
 
@@ -7781,112 +6079,6 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
         </div>
       )}
 
-      {/* Post Export Suggested Actions & Insights Modal */}
-      {postExportDoc && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-fade-in" style={{ maxWidth: '500px', width: '90%', padding: '32px', background: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Document Exported</h3>
-              <button onClick={() => setPostExportDoc(null)} style={{ fontSize: '1.5rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>&times;</button>
-            </div>
-
-            {/* Behavioral Feedback Panel */}
-            <div style={{ padding: '16px', background: 'var(--primary-glow)', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px', textAlign: 'left' }}>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>
-                Next-Step Insights
-              </h4>
-              <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-soft)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <li>Recommended action: Share your exported document with your client.</li>
-                <li>Common next step: Track delivery and status updates.</li>
-              </ul>
-            </div>
-
-            {isFree && (
-              <div style={{
-                padding: '16px',
-                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%)',
-                borderRadius: '8px',
-                border: '1.5px dashed rgba(79, 70, 229, 0.3)',
-                marginBottom: '24px',
-                textAlign: 'left'
-              }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: '0 0 6px 0', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>⭐</span> Remove PDF Watermarks
-                </h4>
-                <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: 1.4 }}>
-                  Your clients will see a watermark on free exports. Upgrade to Pro to get clean, professional, and client-ready PDFs.
-                </p>
-                <Link
-                  href="/pricing?checkout=pro"
-                  onClick={() => {
-                    trackEvent('upgrade_trigger_clicked', {
-                      plan: 'free',
-                      target_plan: 'pro',
-                      offer_type: 'checkout_nudge',
-                      cta_text: 'Upgrade to Pro'
-                    });
-                    setPostExportDoc(null);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    textDecoration: 'none',
-                    borderRadius: '6px',
-                    background: 'var(--primary)',
-                    color: '#ffffff',
-                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Upgrade to Pro (Remove Watermarks)
-                </Link>
-              </div>
-            )}
-
-            {/* Share Moment System */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button
-                onClick={() => {
-                  if (postExportDoc.id) {
-                    handleCopyPortalLink(postExportDoc.id, postExportDoc.type);
-                  } else {
-                    triggerToast('Copying portal link (Sandbox Mode)...', 'success');
-                  }
-                  setPostExportDoc(null);
-                }}
-                className="btn btn-primary"
-                style={{ 
-                  width: '100%', 
-                  padding: '12px', 
-                  fontSize: '0.9rem', 
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>Link</span>
-                <span>Copy Client Portal Link (Recommended)</span>
-              </button>
-
-              <button
-                onClick={() => setPostExportDoc(null)}
-                className="btn btn-secondary"
-                style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {toast && (
         <div style={{
           position: 'fixed',
@@ -7932,9 +6124,9 @@ export default function Dashboard({ mode = 'live', initialTool: routeInitialTool
           isDebugPanelVisible={isDebugPanelVisible}
           setIsDebugPanelVisible={setIsDebugPanelVisible}
           exportCount={exportCount}
-          isFree={isFree}
+          isFreePlan={isFreePlan}
           planStatusLabel={planStatusLabel}
-          showExportPurposeModal={showExportPurposeModal}
+          isDownloadingPdf={isDownloadingPdf}
         />
       )}
     </div>
@@ -7946,9 +6138,9 @@ function DevDashboardAuditPanel({
   isDebugPanelVisible,
   setIsDebugPanelVisible,
   exportCount,
-  isFree,
+  isFreePlan,
   planStatusLabel,
-  showExportPurposeModal
+  isDownloadingPdf
 }) {
   if (isDebugPanelVisible) {
     return (
@@ -7997,7 +6189,7 @@ function DevDashboardAuditPanel({
           </div>
           <div style={{ background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '2px' }}>User Plan</div>
-            <strong style={{ fontSize: '1rem', color: isFree ? '#f43f5e' : '#10b981' }}>{planStatusLabel}</strong>
+            <strong style={{ fontSize: '1rem', color: isFreePlan ? '#f43f5e' : '#10b981' }}>{planStatusLabel}</strong>
           </div>
         </div>
 
@@ -8005,8 +6197,8 @@ function DevDashboardAuditPanel({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <strong style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Trigger Status</strong>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            <span style={{ padding: '3px 8px', borderRadius: '99px', background: showExportPurposeModal ? '#2563eb' : 'rgba(255,255,255,0.05)', color: showExportPurposeModal ? '#fff' : '#64748b', fontWeight: 600, fontSize: '0.7rem' }}>
-              Purpose Modal: {showExportPurposeModal ? 'VISIBLE' : 'HIDDEN'}
+            <span style={{ padding: '3px 8px', borderRadius: '99px', background: isDownloadingPdf ? '#2563eb' : 'rgba(255,255,255,0.05)', color: isDownloadingPdf ? '#fff' : '#64748b', fontWeight: 600, fontSize: '0.7rem' }}>
+              PDF download: {isDownloadingPdf ? 'PENDING' : 'IDLE'}
             </span>
           </div>
         </div>
@@ -8031,7 +6223,7 @@ function DevDashboardAuditPanel({
                 <div key={idx} style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: '3px solid #38bdf8', fontSize: '0.78rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                     <span style={{ fontWeight: 700, color: '#38bdf8' }}>{evt.name}</span>
-                    <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                    <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{formatDashboardTime(evt.timestamp)}</span>
                   </div>
                   {evt.props && Object.keys(evt.props).length > 0 && (
                     <div style={{ color: '#94a3b8', fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
